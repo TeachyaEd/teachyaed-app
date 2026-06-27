@@ -275,6 +275,16 @@ tr:hover td{background:#FAFAFA}
 .cv-action-row.finish{border-top:1px solid var(--gray-border)}
 .cv-action-row.finish:hover{color:var(--green)}
 .cv-ai-panel{border-top:1px solid var(--gray-border);padding:12px}
+.cv-ai-chat{margin-top:10px;display:flex;flex-direction:column;gap:8px}
+.cv-ai-msgs{max-height:220px;overflow-y:auto;display:flex;flex-direction:column;gap:6px;padding:4px 0}
+.cv-ai-msg{padding:8px 10px;border-radius:10px;font-size:.82rem;line-height:1.4;max-width:90%}
+.cv-ai-msg.user{background:var(--purple);color:#fff;align-self:flex-end;border-bottom-right-radius:3px}
+.cv-ai-msg.ai{background:var(--gray-light);color:var(--text);align-self:flex-start;border-bottom-left-radius:3px}
+.cv-ai-msg.loading{color:var(--text3);font-style:italic}
+.cv-ai-input-row{display:flex;gap:6px}
+.cv-ai-inp{flex:1;padding:7px 10px;border:1.5px solid var(--gray-border);border-radius:8px;font-size:.82rem;font-family:var(--font);outline:none}
+.cv-ai-inp:focus{border-color:var(--purple)}
+.cv-ai-send{padding:7px 12px;background:var(--purple);color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:.9rem}
 .cv-ai-toggle-btn{width:100%;padding:10px 14px;border:2px solid var(--purple-light);border-radius:10px;background:var(--purple-light);color:var(--purple);font-size:.85rem;font-weight:700;cursor:pointer;font-family:var(--font);display:flex;align-items:center;gap:8px;justify-content:center;transition:.15s}
 .cv-ai-toggle-btn:hover{background:var(--purple);color:#fff;border-color:var(--purple)}
 
@@ -670,11 +680,11 @@ tr:hover td{background:#FAFAFA}
   <div class="cv-body">
     <!-- Left tool icons -->
     <div class="cv-left-sidebar">
-      <button class="cv-tool-btn" title="Заметки">💬</button>
-      <button class="cv-tool-btn" title="Словарь" style="font-size:.75rem;letter-spacing:-.5px">Ax</button>
+      <button class="cv-tool-btn" title="Заметки" onclick="toggleToolPanel('notes')">💬</button>
+      <button class="cv-tool-btn" title="Словарь" style="font-size:.75rem;letter-spacing:-.5px" onclick="toggleToolPanel('dict')">Ax</button>
       <button class="cv-tool-btn" title="Задания">📋</button>
-      <button class="cv-tool-btn" title="Таймер">⏱</button>
-      <button class="cv-tool-btn" title="Шаблоны">▦</button>
+      <button class="cv-tool-btn" title="Таймер" onclick="toggleToolPanel('timer')">⏱</button>
+      <button class="cv-tool-btn" title="Шаблоны" onclick="toggleToolPanel('templates')">▦</button>
     </div>
     <!-- Main editor -->
     <div class="cv-main">
@@ -697,7 +707,14 @@ tr:hover td{background:#FAFAFA}
         <button onclick="saveFromCE(false)" style="width:100%;padding:9px;background:var(--gray-light);color:var(--text2);border:none;border-radius:10px;font-size:.85rem;font-weight:600;cursor:pointer;font-family:var(--font)">💾 Черновик</button>
       </div>
       <div class="cv-ai-panel">
-        <button class="cv-ai-toggle-btn">🤖 AI Ассистент</button>
+        <button class="cv-ai-toggle-btn" onclick="toggleAIPanel('ce')">🤖 AI Ассистент</button>
+        <div class="cv-ai-chat" id="ce_aiChat" style="display:none">
+          <div class="cv-ai-msgs" id="ce_aiMsgs"></div>
+          <div class="cv-ai-input-row">
+            <input class="cv-ai-inp" id="ce_aiInp" placeholder="Спроси что-нибудь..." onkeydown="if(event.key==='Enter')sendAIMsg('ce')">
+            <button class="cv-ai-send" onclick="sendAIMsg('ce')">→</button>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -743,11 +760,11 @@ tr:hover td{background:#FAFAFA}
   <div class="cv-body">
     <!-- Left sidebar tools -->
     <div class="cv-left-sidebar">
-      <button class="cv-tool-btn" title="Заметки">💬</button>
-      <button class="cv-tool-btn" title="Словарь" style="font-size:.75rem;letter-spacing:-.5px">Ax</button>
+      <button class="cv-tool-btn" title="Заметки" onclick="toggleToolPanel('notes')">💬</button>
+      <button class="cv-tool-btn" title="Словарь" style="font-size:.75rem;letter-spacing:-.5px" onclick="toggleToolPanel('dict')">Ax</button>
       <button class="cv-tool-btn" title="Задания">📋</button>
-      <button class="cv-tool-btn" title="Таймер">⏱</button>
-      <button class="cv-tool-btn" title="Шаблоны" style="font-size:1rem">▦</button>
+      <button class="cv-tool-btn" title="Таймер" onclick="toggleToolPanel('timer')">⏱</button>
+      <button class="cv-tool-btn" title="Шаблоны" style="font-size:1rem" onclick="toggleToolPanel('templates')">▦</button>
     </div>
     <!-- Main content -->
     <div class="cv-main">
@@ -767,20 +784,51 @@ tr:hover td{background:#FAFAFA}
       <div class="cv-call-panel" id="cv_callPanel">
         <div class="cv-call-icon">📞</div>
         <div class="cv-call-text">Позвоните, когда урок начнется</div>
-        <button class="cv-call-btn">Позвонить</button>
+        <button class="cv-call-btn" onclick="cvCallStudent()">Позвонить</button>
       </div>
       <div>
         <div class="cv-sections-head">Разделы</div>
         <div id="cv_sectionsList"></div>
-        <button class="cv-action-row">+ Добавить раздел</button>
         <button class="cv-action-row finish" onclick="completeLessonView()">🏁 Завершить урок</button>
-        <button class="cv-action-row">📎 Дополнительно</button>
+        <button class="cv-action-row" onclick="toggleToolPanel('notes')">📝 Заметки к уроку</button>
       </div>
       <div class="cv-ai-panel">
-        <button class="cv-ai-toggle-btn">🤖 AI Ассистент</button>
+        <button class="cv-ai-toggle-btn" onclick="toggleAIPanel('cv')">🤖 AI Ассистент</button>
+        <div class="cv-ai-chat" id="cv_aiChat" style="display:none">
+          <div class="cv-ai-msgs" id="cv_aiMsgs"></div>
+          <div class="cv-ai-input-row">
+            <input class="cv-ai-inp" id="cv_aiInp" placeholder="Спроси что-нибудь..." onkeydown="if(event.key==='Enter')sendAIMsg('cv')">
+            <button class="cv-ai-send" onclick="sendAIMsg('cv')">→</button>
+          </div>
+        </div>
       </div>
     </div>
   </div>
+</div>
+
+<!-- ── TOOL PANELS ──────────────────────────────────────────── -->
+<div id="toolPanel" style="display:none;position:fixed;top:56px;left:52px;width:300px;bottom:64px;background:#fff;border-right:1px solid var(--gray-border);z-index:365;flex-direction:column;box-shadow:4px 0 20px rgba(0,0,0,.08)">
+  <div style="padding:16px;border-bottom:1px solid var(--gray-border);display:flex;align-items:center;justify-content:space-between">
+    <span style="font-weight:700;font-size:.95rem" id="toolPanelTitle">Панель</span>
+    <button onclick="closeToolPanel()" style="background:none;border:none;cursor:pointer;font-size:1.1rem;color:var(--text3)">✕</button>
+  </div>
+  <div style="flex:1;overflow-y:auto;padding:16px" id="toolPanelBody"></div>
+</div>
+
+<!-- ── TIMER POPUP ───────────────────────────────────────────── -->
+<div id="timerPopup" style="display:none;position:fixed;top:70px;left:62px;background:#fff;border-radius:16px;box-shadow:0 8px 32px rgba(0,0,0,.18);z-index:370;padding:24px 28px;min-width:220px;text-align:center">
+  <div style="font-size:3rem;font-weight:800;color:var(--purple);letter-spacing:2px;margin-bottom:12px" id="timerDisplay">05:00</div>
+  <div style="display:flex;gap:8px;margin-bottom:14px;justify-content:center">
+    <button onclick="setTimer(1)" class="btn btn-outline" style="font-size:.78rem;padding:5px 10px">1м</button>
+    <button onclick="setTimer(3)" class="btn btn-outline" style="font-size:.78rem;padding:5px 10px">3м</button>
+    <button onclick="setTimer(5)" class="btn btn-purple" style="font-size:.78rem;padding:5px 10px">5м</button>
+    <button onclick="setTimer(10)" class="btn btn-outline" style="font-size:.78rem;padding:5px 10px">10м</button>
+  </div>
+  <div style="display:flex;gap:8px;justify-content:center">
+    <button onclick="startTimer()" id="timerStartBtn" class="btn btn-purple" style="flex:1">▶ Старт</button>
+    <button onclick="resetTimer()" class="btn btn-outline" style="flex:1">↺ Сброс</button>
+  </div>
+  <button onclick="document.getElementById('timerPopup').style.display='none'" style="position:absolute;top:8px;right:10px;background:none;border:none;cursor:pointer;color:var(--text3);font-size:1rem">✕</button>
 </div>
 
 <div id="toast"></div>
@@ -826,6 +874,211 @@ const NAV={
   ]
 };
 const ROLE_L={owner:'Владелец',admin:'Администратор',teacher:'Учитель',student:'Ученик'};
+
+// ─── TOOL PANELS ──────────────────────────────────────────────────────────────
+const TOOL_CONTENT={
+  notes:{
+    title:'📝 Заметки',
+    html:`<textarea id="toolNotes" style="width:100%;height:calc(100% - 20px);min-height:300px;border:1.5px solid var(--gray-border);border-radius:10px;padding:12px;font-size:.88rem;font-family:var(--font);resize:none;outline:none;line-height:1.5" placeholder="Заметки к уроку..."></textarea>
+    <button onclick="saveToolNotes()" style="margin-top:10px;width:100%;padding:9px;background:var(--purple);color:#fff;border:none;border-radius:8px;font-size:.85rem;font-weight:600;cursor:pointer;font-family:var(--font)">💾 Сохранить</button>`
+  },
+  dict:{
+    title:'📖 Словарь',
+    html:`<div style="margin-bottom:12px;display:flex;gap:8px">
+      <input id="dictSearch" placeholder="Введи слово..." style="flex:1;padding:9px 12px;border:1.5px solid var(--gray-border);border-radius:8px;font-size:.88rem;font-family:var(--font);outline:none" onkeydown="if(event.key==='Enter')lookupWord()">
+      <button onclick="lookupWord()" style="padding:9px 14px;background:var(--purple);color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:.88rem;font-family:var(--font)">🔍</button>
+    </div>
+    <div id="dictResult" style="font-size:.88rem;color:var(--text2);line-height:1.6"></div>
+    <div style="margin-top:16px;border-top:1px solid var(--gray-border);padding-top:12px">
+      <div style="font-size:.75rem;font-weight:700;color:var(--text3);text-transform:uppercase;margin-bottom:8px">Сохранённые слова</div>
+      <div id="dictSaved" style="display:flex;flex-wrap:wrap;gap:6px"></div>
+    </div>`
+  },
+  timer:{title:'',html:''},
+  templates:{
+    title:'▦ Шаблоны упражнений',
+    html:`<div style="display:flex;flex-direction:column;gap:8px">
+      ${[['Множественный выбор','quiz'],['Заполни пропуск','fillblank'],['Верно/Неверно','truefalse'],['Порядок слов','wordorder'],['Соответствие','match'],['Открытый вопрос','openq'],['Текст','text'],['Изображение','image']].map(([l,t])=>`
+      <button onclick="ceAddExType('${t}')" style="text-align:left;padding:10px 14px;border:1.5px solid var(--gray-border);border-radius:10px;background:#fff;cursor:pointer;font-size:.85rem;font-family:var(--font);color:var(--text2);transition:.15s" onmouseover="this.style.borderColor='var(--purple)';this.style.color='var(--purple)'" onmouseout="this.style.borderColor='var(--gray-border)';this.style.color='var(--text2)'">${l}</button>`).join('')}
+    </div>`
+  }
+};
+
+function toggleToolPanel(type){
+  if(type==='timer'){
+    const tp=document.getElementById('timerPopup');
+    tp.style.display=tp.style.display==='none'?'flex':'none';
+    if(tp.style.display==='flex')tp.style.flexDirection='column';
+    return;
+  }
+  const panel=document.getElementById('toolPanel');
+  const cfg=TOOL_CONTENT[type];
+  if(!cfg)return;
+  if(panel.style.display==='flex'&&panel.dataset.type===type){
+    panel.style.display='none';return;
+  }
+  panel.dataset.type=type;
+  document.getElementById('toolPanelTitle').textContent=cfg.title;
+  document.getElementById('toolPanelBody').innerHTML=cfg.html;
+  panel.style.display='flex';
+  panel.style.flexDirection='column';
+  // Restore notes
+  if(type==='notes'){
+    const saved=localStorage.getItem('teachya_notes_'+(LV.assignId||'general'));
+    if(saved)document.getElementById('toolNotes').value=saved;
+  }
+  if(type==='dict')renderDictSaved();
+}
+
+function closeToolPanel(){document.getElementById('toolPanel').style.display='none';}
+
+function saveToolNotes(){
+  const val=document.getElementById('toolNotes')?.value||'';
+  localStorage.setItem('teachya_notes_'+(LV.assignId||'general'),val);
+  showToast('Заметки сохранены ✓');
+}
+
+// Dictionary
+function lookupWord(){
+  const w=(document.getElementById('dictSearch')?.value||'').trim();
+  if(!w)return;
+  const res=document.getElementById('dictResult');
+  res.innerHTML='<div style="color:var(--text3)">Ищем...</div>';
+  fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(w)}`)
+    .then(r=>r.json()).then(data=>{
+      if(!Array.isArray(data)||!data[0]){res.innerHTML='<div style="color:var(--pink)">Слово не найдено</div>';return;}
+      const entry=data[0];
+      const phonetic=entry.phonetics?.find(p=>p.text)?.text||'';
+      const meanings=(entry.meanings||[]).slice(0,2).map(m=>`
+        <div style="margin-bottom:8px">
+          <span style="font-size:.75rem;font-weight:700;color:var(--purple);text-transform:uppercase">${m.partOfSpeech}</span>
+          ${(m.definitions||[]).slice(0,2).map(d=>`<div style="margin-top:4px">• ${d.definition}</div>`).join('')}
+        </div>`).join('');
+      res.innerHTML=`<div style="font-weight:700;font-size:1rem;margin-bottom:4px">${entry.word} <span style="font-size:.85rem;color:var(--text3);font-weight:400">${phonetic}</span></div>${meanings}
+      <button onclick="saveDictWord('${entry.word}')" style="margin-top:8px;padding:5px 12px;background:var(--purple-light);color:var(--purple);border:none;border-radius:6px;font-size:.78rem;font-weight:600;cursor:pointer">+ Сохранить</button>`;
+    }).catch(()=>{res.innerHTML='<div style="color:var(--pink)">Ошибка запроса</div>';});
+}
+
+function saveDictWord(w){
+  const saved=JSON.parse(localStorage.getItem('teachya_dict')||'[]');
+  if(!saved.includes(w))saved.push(w);
+  localStorage.setItem('teachya_dict',JSON.stringify(saved));
+  renderDictSaved();showToast('Слово сохранено!');
+}
+
+function renderDictSaved(){
+  const saved=JSON.parse(localStorage.getItem('teachya_dict')||'[]');
+  const el=document.getElementById('dictSaved');
+  if(!el)return;
+  el.innerHTML=saved.map(w=>`<span onclick="document.getElementById('dictSearch').value='${w}';lookupWord()" style="padding:4px 10px;background:var(--purple-light);color:var(--purple);border-radius:20px;font-size:.78rem;cursor:pointer;font-weight:600">${w}</span>`).join('');
+}
+
+// Template shortcut in editor
+function ceAddExType(type){
+  closeToolPanel();
+  if(typeof CE==='undefined'||!CE.sections.length){showToast('Сначала открой редактор урока');return;}
+  const sec=CE.sections[CE.curSec];
+  if(!sec)return;
+  const defaults={quiz:{type:'quiz',question:'Вопрос?',options:['Вариант A','Вариант B','Вариант C'],correct:0},fillblank:{type:'fillblank',text:'Заполни ___ пропуск.',answers:['пропуск']},truefalse:{type:'truefalse',statement:'Утверждение.',answer:true},wordorder:{type:'wordorder',words:['Расставь','слова','в','порядке']},match:{type:'match',pairs:[{left:'Слово',right:'Перевод'}]},openq:{type:'openq',question:'Открытый вопрос?'},text:{type:'text',content:'Текст раздела...'},image:{type:'image',url:'',caption:''}};
+  sec.exercises.push(defaults[type]||{type:'text',content:''});
+  CE.curEx=sec.exercises.length-1;ceRender();showToast('Упражнение добавлено');
+}
+
+// ── TIMER ──────────────────────────────────────────────────────────────────────
+let _timerSec=300,_timerInt=null,_timerRunning=false;
+
+function setTimer(mins){
+  _timerSec=mins*60;_timerRunning=false;
+  clearInterval(_timerInt);
+  document.getElementById('timerStartBtn').textContent='▶ Старт';
+  updateTimerDisplay();
+}
+
+function updateTimerDisplay(){
+  const m=Math.floor(_timerSec/60),s=_timerSec%60;
+  document.getElementById('timerDisplay').textContent=`${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+}
+
+function startTimer(){
+  if(_timerRunning){
+    clearInterval(_timerInt);_timerRunning=false;
+    document.getElementById('timerStartBtn').textContent='▶ Продолжить';
+  } else {
+    _timerRunning=true;
+    document.getElementById('timerStartBtn').textContent='⏸ Пауза';
+    _timerInt=setInterval(()=>{
+      if(_timerSec<=0){clearInterval(_timerInt);_timerRunning=false;showToast('⏱ Время вышло!');document.getElementById('timerStartBtn').textContent='▶ Старт';return;}
+      _timerSec--;updateTimerDisplay();
+    },1000);
+  }
+}
+
+function resetTimer(){
+  clearInterval(_timerInt);_timerRunning=false;_timerSec=300;
+  document.getElementById('timerStartBtn').textContent='▶ Старт';
+  updateTimerDisplay();
+}
+
+// ── AI ASSISTANT ───────────────────────────────────────────────────────────────
+const AI_FN='https://juwvlyrepwdcndkqiqna.supabase.co/functions/v1/ai-chat';
+const _aiHistory={cv:[],ce:[]};
+
+function toggleAIPanel(prefix){
+  const chat=document.getElementById(prefix+'_aiChat');
+  if(!chat)return;
+  chat.style.display=chat.style.display==='none'?'flex':'none';
+  if(chat.style.display==='flex'){
+    chat.style.flexDirection='column';
+    document.getElementById(prefix+'_aiInp')?.focus();
+  }
+}
+
+async function sendAIMsg(prefix){
+  const inp=document.getElementById(prefix+'_aiInp');
+  const msgs=document.getElementById(prefix+'_aiMsgs');
+  if(!inp||!msgs)return;
+  const text=inp.value.trim();
+  if(!text)return;
+  inp.value='';
+
+  // Add user bubble
+  msgs.innerHTML+=`<div class="cv-ai-msg user">${text}</div>`;
+  const loadId='load_'+Date.now();
+  msgs.innerHTML+=`<div class="cv-ai-msg ai loading" id="${loadId}">✨ Думаю...</div>`;
+  msgs.scrollTop=msgs.scrollHeight;
+
+  _aiHistory[prefix].push({role:'user',content:text});
+
+  try{
+    const{data:{session}}=await sb.auth.getSession();
+    const res=await fetch(AI_FN,{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+(session?.access_token||'')},
+      body:JSON.stringify({messages:_aiHistory[prefix],context:'teacher_assistant'})
+    });
+    const data=await res.json();
+    const reply=data.content||data.error||'Нет ответа';
+    _aiHistory[prefix].push({role:'assistant',content:reply});
+    const el=document.getElementById(loadId);
+    if(el){el.classList.remove('loading');el.textContent=reply;}
+  }catch(e){
+    const el=document.getElementById(loadId);
+    if(el){el.classList.remove('loading');el.style.color='var(--pink)';el.textContent='Ошибка: '+e.message;}
+  }
+  msgs.scrollTop=msgs.scrollHeight;
+}
+
+// Call student from lesson view
+function cvCallStudent(){
+  if(S._currentClassData?.teacher_id){
+    const partnerId=S._cvStudentId||null;
+    if(partnerId)callContact(partnerId);
+    else showToast('Позвони ученику через Диалер');
+  } else {
+    showToast('Позвони ученику через Диалер');
+    toggleDialer();
+  }
+}
 
 // ─── INVITE SYSTEM ────────────────────────────────────────────────────────────
 const INVITE_FN='https://juwvlyrepwdcndkqiqna.supabase.co/functions/v1/invite-user';
