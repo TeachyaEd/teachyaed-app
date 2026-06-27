@@ -1,0 +1,2257 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TeachyaED v7</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --purple:#7C3AED;--purple2:#9333EA;--purple-light:#EDE9FE;--purple-dark:#5B21B6;
+  --pink:#EC4899;--pink-light:#FCE7F3;
+  --green:#10B981;--green-light:#D1FAE5;
+  --yellow:#F59E0B;--yellow-light:#FEF3C7;
+  --red:#EF4444;--blue:#3B82F6;--blue-light:#DBEAFE;
+  --gray:#6B7280;--gray-light:#F3F4F6;--gray-border:#E5E7EB;
+  --text:#111827;--text2:#374151;--text3:#6B7280;
+  --white:#fff;--radius:12px;--shadow:0 2px 12px rgba(0,0,0,.08);
+  --font:-apple-system,BlinkMacSystemFont,'SF Pro Display','Helvetica Neue',Arial,sans-serif;
+}
+body{font-family:var(--font);background:#F8F7FF;color:var(--text);min-height:100vh}
+#loginScreen{display:flex;align-items:center;justify-content:center;min-height:100vh;background:linear-gradient(135deg,#7C3AED 0%,#EC4899 100%)}
+.login-box{background:#fff;border-radius:20px;padding:40px;width:360px;box-shadow:0 20px 60px rgba(0,0,0,.2)}
+.login-logo{text-align:center;margin-bottom:28px}
+.login-logo span{font-size:2rem;font-weight:800;background:linear-gradient(135deg,var(--purple),var(--pink));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.login-logo p{color:var(--gray);font-size:.85rem;margin-top:4px}
+.login-box input{width:100%;padding:12px 14px;border:2px solid var(--gray-border);border-radius:var(--radius);font-size:1rem;font-family:var(--font);margin-bottom:12px;transition:.2s}
+.login-box input:focus{outline:none;border-color:var(--purple)}
+.btn-login{width:100%;padding:13px;background:linear-gradient(135deg,var(--purple),var(--pink));color:#fff;border:none;border-radius:var(--radius);font-size:1rem;font-weight:700;cursor:pointer;font-family:var(--font)}
+#loginErr{color:var(--pink);font-size:.85rem;margin-top:8px;text-align:center;display:none}
+/* ── INVITE / SET PASSWORD SCREEN ── */
+#inviteScreen{display:none;align-items:center;justify-content:center;min-height:100vh;background:linear-gradient(135deg,#7C3AED 0%,#EC4899 100%)}
+.invite-box{background:#fff;border-radius:20px;padding:40px;width:380px;box-shadow:0 20px 60px rgba(0,0,0,.2)}
+.invite-box .inv-logo{text-align:center;margin-bottom:24px}
+.invite-box .inv-logo span{font-size:2rem;font-weight:800;background:linear-gradient(135deg,var(--purple),var(--pink));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.invite-box .inv-email{text-align:center;font-size:.85rem;color:var(--text3);margin-bottom:20px;padding:8px 14px;background:var(--gray-light);border-radius:8px}
+.invite-box input{width:100%;padding:12px 14px;border:2px solid var(--gray-border);border-radius:var(--radius);font-size:1rem;font-family:var(--font);margin-bottom:12px;transition:.2s}
+.invite-box input:focus{outline:none;border-color:var(--purple)}
+#inviteErr{color:var(--pink);font-size:.85rem;margin-top:4px;text-align:center;display:none}
+#app{display:none;flex-direction:column;min-height:100vh}
+#topBar{height:56px;background:#fff;border-bottom:1px solid var(--gray-border);display:flex;align-items:center;padding:0 20px;gap:12px;position:sticky;top:0;z-index:100}
+#topBar .logo{font-weight:800;font-size:1.1rem;background:linear-gradient(135deg,var(--purple),var(--pink));-webkit-background-clip:text;-webkit-text-fill-color:transparent;flex:1}
+#userChip{font-size:.8rem;color:var(--text3);background:var(--gray-light);padding:4px 10px;border-radius:20px}
+#roleChip{font-size:.75rem;font-weight:600;padding:4px 10px;border-radius:20px;background:var(--purple-light);color:var(--purple)}
+.btn-sm{padding:6px 14px;border:none;border-radius:8px;font-size:.8rem;font-weight:600;cursor:pointer;font-family:var(--font)}
+.btn-logout{background:var(--gray-light);color:var(--gray)}.btn-logout:hover{background:#E5E7EB}
+#main{display:flex;flex:1}
+#sidebar{width:210px;background:#fff;border-right:1px solid var(--gray-border);padding:16px 0;flex-shrink:0;overflow-y:auto}
+.nav-section{font-size:.7rem;font-weight:700;color:var(--text3);letter-spacing:.08em;text-transform:uppercase;padding:10px 20px 4px;margin-top:4px}
+.nav-item{display:flex;align-items:center;gap:10px;padding:10px 20px;cursor:pointer;font-size:.88rem;color:var(--text2);transition:.15s;border-left:3px solid transparent}
+.nav-item:hover{background:var(--purple-light);color:var(--purple)}
+.nav-item.active{background:var(--purple-light);color:var(--purple);font-weight:600;border-left-color:var(--purple)}
+#content{flex:1;padding:24px;overflow-y:auto;max-height:calc(100vh - 56px)}
+.card{background:#fff;border-radius:var(--radius);padding:20px;box-shadow:var(--shadow)}
+.card-title{font-size:1rem;font-weight:700;margin-bottom:16px}
+.stats-row{display:grid;grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:14px;margin-bottom:20px}
+.stat-card{background:#fff;border-radius:var(--radius);padding:18px;box-shadow:var(--shadow);border-left:4px solid var(--purple)}
+.stat-card.pink{border-left-color:var(--pink)}.stat-card.green{border-left-color:var(--green)}.stat-card.yellow{border-left-color:var(--yellow)}
+.stat-val{font-size:1.8rem;font-weight:800}.stat-lbl{font-size:.78rem;color:var(--text3);margin-top:2px}
+table{width:100%;border-collapse:collapse;font-size:.88rem}
+th{text-align:left;padding:10px 12px;background:var(--gray-light);color:var(--text3);font-weight:600;font-size:.78rem;text-transform:uppercase;letter-spacing:.04em}
+td{padding:10px 12px;border-bottom:1px solid var(--gray-border);color:var(--text2)}
+tr:hover td{background:#FAFAFA}
+.badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:.75rem;font-weight:600}
+.badge-green{background:var(--green-light);color:#065F46}.badge-yellow{background:var(--yellow-light);color:#92400E}
+.badge-purple{background:var(--purple-light);color:var(--purple-dark)}.badge-pink{background:var(--pink-light);color:#9D174D}
+.badge-gray{background:var(--gray-light);color:var(--gray)}.badge-blue{background:var(--blue-light);color:#1D4ED8}
+.btn{padding:8px 16px;border:none;border-radius:8px;font-size:.85rem;font-weight:600;cursor:pointer;font-family:var(--font);transition:.15s}
+.btn-purple{background:var(--purple);color:#fff}.btn-purple:hover{background:var(--purple-dark)}
+.btn-pink{background:var(--pink);color:#fff}.btn-pink:hover{opacity:.9}
+.btn-green{background:var(--green);color:#fff}.btn-green:hover{opacity:.9}
+.btn-yellow{background:var(--yellow);color:#fff}.btn-yellow:hover{opacity:.9}
+.btn-red{background:var(--red);color:#fff}.btn-red:hover{opacity:.9}
+.btn-outline{background:transparent;border:2px solid var(--gray-border);color:var(--text2)}.btn-outline:hover{border-color:var(--purple);color:var(--purple)}
+.btn-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px}
+.form-group{margin-bottom:14px}
+.form-group label{display:block;font-size:.78rem;font-weight:600;color:var(--text3);margin-bottom:5px;text-transform:uppercase;letter-spacing:.04em}
+.form-group input,.form-group select,.form-group textarea{width:100%;padding:10px 12px;border:2px solid var(--gray-border);border-radius:8px;font-size:.9rem;font-family:var(--font);color:var(--text)}
+.form-group input:focus,.form-group select:focus,.form-group textarea:focus{outline:none;border-color:var(--purple)}
+.form-group textarea{min-height:70px;resize:vertical}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:400;align-items:center;justify-content:center}
+.modal-bg.open{display:flex}
+.modal{background:#fff;border-radius:16px;padding:28px;width:90%;max-width:520px;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.2)}
+.modal-wide{max-width:780px}
+.modal-xl{max-width:960px}
+.modal h3{font-size:1.1rem;font-weight:700;margin-bottom:18px}
+.modal-close{float:right;background:none;border:none;font-size:1.4rem;cursor:pointer;color:var(--gray);line-height:1;margin-top:-4px}
+.section-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
+.section-header h2{font-size:1.1rem;font-weight:800}
+.divider{border:none;border-top:1px solid var(--gray-border);margin:16px 0}
+.empty-state{text-align:center;padding:40px;color:var(--text3)}
+.empty-state .ei{font-size:3rem;margin-bottom:8px}
+
+/* ── CLASS CARDS (EdVibe style) ── */
+.classes-toolbar{display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap}
+.classes-search{flex:1;min-width:200px;padding:10px 14px 10px 36px;border:2px solid var(--gray-border);border-radius:10px;font-size:.9rem;font-family:var(--font);background:#fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236B7280' stroke-width='2'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cpath d='m21 21-4.35-4.35'/%3E%3C/svg%3E") no-repeat 10px center}
+.classes-search:focus{outline:none;border-color:var(--purple)}
+.ev-filter-tabs{display:flex;gap:4px}
+.ev-filter-tab{padding:8px 16px;border:none;border-radius:20px;font-size:.82rem;font-weight:600;cursor:pointer;background:var(--gray-light);color:var(--text3);font-family:var(--font);transition:.15s}
+.ev-filter-tab.active{background:var(--purple);color:#fff}
+.classes-count{font-size:.8rem;color:var(--text3);white-space:nowrap}
+.ev-classes-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:16px}
+.ev-class-card{border-radius:16px;padding:20px 16px 16px;cursor:pointer;position:relative;min-height:160px;display:flex;flex-direction:column;align-items:center;justify-content:center;transition:.2s;overflow:hidden}
+.ev-class-card:hover{transform:translateY(-4px);box-shadow:0 12px 32px rgba(0,0,0,.18)}
+.ev-class-initial{font-size:3.5rem;font-weight:900;color:rgba(255,255,255,.85);line-height:1;text-shadow:0 2px 8px rgba(0,0,0,.15)}
+.ev-class-name{font-size:.88rem;font-weight:700;color:#fff;text-align:center;margin-top:10px;line-height:1.2}
+.ev-class-type{font-size:.72rem;color:rgba(255,255,255,.75);margin-top:3px}
+.ev-class-count{position:absolute;top:10px;right:10px;color:rgba(255,255,255,.8);font-size:.8rem;display:flex;align-items:center;gap:4px}
+.ev-class-create{background:var(--gray-light)!important;border:2px dashed var(--gray-border)}
+.ev-class-create .ev-class-initial{color:var(--purple);font-size:2.5rem}
+.ev-class-create .ev-class-name{color:var(--purple)}
+/* ── CLASS DETAIL PAGE (full screen like EdVibe) ── */
+#classDetailPage{display:none;position:fixed;inset:0;background:#F8F7FF;z-index:300;flex-direction:column}
+#classDetailPage.open{display:flex}
+.cdp-topbar{height:58px;background:#fff;border-bottom:1px solid var(--gray-border);display:flex;align-items:center;padding:0 20px;gap:12px;flex-shrink:0}
+.cdp-back{background:none;border:none;font-size:1.4rem;cursor:pointer;color:var(--text3);padding:4px 8px;border-radius:8px;font-family:var(--font)}
+.cdp-back:hover{background:var(--gray-light)}
+.cdp-title{font-weight:800;font-size:1.05rem;flex:1}
+.cdp-avatar{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1.3rem;font-weight:900;color:#fff;flex-shrink:0}
+.cdp-body{flex:1;overflow-y:auto;padding:24px}
+.cdp-header-card{background:#fff;border-radius:16px;padding:20px;margin-bottom:20px;display:flex;align-items:center;gap:16px;box-shadow:var(--shadow)}
+.cdp-big-av{width:64px;height:64px;border-radius:16px;display:flex;align-items:center;justify-content:center;font-size:2rem;font-weight:900;color:#fff;flex-shrink:0}
+.cdp-info{flex:1}
+.cdp-info h2{font-size:1.3rem;font-weight:800;margin-bottom:4px}
+.cdp-info p{color:var(--text3);font-size:.85rem}
+.cdp-actions{display:flex;gap:8px;flex-wrap:wrap}
+.cdp-tabs{display:flex;border-bottom:2px solid var(--gray-border);margin-bottom:20px;gap:0}
+.cdp-tab{padding:10px 20px;border:none;background:none;font-size:.88rem;font-weight:600;cursor:pointer;color:var(--text3);border-bottom:3px solid transparent;margin-bottom:-2px;font-family:var(--font);transition:.15s}
+.cdp-tab:hover{color:var(--purple)}
+.cdp-tab.active{color:var(--purple);border-bottom-color:var(--purple)}
+
+/* ── SCHEDULE ── */
+.schedule-grid{display:grid;grid-template-columns:60px repeat(7,1fr);gap:0;border:1px solid var(--gray-border);border-radius:12px;overflow:hidden;background:#fff}
+.sch-head{background:var(--gray-light);padding:10px 6px;text-align:center;font-size:.78rem;font-weight:700;color:var(--text3);border-bottom:1px solid var(--gray-border)}
+.sch-time{padding:8px 6px;text-align:right;font-size:.72rem;color:var(--text3);border-bottom:1px solid var(--gray-border);border-right:1px solid var(--gray-border);background:#FAFAFA}
+.sch-cell{position:relative;min-height:52px;border-bottom:1px solid var(--gray-border);border-right:1px solid var(--gray-border);cursor:pointer;transition:.1s}
+.sch-cell:hover{background:var(--purple-light)}
+.sch-cell:last-child{border-right:none}
+.sch-event{background:var(--purple);color:#fff;border-radius:6px;padding:4px 6px;font-size:.72rem;font-weight:600;margin:2px;position:absolute;left:2px;right:2px;top:2px;cursor:pointer;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.sch-event.completed{opacity:.6}
+.sch-event.cancelled{background:var(--gray);text-decoration:line-through}
+
+/* ── VIDEO CALL ── */
+#callWindow{display:none;position:fixed;top:16px;right:16px;width:340px;background:#1a1a2e;border-radius:16px;box-shadow:0 8px 40px rgba(0,0,0,.5);z-index:300;overflow:hidden;border:2px solid var(--purple)}
+#callWindow.visible{display:block}
+#callHeader{background:linear-gradient(135deg,var(--purple),var(--pink));color:#fff;padding:10px 14px;display:flex;align-items:center;gap:8px;cursor:move;user-select:none}
+#callHeader .call-title{flex:1;font-weight:600;font-size:.9rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.chbtn{background:rgba(255,255,255,.2);border:none;color:#fff;width:28px;height:28px;border-radius:6px;cursor:pointer;font-size:.85rem;display:flex;align-items:center;justify-content:center}
+.chbtn:hover{background:rgba(255,255,255,.35)}
+#videoArea{position:relative;background:#111;aspect-ratio:4/3;width:100%}
+#remoteVideo{width:100%;height:100%;object-fit:cover;display:block;background:#111}
+#localVideo{position:absolute;bottom:8px;right:8px;width:90px;height:68px;object-fit:cover;border-radius:8px;border:2px solid var(--purple);background:#222}
+#callStatus{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#aaa;font-size:.9rem;pointer-events:none}
+#callStatus.hidden{display:none}
+#callControls{display:flex;justify-content:center;gap:10px;padding:12px 10px;background:#1a1a2e}
+.ctrl-btn{width:44px;height:44px;border-radius:50%;border:none;cursor:pointer;font-size:1.1rem;display:flex;align-items:center;justify-content:center;transition:.2s}
+.ctrl-btn.on{background:#333;color:#fff}.ctrl-btn.off{background:var(--red);color:#fff}
+.ctrl-btn.end{background:var(--red);color:#fff;width:52px;height:52px;font-size:1.2rem}
+.ctrl-btn:hover{transform:scale(1.1)}
+.ctrl-label{font-size:.65rem;color:#888;margin-top:2px;text-align:center}
+#incomingCall{display:none;position:fixed;bottom:100px;right:24px;background:#fff;border-radius:16px;box-shadow:0 8px 32px rgba(0,0,0,.2);padding:20px;z-index:350;width:260px;border:2px solid var(--green)}
+#incomingCall.show{display:block}
+#incomingCall .ic-name{font-weight:700;font-size:1rem;margin-bottom:4px}
+#incomingCall .ic-role{font-size:.8rem;color:var(--text3);margin-bottom:14px}
+#incomingCall .ic-btns{display:flex;gap:8px}
+#dialBtn{display:none;position:fixed;bottom:24px;right:24px;width:56px;height:56px;background:linear-gradient(135deg,var(--green),#059669);border:none;border-radius:50%;color:#fff;font-size:1.5rem;cursor:pointer;box-shadow:0 4px 16px rgba(16,185,129,.4);z-index:250;transition:.2s;align-items:center;justify-content:center}
+#dialBtn:hover{transform:scale(1.1)}
+#dialBtn.incall{background:linear-gradient(135deg,var(--red),#DC2626);box-shadow:0 4px 16px rgba(239,68,68,.4)}
+#contactPicker{display:none;position:fixed;bottom:90px;right:24px;width:260px;background:#fff;border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,.15);z-index:251;border:1px solid var(--gray-border);max-height:320px;overflow-y:auto}
+#contactPicker.open{display:block}
+#contactPicker .ph{padding:10px 14px;background:var(--gray-light);font-size:.78rem;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.04em;position:sticky;top:0}
+.contact-item{display:flex;align-items:center;gap:10px;padding:10px 14px;cursor:pointer;transition:.15s}
+.contact-item:hover{background:var(--purple-light)}
+.av{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.85rem;flex-shrink:0;color:#fff}
+
+/* ── WHITEBOARD ── */
+#wbOverlay{display:none;position:fixed;inset:0;background:#fff;z-index:450;flex-direction:column}
+#wbOverlay.open{display:flex}
+#wbBar{padding:10px 16px;background:#fff;border-bottom:1px solid var(--gray-border);display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.wb-btn{padding:5px 12px;border:2px solid var(--gray-border);border-radius:8px;background:#fff;cursor:pointer;font-size:.8rem;font-weight:600;font-family:var(--font)}
+.wb-btn.active{border-color:var(--purple);background:var(--purple-light);color:var(--purple)}
+#wbCanvas{flex:1;cursor:crosshair;display:block;width:100%}
+
+/* ── LESSON BUILDER ── */
+.lesson-block{background:#fff;border:2px solid var(--gray-border);border-radius:10px;padding:14px;margin-bottom:10px;position:relative}
+.lesson-block:hover{border-color:var(--purple)}
+.block-type-badge{display:inline-block;padding:2px 8px;border-radius:6px;font-size:.72rem;font-weight:700;margin-bottom:8px}
+.block-remove{position:absolute;top:10px;right:10px;background:none;border:none;color:var(--gray);cursor:pointer;font-size:1rem}
+.block-remove:hover{color:var(--red)}
+.block-add-bar{display:flex;gap:6px;flex-wrap:wrap;margin-top:12px;padding:12px;background:var(--gray-light);border-radius:10px}
+.block-type-btn{padding:6px 14px;border:2px dashed var(--gray-border);border-radius:8px;background:#fff;cursor:pointer;font-size:.8rem;font-weight:600;font-family:var(--font);color:var(--text3);transition:.15s}
+.block-type-btn:hover{border-color:var(--purple);color:var(--purple);background:var(--purple-light)}
+
+/* ── STUDENT EXERCISE VIEW ── */
+.lesson-view-block{background:#fff;border-radius:var(--radius);padding:20px;margin-bottom:14px;box-shadow:var(--shadow)}
+.vocab-card{perspective:600px;cursor:pointer;margin-bottom:8px}
+.vocab-inner{position:relative;width:100%;height:60px;transform-style:preserve-3d;transition:.5s}
+.vocab-card.flipped .vocab-inner{transform:rotateY(180deg)}
+.vocab-front,.vocab-back{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;border-radius:10px;font-weight:600;font-size:1rem;backface-visibility:hidden}
+.vocab-front{background:var(--purple-light);color:var(--purple)}
+.vocab-back{background:var(--green-light);color:#065F46;transform:rotateY(180deg)}
+.fill-blank-input{border:2px solid var(--gray-border);border-radius:6px;padding:4px 10px;font-size:.95rem;font-family:var(--font);width:120px;text-align:center}
+.fill-blank-input.correct{border-color:var(--green);background:var(--green-light)}
+.fill-blank-input.wrong{border-color:var(--red);background:#FEE2E2}
+.quiz-opt{padding:10px 14px;border:2px solid var(--gray-border);border-radius:8px;cursor:pointer;margin-bottom:6px;font-size:.9rem;transition:.15s}
+.quiz-opt:hover{border-color:var(--purple);background:var(--purple-light)}
+.quiz-opt.correct{border-color:var(--green);background:var(--green-light);color:#065F46}
+.quiz-opt.wrong{border-color:var(--red);background:#FEE2E2;color:#991B1B}
+.tf-btn{padding:10px 28px;border:2px solid var(--gray-border);border-radius:10px;font-size:.95rem;font-weight:700;cursor:pointer;font-family:var(--font);transition:.15s;background:#fff}
+.tf-btn:hover{border-color:var(--purple);background:var(--purple-light)}
+.tf-btn.correct{border-color:var(--green);background:var(--green-light);color:#065F46}
+.tf-btn.wrong{border-color:var(--red);background:#FEE2E2;color:#991B1B}
+.match-item{padding:8px 14px;border:2px solid var(--gray-border);border-radius:8px;cursor:pointer;margin-bottom:6px;font-size:.9rem;transition:.15s;background:#fff}
+.match-item:hover{border-color:var(--purple);background:var(--purple-light)}
+.match-item.selected{border-color:var(--purple);background:var(--purple-light)}
+.match-item.matched{border-color:var(--green);background:var(--green-light);color:#065F46;cursor:default}
+.match-item.wrong-match{border-color:var(--red);background:#FEE2E2}
+.word-chip{display:inline-block;padding:6px 14px;border:2px solid var(--gray-border);border-radius:20px;margin:4px;cursor:pointer;font-size:.88rem;font-weight:600;transition:.15s;background:#fff}
+.word-chip:hover{border-color:var(--purple);background:var(--purple-light)}
+.word-chip.used{opacity:.3;pointer-events:none}
+.word-slot{display:inline-block;min-width:80px;padding:4px 10px;border-bottom:2px solid var(--gray-border);margin:4px;text-align:center;font-size:.9rem;font-weight:600;vertical-align:middle}
+.word-slot.filled{border-color:var(--purple);color:var(--purple)}
+.word-slot.correct{border-color:var(--green);color:var(--green)}
+.word-slot.wrong{border-color:var(--red);color:var(--red)}
+
+/* ── EDVIBE CLASSROOM VIEW (lesson viewer) ── */
+#classroomView{display:none;position:fixed;inset:0;background:#F8F7FF;z-index:360;flex-direction:column}
+#classroomView.open{display:flex}
+.cv-topbar{height:56px;background:#fff;border-bottom:1px solid var(--gray-border);display:flex;align-items:center;padding:0;gap:0;flex-shrink:0}
+.cv-back{background:none;border:none;border-right:1px solid var(--gray-border);padding:0 16px;cursor:pointer;color:var(--text3);font-size:.85rem;font-weight:600;display:flex;align-items:center;gap:6px;height:100%;transition:.15s;white-space:nowrap}
+.cv-back:hover{background:var(--gray-light)}
+.cv-lesson-avatar{width:32px;height:32px;border-radius:8px;background:linear-gradient(135deg,var(--purple),var(--pink));display:flex;align-items:center;justify-content:center;color:#fff;font-size:1rem;margin:0 12px;flex-shrink:0}
+.cv-lesson-name{font-weight:700;font-size:.95rem;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:260px}
+.cv-tabs-wrap{display:flex;height:100%;margin-left:20px}
+.cv-tab{padding:0 20px;border:none;border-bottom:3px solid transparent;background:none;font-size:.88rem;font-weight:600;cursor:pointer;color:var(--text3);font-family:var(--font);transition:.15s;height:100%}
+.cv-tab.active{color:var(--purple);border-bottom-color:var(--purple)}
+.cv-tab:hover{color:var(--purple)}
+.cv-topbar-spacer{flex:1}
+.cv-topbar-right{display:flex;align-items:center;gap:8px;padding:0 16px;height:100%;border-left:1px solid var(--gray-border)}
+.cv-student-badge{background:var(--purple-light);color:var(--purple);padding:5px 12px;border-radius:20px;font-size:.8rem;font-weight:700}
+.cv-exit-btn{width:32px;height:32px;border-radius:50%;background:var(--gray-light);border:none;cursor:pointer;font-size:.95rem;color:var(--gray);display:flex;align-items:center;justify-content:center;transition:.15s}
+.cv-exit-btn:hover{background:#fee2e2;color:var(--red)}
+/* body */
+.cv-body{display:flex;flex:1;min-height:0}
+/* left tools sidebar */
+.cv-left-sidebar{width:52px;background:#fff;border-right:1px solid var(--gray-border);display:flex;flex-direction:column;align-items:center;padding:10px 0;gap:2px;flex-shrink:0}
+.cv-tool-btn{width:40px;height:40px;border:none;border-radius:10px;background:none;cursor:pointer;color:var(--text3);display:flex;align-items:center;justify-content:center;transition:.15s;font-family:var(--font);font-weight:800;font-size:.78rem}
+.cv-tool-btn:hover{background:var(--purple-light);color:var(--purple)}
+.cv-tool-btn.active{background:var(--purple-light);color:var(--purple)}
+/* main */
+.cv-main{flex:1;display:flex;flex-direction:column;min-height:0;overflow:hidden}
+.cv-content-scroll{flex:1;overflow-y:auto;padding:28px 48px}
+.cv-section-heading{font-size:1.5rem;font-weight:800;margin-bottom:28px;color:var(--text)}
+.cv-bottom-nav{height:64px;background:#fff;border-top:1px solid var(--gray-border);display:flex;align-items:center;padding:0 24px;gap:10px;flex-shrink:0}
+.cv-counter-label{flex:1;text-align:center;font-size:.88rem;font-weight:600;color:var(--text3)}
+/* right sidebar */
+.cv-right-sidebar{width:272px;background:#fff;border-left:1px solid var(--gray-border);display:flex;flex-direction:column;flex-shrink:0;overflow-y:auto}
+.cv-call-panel{padding:20px 16px;border-bottom:1px solid var(--gray-border);text-align:center}
+.cv-call-icon{font-size:1.6rem;margin-bottom:6px;color:var(--text3)}
+.cv-call-text{font-size:.8rem;color:var(--text3);margin-bottom:12px;line-height:1.4}
+.cv-call-btn{width:100%;padding:10px;background:var(--green);color:#fff;border:none;border-radius:10px;font-size:.9rem;font-weight:700;cursor:pointer;font-family:var(--font);transition:.15s}
+.cv-call-btn:hover{opacity:.9}
+.cv-sections-head{padding:14px 16px 6px;font-size:.75rem;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.06em}
+.cv-sec-row{display:flex;align-items:center;gap:10px;padding:9px 16px;cursor:pointer;font-size:.88rem;color:var(--text2);transition:.15s;border-radius:0}
+.cv-sec-row:hover{background:var(--gray-light)}
+.cv-sec-row.active{color:var(--purple);font-weight:600}
+.cv-sec-dot{width:10px;height:10px;border-radius:50%;background:var(--gray-border);flex-shrink:0;transition:.2s}
+.cv-sec-row.active .cv-sec-dot{background:var(--purple)}
+.cv-sec-label{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cv-sec-more{width:24px;height:24px;border:none;background:none;cursor:pointer;color:var(--text3);border-radius:6px;font-size:.9rem;opacity:.5}
+.cv-sec-more:hover{opacity:1;background:var(--gray-light)}
+.cv-action-row{display:flex;align-items:center;gap:8px;padding:9px 16px;cursor:pointer;font-size:.85rem;color:var(--text3);background:none;border:none;font-family:var(--font);width:100%;text-align:left;transition:.15s}
+.cv-action-row:hover{color:var(--purple)}
+.cv-action-row.finish{border-top:1px solid var(--gray-border)}
+.cv-action-row.finish:hover{color:var(--green)}
+.cv-ai-panel{border-top:1px solid var(--gray-border);padding:12px}
+.cv-ai-toggle-btn{width:100%;padding:10px 14px;border:2px solid var(--purple-light);border-radius:10px;background:var(--purple-light);color:var(--purple);font-size:.85rem;font-weight:700;cursor:pointer;font-family:var(--font);display:flex;align-items:center;gap:8px;justify-content:center;transition:.15s}
+.cv-ai-toggle-btn:hover{background:var(--purple);color:#fff;border-color:var(--purple)}
+
+/* ── EDVIBE CLASSROOM EDITOR ── */
+#classroomEditor{display:none;position:fixed;inset:0;background:#F8F7FF;z-index:350;flex-direction:column}
+#classroomEditor.open{display:flex}
+/* Editor uses the same cv- topbar/body/sidebar structure as classroom viewer */
+.ce-title-inp{flex:1;min-width:0;max-width:300px;padding:0 14px;border:none;border-right:1px solid var(--gray-border);font-size:.95rem;font-weight:700;font-family:var(--font);color:var(--text);background:transparent;outline:none;height:100%}
+.ce-title-inp::placeholder{color:var(--text3)}
+.ce-title-inp:focus{background:var(--gray-light)}
+.ce-sel-inp{padding:0 10px;border:none;border-right:1px solid var(--gray-border);font-size:.82rem;font-family:var(--font);color:var(--text2);background:transparent;cursor:pointer;outline:none;height:100%}
+.ce-mode-grp{display:flex;border:2px solid var(--gray-border);border-radius:8px;overflow:hidden}
+.ce-mode-btn{padding:5px 12px;border:none;font-size:.78rem;font-weight:700;cursor:pointer;font-family:var(--font);background:transparent;color:var(--text3);white-space:nowrap;transition:.15s}
+.ce-mode-btn.active{background:var(--purple);color:#fff}
+.ce-tbtn{padding:6px 14px;border:none;border-radius:8px;font-size:.78rem;font-weight:700;cursor:pointer;font-family:var(--font)}
+.ce-tbtn-save{background:var(--gray-light);color:var(--text2)}.ce-tbtn-save:hover{background:#E5E7EB}
+.ce-tbtn-pub{background:var(--purple);color:#fff}.ce-tbtn-pub:hover{background:var(--purple-dark)}
+.ce-progress-bar{height:3px;background:var(--gray-border);flex-shrink:0}
+.ce-progress-fill{height:100%;background:linear-gradient(90deg,var(--purple),var(--pink));transition:.4s}
+/* sec list items (in right sidebar) */
+.ce-sec-list{overflow-y:auto}
+.ce-sec-item{padding:9px 16px;cursor:pointer;font-size:.88rem;font-weight:600;color:var(--text2);transition:.15s;display:flex;align-items:center;gap:8px;border-left:3px solid transparent}
+.ce-sec-item:hover{background:var(--gray-light);color:var(--purple)}
+.ce-sec-item.active{background:var(--purple-light);color:var(--purple);border-left-color:var(--purple)}
+.ce-sec-num{width:22px;height:22px;border-radius:50%;background:var(--gray-border);color:var(--gray);font-size:.7rem;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.ce-sec-item.active .ce-sec-num{background:var(--purple);color:#fff}
+.ce-sec-cnt{margin-left:auto;font-size:.7rem;color:var(--text3);background:var(--gray-light);padding:1px 7px;border-radius:10px;white-space:nowrap}
+.ce-sec-item.active .ce-sec-cnt{background:rgba(124,58,237,.12)}
+/* main editor area */
+.ce-scroll{flex:1;overflow-y:auto;padding:24px 40px}
+.ce-ex-wrap{max-width:680px;margin:0 auto}
+.ce-ex-card{background:#fff;border-radius:14px;padding:22px;box-shadow:var(--shadow);margin-bottom:12px}
+.ce-empty-sec{text-align:center;padding:50px 20px;color:var(--text3)}
+.ce-add-panel{background:#fff;border-radius:14px;padding:16px;box-shadow:var(--shadow);margin-top:12px}
+.ce-add-head{font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);margin-bottom:10px}
+.ce-type-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:7px}
+.ce-type-card{padding:10px 4px;border:2px solid var(--gray-border);border-radius:10px;text-align:center;cursor:pointer;font-size:.75rem;font-weight:700;color:var(--text2);transition:.15s;background:#fff}
+/* section heading editable */
+.ce-sec-heading{font-size:1.4rem;font-weight:800;border:none;background:transparent;font-family:var(--font);color:var(--text);outline:none;width:100%;padding:0 0 8px;border-bottom:2px solid transparent;margin-bottom:24px}
+.ce-sec-heading:focus{border-bottom-color:var(--purple)}
+.ce-type-card:hover{border-color:var(--purple);background:var(--purple-light);color:var(--purple);transform:translateY(-1px)}
+.ce-type-icon{font-size:1.4rem;display:block;margin-bottom:3px}
+
+/* ── HOMEWORK ── */
+.hw-card{background:#fff;border-radius:var(--radius);padding:16px;box-shadow:var(--shadow);margin-bottom:12px;border-left:4px solid var(--purple)}
+.hw-card.submitted{border-left-color:var(--yellow)}.hw-card.reviewed{border-left-color:var(--green)}
+.hw-title{font-weight:700;font-size:.95rem;margin-bottom:4px}
+.hw-meta{font-size:.78rem;color:var(--text3);margin-bottom:8px}
+.hw-desc{font-size:.85rem;color:var(--text2);margin-bottom:10px}
+.hw-answer{background:var(--green-light);border-radius:8px;padding:10px;font-size:.85rem;margin-bottom:8px}
+.hw-comment{background:var(--yellow-light);border-radius:8px;padding:10px;font-size:.85rem}
+.period-tabs{display:flex;gap:4px;margin-bottom:16px}
+.period-tab{padding:6px 16px;border-radius:20px;border:2px solid var(--gray-border);background:#fff;font-size:.82rem;font-weight:600;cursor:pointer;font-family:var(--font)}
+.period-tab.active{background:var(--purple);color:#fff;border-color:var(--purple)}
+.materials-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px}
+.material-card{background:#fff;border-radius:var(--radius);padding:16px;box-shadow:var(--shadow);cursor:pointer;transition:.2s}
+.material-card:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(0,0,0,.1)}
+.material-icon{font-size:2rem;margin-bottom:8px}
+.progress-bar{height:6px;background:var(--gray-border);border-radius:3px;overflow:hidden;margin-top:4px}
+.progress-fill{height:100%;background:linear-gradient(90deg,var(--purple),var(--pink));border-radius:3px;transition:.3s}
+.avatar-circle{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.9rem;color:#fff;flex-shrink:0}
+#toast{position:fixed;bottom:100px;right:24px;background:#111827;color:#fff;padding:10px 18px;border-radius:10px;font-size:.85rem;z-index:500;opacity:0;transition:.3s;pointer-events:none}
+#toast.show{opacity:1}
+</style>
+</head>
+<body>
+<div id="loginScreen">
+  <div class="login-box">
+    <div class="login-logo">
+      <span>TeachyaED</span>
+      <p>Платформа языковой школы</p>
+    </div>
+    <input type="email" id="loginEmail" placeholder="Email" autocomplete="email">
+    <input type="password" id="loginPass" placeholder="Пароль" onkeydown="if(event.key==='Enter')doLogin()">
+    <button class="btn-login" onclick="doLogin()">Войти</button>
+    <div id="loginErr">Неверный email или пароль</div>
+  </div>
+</div>
+
+<!-- INVITE ACCEPT SCREEN — появляется когда пользователь переходит по ссылке из письма -->
+<div id="inviteScreen">
+  <div class="invite-box">
+    <div class="inv-logo">
+      <span>TeachyaED</span>
+      <p style="color:var(--gray);font-size:.85rem;margin-top:4px">Добро пожаловать! 🎉</p>
+    </div>
+    <h3 style="text-align:center;margin-bottom:6px;font-size:1.05rem">Создайте пароль</h3>
+    <p style="text-align:center;font-size:.83rem;color:var(--text3);margin-bottom:16px">Вас пригласили в TeachyaED. Придумайте пароль для входа.</p>
+    <div class="inv-email" id="inv_email"></div>
+    <input type="password" id="inv_pass1" placeholder="Новый пароль (мин. 6 символов)" autocomplete="new-password">
+    <input type="password" id="inv_pass2" placeholder="Повторите пароль" autocomplete="new-password" onkeydown="if(event.key==='Enter')setInvitePassword()">
+    <button class="btn-login" onclick="setInvitePassword()" id="inv_btn">Войти в систему →</button>
+    <div id="inviteErr"></div>
+  </div>
+</div>
+<div id="app">
+  <div id="topBar">
+    <div class="logo">TeachyaED</div>
+    <span id="userChip"></span>
+    <span id="roleChip"></span>
+    <button class="btn-sm btn-logout" onclick="doLogout()">Выйти</button>
+  </div>
+  <div id="main">
+    <div id="sidebar"></div>
+    <div id="content"></div>
+  </div>
+</div>
+
+<!-- INCOMING CALL -->
+<div id="incomingCall">
+  <div style="font-size:1.5rem;text-align:center;margin-bottom:8px">📞</div>
+  <div class="ic-name" id="icName">Звонок</div>
+  <div class="ic-role" id="icRole"></div>
+  <div class="ic-btns">
+    <button class="btn btn-green" style="flex:1" onclick="acceptCall()">✓ Принять</button>
+    <button class="btn btn-red" style="flex:1" onclick="declineCall()">✕ Отклонить</button>
+  </div>
+</div>
+
+<!-- VIDEO CALL WINDOW -->
+<div id="callWindow">
+  <div id="callHeader">
+    <span>📞</span><span class="call-title" id="callTitle">Звонок</span>
+    <div style="display:flex;gap:4px">
+      <button class="chbtn" onclick="openWb()">✏️</button>
+      <button class="chbtn" onclick="minimizeCall()">─</button>
+      <button class="chbtn" onclick="hangUp()">✕</button>
+    </div>
+  </div>
+  <div id="callBody">
+    <div id="videoArea">
+      <video id="remoteVideo" autoplay playsinline></video>
+      <video id="localVideo" autoplay playsinline muted></video>
+      <div id="callStatus">⏳ Ожидание...</div>
+    </div>
+    <div id="callControls">
+      <div style="text-align:center"><button class="ctrl-btn on" id="btnMic" onclick="toggleMic()">🎤</button><div class="ctrl-label" id="lblMic">Микрофон</div></div>
+      <div style="text-align:center"><button class="ctrl-btn on" id="btnCam" onclick="toggleCam()">📷</button><div class="ctrl-label" id="lblCam">Камера</div></div>
+      <div style="text-align:center"><button class="ctrl-btn end" onclick="hangUp()">📵</button><div class="ctrl-label" style="color:#f87171">Завершить</div></div>
+      <div style="text-align:center"><button class="ctrl-btn on" id="btnScreen" onclick="toggleScreen()">🖥</button><div class="ctrl-label">Экран</div></div>
+      <div style="text-align:center"><button class="ctrl-btn on" onclick="openWb()">✏️</button><div class="ctrl-label">Доска</div></div>
+    </div>
+  </div>
+</div>
+<button id="dialBtn" onclick="toggleDialer()">📞</button>
+<div id="contactPicker"><div class="ph">Позвонить</div><div id="contactList"></div></div>
+
+<!-- WHITEBOARD -->
+<div id="wbOverlay">
+  <div id="wbBar">
+    <span style="font-weight:800;font-size:1rem;margin-right:6px">✏️ Доска</span>
+    <button class="wb-btn active" id="wbPen" onclick="setWbTool('pen')">🖊 Ручка</button>
+    <button class="wb-btn" id="wbEr" onclick="setWbTool('eraser')">⬜ Ластик</button>
+    <input type="color" id="wbColor" value="#7C3AED" style="width:34px;height:34px;border:2px solid var(--gray-border);border-radius:6px;cursor:pointer;padding:2px">
+    <select id="wbSz" style="border:2px solid var(--gray-border);border-radius:6px;padding:5px 8px;font-size:.8rem;font-family:var(--font)">
+      <option value="2">Тонкий</option><option value="4" selected>Средний</option><option value="8">Толстый</option>
+    </select>
+    <button class="wb-btn" onclick="clearWb()">🗑 Очистить</button>
+    <button class="wb-btn" onclick="saveWb()">💾 Сохранить</button>
+    <button class="wb-btn" style="margin-left:auto" onclick="closeWb()">✕ Закрыть</button>
+  </div>
+  <canvas id="wbCanvas"></canvas>
+</div>
+
+<!-- MODALS -->
+<div class="modal-bg" id="mAddStudent">
+  <div class="modal">
+    <button class="modal-close" onclick="closeM('mAddStudent')">✕</button>
+    <h3>Новый ученик</h3>
+    <div class="form-row">
+      <div class="form-group"><label>Имя</label><input id="st_first" placeholder="Имя"></div>
+      <div class="form-group"><label>Фамилия</label><input id="st_last" placeholder="Фамилия"></div>
+    </div>
+    <div class="form-group"><label>Email</label><input id="st_email" type="email" placeholder="email@..."></div>
+    <div class="form-group"><label>Телефон</label><input id="st_phone" placeholder="+995..."></div>
+    <div class="form-row">
+      <div class="form-group"><label>Язык</label><select id="st_lang"><option>Английский</option><option>Грузинский</option><option>Русский</option><option>Немецкий</option><option>Французский</option><option>Испанский</option></select></div>
+      <div class="form-group"><label>Уровень</label><select id="st_level"><option>A1</option><option>A2</option><option>B1</option><option>B2</option><option>C1</option><option>C2</option></select></div>
+    </div>
+    <div style="background:var(--purple-light);border-radius:10px;padding:10px 14px;font-size:.82rem;color:var(--purple);margin-bottom:14px">
+      📧 Ученик получит письмо со ссылкой для входа на указанный email
+    </div>
+    <div class="btn-row"><button class="btn btn-purple" onclick="saveStudent()">💌 Сохранить и пригласить</button><button class="btn btn-outline" onclick="closeM('mAddStudent')">Отмена</button></div>
+  </div>
+</div>
+
+<!-- INVITE STAFF MODAL -->
+<div class="modal-bg" id="mInviteStaff">
+  <div class="modal">
+    <button class="modal-close" onclick="closeM('mInviteStaff')">✕</button>
+    <h3>Пригласить сотрудника</h3>
+    <div class="form-row">
+      <div class="form-group"><label>Имя</label><input id="inv_first" placeholder="Имя"></div>
+      <div class="form-group"><label>Фамилия</label><input id="inv_last" placeholder="Фамилия"></div>
+    </div>
+    <div class="form-group"><label>Email</label><input id="inv_email_inp" type="email" placeholder="email@example.com"></div>
+    <div class="form-group"><label>Роль</label>
+      <select id="inv_role">
+        <option value="teacher">Учитель</option>
+        <option value="admin">Администратор</option>
+        <option value="owner">Владелец</option>
+      </select>
+    </div>
+    <div style="background:var(--purple-light);border-radius:10px;padding:10px 14px;font-size:.82rem;color:var(--purple);margin-bottom:14px">
+      📧 Сотрудник получит письмо с приглашением и ссылкой для создания пароля
+    </div>
+    <div class="btn-row"><button class="btn btn-purple" onclick="saveInviteStaff()">💌 Отправить приглашение</button><button class="btn btn-outline" onclick="closeM('mInviteStaff')">Отмена</button></div>
+  </div>
+</div>
+
+<div class="modal-bg" id="mChangeRole">
+  <div class="modal">
+    <button class="modal-close" onclick="closeM('mChangeRole')">✕</button>
+    <h3>Изменить роль</h3>
+    <div id="changeRoleUserInfo" style="font-weight:600;margin-bottom:14px;color:var(--purple)"></div>
+    <div class="form-group"><label>Новая роль</label><select id="newRole"><option value="student">Ученик</option><option value="teacher">Учитель</option><option value="admin">Администратор</option><option value="owner">Владелец</option></select></div>
+    <div class="btn-row"><button class="btn btn-purple" onclick="applyRoleChange()">Сохранить</button><button class="btn btn-outline" onclick="closeM('mChangeRole')">Отмена</button></div>
+  </div>
+</div>
+
+<div class="modal-bg" id="mAddPayment">
+  <div class="modal">
+    <button class="modal-close" onclick="closeM('mAddPayment')">✕</button>
+    <h3 id="payTitle">Новый платёж</h3>
+    <div class="form-group"><label>Ученик</label><select id="pay_student"></select></div>
+    <div class="form-row">
+      <div class="form-group"><label>Сумма</label><input id="pay_amount" type="number" placeholder="0"></div>
+      <div class="form-group"><label>Валюта</label><select id="pay_cur"><option>GEL</option><option>USD</option><option>EUR</option></select></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>С</label><input id="pay_from" type="date"></div>
+      <div class="form-group"><label>По</label><input id="pay_to" type="date"></div>
+    </div>
+    <div class="form-group"><label>Статус</label><select id="pay_status"><option value="pending">Ожидает</option><option value="paid">Оплачено</option><option value="overdue">Просрочено</option></select></div>
+    <div class="form-group"><label>Заметка</label><textarea id="pay_note" placeholder="..."></textarea></div>
+    <div class="btn-row"><button class="btn btn-purple" onclick="savePayment()">Сохранить</button><button class="btn btn-outline" onclick="closeM('mAddPayment')">Отмена</button></div>
+  </div>
+</div>
+
+<div class="modal-bg" id="mAddHomework">
+  <div class="modal">
+    <button class="modal-close" onclick="closeM('mAddHomework')">✕</button>
+    <h3>Домашнее задание</h3>
+    <div class="form-group"><label>Ученик</label><select id="hw_student"></select></div>
+    <div class="form-group"><label>Название</label><input id="hw_title" placeholder="Тема задания"></div>
+    <div class="form-group"><label>Описание</label><textarea id="hw_desc" placeholder="Подробности..."></textarea></div>
+    <div class="form-group"><label>Срок сдачи</label><input id="hw_deadline" type="date"></div>
+    <div class="btn-row"><button class="btn btn-purple" onclick="saveHw()">Отправить</button><button class="btn btn-outline" onclick="closeM('mAddHomework')">Отмена</button></div>
+  </div>
+</div>
+
+<div class="modal-bg" id="mSubmitHw">
+  <div class="modal">
+    <button class="modal-close" onclick="closeM('mSubmitHw')">✕</button>
+    <h3>Сдать задание</h3>
+    <div class="form-group"><label>Ответ</label><textarea id="submit_ans" placeholder="Напиши ответ..." style="min-height:100px"></textarea></div>
+    <div class="btn-row"><button class="btn btn-green" onclick="submitHw()">Отправить</button><button class="btn btn-outline" onclick="closeM('mSubmitHw')">Отмена</button></div>
+  </div>
+</div>
+
+<div class="modal-bg" id="mReviewHw">
+  <div class="modal">
+    <button class="modal-close" onclick="closeM('mReviewHw')">✕</button>
+    <h3>Проверить задание</h3>
+    <div id="reviewBody" style="margin-bottom:12px"></div>
+    <div class="form-group"><label>Комментарий</label><textarea id="review_comment" placeholder="..."></textarea></div>
+    <div class="btn-row"><button class="btn btn-green" onclick="saveReview()">Сохранить</button><button class="btn btn-outline" onclick="closeM('mReviewHw')">Отмена</button></div>
+  </div>
+</div>
+
+<div class="modal-bg" id="mSetSalary">
+  <div class="modal">
+    <button class="modal-close" onclick="closeM('mSetSalary')">✕</button>
+    <h3>Ставка учителя</h3>
+    <div id="salaryTName" style="font-weight:700;color:var(--purple);margin-bottom:12px"></div>
+    <div class="form-row">
+      <div class="form-group"><label>Ставка за урок</label><input id="sal_rate" type="number" placeholder="0"></div>
+      <div class="form-group"><label>Валюта</label><select id="sal_cur"><option>GEL</option><option>USD</option><option>EUR</option></select></div>
+    </div>
+    <div class="btn-row"><button class="btn btn-purple" onclick="saveSalary()">Сохранить</button><button class="btn btn-outline" onclick="closeM('mSetSalary')">Отмена</button></div>
+  </div>
+</div>
+
+<div class="modal-bg" id="mAddMaterial">
+  <div class="modal">
+    <button class="modal-close" onclick="closeM('mAddMaterial')">✕</button>
+    <h3>Новый материал</h3>
+    <div class="form-group"><label>Название</label><input id="mat_name" placeholder="Название"></div>
+    <div class="form-row">
+      <div class="form-group"><label>Тип</label><select id="mat_type"><option value="pdf">📄 PDF</option><option value="video">🎬 Видео</option><option value="audio">🎵 Аудио</option><option value="link">🔗 Ссылка</option><option value="doc">📝 Документ</option></select></div>
+      <div class="form-group"><label>Уровень</label><select id="mat_level"><option>A1</option><option>A2</option><option>B1</option><option>B2</option><option>C1</option><option>C2</option><option>Все</option></select></div>
+    </div>
+    <div class="form-group"><label>URL</label><input id="mat_url" placeholder="https://..."></div>
+    <div class="form-group"><label>Язык</label><select id="mat_lang"><option>Английский</option><option>Грузинский</option><option>Русский</option><option>Немецкий</option><option>Французский</option></select></div>
+    <div class="btn-row"><button class="btn btn-purple" onclick="saveMaterial()">Добавить</button><button class="btn btn-outline" onclick="closeM('mAddMaterial')">Отмена</button></div>
+  </div>
+</div>
+
+<!-- CLASS MODAL -->
+<div class="modal-bg" id="mAddClass">
+  <div class="modal">
+    <button class="modal-close" onclick="closeM('mAddClass')">✕</button>
+    <h3 id="classModalTitle">Новый класс</h3>
+    <div class="form-group"><label>Название класса</label><input id="cl_name" placeholder="English Speaking Club A2"></div>
+    <div class="form-row">
+      <div class="form-group"><label>Тип</label><select id="cl_type"><option value="individual">👤 Индивидуальный</option><option value="group">👥 Групповой</option></select></div>
+      <div class="form-group"><label>Язык</label><select id="cl_lang"><option>Английский</option><option>Грузинский</option><option>Русский</option><option>Немецкий</option><option>Французский</option><option>Испанский</option></select></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Уровень</label><select id="cl_level"><option>A1</option><option>A2</option><option>B1</option><option>B2</option><option>C1</option><option>C2</option></select></div>
+      <div class="form-group"><label>Цвет</label><select id="cl_color">
+        <option value="#7C3AED">🟣 Фиолетовый</option><option value="#EC4899">🩷 Розовый</option>
+        <option value="#10B981">🟢 Зелёный</option><option value="#F59E0B">🟡 Жёлтый</option>
+        <option value="#3B82F6">🔵 Синий</option><option value="#EF4444">🔴 Красный</option>
+      </select></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Эмодзи</label><input id="cl_emoji" placeholder="📚" maxlength="2" style="font-size:1.5rem;text-align:center"></div>
+      <div class="form-group"><label>Описание</label><input id="cl_desc" placeholder="Краткое описание..."></div>
+    </div>
+    <div class="form-group"><label>Учитель</label><select id="cl_teacher"></select></div>
+    <div class="btn-row"><button class="btn btn-purple" onclick="saveClass()">Сохранить</button><button class="btn btn-outline" onclick="closeM('mAddClass')">Отмена</button></div>
+  </div>
+</div>
+
+<!-- CLASS DETAIL PAGE (full screen) -->
+<div id="classDetailPage">
+  <div class="cdp-topbar">
+    <button class="cdp-back" onclick="closeClassDetail()">←</button>
+    <div class="cdp-avatar" id="cdp_avatar"></div>
+    <div class="cdp-title" id="cdp_title">Класс</div>
+    <button class="btn btn-purple" id="cdp_startBtn" onclick="cdpStartLesson()">▶ Начать урок</button>
+    <button class="btn btn-outline" onclick="cdpEditClass()">✎ Изменить</button>
+  </div>
+  <div class="cdp-body">
+    <div class="cdp-tabs">
+      <button class="cdp-tab active" onclick="switchCDPTab('students',this)">👥 Ученики</button>
+      <button class="cdp-tab" onclick="switchCDPTab('lessons',this)">📖 Уроки</button>
+      <button class="cdp-tab" onclick="switchCDPTab('schedule',this)">📅 Расписание</button>
+      <button class="cdp-tab" onclick="switchCDPTab('progress',this)">📊 Прогресс</button>
+    </div>
+    <div id="classDetailContent"></div>
+  </div>
+</div>
+
+<!-- SCHEDULE MODAL -->
+<div class="modal-bg" id="mAddEvent">
+  <div class="modal">
+    <button class="modal-close" onclick="closeM('mAddEvent')">✕</button>
+    <h3 id="eventModalTitle">Новое занятие</h3>
+    <div class="form-group"><label>Название</label><input id="ev_title" placeholder="Занятие по английскому"></div>
+    <div class="form-group"><label>Класс</label><select id="ev_class"></select></div>
+    <div class="form-row">
+      <div class="form-group"><label>Дата</label><input id="ev_date" type="date"></div>
+      <div class="form-group"><label>Время</label><input id="ev_time" type="time" value="09:00"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Длительность (мин)</label><select id="ev_dur"><option value="30">30 мин</option><option value="45">45 мин</option><option value="60" selected>60 мин</option><option value="90">90 мин</option><option value="120">120 мин</option></select></div>
+      <div class="form-group"><label>Статус</label><select id="ev_status"><option value="scheduled">Запланировано</option><option value="completed">Проведено</option><option value="cancelled">Отменено</option></select></div>
+    </div>
+    <div class="form-group"><label>Заметки</label><textarea id="ev_notes" placeholder="..."></textarea></div>
+    <div class="btn-row"><button class="btn btn-purple" onclick="saveEvent()">Сохранить</button><button class="btn btn-outline" onclick="closeM('mAddEvent')">Отмена</button></div>
+  </div>
+</div>
+
+<!-- CLASSROOM EDITOR (EdVibe style) — full screen, same layout as classroomView -->
+<div id="classroomEditor">
+  <!-- Topbar: white, same structure as classroomView -->
+  <div class="cv-topbar">
+    <button class="cv-back" onclick="closeCE()">← Выйти</button>
+    <input id="ce_title" class="ce-title-inp" placeholder="Название урока...">
+    <select id="ce_lang" class="ce-sel-inp">
+      <option>Английский</option><option>Грузинский</option>
+      <option>Русский</option><option>Немецкий</option><option>Французский</option>
+    </select>
+    <select id="ce_level" class="ce-sel-inp">
+      <option>A1</option><option>A2</option><option>B1</option>
+      <option>B2</option><option>C1</option><option>C2</option>
+    </select>
+    <div class="cv-topbar-spacer"></div>
+    <div class="cv-topbar-right">
+      <div class="ce-mode-grp">
+        <button class="ce-mode-btn active" id="ceModeEdit" onclick="setCEMode('edit')">✎ Редактор</button>
+        <button class="ce-mode-btn" id="ceModePreview" onclick="setCEMode('preview')">▶ Просмотр</button>
+      </div>
+      <button class="ce-tbtn ce-tbtn-save" onclick="saveFromCE(false)">💾 Сохранить</button>
+      <button class="ce-tbtn ce-tbtn-pub" onclick="saveFromCE(true)">🚀 Опубликовать</button>
+    </div>
+  </div>
+  <!-- Progress bar -->
+  <div class="ce-progress-bar"><div class="ce-progress-fill" id="ce_progress" style="width:0%"></div></div>
+  <!-- Body: same 3-column layout as classroomView -->
+  <div class="cv-body">
+    <!-- Left tool icons -->
+    <div class="cv-left-sidebar">
+      <button class="cv-tool-btn" title="Заметки">💬</button>
+      <button class="cv-tool-btn" title="Словарь" style="font-size:.75rem;letter-spacing:-.5px">Ax</button>
+      <button class="cv-tool-btn" title="Задания">📋</button>
+      <button class="cv-tool-btn" title="Таймер">⏱</button>
+      <button class="cv-tool-btn" title="Шаблоны">▦</button>
+    </div>
+    <!-- Main editor -->
+    <div class="cv-main">
+      <div class="ce-scroll"><div class="ce-ex-wrap" id="ce_exWrap"></div></div>
+      <div class="cv-bottom-nav">
+        <button class="btn btn-outline" id="ce_btnBack" onclick="ceNav(-1)">← Назад</button>
+        <span class="cv-counter-label" id="ce_counter">— из —</span>
+        <button class="btn btn-purple" id="ce_btnNext" onclick="ceNav(1)">Далее →</button>
+      </div>
+    </div>
+    <!-- Right sidebar: sections + save -->
+    <div class="cv-right-sidebar" style="display:flex;flex-direction:column">
+      <div style="flex:1;overflow-y:auto">
+        <div class="cv-sections-head">Разделы</div>
+        <div class="ce-sec-list" id="ce_secList"></div>
+        <button class="cv-action-row" onclick="ceAddSection()">+ Добавить раздел</button>
+      </div>
+      <div style="padding:12px;border-top:1px solid var(--gray-border)">
+        <button onclick="saveFromCE(true)" style="width:100%;padding:10px;background:var(--purple);color:#fff;border:none;border-radius:10px;font-size:.88rem;font-weight:700;cursor:pointer;font-family:var(--font);margin-bottom:8px">🚀 Опубликовать</button>
+        <button onclick="saveFromCE(false)" style="width:100%;padding:9px;background:var(--gray-light);color:var(--text2);border:none;border-radius:10px;font-size:.85rem;font-weight:600;cursor:pointer;font-family:var(--font)">💾 Черновик</button>
+      </div>
+      <div class="cv-ai-panel">
+        <button class="cv-ai-toggle-btn">🤖 AI Ассистент</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- LESSON PICKER (for "Начать урок" in class) -->
+<div class="modal-bg" id="mLessonPicker">
+  <div class="modal">
+    <button class="modal-close" onclick="closeM('mLessonPicker')">✕</button>
+    <h3>▶ Выбери урок для занятия</h3>
+    <div id="lessonPickerList"></div>
+  </div>
+</div>
+
+<!-- ASSIGN LESSON -->
+<div class="modal-bg" id="mAssignLesson">
+  <div class="modal">
+    <button class="modal-close" onclick="closeM('mAssignLesson')">✕</button>
+    <h3>Назначить урок</h3>
+    <div class="form-group"><label>Ученик</label><select id="assign_student"></select></div>
+    <div class="btn-row"><button class="btn btn-purple" onclick="assignLesson()">Назначить</button><button class="btn btn-outline" onclick="closeM('mAssignLesson')">Отмена</button></div>
+  </div>
+</div>
+
+<!-- EDVIBE CLASSROOM VIEW (lesson viewer — replaces modal) -->
+<div id="classroomView">
+  <!-- Top bar -->
+  <div class="cv-topbar">
+    <button class="cv-back" onclick="closeClassroomView()">← Выйти из урока</button>
+    <div class="cv-lesson-avatar">📖</div>
+    <div class="cv-lesson-name" id="cv_lessonName">Урок</div>
+    <div class="cv-tabs-wrap">
+      <button class="cv-tab active" id="cv_tabLesson" onclick="switchCVTab('lesson',this)">Урок</button>
+      <button class="cv-tab" id="cv_tabHomework" onclick="switchCVTab('homework',this)">Домашняя работа</button>
+    </div>
+    <div class="cv-topbar-spacer"></div>
+    <div class="cv-topbar-right">
+      <div class="cv-student-badge" id="cv_studentBadge" style="display:none"></div>
+      <button class="cv-exit-btn" onclick="closeClassroomView()" title="Закрыть">✕</button>
+    </div>
+  </div>
+  <!-- Body -->
+  <div class="cv-body">
+    <!-- Left sidebar tools -->
+    <div class="cv-left-sidebar">
+      <button class="cv-tool-btn" title="Заметки">💬</button>
+      <button class="cv-tool-btn" title="Словарь" style="font-size:.75rem;letter-spacing:-.5px">Ax</button>
+      <button class="cv-tool-btn" title="Задания">📋</button>
+      <button class="cv-tool-btn" title="Таймер">⏱</button>
+      <button class="cv-tool-btn" title="Шаблоны" style="font-size:1rem">▦</button>
+    </div>
+    <!-- Main content -->
+    <div class="cv-main">
+      <div class="cv-content-scroll">
+        <div class="cv-section-heading" id="cv_sectionTitle">Раздел 1</div>
+        <div id="cv_exerciseContent"></div>
+      </div>
+      <div class="cv-bottom-nav">
+        <button class="btn btn-outline" id="cv_btnBack" onclick="lvNav(-1)">← Назад</button>
+        <span class="cv-counter-label" id="cv_counter">1 из 1</span>
+        <button class="btn btn-purple" id="cv_btnNext" onclick="lvNav(1)">Далее →</button>
+        <button class="btn btn-outline" id="cv_btnFinishSec" onclick="lvFinishSection()">Завершить раздел →</button>
+      </div>
+    </div>
+    <!-- Right sidebar -->
+    <div class="cv-right-sidebar">
+      <div class="cv-call-panel" id="cv_callPanel">
+        <div class="cv-call-icon">📞</div>
+        <div class="cv-call-text">Позвоните, когда урок начнется</div>
+        <button class="cv-call-btn">Позвонить</button>
+      </div>
+      <div>
+        <div class="cv-sections-head">Разделы</div>
+        <div id="cv_sectionsList"></div>
+        <button class="cv-action-row">+ Добавить раздел</button>
+        <button class="cv-action-row finish" onclick="completeLessonView()">🏁 Завершить урок</button>
+        <button class="cv-action-row">📎 Дополнительно</button>
+      </div>
+      <div class="cv-ai-panel">
+        <button class="cv-ai-toggle-btn">🤖 AI Ассистент</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+<script>
+// ─── SUPABASE ────────────────────────────────────────────────────────────────
+const sb=window.supabase.createClient('https://juwvlyrepwdcndkqiqna.supabase.co','sb_publishable_P7un05_VjPp2JOYfeek-jQ_469PQIE_');
+const SCHOOL='00000000-0000-0000-0000-000000000001';
+
+// ─── STATE ───────────────────────────────────────────────────────────────────
+const S={
+  role:null,profile:null,schoolId:null,screen:null,contacts:[],
+  pc:null,localStream:null,callChannel:null,notifyChannel:null,
+  inCall:false,pendingRoom:null,pendingPartner:null,
+  micOn:true,camOn:true,screenOn:false,screenTrack:null,
+  editPayId:null,currentHwId:null,currentSalTId:null,
+  editLessonId:null,assignLessonId:null,currentAssignId:null,
+  editClassId:null,currentClassId:null,editEventId:null,currentClassTab:'students'
+};
+
+// ─── NAV ─────────────────────────────────────────────────────────────────────
+const NAV={
+  student:[
+    {sec:'Учёба'},
+    {id:'s_home',icon:'🏠',l:'Кабинет'},{id:'s_lessons',icon:'📖',l:'Уроки'},{id:'s_homework',icon:'📋',l:'Задания'},{id:'s_materials',icon:'📁',l:'Материалы'}
+  ],
+  teacher:[
+    {sec:'Классы'},
+    {id:'t_classes',icon:'🎓',l:'Мои классы'},{id:'t_schedule',icon:'📅',l:'Расписание'},
+    {sec:'Учёба'},
+    {id:'t_lessons',icon:'📖',l:'Уроки'},{id:'t_homework',icon:'📋',l:'Задания'},{id:'t_students',icon:'👥',l:'Ученики'},{id:'t_materials',icon:'📁',l:'Материалы'}
+  ],
+  admin:[
+    {sec:'Классы'},
+    {id:'a_classes',icon:'🎓',l:'Классы'},{id:'a_schedule',icon:'📅',l:'Расписание'},
+    {sec:'Аналитика'},
+    {id:'a_home',icon:'📊',l:'Дашборд'},{id:'a_students',icon:'👥',l:'Ученики'},{id:'a_teachers',icon:'👨‍🏫',l:'Учителя'},{id:'a_payments',icon:'💳',l:'Оплата'},{id:'a_salaries',icon:'💰',l:'Зарплаты'},{id:'a_materials',icon:'📁',l:'Материалы'}
+  ],
+  owner:[
+    {sec:'Классы'},
+    {id:'o_classes',icon:'🎓',l:'Классы'},{id:'o_schedule',icon:'📅',l:'Расписание'},
+    {sec:'Управление'},
+    {id:'o_home',icon:'📊',l:'Дашборд'},{id:'o_users',icon:'👥',l:'Пользователи'},{id:'o_students',icon:'🎓',l:'Ученики'},{id:'o_payments',icon:'💳',l:'Оплата'},{id:'o_salaries',icon:'💰',l:'Зарплаты'},{id:'o_materials',icon:'📁',l:'Материалы'}
+  ]
+};
+const ROLE_L={owner:'Владелец',admin:'Администратор',teacher:'Учитель',student:'Ученик'};
+
+// ─── INVITE SYSTEM ────────────────────────────────────────────────────────────
+const INVITE_FN='https://juwvlyrepwdcndkqiqna.supabase.co/functions/v1/invite-user';
+
+// Called on page load — detects invite/password-reset tokens in URL
+async function checkInviteToken(){
+  const hash=window.location.hash;
+  // Supabase puts token info in URL hash after invite click
+  if(!hash.includes('access_token'))return false;
+  if(!hash.includes('type=invite')&&!hash.includes('type=recovery'))return false;
+
+  // Get session auto-detected by Supabase JS from the URL hash
+  const{data:{session},error}=await sb.auth.getSession();
+  if(!session){return false;}
+
+  // Show the "set password" screen
+  C('loginScreen').style.display='none';
+  C('inv_email').textContent=session.user.email||'';
+  C('inviteScreen').style.display='flex';
+  // Clean up URL
+  history.replaceState(null,'',window.location.pathname);
+  return true;
+}
+
+async function setInvitePassword(){
+  const p1=C('inv_pass1').value,p2=C('inv_pass2').value;
+  const errEl=C('inviteErr');
+  errEl.style.display='none';
+  if(!p1||p1.length<6){errEl.textContent='Пароль должен быть не менее 6 символов';errEl.style.display='block';return;}
+  if(p1!==p2){errEl.textContent='Пароли не совпадают';errEl.style.display='block';return;}
+  C('inv_btn').textContent='Сохраняем...';C('inv_btn').disabled=true;
+  const{error}=await sb.auth.updateUser({password:p1});
+  if(error){errEl.textContent='Ошибка: '+error.message;errEl.style.display='block';C('inv_btn').textContent='Войти в систему →';C('inv_btn').disabled=false;return;}
+  // Password set — now login
+  C('inviteScreen').style.display='none';
+  const{data:{session}}=await sb.auth.getSession();
+  if(session)await afterLogin(session.user);
+}
+
+async function callInviteFunction(email,role,firstName,lastName,opts={}){
+  const{data:{session}}=await sb.auth.getSession();
+  if(!session)throw new Error('Нет авторизации');
+  const res=await fetch(INVITE_FN,{
+    method:'POST',
+    headers:{'Content-Type':'application/json','Authorization':'Bearer '+session.access_token},
+    body:JSON.stringify({
+      email,role,first_name:firstName,last_name:lastName,
+      school_id:S.schoolId,
+      language:opts.language||'',level:opts.level||'A1',phone:opts.phone||'',
+      redirect_to:window.location.origin+window.location.pathname
+    })
+  });
+  const data=await res.json();
+  if(!res.ok)throw new Error(data.error||'Ошибка отправки приглашения');
+  return data;
+}
+
+// ─── AUTH ─────────────────────────────────────────────────────────────────────
+async function doLogin(){
+  const e=C('loginEmail').value.trim(),p=C('loginPass').value;
+  const{data,error}=await sb.auth.signInWithPassword({email:e,password:p});
+  if(error){C('loginErr').style.display='block';return;}
+  await afterLogin(data.user);
+}
+async function afterLogin(user){
+  const{data:prof}=await sb.from('profiles').select('*').eq('id',user.id).single();
+  if(!prof){showToast('Профиль не найден');return;}
+  S.profile=prof;S.role=prof.role;S.schoolId=prof.school_id;
+  C('loginScreen').style.display='none';
+  C('app').style.display='flex';
+  C('userChip').textContent=`${prof.first_name} ${prof.last_name}`;
+  C('roleChip').textContent=ROLE_L[prof.role]||prof.role;
+  C('dialBtn').style.display='flex';
+  buildSidebar();
+  await loadContacts();
+  subscribeNotifications();
+  const firstItem=(NAV[S.role]||[]).find(n=>n.id);
+  if(firstItem)showScreen(firstItem.id);
+}
+async function doLogout(){
+  await sb.auth.signOut();hangUp();
+  if(S.notifyChannel)sb.removeChannel(S.notifyChannel);
+  C('app').style.display='none';C('loginScreen').style.display='flex';
+  C('loginErr').style.display='none';C('dialBtn').style.display='none';
+  Object.assign(S,{role:null,profile:null,contacts:[],inCall:false});
+}
+(async()=>{
+  // First check if this is an invite/password-reset redirect
+  const invited=await checkInviteToken();
+  if(!invited){
+    // Normal load — check existing session
+    const{data:{user}}=await sb.auth.getUser();
+    if(user)await afterLogin(user);
+  }
+})();
+
+// ─── SIDEBAR ──────────────────────────────────────────────────────────────────
+function buildSidebar(){
+  C('sidebar').innerHTML=(NAV[S.role]||[]).map(n=>{
+    if(n.sec)return`<div class="nav-section">${n.sec}</div>`;
+    return`<div class="nav-item" id="nav_${n.id}" onclick="showScreen('${n.id}')"><span style="font-size:1rem;width:20px;text-align:center">${n.icon}</span>${n.l}</div>`;
+  }).join('');
+}
+function showScreen(id){
+  S.screen=id;
+  document.querySelectorAll('.nav-item').forEach(el=>el.classList.toggle('active',el.id===`nav_${id}`));
+  const fn={
+    s_home:renderStudentHome,s_homework:renderStudentHw,s_lessons:renderStudentLessons,s_materials:renderMaterials,
+    t_home:renderStudentHome,t_classes:renderClasses,t_schedule:renderSchedule,
+    t_students:renderTeacherStudents,t_homework:renderTeacherHw,t_lessons:renderTeacherLessons,t_materials:renderMaterials,
+    a_home:renderAdminHome,a_classes:renderClasses,a_schedule:renderSchedule,
+    a_students:renderAdminStudents,a_teachers:renderAdminTeachers,a_payments:renderPayments,a_salaries:renderSalaries,a_materials:renderMaterials,
+    o_home:renderOwnerHome,o_classes:renderClasses,o_schedule:renderSchedule,
+    o_users:renderOwnerUsers,o_students:renderOwnerStudents,o_payments:renderPayments,o_salaries:renderSalaries,o_materials:renderMaterials
+  };
+  if(fn[id])fn[id]();
+}
+
+// ─── HELPERS ──────────────────────────────────────────────────────────────────
+const C=id=>document.getElementById(id);
+const setContent=h=>C('content').innerHTML=h;
+function showToast(m){const t=C('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2800);}
+function openM(id){C(id).classList.add('open');}
+function closeM(id){C(id).classList.remove('open');}
+const fmtDate=d=>d?new Date(d).toLocaleDateString('ru-RU'):'—';
+const fmtCur=(n,c='GEL')=>`${Number(n||0).toFixed(0)} ${c}`;
+const AVCOLORS=['#7C3AED','#EC4899','#10B981','#F59E0B','#3B82F6','#EF4444','#8B5CF6'];
+function avColor(s){let h=0;for(const c of(s||''))h=(h+c.charCodeAt(0))%AVCOLORS.length;return AVCOLORS[h];}
+function initials(f,l){return((f||'')[0]||'').toUpperCase()+((l||'')[0]||'').toUpperCase();}
+function avHTML(f,l,size=36){const bg=avColor(f);return`<div class="avatar-circle" style="background:${bg};width:${size}px;height:${size}px;font-size:${size*.36}px">${initials(f,l)}</div>`;}
+
+// ─── CONTACTS ─────────────────────────────────────────────────────────────────
+async function loadContacts(){
+  const{data:profs}=await sb.from('profiles').select('id,first_name,last_name,role').eq('school_id',S.schoolId);
+  const filtered=(profs||[]).filter(p=>p.id!==S.profile.id);
+  let stuContacts=[];
+  if(['teacher','admin','owner'].includes(S.role)){
+    const{data:sts}=await sb.from('students').select('id,first_name,last_name').eq('school_id',S.schoolId);
+    stuContacts=(sts||[]).map(s=>({id:'stu_'+s.id,first_name:s.first_name,last_name:s.last_name,role:'student'}));
+  }
+  S.contacts=[...filtered,...stuContacts];
+}
+
+// ─── WEBRTC ──────────────────────────────────────────────────────────────────
+const ICE={iceServers:[{urls:'stun:stun.l.google.com:19302'},{urls:'stun:stun1.l.google.com:19302'},{urls:'stun:stun.cloudflare.com:3478'}]};
+function getRoomId(a,b){const clean=id=>id.replace('stu_','');const ids=[clean(a),clean(b)].sort();return`teachyaed-${ids[0].slice(0,8)}-${ids[1].slice(0,8)}`;}
+function subscribeNotifications(){
+  S.notifyChannel=sb.channel(`notify-${S.profile.id}`)
+    .on('broadcast',{event:'ring'},({payload})=>{
+      S.pendingRoom=payload.room_id;S.pendingPartner=payload.from_name;
+      C('icName').textContent=payload.from_name;C('icRole').textContent=ROLE_L[payload.from_role]||'';
+      C('incomingCall').classList.add('show');
+      clearTimeout(S._ringTimeout);S._ringTimeout=setTimeout(declineCall,30000);
+    })
+    .on('broadcast',{event:'decline'},()=>{if(!S.inCall)showToast('Звонок отклонён');})
+    .subscribe();
+}
+function toggleDialer(){if(S.inCall){hangUp();return;}const p=C('contactPicker');p.classList.toggle('open');if(p.classList.contains('open'))renderContacts();}
+function renderContacts(){
+  const order={owner:0,admin:1,teacher:2,student:3};
+  const sorted=[...S.contacts].sort((a,b)=>(order[a.role]||9)-(order[b.role]||9));
+  C('contactList').innerHTML=sorted.map(c=>`<div class="contact-item" onclick="callContact('${c.id}','${c.first_name} ${c.last_name}','${c.role}')">
+    ${avHTML(c.first_name,c.last_name,32)}
+    <div><div style="font-weight:600;font-size:.9rem">${c.first_name} ${c.last_name}</div><div style="font-size:.75rem;color:var(--text3)">${ROLE_L[c.role]||c.role}</div></div>
+  </div>`).join('')||'<div style="padding:16px;color:var(--text3);font-size:.85rem">Нет контактов</div>';
+}
+async function callContact(partnerId,partnerName,partnerRole){
+  C('contactPicker').classList.remove('open');
+  if(S.inCall){showToast('Уже идёт звонок');return;}
+  const roomId=getRoomId(S.profile.id,partnerId);
+  if(!partnerId.startsWith('stu_')){
+    const notifyCh=sb.channel(`notify-${partnerId}`);
+    await new Promise(res=>{notifyCh.subscribe(st=>{if(st==='SUBSCRIBED')res();});});
+    notifyCh.send({type:'broadcast',event:'ring',payload:{from_name:`${S.profile.first_name} ${S.profile.last_name}`,from_role:S.role,room_id:roomId}});
+    setTimeout(()=>sb.removeChannel(notifyCh),3000);
+  }
+  await initCall(roomId,partnerName,false);
+}
+async function acceptCall(){clearTimeout(S._ringTimeout);C('incomingCall').classList.remove('show');await initCall(S.pendingRoom,S.pendingPartner,true);}
+function declineCall(){
+  clearTimeout(S._ringTimeout);C('incomingCall').classList.remove('show');
+  if(S.pendingRoom){const ch=sb.channel(S.pendingRoom);ch.subscribe(st=>{if(st==='SUBSCRIBED'){ch.send({type:'broadcast',event:'decline',payload:{}});setTimeout(()=>sb.removeChannel(ch),1000);}});}
+  S.pendingRoom=null;
+}
+async function initCall(roomId,partnerName,isCallee){
+  S.inCall=true;C('callTitle').textContent=partnerName;C('callWindow').classList.add('visible');
+  C('callStatus').textContent='⏳ Соединяю...';C('callStatus').classList.remove('hidden');
+  C('dialBtn').classList.add('incall');C('dialBtn').textContent='📵';
+  try{S.localStream=await navigator.mediaDevices.getUserMedia({video:true,audio:true});}
+  catch(e){try{S.localStream=await navigator.mediaDevices.getUserMedia({video:false,audio:true});}catch(e2){showToast('Нет доступа к камере/микрофону');hangUp();return;}}
+  C('localVideo').srcObject=S.localStream;
+  S.pc=new RTCPeerConnection(ICE);
+  S.localStream.getTracks().forEach(t=>S.pc.addTrack(t,S.localStream));
+  S.pc.ontrack=e=>{C('remoteVideo').srcObject=e.streams[0];C('callStatus').classList.add('hidden');showToast('✅ Соединение установлено!');};
+  S.pc.oniceconnectionstatechange=()=>{
+    const st=S.pc?.iceConnectionState;
+    if(st==='connected'||st==='completed')C('callStatus').classList.add('hidden');
+    if(st==='failed'||st==='disconnected'){C('callStatus').textContent='⚠️ Соединение потеряно...';C('callStatus').classList.remove('hidden');}
+  };
+  S.pc.onicecandidate=e=>{if(e.candidate&&S.callChannel)S.callChannel.send({type:'broadcast',event:'ice',payload:{candidate:e.candidate}});};
+  S.callChannel=sb.channel(roomId,{config:{presence:{key:S.profile.id}}})
+    .on('broadcast',{event:'offer'},async({payload})=>{
+      if(S.pc.signalingState==='stable'||isCallee){
+        await S.pc.setRemoteDescription(new RTCSessionDescription(payload.sdp));
+        const ans=await S.pc.createAnswer();await S.pc.setLocalDescription(ans);
+        S.callChannel.send({type:'broadcast',event:'answer',payload:{sdp:ans}});
+      }
+    })
+    .on('broadcast',{event:'answer'},async({payload})=>{if(S.pc.signalingState!=='stable')await S.pc.setRemoteDescription(new RTCSessionDescription(payload.sdp));})
+    .on('broadcast',{event:'ice'},async({payload})=>{if(payload.candidate&&S.pc)try{await S.pc.addIceCandidate(new RTCIceCandidate(payload.candidate));}catch(e){}})
+    .on('broadcast',{event:'hangup'},()=>{showToast('Собеседник завершил звонок');hangUp();})
+    .on('presence',{event:'join'},async()=>{
+      const ids=Object.keys(S.callChannel.presenceState());
+      if(ids.length>=2&&!isCallee){const offer=await S.pc.createOffer();await S.pc.setLocalDescription(offer);S.callChannel.send({type:'broadcast',event:'offer',payload:{sdp:offer}});}
+    })
+    .subscribe(async(st)=>{
+      if(st==='SUBSCRIBED'){
+        await S.callChannel.track({userId:S.profile.id,name:S.profile.first_name});
+        if(!isCallee)setTimeout(async()=>{if(S.pc&&S.pc.signalingState==='stable'&&!S.pc.localDescription){const offer=await S.pc.createOffer();await S.pc.setLocalDescription(offer);S.callChannel.send({type:'broadcast',event:'offer',payload:{sdp:offer}});}},1500);
+      }
+    });
+  updateCallControls();
+}
+async function hangUp(){
+  if(S.callChannel){try{S.callChannel.send({type:'broadcast',event:'hangup',payload:{}});}catch(e){}sb.removeChannel(S.callChannel);S.callChannel=null;}
+  if(S.localStream){S.localStream.getTracks().forEach(t=>t.stop());S.localStream=null;}
+  if(S.screenTrack){S.screenTrack.stop();S.screenTrack=null;}
+  if(S.pc){S.pc.close();S.pc=null;}
+  C('remoteVideo').srcObject=null;C('localVideo').srcObject=null;
+  C('callWindow').classList.remove('visible');C('dialBtn').classList.remove('incall');C('dialBtn').textContent='📞';
+  S.inCall=false;S.micOn=true;S.camOn=true;S.screenOn=false;closeWb();
+}
+function toggleMic(){S.micOn=!S.micOn;if(S.localStream)S.localStream.getAudioTracks().forEach(t=>t.enabled=S.micOn);updateCallControls();}
+function toggleCam(){S.camOn=!S.camOn;if(S.localStream)S.localStream.getVideoTracks().forEach(t=>t.enabled=S.camOn);updateCallControls();}
+async function toggleScreen(){
+  if(S.screenOn){if(S.screenTrack)S.screenTrack.stop();if(S.localStream&&S.pc){const cam=S.localStream.getVideoTracks()[0];if(cam){const s=S.pc.getSenders().find(s=>s.track?.kind==='video');if(s)s.replaceTrack(cam);}}S.screenOn=false;S.screenTrack=null;}
+  else{try{const stream=await navigator.mediaDevices.getDisplayMedia({video:true});S.screenTrack=stream.getVideoTracks()[0];if(S.pc){const s=S.pc.getSenders().find(s=>s.track?.kind==='video');if(s)s.replaceTrack(S.screenTrack);}S.screenTrack.onended=()=>{S.screenOn=false;S.screenTrack=null;updateCallControls();};S.screenOn=true;}catch(e){showToast('Нет доступа к экрану');}}
+  updateCallControls();
+}
+function updateCallControls(){
+  C('btnMic').className=`ctrl-btn ${S.micOn?'on':'off'}`;C('btnMic').textContent=S.micOn?'🎤':'🔇';C('lblMic').textContent=S.micOn?'Микрофон':'Без звука';
+  C('btnCam').className=`ctrl-btn ${S.camOn?'on':'off'}`;C('btnCam').textContent=S.camOn?'📷':'🚫';C('lblCam').textContent=S.camOn?'Камера':'Без камеры';
+  C('btnScreen').className=`ctrl-btn ${S.screenOn?'off':'on'}`;C('btnScreen').textContent=S.screenOn?'🛑':'🖥';
+}
+function minimizeCall(){const b=C('callBody');b.style.display=b.style.display==='none'?'block':'none';}
+
+// ─── WHITEBOARD ───────────────────────────────────────────────────────────────
+let wbCtx,wbDrawing=false,wbTool='pen',wbLX=0,wbLY=0;
+function openWb(){C('wbOverlay').classList.add('open');initWb();}
+function closeWb(){C('wbOverlay').classList.remove('open');}
+function initWb(){
+  const c=C('wbCanvas');c.width=window.innerWidth;c.height=window.innerHeight-56;
+  wbCtx=c.getContext('2d');wbCtx.fillStyle='#fff';wbCtx.fillRect(0,0,c.width,c.height);
+  const draw=e=>{
+    if(!wbDrawing)return;wbCtx.beginPath();
+    wbCtx.strokeStyle=wbTool==='eraser'?'#fff':C('wbColor').value;
+    wbCtx.lineWidth=parseInt(C('wbSz').value)*(wbTool==='eraser'?4:1);wbCtx.lineCap='round';wbCtx.lineJoin='round';
+    const[x,y]=e.offsetX!==undefined?[e.offsetX,e.offsetY]:[(e.touches[0].clientX-c.getBoundingClientRect().left),(e.touches[0].clientY-c.getBoundingClientRect().top)];
+    wbCtx.moveTo(wbLX,wbLY);wbCtx.lineTo(x,y);wbCtx.stroke();[wbLX,wbLY]=[x,y];
+  };
+  c.onmousedown=e=>{wbDrawing=true;[wbLX,wbLY]=[e.offsetX,e.offsetY];};c.onmousemove=draw;c.onmouseup=c.onmouseleave=()=>wbDrawing=false;
+  c.ontouchstart=e=>{e.preventDefault();wbDrawing=true;const r=c.getBoundingClientRect();[wbLX,wbLY]=[e.touches[0].clientX-r.left,e.touches[0].clientY-r.top];};
+  c.ontouchmove=e=>{e.preventDefault();draw(e);};c.ontouchend=()=>wbDrawing=false;
+}
+function setWbTool(t){wbTool=t;C('wbPen').classList.toggle('active',t==='pen');C('wbEr').classList.toggle('active',t==='eraser');}
+function clearWb(){if(wbCtx){const c=C('wbCanvas');wbCtx.fillStyle='#fff';wbCtx.fillRect(0,0,c.width,c.height);}}
+function saveWb(){const c=C('wbCanvas');const a=document.createElement('a');a.download='board.png';a.href=c.toDataURL();a.click();showToast('Сохранено');}
+
+// ─── DRAG CALL WINDOW ─────────────────────────────────────────────────────────
+(()=>{let dx=0,dy=0,drag=false;
+  document.addEventListener('mousedown',e=>{const h=C('callHeader');if(h&&h.contains(e.target)&&!e.target.classList.contains('chbtn')){drag=true;const r=C('callWindow').getBoundingClientRect();dx=e.clientX-r.left;dy=e.clientY-r.top;C('callWindow').style.right='auto';C('callWindow').style.bottom='auto';}});
+  document.addEventListener('mousemove',e=>{if(drag){C('callWindow').style.left=(e.clientX-dx)+'px';C('callWindow').style.top=(e.clientY-dy)+'px';}});
+  document.addEventListener('mouseup',()=>drag=false);
+})();
+document.addEventListener('click',e=>{const p=C('contactPicker'),d=C('dialBtn');if(p.classList.contains('open')&&!p.contains(e.target)&&!d.contains(e.target))p.classList.remove('open');});
+window.addEventListener('keydown',e=>{if(e.key==='Escape'){closeWb();C('contactPicker').classList.remove('open');document.querySelectorAll('.modal-bg.open').forEach(m=>m.classList.remove('open'));}});
+
+// ─── STUDENT SCREENS ──────────────────────────────────────────────────────────
+async function renderStudentHome(){
+  const{data:stu}=await sb.from('students').select('*').eq('email',S.profile.email).single();
+  const{data:hw}=await sb.from('homeworks').select('id').eq('student_id',stu?.id||'').eq('status','pending');
+  const{data:assigns}=await sb.from('lesson_assignments').select('id').eq('student_id',stu?.id||'').eq('completed',false);
+  setContent(`<div class="stats-row">
+    <div class="stat-card"><div class="stat-val">${hw?.length||0}</div><div class="stat-lbl">Заданий ждут</div></div>
+    <div class="stat-card pink"><div class="stat-val">${assigns?.length||0}</div><div class="stat-lbl">Уроков не пройдено</div></div>
+  </div>
+  <div class="card"><div class="card-title">👋 ${S.profile.first_name}, добро пожаловать!</div>
+    <p style="color:var(--text3);font-size:.88rem">Язык: <b>${stu?.language||'—'}</b> · Уровень: <b>${stu?.level||'—'}</b></p>
+    <hr class="divider"><p style="font-size:.85rem;color:var(--text3)">Для звонка с учителем — кнопка 📞 справа внизу.</p>
+  </div>`);
+}
+async function renderStudentHw(){
+  const{data:stu}=await sb.from('students').select('id').eq('email',S.profile.email).single();
+  const{data:hws}=await sb.from('homeworks').select('*,teacher:teacher_id(first_name,last_name)').eq('student_id',stu?.id||'').order('created_at',{ascending:false});
+  const cards=(hws||[]).map(hw=>`<div class="hw-card ${hw.status}">
+    <div class="hw-title">${hw.title} <span class="badge ${hw.status==='pending'?'badge-purple':hw.status==='submitted'?'badge-yellow':'badge-green'}">${{pending:'Новое',submitted:'Сдано',reviewed:'Проверено'}[hw.status]}</span></div>
+    <div class="hw-meta">Учитель: ${hw.teacher?.first_name||''} ${hw.teacher?.last_name||''} · Срок: ${fmtDate(hw.deadline)}</div>
+    <div class="hw-desc">${hw.description||''}</div>
+    ${hw.student_answer?`<div class="hw-answer">📝 Твой ответ: ${hw.student_answer}</div>`:''}
+    ${hw.teacher_comment?`<div class="hw-comment">💬 Комментарий: ${hw.teacher_comment}</div>`:''}
+    ${hw.status==='pending'?`<button class="btn btn-green" onclick="openSubmitHw('${hw.id}')">Сдать задание</button>`:''}
+  </div>`).join('')||'<div class="empty-state"><div class="ei">✅</div><p>Нет заданий</p></div>';
+  setContent(`<div class="section-header"><h2>📋 Задания</h2></div>${cards}`);
+}
+function openSubmitHw(id){S.currentHwId=id;C('submit_ans').value='';openM('mSubmitHw');}
+async function submitHw(){
+  const ans=C('submit_ans').value.trim();if(!ans){showToast('Напиши ответ!');return;}
+  await sb.from('homeworks').update({status:'submitted',student_answer:ans}).eq('id',S.currentHwId);
+  closeM('mSubmitHw');showToast('Ответ отправлен!');renderStudentHw();
+}
+async function renderStudentLessons(){
+  const{data:stu}=await sb.from('students').select('id').eq('email',S.profile.email).single();
+  const{data:assigns}=await sb.from('lesson_assignments').select('*,lesson:lesson_id(id,title,language,level,content)').eq('student_id',stu?.id||'');
+  const cards=(assigns||[]).map(a=>`<div class="card" style="margin-bottom:12px">
+    <div style="display:flex;align-items:center;justify-content:space-between">
+      <div>
+        <div style="font-weight:700">${a.lesson?.title||'Урок'}</div>
+        <div style="font-size:.8rem;color:var(--text3)">${a.lesson?.language||''} · ${a.lesson?.level||''}</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px">
+        ${a.completed?'<span class="badge badge-green">✓ Завершён</span>':'<span class="badge badge-purple">📖 Новый</span>'}
+        <button class="btn btn-purple" onclick="openLessonView('${a.id}','${(a.lesson?.title||'').replace(/'/g,"\\'")}','${encodeURIComponent(JSON.stringify(a.lesson?.content||{}))}')">Открыть</button>
+      </div>
+    </div>
+  </div>`).join('')||'<div class="empty-state"><div class="ei">📖</div><p>Уроки не назначены</p></div>';
+  setContent(`<div class="section-header"><h2>📖 Мои уроки</h2></div>${cards}`);
+}
+
+// ─── TEACHER SCREENS ──────────────────────────────────────────────────────────
+async function renderTeacherStudents(){
+  const{data:sts}=await sb.from('students').select('*').eq('school_id',S.schoolId).order('last_name');
+  const rows=(sts||[]).map(s=>`<tr>
+    <td><div style="display:flex;align-items:center;gap:10px">${avHTML(s.first_name,s.last_name)}<div><div style="font-weight:600">${s.first_name} ${s.last_name}</div><div style="font-size:.75rem;color:var(--text3)">${s.email||'—'}</div></div></div></td>
+    <td>${s.language||'—'}</td><td><span class="badge badge-purple">${s.level||'—'}</span></td><td>${s.phone||'—'}</td>
+    <td><button class="btn btn-sm btn-purple" style="font-size:.75rem;padding:4px 10px" onclick="prefillHwForStudent('${s.id}','${s.first_name} ${s.last_name}')">📋 ДЗ</button></td>
+  </tr>`).join('')||'<tr><td colspan="5" style="text-align:center;color:var(--text3)">Нет учеников</td></tr>';
+  setContent(`<div class="section-header"><h2>👥 Ученики</h2></div>
+    <div class="card" style="padding:0;overflow:hidden"><table><thead><tr><th>Ученик</th><th>Язык</th><th>Уровень</th><th>Телефон</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>`);
+}
+async function renderTeacherHw(){
+  const{data:sts}=await sb.from('students').select('id,first_name,last_name').eq('school_id',S.schoolId);
+  const{data:hws}=await sb.from('homeworks').select('*,student:student_id(first_name,last_name)').eq('teacher_id',S.profile.id).order('created_at',{ascending:false});
+  C('hw_student').innerHTML=(sts||[]).map(s=>`<option value="${s.id}">${s.first_name} ${s.last_name}</option>`).join('');
+  const cards=(hws||[]).map(hw=>`<div class="hw-card ${hw.status}">
+    <div class="hw-title">${hw.title} <span class="badge ${hw.status==='pending'?'badge-purple':hw.status==='submitted'?'badge-yellow':'badge-green'}">${{pending:'Ожидает',submitted:'Сдано',reviewed:'Проверено'}[hw.status]}</span></div>
+    <div class="hw-meta">Ученик: ${hw.student?.first_name||''} ${hw.student?.last_name||''} · Срок: ${fmtDate(hw.deadline)}</div>
+    <div class="hw-desc">${hw.description||''}</div>
+    ${hw.student_answer?`<div class="hw-answer">📝 Ответ: ${hw.student_answer}</div>`:''}
+    ${hw.teacher_comment?`<div class="hw-comment">💬 Мой комментарий: ${hw.teacher_comment}</div>`:''}
+    ${hw.status==='submitted'?`<button class="btn btn-yellow" onclick="openReviewHw('${hw.id}','${(hw.student_answer||'').replace(/'/g,"\\'")}')">Проверить</button>`:''}
+  </div>`).join('')||'<div class="empty-state"><div class="ei">📋</div><p>Нет заданий</p></div>';
+  setContent(`<div class="section-header"><h2>📋 Задания</h2><button class="btn btn-purple" onclick="openM('mAddHomework')">+ Новое ДЗ</button></div>${cards}`);
+}
+function prefillHwForStudent(id,name){C('hw_student').innerHTML=`<option value="${id}">${name}</option>`;openM('mAddHomework');}
+async function saveHw(){
+  const sid=C('hw_student').value,title=C('hw_title').value.trim(),desc=C('hw_desc').value.trim(),dl=C('hw_deadline').value;
+  if(!title){showToast('Введи название!');return;}
+  await sb.from('homeworks').insert({school_id:S.schoolId,teacher_id:S.profile.id,student_id:sid,title,description:desc,deadline:dl||null});
+  closeM('mAddHomework');showToast('Задание отправлено!');if(S.screen==='t_homework')renderTeacherHw();
+}
+function openReviewHw(id,ans){S.currentHwId=id;C('reviewBody').innerHTML=`<div class="hw-answer">📝 Ответ: ${ans||'(пусто)'}</div>`;C('review_comment').value='';openM('mReviewHw');}
+async function saveReview(){
+  await sb.from('homeworks').update({status:'reviewed',teacher_comment:C('review_comment').value.trim()}).eq('id',S.currentHwId);
+  closeM('mReviewHw');showToast('Проверено!');if(S.screen==='t_homework')renderTeacherHw();
+}
+
+// ─── ADMIN / OWNER ────────────────────────────────────────────────────────────
+async function renderAdminHome(){
+  const[{data:sts},{data:ts},{data:pays}]=await Promise.all([
+    sb.from('students').select('id').eq('school_id',S.schoolId),
+    sb.from('profiles').select('id').eq('school_id',S.schoolId).eq('role','teacher'),
+    sb.from('payments').select('amount,status').eq('school_id',S.schoolId)
+  ]);
+  const paid=(pays||[]).filter(p=>p.status==='paid').reduce((a,b)=>a+Number(b.amount),0);
+  const pend=(pays||[]).filter(p=>p.status==='pending').reduce((a,b)=>a+Number(b.amount),0);
+  setContent(`<div class="stats-row">
+    <div class="stat-card"><div class="stat-val">${sts?.length||0}</div><div class="stat-lbl">Учеников</div></div>
+    <div class="stat-card pink"><div class="stat-val">${ts?.length||0}</div><div class="stat-lbl">Учителей</div></div>
+    <div class="stat-card green"><div class="stat-val">${fmtCur(paid)}</div><div class="stat-lbl">Получено</div></div>
+    <div class="stat-card yellow"><div class="stat-val">${fmtCur(pend)}</div><div class="stat-lbl">Ожидает</div></div>
+  </div>`);
+}
+async function renderOwnerHome(){
+  const[{data:sts},{data:ts},{data:pays},{data:adm},{data:cls}]=await Promise.all([
+    sb.from('students').select('id').eq('school_id',S.schoolId),
+    sb.from('profiles').select('id').eq('school_id',S.schoolId).eq('role','teacher'),
+    sb.from('payments').select('amount,status').eq('school_id',S.schoolId),
+    sb.from('profiles').select('id').eq('school_id',S.schoolId).eq('role','admin'),
+    sb.from('classes').select('id').eq('school_id',S.schoolId)
+  ]);
+  const paid=(pays||[]).filter(p=>p.status==='paid').reduce((a,b)=>a+Number(b.amount),0);
+  const ov=(pays||[]).filter(p=>p.status==='overdue').reduce((a,b)=>a+Number(b.amount),0);
+  setContent(`<div class="stats-row">
+    <div class="stat-card"><div class="stat-val">${sts?.length||0}</div><div class="stat-lbl">Учеников</div></div>
+    <div class="stat-card pink"><div class="stat-val">${ts?.length||0}</div><div class="stat-lbl">Учителей</div></div>
+    <div class="stat-card green"><div class="stat-val">${fmtCur(paid)}</div><div class="stat-lbl">Выручка</div></div>
+    <div class="stat-card yellow"><div class="stat-val">${fmtCur(ov)}</div><div class="stat-lbl">Просрочено</div></div>
+    <div class="stat-card"><div class="stat-val">${adm?.length||0}</div><div class="stat-lbl">Администраторов</div></div>
+    <div class="stat-card" style="border-left-color:var(--blue)"><div class="stat-val">${cls?.length||0}</div><div class="stat-lbl">Классов</div></div>
+  </div>`);
+}
+async function renderAdminStudents(){
+  const{data:sts}=await sb.from('students').select('*').eq('school_id',S.schoolId).order('last_name');
+  const rows=(sts||[]).map(s=>`<tr><td><div style="display:flex;align-items:center;gap:10px">${avHTML(s.first_name,s.last_name)}<div><div style="font-weight:600">${s.first_name} ${s.last_name}</div><div style="font-size:.75rem;color:var(--text3)">${s.email||'—'}</div></div></div></td><td>${s.language||'—'}</td><td><span class="badge badge-purple">${s.level||'—'}</span></td><td>${s.phone||'—'}</td></tr>`).join('')||'<tr><td colspan="4" style="text-align:center;color:var(--text3)">Нет учеников</td></tr>';
+  setContent(`<div class="section-header"><h2>👥 Ученики</h2><button class="btn btn-purple" onclick="openAddStudent()">+ Добавить</button></div>
+    <div class="card" style="padding:0;overflow:hidden"><table><thead><tr><th>Ученик</th><th>Язык</th><th>Уровень</th><th>Телефон</th></tr></thead><tbody>${rows}</tbody></table></div>`);
+}
+async function renderAdminTeachers(){
+  const{data:ts}=await sb.from('profiles').select('*').eq('school_id',S.schoolId).eq('role','teacher');
+  const rows=(ts||[]).map(t=>`<tr><td><div style="display:flex;align-items:center;gap:10px">${avHTML(t.first_name,t.last_name)}<div><div style="font-weight:600">${t.first_name} ${t.last_name}</div><div style="font-size:.75rem;color:var(--text3)">${t.email||'—'}</div></div></div></td>
+    <td><span class="badge badge-green">Учитель</span></td>
+    <td><button class="btn btn-sm btn-outline" style="font-size:.73rem;padding:4px 8px" onclick="openSetSalary('${t.id}','${t.first_name} ${t.last_name}')">💰 Ставка</button></td></tr>`).join('')||'<tr><td colspan="3" style="text-align:center;color:var(--text3)">Нет учителей</td></tr>';
+  setContent(`<div class="section-header"><h2>👨‍🏫 Учителя</h2></div>
+    <div class="card" style="padding:0;overflow:hidden"><table><thead><tr><th>Учитель</th><th>Роль</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>`);
+}
+async function renderOwnerUsers(){
+  const{data:users}=await sb.from('profiles').select('*').eq('school_id',S.schoolId).order('role');
+  const rows=(users||[]).map(u=>`<tr>
+    <td><div style="display:flex;align-items:center;gap:10px">${avHTML(u.first_name,u.last_name)}<div><div style="font-weight:600">${u.first_name} ${u.last_name}</div><div style="font-size:.75rem;color:var(--text3)">${u.email||'—'}</div></div></div></td>
+    <td><span class="badge ${u.role==='owner'?'badge-pink':u.role==='admin'?'badge-yellow':u.role==='teacher'?'badge-green':'badge-purple'}">${ROLE_L[u.role]||u.role}</span></td>
+    <td>${u.id===S.profile.id?'—':`<button class="btn btn-sm btn-outline" style="font-size:.73rem;padding:4px 8px" onclick="openChangeRole('${u.id}','${u.first_name} ${u.last_name}','${u.role}')">✎ Роль</button>`}</td>
+  </tr>`).join('');
+  setContent(`<div class="section-header"><h2>👥 Все пользователи</h2><button class="btn btn-purple" onclick="openM('mInviteStaff')">+ Пригласить сотрудника</button></div>
+    <div class="card" style="padding:0;overflow:hidden"><table><thead><tr><th>Пользователь</th><th>Роль</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>`);
+}
+let _changeRoleId='';
+function openChangeRole(uid,name,currentRole){_changeRoleId=uid;C('changeRoleUserInfo').textContent=name;C('newRole').value=currentRole;openM('mChangeRole');}
+async function applyRoleChange(){await sb.from('profiles').update({role:C('newRole').value}).eq('id',_changeRoleId);closeM('mChangeRole');showToast('Роль изменена!');renderOwnerUsers();}
+async function renderOwnerStudents(){
+  const{data:sts}=await sb.from('students').select('*').eq('school_id',S.schoolId).order('last_name');
+  const rows=(sts||[]).map(s=>`<tr><td><div style="display:flex;align-items:center;gap:10px">${avHTML(s.first_name,s.last_name)}<div><div style="font-weight:600">${s.first_name} ${s.last_name}</div><div style="font-size:.75rem;color:var(--text3)">${s.email||'—'}</div></div></div></td><td>${s.language||'—'}</td><td><span class="badge badge-purple">${s.level||'—'}</span></td><td>${s.phone||'—'}</td></tr>`).join('');
+  setContent(`<div class="section-header"><h2>🎓 Ученики</h2><button class="btn btn-purple" onclick="openAddStudent()">+ Добавить</button></div>
+    <div class="card" style="padding:0;overflow:hidden"><table><thead><tr><th>Ученик</th><th>Язык</th><th>Уровень</th><th>Телефон</th></tr></thead><tbody>${rows}</tbody></table></div>`);
+}
+
+// ─── PAYMENTS ─────────────────────────────────────────────────────────────────
+async function renderPayments(){
+  const{data:pays}=await sb.from('payments').select('*,student:student_id(first_name,last_name)').eq('school_id',S.schoolId).order('created_at',{ascending:false});
+  const{data:sts}=await sb.from('students').select('id,first_name,last_name').eq('school_id',S.schoolId);
+  C('pay_student').innerHTML=(sts||[]).map(s=>`<option value="${s.id}">${s.first_name} ${s.last_name}</option>`).join('');
+  const paid=(pays||[]).filter(p=>p.status==='paid').reduce((a,b)=>a+Number(b.amount),0);
+  const pend=(pays||[]).filter(p=>p.status==='pending').reduce((a,b)=>a+Number(b.amount),0);
+  const ov=(pays||[]).filter(p=>p.status==='overdue').reduce((a,b)=>a+Number(b.amount),0);
+  const rows=(pays||[]).map(p=>`<tr>
+    <td>${p.student?.first_name||'—'} ${p.student?.last_name||''}</td>
+    <td><b>${fmtCur(p.amount,p.currency)}</b></td>
+    <td>${fmtDate(p.period_from)} – ${fmtDate(p.period_to)}</td>
+    <td><span class="badge ${p.status==='paid'?'badge-green':p.status==='overdue'?'badge-pink':'badge-yellow'}">${{paid:'Оплачено',pending:'Ожидает',overdue:'Просрочено'}[p.status]||p.status}</span></td>
+    <td style="font-size:.78rem;color:var(--text3)">${p.note||''}</td>
+    <td>${p.status!=='paid'?`<button class="btn btn-sm btn-green" style="font-size:.72rem;padding:3px 8px" onclick="markPaid('${p.id}')">✓</button>`:''}</td>
+  </tr>`).join('');
+  setContent(`<div class="section-header"><h2>💳 Оплата</h2><button class="btn btn-purple" onclick="openAddPayment()">+ Платёж</button></div>
+    <div class="stats-row" style="margin-bottom:16px">
+      <div class="stat-card green"><div class="stat-val">${fmtCur(paid)}</div><div class="stat-lbl">Оплачено</div></div>
+      <div class="stat-card yellow"><div class="stat-val">${fmtCur(pend)}</div><div class="stat-lbl">Ожидает</div></div>
+      <div class="stat-card pink"><div class="stat-val">${fmtCur(ov)}</div><div class="stat-lbl">Просрочено</div></div>
+    </div>
+    <div class="card" style="padding:0;overflow:hidden"><table><thead><tr><th>Ученик</th><th>Сумма</th><th>Период</th><th>Статус</th><th>Заметка</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>`);
+}
+function openAddPayment(){S.editPayId=null;C('payTitle').textContent='Новый платёж';['pay_amount','pay_note'].forEach(id=>C(id).value='');C('pay_status').value='pending';openM('mAddPayment');}
+async function markPaid(id){await sb.from('payments').update({status:'paid'}).eq('id',id);showToast('Отмечено оплаченным');renderPayments();}
+async function savePayment(){
+  const sid=C('pay_student').value,amt=C('pay_amount').value,cur=C('pay_cur').value;
+  const pf=C('pay_from').value||null,pt=C('pay_to').value||null,st=C('pay_status').value,note=C('pay_note').value.trim();
+  if(!amt){showToast('Введи сумму!');return;}
+  if(S.editPayId)await sb.from('payments').update({student_id:sid,amount:amt,currency:cur,period_from:pf,period_to:pt,status:st,note}).eq('id',S.editPayId);
+  else await sb.from('payments').insert({school_id:S.schoolId,student_id:sid,amount:amt,currency:cur,period_from:pf,period_to:pt,status:st,note});
+  closeM('mAddPayment');showToast('Платёж сохранён');renderPayments();
+}
+
+// ─── SALARIES ─────────────────────────────────────────────────────────────────
+let salPeriod='month';
+async function renderSalaries(){
+  const[{data:ts},{data:sals},{data:logs}]=await Promise.all([
+    sb.from('profiles').select('*').eq('school_id',S.schoolId).eq('role','teacher'),
+    sb.from('teacher_salaries').select('*').eq('school_id',S.schoolId),
+    sb.from('lessons_log').select('*').eq('school_id',S.schoolId).eq('status','completed')
+  ]);
+  const now=new Date();
+  function periodStart(p){const d=new Date();if(p==='week')d.setDate(d.getDate()-7);else if(p==='biweek')d.setDate(d.getDate()-14);else d.setDate(1);d.setHours(0,0,0);return d;}
+  const start=periodStart(salPeriod);
+  const rows=(ts||[]).map(t=>{
+    const sal=(sals||[]).find(s=>s.teacher_id===t.id);
+    const rate=sal?.rate_per_lesson||0,cur=sal?.currency||'GEL';
+    const cnt=(logs||[]).filter(l=>l.teacher_id===t.id&&new Date(l.lesson_date)>=start).length;
+    return`<tr>
+      <td><div style="display:flex;align-items:center;gap:10px">${avHTML(t.first_name,t.last_name)}<div style="font-weight:600">${t.first_name} ${t.last_name}</div></div></td>
+      <td>${fmtCur(rate,cur)}</td><td>${cnt}</td><td><b style="color:var(--green)">${fmtCur(rate*cnt,cur)}</b></td>
+      <td><button class="btn btn-sm btn-outline" style="font-size:.73rem;padding:4px 8px" onclick="openSetSalary('${t.id}','${t.first_name} ${t.last_name}')">✎ Ставка</button>
+      <button class="btn btn-sm btn-purple" style="font-size:.73rem;padding:4px 8px;margin-left:4px" onclick="logLessonFor('${t.id}','${t.first_name} ${t.last_name}')">+ Урок</button></td></tr>`;
+  }).join('');
+  setContent(`<div class="section-header"><h2>💰 Зарплаты</h2></div>
+    <div class="period-tabs">
+      <button class="period-tab ${salPeriod==='week'?'active':''}" onclick="setSalPeriod('week')">Неделя</button>
+      <button class="period-tab ${salPeriod==='biweek'?'active':''}" onclick="setSalPeriod('biweek')">2 недели</button>
+      <button class="period-tab ${salPeriod==='month'?'active':''}" onclick="setSalPeriod('month')">Месяц</button>
+    </div>
+    <div class="card" style="padding:0;overflow:hidden"><table><thead><tr><th>Учитель</th><th>Ставка/урок</th><th>Уроков</th><th>Итого</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>`);
+}
+function setSalPeriod(p){salPeriod=p;renderSalaries();}
+function openSetSalary(tid,tname){S.currentSalTId=tid;C('salaryTName').textContent=tname;C('sal_rate').value='';openM('mSetSalary');}
+async function saveSalary(){
+  const rate=C('sal_rate').value,cur=C('sal_cur').value;if(!rate){showToast('Введи ставку!');return;}
+  await sb.from('teacher_salaries').upsert({school_id:S.schoolId,teacher_id:S.currentSalTId,rate_per_lesson:rate,currency:cur,updated_at:new Date().toISOString()},{onConflict:'teacher_id'});
+  closeM('mSetSalary');showToast('Ставка сохранена');if(S.screen==='o_salaries'||S.screen==='a_salaries')renderSalaries();
+}
+async function logLessonFor(tid,tname){
+  const topic=prompt(`Тема урока (${tname}):`);if(topic===null)return;
+  await sb.from('lessons_log').insert({school_id:S.schoolId,teacher_id:tid,lesson_date:new Date().toISOString().split('T')[0],topic,status:'completed'});
+  showToast('Урок записан');if(S.screen==='o_salaries'||S.screen==='a_salaries')renderSalaries();
+}
+
+// ─── MATERIALS ────────────────────────────────────────────────────────────────
+const MICONS={pdf:'📄',video:'🎬',audio:'🎵',link:'🔗',doc:'📝'};
+async function renderMaterials(){
+  const{data:mats}=await sb.from('materials').select('*').eq('school_id',S.schoolId).order('created_at',{ascending:false});
+  const canAdd=['teacher','admin','owner'].includes(S.role);
+  const grid=(mats||[]).map(m=>`<div class="material-card" onclick="openMaterial('${(m.url||m.data_url||'').replace(/'/g,"\\'")}')">
+    <div class="material-icon">${MICONS[m.type]||'📎'}</div>
+    <div style="font-weight:600;font-size:.88rem;margin-bottom:4px">${m.title||m.name||'—'}</div>
+    <div style="font-size:.75rem;color:var(--text3)">${m.language||''} · ${m.level||''}</div>
+  </div>`).join('')||'<div style="grid-column:1/-1" class="empty-state"><div class="ei">📁</div><p>Нет материалов</p></div>';
+  setContent(`<div class="section-header"><h2>📁 Материалы</h2>${canAdd?'<button class="btn btn-purple" onclick="openM(\'mAddMaterial\')">+ Добавить</button>':''}</div>
+    <div class="materials-grid">${grid}</div>`);
+}
+function openMaterial(url){if(url)window.open(url,'_blank');}
+async function saveMaterial(){
+  const name=C('mat_name').value.trim(),type=C('mat_type').value,url=C('mat_url').value.trim(),language=C('mat_lang').value,level=C('mat_level').value;
+  if(!name){showToast('Введи название!');return;}
+  await sb.from('materials').insert({school_id:S.schoolId,name,title:name,type,url,language,level});
+  closeM('mAddMaterial');showToast('Материал добавлен');renderMaterials();
+}
+
+// ─── STUDENTS CRUD ────────────────────────────────────────────────────────────
+function openAddStudent(){['st_first','st_last','st_email','st_phone'].forEach(id=>C(id).value='');openM('mAddStudent');}
+async function saveStudent(){
+  const f=C('st_first').value.trim(),l=C('st_last').value.trim();
+  const email=C('st_email').value.trim();
+  if(!f||!l){showToast('Введи имя и фамилию!');return;}
+  if(!email){showToast('Введи email для приглашения!');return;}
+  // Insert student record
+  await sb.from('students').insert({school_id:S.schoolId,first_name:f,last_name:l,email,phone:C('st_phone').value.trim(),language:C('st_lang').value,level:C('st_level').value});
+  closeM('mAddStudent');
+  // Send invite email
+  try{
+    await callInviteFunction(email,'student',f,l,{language:C('st_lang').value,level:C('st_level').value,phone:C('st_phone').value.trim()});
+    showToast('Ученик добавлен — письмо отправлено! 💌');
+  }catch(e){
+    showToast('Ученик добавлен, но письмо не отправлено: '+e.message);
+  }
+  if(S.screen==='a_students')renderAdminStudents();else if(S.screen==='o_students')renderOwnerStudents();
+}
+
+async function saveInviteStaff(){
+  const f=C('inv_first').value.trim(),l=C('inv_last').value.trim();
+  const email=C('inv_email_inp').value.trim();
+  const role=C('inv_role').value;
+  if(!f||!l){showToast('Введи имя и фамилию!');return;}
+  if(!email){showToast('Введи email!');return;}
+  try{
+    await callInviteFunction(email,role,f,l);
+    closeM('mInviteStaff');
+    // Clear fields
+    ['inv_first','inv_last','inv_email_inp'].forEach(id=>C(id).value='');
+    showToast('Приглашение отправлено! 💌');
+    if(S.screen==='o_users')renderOwnerUsers();
+  }catch(e){
+    showToast('Ошибка: '+e.message);
+  }
+}
+// ─── CLASSES ──────────────────────────────────────────────────────────────────
+let _allClasses=[];
+async function renderClasses(){
+  const[{data:classes},{data:teachers}]=await Promise.all([
+    sb.from('classes').select('*').eq('school_id',S.schoolId).order('created_at',{ascending:false}),
+    sb.from('profiles').select('id,first_name,last_name').eq('school_id',S.schoolId).in('role',['teacher','admin','owner'])
+  ]);
+  C('cl_teacher').innerHTML=(teachers||[]).map(t=>`<option value="${t.id}">${t.first_name} ${t.last_name}</option>`).join('');
+  _allClasses=classes||[];
+  const canCreate=['teacher','admin','owner'].includes(S.role);
+  setContent(`<div class="section-header"><h2>🎓 Классы</h2>${canCreate?'<button class="btn btn-purple" onclick="openNewClass()">+ Новый класс</button>':''}</div>
+    <div class="classes-toolbar">
+      <input class="classes-search" id="classSearch" placeholder="Поиск классов..." oninput="filterClasses()" />
+      <div class="ev-filter-tabs">
+        <button class="ev-filter-tab active" id="fTab_all" onclick="setClassFilter('all',this)">Все</button>
+        <button class="ev-filter-tab" id="fTab_individual" onclick="setClassFilter('individual',this)">Индивидуальные</button>
+        <button class="ev-filter-tab" id="fTab_group" onclick="setClassFilter('group',this)">Групповые</button>
+      </div>
+      <span class="classes-count" id="classesCount">Кол-во классов ${_allClasses.length}</span>
+    </div>
+    <div class="ev-classes-grid" id="evClassesGrid"></div>`);
+  renderClassCards(_allClasses,canCreate);
+}
+let _classFilter='all';
+function setClassFilter(f,el){
+  _classFilter=f;
+  document.querySelectorAll('.ev-filter-tab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  filterClasses();
+}
+function filterClasses(){
+  const q=(C('classSearch')?.value||'').toLowerCase();
+  let list=_allClasses.filter(cl=>{
+    const matchType=_classFilter==='all'||cl.type===_classFilter;
+    const matchQ=!q||cl.name.toLowerCase().includes(q)||(cl.description||'').toLowerCase().includes(q);
+    return matchType&&matchQ;
+  });
+  C('classesCount').textContent=`Кол-во классов ${list.length}`;
+  const canCreate=['teacher','admin','owner'].includes(S.role);
+  renderClassCards(list,canCreate);
+}
+function renderClassCards(list,canCreate){
+  const grid=C('evClassesGrid');if(!grid)return;
+  const COLORS=['#F97316','#8B5CF6','#EC4899','#10B981','#3B82F6','#EF4444','#F59E0B','#06B6D4'];
+  const cards=list.map((cl,i)=>{
+    const bg=cl.color||COLORS[i%COLORS.length];
+    const initial=((cl.name||'?').replace(/[^a-zA-Zа-яА-ЯёЁ0-9]/g,'')[0]||(cl.name||'?')[0]).toUpperCase();
+    const typeLabel=cl.type==='group'?'Групповой':'Индивидуальный';
+    return`<div class="ev-class-card" style="background:${bg}" onclick="openClassDetail('${cl.id}')">
+      <div class="ev-class-count">👤</div>
+      <div class="ev-class-initial">${initial}</div>
+      <div class="ev-class-name">${cl.name}</div>
+      <div class="ev-class-type">${cl.language} · ${cl.level} · ${typeLabel}</div>
+    </div>`;
+  }).join('');
+  const createCard=canCreate?`<div class="ev-class-card ev-class-create" onclick="openNewClass()">
+    <div class="ev-class-initial">+</div>
+    <div class="ev-class-name" style="color:var(--purple)">Создать класс</div>
+  </div>`:'';
+  grid.innerHTML=createCard+cards||(canCreate?createCard:'<div class="empty-state" style="grid-column:1/-1"><div class="ei">🎓</div><p>Классов пока нет</p></div>');
+}
+
+async function openNewClass(){
+  S.editClassId=null;
+  ['cl_name','cl_desc'].forEach(id=>C(id).value='');
+  C('cl_emoji').value='📚';C('cl_type').value='individual';C('cl_lang').value='Английский';C('cl_level').value='A1';C('cl_color').value='#7C3AED';
+  C('classModalTitle').textContent='Новый класс';
+  openM('mAddClass');
+}
+async function editClass(id){
+  const{data:cl}=await sb.from('classes').select('*').eq('id',id).single();
+  S.editClassId=id;
+  C('cl_name').value=cl.name||'';C('cl_desc').value=cl.description||'';C('cl_emoji').value=cl.emoji||'📚';
+  C('cl_type').value=cl.type||'individual';C('cl_lang').value=cl.language||'Английский';C('cl_level').value=cl.level||'A1';
+  C('cl_color').value=cl.color||'#7C3AED';C('cl_teacher').value=cl.teacher_id||'';
+  C('classModalTitle').textContent='Редактировать класс';openM('mAddClass');
+}
+async function saveClass(){
+  const name=C('cl_name').value.trim();if(!name){showToast('Введи название!');return;}
+  const data={school_id:S.schoolId,teacher_id:C('cl_teacher').value||S.profile.id,name,type:C('cl_type').value,language:C('cl_lang').value,level:C('cl_level').value,color:C('cl_color').value,emoji:C('cl_emoji').value||'📚',description:C('cl_desc').value.trim()};
+  if(S.editClassId)await sb.from('classes').update(data).eq('id',S.editClassId);
+  else await sb.from('classes').insert(data);
+  closeM('mAddClass');showToast('Класс сохранён!');renderClasses();
+}
+
+async function openClassDetail(classId){
+  S.currentClassId=classId;
+  const{data:cl}=await sb.from('classes').select('*').eq('id',classId).single();
+  const COLORS=['#F97316','#8B5CF6','#EC4899','#10B981','#3B82F6','#EF4444','#F59E0B','#06B6D4'];
+  const bg=cl.color||COLORS[0];
+  const initial=((cl.name||'?').replace(/[^a-zA-Zа-яА-ЯёЁ0-9]/g,'')[0]||(cl.name||'?')[0]).toUpperCase();
+  const typeLabel=cl.type==='group'?'Групповой':'Индивидуальный';
+  // topbar avatar
+  const av=C('cdp_avatar');av.style.background=bg;av.textContent=initial;
+  C('cdp_title').textContent=`${cl.name} · ${cl.language} ${cl.level} · ${typeLabel}`;
+  // store for edit
+  S._currentClassData=cl;
+  S.currentClassTab='students';
+  document.querySelectorAll('.cdp-tab').forEach((t,i)=>t.classList.toggle('active',i===0));
+  await loadClassTab('students');
+  C('classDetailPage').classList.add('open');
+}
+function closeClassDetail(){
+  C('classDetailPage').classList.remove('open');
+}
+function cdpEditClass(){
+  if(S._currentClassData)editClass(S._currentClassData.id);
+}
+async function cdpStartLesson(){
+  // show modal to pick lesson then open CE in classroom mode
+  const{data:lessons}=await sb.from('lessons').select('*').eq('school_id',S.schoolId).eq('published',true).order('created_at',{ascending:false});
+  if(!lessons||lessons.length===0){showToast('Нет опубликованных уроков. Сначала создай урок.');return;}
+  // build quick picker
+  const opts=lessons.map(l=>`<div onclick="cdpPickLesson('${l.id}','${(l.title).replace(/'/g,"\\'")}','${l.language}','${l.level}','${encodeURIComponent(JSON.stringify(l.content||[]))}')" style="padding:12px 16px;cursor:pointer;border-radius:10px;border:2px solid var(--gray-border);margin-bottom:8px;transition:.15s" onmouseover="this.style.borderColor='var(--purple)'" onmouseout="this.style.borderColor='var(--gray-border)'">
+    <div style="font-weight:700">${l.title}</div>
+    <div style="font-size:.8rem;color:var(--text3)">${l.language} · ${l.level}</div>
+  </div>`).join('');
+  C('lessonPickerList').innerHTML=opts;
+  openM('mLessonPicker');
+}
+function cdpPickLesson(id,title,lang,level,contentEnc){
+  closeM('mLessonPicker');
+  // Open EdVibe-style classroom view with class name as context
+  const className=S._currentClassData?.name||'Класс';
+  openClassroomView(title,_parseLessonContent(contentEnc),null,className);
+}
+async function switchCDPTab(tab,el){
+  S.currentClassTab=tab;
+  document.querySelectorAll('.cdp-tab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  await loadClassTab(tab);
+}
+async function loadClassTab(tab){
+  const classId=S.currentClassId;
+  if(tab==='students'){
+    const[{data:cs},{data:allSts}]=await Promise.all([
+      sb.from('class_students').select('*,student:student_id(id,first_name,last_name,level,language)').eq('class_id',classId),
+      sb.from('students').select('id,first_name,last_name').eq('school_id',S.schoolId)
+    ]);
+    const enrolled=(cs||[]).map(c=>c.student_id);
+    const available=(allSts||[]).filter(s=>!enrolled.includes(s.id));
+    const stRows=(cs||[]).map(c=>`<tr>
+      <td><div style="display:flex;align-items:center;gap:10px">${avHTML(c.student?.first_name,c.student?.last_name)}<div style="font-weight:600">${c.student?.first_name||'—'} ${c.student?.last_name||''}</div></div></td>
+      <td><span class="badge badge-purple">${c.student?.level||'—'}</span></td>
+      <td>${fmtDate(c.joined_at)}</td>
+      <td><button class="btn btn-sm btn-red" style="font-size:.7rem;padding:3px 8px" onclick="removeFromClass('${c.id}')">✕ Убрать</button></td>
+    </tr>`).join('');
+    C('classDetailContent').innerHTML=`
+      <div style="display:flex;gap:10px;margin-bottom:16px;align-items:center">
+        <select id="addStuSel" style="flex:1;padding:8px 12px;border:2px solid var(--gray-border);border-radius:8px;font-family:var(--font)">
+          ${available.map(s=>`<option value="${s.id}">${s.first_name} ${s.last_name}</option>`).join('')||'<option disabled>Все ученики уже в классе</option>'}
+        </select>
+        <button class="btn btn-purple" onclick="addToClass()">+ Добавить ученика</button>
+      </div>
+      <div class="card" style="padding:0;overflow:hidden">
+        <table><thead><tr><th>Ученик</th><th>Уровень</th><th>Добавлен</th><th></th></tr></thead>
+        <tbody>${stRows||'<tr><td colspan="4" style="text-align:center;color:var(--text3)">Нет учеников</td></tr>'}</tbody></table>
+      </div>`;
+  }
+  else if(tab==='lessons'){
+    const{data:lessons}=await sb.from('lessons').select('*').eq('school_id',S.schoolId).order('created_at',{ascending:false});
+    const{data:sts}=await sb.from('students').select('id,first_name,last_name').eq('school_id',S.schoolId);
+    C('assign_student').innerHTML=(sts||[]).map(s=>`<option value="${s.id}">${s.first_name} ${s.last_name}</option>`).join('');
+    const cards=(lessons||[]).map(l=>{
+      const cnt=lessonExCount(l);
+      return`<div class="card" style="margin-bottom:10px">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+          <div>
+            <div style="font-weight:700">${l.title}</div>
+            <div style="font-size:.8rem;color:var(--text3)">${l.language} · ${l.level} · ${cnt} упражнений</div>
+          </div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap">
+            ${l.published?'<span class="badge badge-green">✓ Опубликован</span>':'<span class="badge badge-gray">Черновик</span>'}
+            <button class="btn btn-sm btn-outline" style="font-size:.73rem;padding:4px 8px" onclick="openLessonPreview('${(l.title).replace(/'/g,"\\'")}','${encodeURIComponent(JSON.stringify(l.content||[]))}')">👁 Просмотр</button>
+            <button class="btn btn-sm btn-outline" style="font-size:.73rem;padding:4px 8px" onclick="openLessonEditor('${l.id}','${(l.title).replace(/'/g,"\\'")}','${l.language}','${l.level}','${encodeURIComponent(JSON.stringify(l.content||[]))}')">✎ Редактор</button>
+            <button class="btn btn-sm btn-purple" style="font-size:.73rem;padding:4px 8px" onclick="openAssignLesson('${l.id}')">👤 Назначить</button>
+          </div>
+        </div>
+      </div>`;}).join('');
+    C('classDetailContent').innerHTML=`<div class="section-header" style="margin-bottom:12px"><span style="font-weight:700">Уроки</span><button class="btn btn-purple" onclick="newLesson()">+ Создать урок</button></div>${cards||'<div class="empty-state"><div class="ei">📖</div><p>Уроков пока нет</p></div>'}`;
+  }
+  else if(tab==='schedule'){
+    const{data:evs}=await sb.from('schedule_events').select('*').eq('class_id',classId).order('event_date').order('event_time');
+    const rows=(evs||[]).map(ev=>`<tr>
+      <td>${fmtDate(ev.event_date)}</td><td>${ev.event_time?.slice(0,5)||'—'}</td>
+      <td>${ev.duration_minutes} мин</td>
+      <td><span class="badge ${ev.status==='completed'?'badge-green':ev.status==='cancelled'?'badge-gray':'badge-purple'}">${{scheduled:'Запланировано',completed:'Проведено',cancelled:'Отменено'}[ev.status]||ev.status}</span></td>
+      <td style="font-size:.78rem;color:var(--text3)">${ev.notes||''}</td>
+      <td><button class="btn btn-sm btn-red" style="font-size:.7rem;padding:3px 8px" onclick="deleteEvent('${ev.id}')">✕</button></td>
+    </tr>`).join('');
+    C('classDetailContent').innerHTML=`<div class="section-header" style="margin-bottom:12px"><span style="font-weight:700">Занятия класса</span><button class="btn btn-purple" onclick="openAddEventForClass('${classId}')">+ Занятие</button></div>
+      <div class="card" style="padding:0;overflow:hidden"><table><thead><tr><th>Дата</th><th>Время</th><th>Длит.</th><th>Статус</th><th>Заметки</th><th></th></tr></thead><tbody>${rows||'<tr><td colspan="6" style="text-align:center;color:var(--text3)">Нет занятий</td></tr>'}</tbody></table></div>`;
+  }
+  else if(tab==='progress'){
+    const[{data:cs},{data:assigns}]=await Promise.all([
+      sb.from('class_students').select('*,student:student_id(id,first_name,last_name)').eq('class_id',classId),
+      sb.from('lesson_assignments').select('*').eq('school_id',S.schoolId)
+    ]);
+    const rows=(cs||[]).map(c=>{
+      const stuAssigns=(assigns||[]).filter(a=>a.student_id===c.student_id);
+      const done=stuAssigns.filter(a=>a.completed).length;
+      const total=stuAssigns.length;
+      const pct=total>0?Math.round(done/total*100):0;
+      return`<tr>
+        <td><div style="display:flex;align-items:center;gap:10px">${avHTML(c.student?.first_name,c.student?.last_name)}<div style="font-weight:600">${c.student?.first_name||'—'} ${c.student?.last_name||''}</div></div></td>
+        <td>${done}/${total}</td>
+        <td><div style="min-width:120px"><div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div><div style="font-size:.72rem;color:var(--text3);margin-top:2px">${pct}%</div></div></td>
+      </tr>`;
+    }).join('');
+    C('classDetailContent').innerHTML=`<div class="card" style="padding:0;overflow:hidden"><table><thead><tr><th>Ученик</th><th>Уроков пройдено</th><th>Прогресс</th></tr></thead><tbody>${rows||'<tr><td colspan="3" style="text-align:center;color:var(--text3)">Нет учеников</td></tr>'}</tbody></table></div>`;
+  }
+}
+async function addToClass(){
+  const sid=C('addStuSel').value;if(!sid)return;
+  await sb.from('class_students').insert({school_id:S.schoolId,class_id:S.currentClassId,student_id:sid});
+  showToast('Ученик добавлен в класс!');await loadClassTab('students');
+}
+async function removeFromClass(csId){
+  if(!confirm('Убрать ученика из класса?'))return;
+  await sb.from('class_students').delete().eq('id',csId);
+  showToast('Ученик убран');await loadClassTab('students');
+}
+
+// ─── SCHEDULE ─────────────────────────────────────────────────────────────────
+let scheduleWeekOffset=0;
+async function renderSchedule(){
+  const[{data:evs},{data:classes}]=await Promise.all([
+    sb.from('schedule_events').select('*,class:class_id(name,color)').eq('school_id',S.schoolId),
+    sb.from('classes').select('id,name,color').eq('school_id',S.schoolId)
+  ]);
+  C('ev_class').innerHTML=(classes||[]).map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
+
+  const today=new Date();
+  const weekStart=new Date(today);
+  weekStart.setDate(today.getDate()-today.getDay()+1+scheduleWeekOffset*7);
+  weekStart.setHours(0,0,0,0);
+
+  const days=['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
+  const dayDates=Array.from({length:7},(_,i)=>{const d=new Date(weekStart);d.setDate(weekStart.getDate()+i);return d;});
+  const isToday=d=>d.toDateString()===today.toDateString();
+
+  const HOURS=Array.from({length:14},(_,i)=>i+8); // 8:00-21:00
+
+  let headRow=`<div class="sch-head"></div>`+dayDates.map((d,i)=>`<div class="sch-head" style="${isToday(d)?'background:var(--purple-light);color:var(--purple)':''}">${days[i]}<br><span style="font-size:.9rem;font-weight:800">${d.getDate()}</span></div>`).join('');
+
+  const bodyRows=HOURS.map(h=>{
+    const timeLabel=`${h}:00`;
+    let row=`<div class="sch-time">${timeLabel}</div>`;
+    dayDates.forEach(d=>{
+      const dateStr=d.toISOString().split('T')[0];
+      const cellEvs=(evs||[]).filter(ev=>ev.event_date===dateStr&&parseInt(ev.event_time)===h);
+      const evHtml=cellEvs.map(ev=>`<div class="sch-event ${ev.status}" style="background:${ev.class?.color||'#7C3AED'}" onclick="event.stopPropagation();viewEvent('${ev.id}')" title="${ev.title}">${ev.title}</div>`).join('');
+      row+=`<div class="sch-cell" onclick="openAddEventOnDate('${dateStr}','${h}:00')">${evHtml}</div>`;
+    });
+    return row;
+  }).join('');
+
+  const weekLabel=`${dayDates[0].toLocaleDateString('ru-RU',{day:'numeric',month:'short'})} – ${dayDates[6].toLocaleDateString('ru-RU',{day:'numeric',month:'short',year:'numeric'})}`;
+
+  setContent(`
+    <div class="section-header">
+      <h2>📅 Расписание</h2>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button class="btn btn-outline" onclick="scheduleWeekOffset--;renderSchedule()">← Нед.</button>
+        <span style="font-size:.85rem;font-weight:600;color:var(--text2)">${weekLabel}</span>
+        <button class="btn btn-outline" onclick="scheduleWeekOffset++;renderSchedule()">Нед. →</button>
+        <button class="btn btn-purple" onclick="openAddEventOnDate('','')">+ Занятие</button>
+        ${scheduleWeekOffset!==0?'<button class="btn btn-outline" onclick="scheduleWeekOffset=0;renderSchedule()">Сегодня</button>':''}
+      </div>
+    </div>
+    <div style="overflow-x:auto">
+      <div class="schedule-grid" style="min-width:700px">
+        ${headRow}${bodyRows}
+      </div>
+    </div>`);
+}
+function openAddEventOnDate(date,time){
+  S.editEventId=null;
+  C('ev_title').value='';C('ev_notes').value='';C('ev_status').value='scheduled';
+  C('ev_date').value=date||new Date().toISOString().split('T')[0];
+  C('ev_time').value=time||'09:00';C('ev_dur').value='60';
+  C('eventModalTitle').textContent='Новое занятие';openM('mAddEvent');
+}
+function openAddEventForClass(classId){
+  openAddEventOnDate('','');
+  setTimeout(()=>{if(C('ev_class'))C('ev_class').value=classId;},50);
+}
+async function viewEvent(id){
+  const{data:ev}=await sb.from('schedule_events').select('*,class:class_id(name)').eq('id',id).single();
+  if(!ev)return;
+  S.editEventId=id;
+  C('ev_title').value=ev.title||'';C('ev_date').value=ev.event_date||'';C('ev_time').value=ev.event_time?.slice(0,5)||'';
+  C('ev_dur').value=ev.duration_minutes||60;C('ev_status').value=ev.status||'scheduled';C('ev_notes').value=ev.notes||'';
+  if(ev.class_id)C('ev_class').value=ev.class_id;
+  C('eventModalTitle').textContent='Занятие: '+ev.title;openM('mAddEvent');
+}
+async function saveEvent(){
+  const title=C('ev_title').value.trim();if(!title){showToast('Введи название!');return;}
+  const data={school_id:S.schoolId,class_id:C('ev_class').value||null,teacher_id:S.profile.id,title,event_date:C('ev_date').value,event_time:C('ev_time').value,duration_minutes:parseInt(C('ev_dur').value),status:C('ev_status').value,notes:C('ev_notes').value.trim()};
+  if(S.editEventId)await sb.from('schedule_events').update(data).eq('id',S.editEventId);
+  else await sb.from('schedule_events').insert(data);
+  closeM('mAddEvent');showToast('Занятие сохранено!');
+  if(S.screen==='t_schedule'||S.screen==='a_schedule'||S.screen==='o_schedule')renderSchedule();
+  if(S.currentClassId&&S.currentClassTab==='schedule')loadClassTab('schedule');
+}
+async function deleteEvent(id){
+  if(!confirm('Удалить занятие?'))return;
+  await sb.from('schedule_events').delete().eq('id',id);
+  showToast('Удалено');
+  if(S.currentClassId)loadClassTab('schedule');else renderSchedule();
+}
+
+// ─── LESSON BUILDER — EdVibe Style ────────────────────────────────────────────
+const BLOCK_META={
+  text:{icon:'📝',name:'Текст',color:'#EDE9FE'},
+  vocab:{icon:'🃏',name:'Словарь',color:'#D1FAE5'},
+  fill_blank:{icon:'✏️',name:'Пропуск',color:'#FEF3C7'},
+  quiz:{icon:'🎯',name:'Тест',color:'#DBEAFE'},
+  matching:{icon:'🔗',name:'Соответствие',color:'#FCE7F3'},
+  truefalse:{icon:'✅',name:'Верно/Неверно',color:'#D1FAE5'},
+  word_order:{icon:'🔀',name:'Порядок слов',color:'#FEF3C7'},
+  video:{icon:'🎬',name:'Видео',color:'#F3F4F6'}
+};
+const CE_DEFAULTS={
+  text:{type:'text',text:'',image:''},
+  vocab:{type:'vocab',words:[{word:'',trans:''}]},
+  fill_blank:{type:'fill_blank',sentence:'I {{blank}} happy.',answer:'am'},
+  quiz:{type:'quiz',question:'',options:['','','',''],correct:0},
+  matching:{type:'matching',pairs:[{left:'',right:''}]},
+  truefalse:{type:'truefalse',statement:'',answer:true,explanation:''},
+  word_order:{type:'word_order',words:['I','am','a','student'],correct:'I am a student'},
+  video:{type:'video',url:'',question:'',note:''}
+};
+
+// ─── CLASSROOM EDITOR STATE ──────────────────────────────────────────────────
+const CE={lessonId:null,sections:[],curSec:0,curEx:0,mode:'edit'};
+
+function openCE(lessonId,rawContent){
+  CE.lessonId=lessonId;
+  if(rawContent&&rawContent.sections&&Array.isArray(rawContent.sections)){
+    CE.sections=rawContent.sections;
+  } else if(Array.isArray(rawContent)&&rawContent.length>0){
+    CE.sections=[{title:'Раздел 1',exercises:rawContent}];
+  } else {
+    CE.sections=[{title:'Раздел 1',exercises:[]}];
+  }
+  CE.curSec=0;CE.curEx=0;CE.mode='edit';
+  C('ceModeEdit').classList.add('active');C('ceModePreview').classList.remove('active');
+  C('classroomEditor').classList.add('open');
+  ceRenderAll();
+}
+function closeCE(){
+  C('classroomEditor').classList.remove('open');
+  if(S.screen==='t_lessons')renderTeacherLessons();
+  if(S.currentClassId&&S.currentClassTab==='lessons')loadClassTab('lessons');
+}
+function ceRenderAll(){ceSidebar();ceExercise();ceProgress();}
+
+function ceSidebar(){
+  C('ce_secList').innerHTML=CE.sections.map((s,si)=>`
+    <div class="ce-sec-item ${si===CE.curSec?'active':''}" onclick="ceGoSec(${si})">
+      <span class="ce-sec-num">${si+1}</span>
+      <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${s.title||'Раздел '+(si+1)}</span>
+      <span class="ce-sec-cnt">${s.exercises.length} упр.</span>
+    </div>`).join('');
+}
+function ceGoSec(si){CE.curSec=si;CE.curEx=0;ceRenderAll();}
+function ceAddSection(){
+  const t=prompt('Название раздела:','Раздел '+(CE.sections.length+1));
+  if(t===null)return;
+  CE.sections.push({title:t||'Раздел '+(CE.sections.length+1),exercises:[]});
+  CE.curSec=CE.sections.length-1;CE.curEx=0;ceRenderAll();
+}
+
+function ceProgress(){
+  const total=CE.sections.reduce((a,s)=>a+s.exercises.length,0);
+  const done=CE.sections.slice(0,CE.curSec).reduce((a,s)=>a+s.exercises.length,0)+CE.curEx;
+  C('ce_progress').style.width=(total>0?Math.round((done+1)/total*100):0)+'%';
+}
+
+function setCEMode(m){
+  CE.mode=m;
+  C('ceModeEdit').classList.toggle('active',m==='edit');
+  C('ceModePreview').classList.toggle('active',m==='preview');
+  if(m==='preview')window._matchState={};
+  ceExercise();
+}
+
+function ceExercise(){
+  const sec=CE.sections[CE.curSec];
+  const exs=sec?sec.exercises:[];
+  const ex=exs[CE.curEx];
+  const total=exs.length;
+  const wrap=C('ce_exWrap');
+
+  // counter
+  C('ce_counter').textContent=total>0?`${CE.curEx+1} из ${total}`:'— из —';
+  C('ce_btnBack').disabled=CE.curEx<=0;
+
+  // next button
+  const nb=C('ce_btnNext');
+  const isLastEx=CE.curEx>=total-1;
+  const isLastSec=CE.curSec>=CE.sections.length-1;
+  if(isLastEx&&total>0){
+    if(isLastSec){nb.textContent='✓ Завершить урок';nb.className='btn btn-green';nb.onclick=()=>{setCEMode('edit');showToast('Просмотр завершён!');};}
+    else{nb.textContent='Завершить раздел →';nb.className='btn btn-purple';nb.onclick=()=>{CE.curSec++;CE.curEx=0;ceRenderAll();};}
+  } else {
+    nb.textContent='Далее →';nb.className='btn btn-purple';nb.onclick=()=>ceNav(1);
+  }
+
+  // Editable section heading (always visible at top)
+  const secTitle=`<input class="ce-sec-heading" value="${(sec?.title||'Раздел '+(CE.curSec+1)).replace(/"/g,'&quot;')}" placeholder="Название раздела..." oninput="CE.sections[CE.curSec].title=this.value;ceSidebar()">`;
+
+  if(!sec){wrap.innerHTML='<div class="ce-empty-sec">Нет разделов</div>';return;}
+
+  if(total===0){
+    wrap.innerHTML=`${secTitle}<div class="ce-empty-sec">
+      <div style="font-size:2.8rem;margin-bottom:10px">📝</div>
+      <p style="font-weight:700;margin-bottom:4px">Раздел пустой</p>
+      <p style="font-size:.85rem">Добавь первое упражнение ниже</p>
+    </div>${ceAddPanelHTML()}`;
+    return;
+  }
+
+  let exHTML='';
+  if(CE.mode==='edit'){
+    const m=BLOCK_META[ex.type]||{icon:'❓',name:ex.type,color:'#eee'};
+    exHTML=`${secTitle}
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+        <span style="padding:4px 12px;border-radius:20px;font-size:.78rem;font-weight:700;background:${m.color}">${m.icon} ${m.name}</span>
+        <span style="font-size:.78rem;color:var(--text3)">${CE.curEx+1} из ${total}</span>
+        <div style="margin-left:auto;display:flex;gap:4px">
+          ${CE.curEx>0?`<button class="btn btn-sm btn-outline" style="padding:2px 8px;font-size:.7rem" onclick="ceMoveEx(-1)">↑</button>`:''}
+          ${CE.curEx<total-1?`<button class="btn btn-sm btn-outline" style="padding:2px 8px;font-size:.7rem" onclick="ceMoveEx(1)">↓</button>`:''}
+          <button class="btn btn-sm btn-red" style="padding:2px 8px;font-size:.7rem" onclick="ceRemoveEx()">✕ Удалить</button>
+        </div>
+      </div>
+      <div class="ce-ex-card">${ceEditorHTML(ex)}</div>
+      ${ceAddPanelHTML()}`;
+  } else {
+    exHTML=`${secTitle}<div style="margin-bottom:12px"><span style="padding:4px 12px;border-radius:20px;font-size:.78rem;font-weight:700;background:${BLOCK_META[ex.type]?.color||'#eee'}">${BLOCK_META[ex.type]?.icon||'?'} ${BLOCK_META[ex.type]?.name||ex.type}</span></div>
+    ${renderBlockView(ex,CE.curEx)}`;
+  }
+  wrap.innerHTML=exHTML;
+}
+
+function ceAddPanelHTML(){
+  return`<div class="ce-add-panel">
+    <div class="ce-add-head">+ Добавить упражнение</div>
+    <div class="ce-type-grid">${Object.entries(BLOCK_META).map(([t,m])=>`
+      <div class="ce-type-card" onclick="ceAddEx('${t}')">
+        <span class="ce-type-icon">${m.icon}</span>${m.name}
+      </div>`).join('')}
+    </div>
+  </div>`;
+}
+
+function ceAddEx(type){
+  CE.sections[CE.curSec].exercises.push({...CE_DEFAULTS[type]});
+  CE.curEx=CE.sections[CE.curSec].exercises.length-1;
+  ceRenderAll();
+}
+function ceRemoveEx(){
+  if(!confirm('Удалить упражнение?'))return;
+  CE.sections[CE.curSec].exercises.splice(CE.curEx,1);
+  CE.curEx=Math.max(0,CE.curEx-1);
+  ceRenderAll();
+}
+function ceMoveEx(dir){
+  const exs=CE.sections[CE.curSec].exercises;
+  const i=CE.curEx;
+  [exs[i],exs[i+dir]]=[exs[i+dir],exs[i]];
+  CE.curEx=i+dir;ceRenderAll();
+}
+function ceNav(dir){
+  const exs=CE.sections[CE.curSec].exercises;
+  CE.curEx=Math.max(0,Math.min(exs.length-1,CE.curEx+dir));
+  if(CE.mode==='preview')window._matchState={};
+  ceRenderAll();
+}
+
+// CE-specific editor — writes directly to CE.sections[CE.curSec].exercises[CE.curEx]
+function ceEditorHTML(b){
+  const P=`CE.sections[CE.curSec].exercises[CE.curEx]`;
+  const ci=(val,field,ph='')=>`<input value="${(val||'').replace(/"/g,'&quot;').replace(/'/g,'&#39;')}" oninput="${P}.${field}=this.value" placeholder="${ph}" style="width:100%;padding:8px 10px;border:2px solid var(--gray-border);border-radius:6px;font-family:var(--font);font-size:.88rem">`;
+
+  if(b.type==='text')return`
+    <div class="form-group" style="margin:0 0 8px"><label>Текст</label>
+    <textarea oninput="${P}.text=this.value" style="min-height:80px;width:100%;padding:8px 10px;border:2px solid var(--gray-border);border-radius:6px;font-family:var(--font)">${b.text||''}</textarea></div>
+    <div class="form-group" style="margin:0"><label>URL картинки (необяз.)</label>${ci(b.image,'image','https://...')}</div>`;
+
+  if(b.type==='vocab')return`
+    <div>${(b.words||[]).map((w,wi)=>`<div style="display:flex;gap:6px;margin-bottom:6px">
+      <input value="${(w.word||'').replace(/"/g,'&quot;')}" oninput="${P}.words[${wi}].word=this.value" placeholder="Слово" style="flex:1;padding:8px 10px;border:2px solid var(--gray-border);border-radius:6px;font-family:var(--font)">
+      <input value="${(w.trans||'').replace(/"/g,'&quot;')}" oninput="${P}.words[${wi}].trans=this.value" placeholder="Перевод" style="flex:1;padding:8px 10px;border:2px solid var(--gray-border);border-radius:6px;font-family:var(--font)">
+      <button onclick="${P}.words.splice(${wi},1);ceExercise()" style="border:none;background:none;color:var(--red);cursor:pointer;font-size:1.1rem">✕</button>
+    </div>`).join('')}
+    <button class="btn btn-outline" style="font-size:.8rem;margin-top:6px" onclick="${P}.words.push({word:'',trans:''});ceExercise()">+ Слово</button></div>`;
+
+  if(b.type==='fill_blank')return`
+    <div class="form-group" style="margin:0 0 8px"><label>Предложение ({{blank}} = пропуск)</label>${ci(b.sentence,'sentence','I {{blank}} a student')}</div>
+    <div class="form-group" style="margin:0"><label>Правильный ответ</label>${ci(b.answer,'answer','am')}</div>`;
+
+  if(b.type==='quiz')return`
+    <div class="form-group" style="margin:0 0 8px"><label>Вопрос</label>${ci(b.question,'question','Вопрос...')}</div>
+    ${(b.options||['','','','']).map((o,oi)=>`<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
+      <input type="radio" name="ceq" ${b.correct===oi?'checked':''} onchange="${P}.correct=${oi}" style="accent-color:var(--green);width:16px;height:16px">
+      <input value="${(o||'').replace(/"/g,'&quot;')}" oninput="${P}.options[${oi}]=this.value" placeholder="Вариант ${oi+1}" style="flex:1;padding:8px 10px;border:2px solid var(--gray-border);border-radius:6px;font-family:var(--font)">
+    </div>`).join('')}
+    <div style="font-size:.75rem;color:var(--text3)">● = правильный ответ</div>`;
+
+  if(b.type==='matching')return`
+    <div>${(b.pairs||[]).map((p,pi)=>`<div style="display:grid;grid-template-columns:1fr auto 1fr auto;gap:6px;align-items:center;margin-bottom:6px">
+      <input value="${(p.left||'').replace(/"/g,'&quot;')}" oninput="${P}.pairs[${pi}].left=this.value" placeholder="Слово" style="padding:8px 10px;border:2px solid var(--gray-border);border-radius:6px;font-family:var(--font)">
+      <span style="color:var(--text3);font-weight:700">→</span>
+      <input value="${(p.right||'').replace(/"/g,'&quot;')}" oninput="${P}.pairs[${pi}].right=this.value" placeholder="Перевод" style="padding:8px 10px;border:2px solid var(--gray-border);border-radius:6px;font-family:var(--font)">
+      <button onclick="${P}.pairs.splice(${pi},1);ceExercise()" style="border:none;background:none;color:var(--red);cursor:pointer;font-size:1.1rem">✕</button>
+    </div>`).join('')}
+    <button class="btn btn-outline" style="font-size:.8rem;margin-top:6px" onclick="${P}.pairs.push({left:'',right:''});ceExercise()">+ Пара</button></div>`;
+
+  if(b.type==='truefalse')return`
+    <div class="form-group" style="margin:0 0 8px"><label>Утверждение</label>${ci(b.statement,'statement','The sky is green.')}</div>
+    <div class="form-group" style="margin:0 0 8px"><label>Правильный ответ</label>
+      <select onchange="${P}.answer=this.value==='true'" style="width:100%;padding:8px 10px;border:2px solid var(--gray-border);border-radius:6px;font-family:var(--font)">
+        <option value="true" ${b.answer?'selected':''}>✅ Верно (True)</option>
+        <option value="false" ${!b.answer?'selected':''}>❌ Неверно (False)</option>
+      </select>
+    </div>
+    <div class="form-group" style="margin:0"><label>Объяснение (необяз.)</label>${ci(b.explanation,'explanation','Объяснение...')}</div>`;
+
+  if(b.type==='word_order')return`
+    <div class="form-group" style="margin:0 0 8px"><label>Слова (через пробел — будут перемешаны)</label>
+    <input value="${(b.words||[]).join(' ').replace(/"/g,'&quot;')}" oninput="${P}.words=this.value.split(' ').filter(w=>w)" placeholder="I am a student" style="width:100%;padding:8px 10px;border:2px solid var(--gray-border);border-radius:6px;font-family:var(--font)"></div>
+    <div class="form-group" style="margin:0"><label>Правильный порядок</label>${ci(b.correct,'correct','I am a student')}</div>`;
+
+  if(b.type==='video')return`
+    <div class="form-group" style="margin:0 0 8px"><label>YouTube URL</label>${ci(b.url,'url','https://www.youtube.com/watch?v=...')}</div>
+    <div class="form-group" style="margin:0 0 8px"><label>Вопрос к видео (необяз.)</label>${ci(b.question,'question','What is the video about?')}</div>
+    <div class="form-group" style="margin:0"><label>Заметка учителя</label>${ci(b.note,'note','Обрати внимание на...')}</div>`;
+  return'';
+}
+
+async function saveFromCE(publish){
+  const title=C('ce_title').value.trim();if(!title){showToast('Введи название урока!');return;}
+  const data={school_id:S.schoolId,teacher_id:S.profile.id,title,
+    language:C('ce_lang').value,level:C('ce_level').value,
+    content:{sections:CE.sections},published:publish};
+  if(CE.lessonId){await sb.from('lessons').update(data).eq('id',CE.lessonId);}
+  else{const{data:ins}=await sb.from('lessons').insert(data).select().single();if(ins)CE.lessonId=ins.id;}
+  showToast(publish?'🚀 Опубликовано!':'💾 Сохранено!');
+}
+
+async function renderTeacherLessons(){
+  const{data:lessons}=await sb.from('lessons').select('*').eq('school_id',S.schoolId).order('created_at',{ascending:false});
+  const{data:sts}=await sb.from('students').select('id,first_name,last_name').eq('school_id',S.schoolId);
+  C('assign_student').innerHTML=(sts||[]).map(s=>`<option value="${s.id}">${s.first_name} ${s.last_name}</option>`).join('');
+  const cards=(lessons||[]).map(l=>{
+    const cnt=l.content?.sections?l.content.sections.reduce((a,s)=>a+(s.exercises?.length||0),0):Array.isArray(l.content)?l.content.length:0;
+    return`<div class="card" style="margin-bottom:12px">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+        <div>
+          <div style="font-weight:700">${l.title}</div>
+          <div style="font-size:.8rem;color:var(--text3)">${l.language} · ${l.level} · ${cnt} упражнений</div>
+        </div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          ${l.published?'<span class="badge badge-green">✓ Опубликован</span>':'<span class="badge badge-gray">Черновик</span>'}
+          <button class="btn btn-sm btn-outline" style="font-size:.73rem;padding:4px 8px" onclick="openLessonPreview('${(l.title).replace(/'/g,"\\'")}','${encodeURIComponent(JSON.stringify(l.content||[]))}')">👁 Просмотр</button>
+          <button class="btn btn-sm btn-outline" style="font-size:.73rem;padding:4px 8px" onclick="openLessonEditor('${l.id}','${(l.title).replace(/'/g,"\\'")}','${l.language}','${l.level}','${encodeURIComponent(JSON.stringify(l.content||[]))}')">✎ Редактор</button>
+          <button class="btn btn-sm btn-purple" style="font-size:.73rem;padding:4px 8px" onclick="openAssignLesson('${l.id}')">👤 Назначить</button>
+        </div>
+      </div>
+    </div>`;}).join('');
+  setContent(`<div class="section-header"><h2>📖 Уроки</h2><button class="btn btn-purple" onclick="newLesson()">+ Создать урок</button></div>${cards||'<div class="empty-state"><div class="ei">📖</div><p>Уроков пока нет</p></div>'}`);
+}
+function newLesson(){
+  CE.lessonId=null;C('ce_title').value='';C('ce_lang').value='Английский';C('ce_level').value='A1';
+  openCE(null,null);
+}
+function openLessonEditor(id,title,lang,level,contentEnc){
+  C('ce_title').value=title;C('ce_lang').value=lang;C('ce_level').value=level;
+  openCE(id,JSON.parse(decodeURIComponent(contentEnc)));
+}
+// keep editLesson alias for calls from loadClassTab
+function editLesson(id,title,lang,level,contentEnc){openLessonEditor(id,title,lang,level,contentEnc);}
+
+function openAssignLesson(lessonId){S.assignLessonId=lessonId;openM('mAssignLesson');}
+async function assignLesson(){
+  const sid=C('assign_student').value;if(!sid){showToast('Выбери ученика');return;}
+  await sb.from('lesson_assignments').insert({school_id:S.schoolId,lesson_id:S.assignLessonId,student_id:sid});
+  closeM('mAssignLesson');showToast('Урок назначен!');
+}
+
+// ─── CLASSROOM VIEW (EdVibe-style lesson viewer) ──────────────────────────────
+const LV={sections:[],curSec:0,curEx:0,assignId:null};
+
+function _parseLessonContent(contentEnc){
+  const raw=JSON.parse(decodeURIComponent(contentEnc));
+  if(raw&&raw.sections&&Array.isArray(raw.sections))return raw.sections;
+  if(Array.isArray(raw)&&raw.length>0)return[{title:'Урок',exercises:raw}];
+  return[{title:'Урок',exercises:[]}];
+}
+
+function openClassroomView(title,sections,assignId,studentName){
+  LV.sections=sections;LV.curSec=0;LV.curEx=0;LV.assignId=assignId;
+  S.currentAssignId=assignId||null;
+  window._matchState={};
+  C('cv_lessonName').textContent=title;
+  const badge=C('cv_studentBadge');
+  if(studentName){badge.textContent='👤 '+studentName;badge.style.display='';}
+  else{badge.style.display='none';}
+  // show call panel only in teacher+student classroom context
+  C('cv_callPanel').style.display=studentName?'':'none';
+  // reset tab
+  C('cv_tabLesson').classList.add('active');C('cv_tabHomework').classList.remove('active');
+  lvRender();
+  C('classroomView').classList.add('open');
+}
+
+function openLessonView(assignId,title,contentEnc){
+  openClassroomView(title,_parseLessonContent(contentEnc),assignId,null);
+}
+
+function lvRender(){
+  const sec=LV.sections[LV.curSec];
+  const exs=sec?sec.exercises:[];
+  const ex=exs[LV.curEx];
+  const total=exs.length;
+  const isLastEx=LV.curEx>=total-1;
+  const isLastSec=LV.curSec>=LV.sections.length-1;
+  // section title
+  C('cv_sectionTitle').textContent=sec?.title||`Раздел ${LV.curSec+1}`;
+  // counter
+  C('cv_counter').textContent=total>0?`${LV.curEx+1} из ${total}`:'—';
+  // back button
+  C('cv_btnBack').disabled=LV.curEx===0&&LV.curSec===0;
+  // next button
+  const nb=C('cv_btnNext');
+  if(isLastEx&&isLastSec){nb.textContent='✓ Завершить урок';nb.className='btn btn-green';}
+  else if(isLastEx){nb.textContent='Следующий раздел →';nb.className='btn btn-purple';}
+  else{nb.textContent='Далее →';nb.className='btn btn-purple';}
+  // finish section btn
+  C('cv_btnFinishSec').style.display=(isLastEx&&!isLastSec)?'':'none';
+  // content
+  if(!ex){C('cv_exerciseContent').innerHTML='<div class="empty-state" style="padding:60px 0"><div class="ei">📭</div><p>Нет упражнений в этом разделе</p></div>';
+  } else {C('cv_exerciseContent').innerHTML=renderBlockView(ex,LV.curSec*1000+LV.curEx);}
+  // scroll top
+  const sc=C('cv_exerciseContent').closest('.cv-content-scroll');if(sc)sc.scrollTop=0;
+  // sections list in right sidebar
+  lvRenderSections();
+}
+
+function lvRenderSections(){
+  const list=C('cv_sectionsList');
+  list.innerHTML=LV.sections.map((sec,i)=>`
+    <div class="cv-sec-row${i===LV.curSec?' active':''}" onclick="lvGoSection(${i})">
+      <div class="cv-sec-dot"></div>
+      <div class="cv-sec-label">${sec.title||`Раздел ${i+1}`}</div>
+      <button class="cv-sec-more" onclick="event.stopPropagation()">···</button>
+    </div>`).join('');
+}
+
+function lvGoSection(i){LV.curSec=i;LV.curEx=0;window._matchState={};lvRender();}
+
+function lvFinishSection(){
+  if(LV.curSec<LV.sections.length-1){LV.curSec++;LV.curEx=0;window._matchState={};lvRender();}
+}
+
+function switchCVTab(tab,el){
+  document.querySelectorAll('.cv-tab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  if(tab==='homework'){
+    C('cv_sectionTitle').textContent='Домашняя работа';
+    C('cv_exerciseContent').innerHTML='<div class="empty-state" style="padding:60px 0"><div class="ei">📋</div><p>Домашних заданий нет</p></div>';
+    C('cv_btnBack').style.display='none';C('cv_btnNext').style.display='none';C('cv_btnFinishSec').style.display='none';
+  } else {
+    C('cv_btnBack').style.display='';C('cv_btnNext').style.display='';
+    lvRender();
+  }
+}
+
+function closeClassroomView(){C('classroomView').classList.remove('open');}
+
+function lvNav(dir){
+  const sec=LV.sections[LV.curSec];
+  const exs=sec?sec.exercises:[];
+  const isLastEx=LV.curEx>=exs.length-1;
+  const isLastSec=LV.curSec>=LV.sections.length-1;
+  if(dir>0){
+    if(isLastEx&&isLastSec){completeLessonView();return;}
+    if(isLastEx){LV.curSec++;LV.curEx=0;}
+    else{LV.curEx++;}
+  } else {
+    if(LV.curEx>0)LV.curEx--;
+    else if(LV.curSec>0){LV.curSec--;LV.curEx=LV.sections[LV.curSec].exercises.length-1;}
+  }
+  window._matchState={};lvRender();
+}
+function renderBlockView(b,i){
+  if(b.type==='text') return`<div class="lesson-view-block">
+    ${b.image?`<img src="${b.image}" style="max-width:100%;border-radius:8px;margin-bottom:10px">`:''}
+    <div style="font-size:.95rem;line-height:1.8">${(b.text||'').replace(/\n/g,'<br>')}</div>
+  </div>`;
+  if(b.type==='vocab') return`<div class="lesson-view-block">
+    <div style="font-weight:700;margin-bottom:10px">🃏 Карточки <small style="color:var(--text3)">(кликни чтобы перевернуть)</small></div>
+    ${(b.words||[]).map((w)=>`<div class="vocab-card" onclick="this.classList.toggle('flipped')">
+      <div class="vocab-inner"><div class="vocab-front">${w.word}</div><div class="vocab-back">${w.trans}</div></div>
+    </div>`).join('')}
+  </div>`;
+  if(b.type==='fill_blank') return`<div class="lesson-view-block">
+    <div style="font-weight:700;margin-bottom:10px">✏️ Заполни пропуск</div>
+    <div style="font-size:1rem;line-height:2.2">
+      ${(b.sentence||'').replace('{{blank}}',`<input class="fill-blank-input" id="fb_${i}" placeholder="..."> `)}
+      <button class="btn btn-purple btn-sm" onclick="checkFillBlank(${i},'${(b.answer||'').replace(/'/g,"\\'")}')">Проверить</button>
+    </div>
+    <div id="fb_res_${i}" style="margin-top:6px;font-size:.85rem"></div>
+  </div>`;
+  if(b.type==='quiz') return`<div class="lesson-view-block">
+    <div style="font-weight:700;margin-bottom:10px">🎯 ${b.question||'Вопрос'}</div>
+    ${(b.options||[]).map((opt,oi)=>`<div class="quiz-opt" id="qo_${i}_${oi}" onclick="checkQuiz(${i},${oi},${b.correct||0})">${opt}</div>`).join('')}
+  </div>`;
+  if(b.type==='truefalse') return`<div class="lesson-view-block">
+    <div style="font-weight:700;margin-bottom:12px">✅ Верно или Неверно?</div>
+    <div style="font-size:1rem;margin-bottom:14px;padding:12px;background:var(--gray-light);border-radius:8px">"${b.statement||''}"</div>
+    <div style="display:flex;gap:10px">
+      <button class="tf-btn" id="tf_${i}_t" onclick="checkTF(${i},true,${b.answer})">✅ Верно (True)</button>
+      <button class="tf-btn" id="tf_${i}_f" onclick="checkTF(${i},false,${b.answer})">❌ Неверно (False)</button>
+    </div>
+    <div id="tf_res_${i}" style="margin-top:8px;font-size:.85rem"></div>
+    ${b.explanation?`<div id="tf_exp_${i}" style="display:none;margin-top:8px;padding:10px;background:var(--blue-light);border-radius:8px;font-size:.85rem">💡 ${b.explanation}</div>`:''}
+  </div>`;
+  if(b.type==='matching'){
+    const pairs=[...b.pairs||[]];
+    const rights=[...pairs.map(p=>p.right)].sort(()=>Math.random()-.5);
+    window._matchState[i]={pairs,rights,selectedLeft:null,matched:{}};
+    return`<div class="lesson-view-block">
+      <div style="font-weight:700;margin-bottom:10px">🔗 Соотнеси слова</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div>${pairs.map((p,pi)=>`<div class="match-item" id="ml_${i}_${pi}" onclick="matchLeft(${i},${pi})">${p.left}</div>`).join('')}</div>
+        <div id="mr_${i}">${rights.map((r,ri)=>`<div class="match-item" id="mr_${i}_${ri}" onclick="matchRight(${i},${ri})">${r}</div>`).join('')}</div>
+      </div>
+      <div id="match_res_${i}" style="margin-top:8px;font-size:.85rem"></div>
+    </div>`;
+  }
+  if(b.type==='word_order'){
+    const words=[...b.words||[]].sort(()=>Math.random()-.5);
+    window[`_wo_${i}`]={words,chosen:[],correct:b.correct||''};
+    return`<div class="lesson-view-block">
+      <div style="font-weight:700;margin-bottom:10px">🔀 Составь предложение</div>
+      <div id="wo_sentence_${i}" style="min-height:40px;padding:8px;border:2px dashed var(--gray-border);border-radius:8px;margin-bottom:10px;font-size:1rem">
+        <span style="color:var(--text3);font-size:.85rem">Кликай слова ниже...</span>
+      </div>
+      <div id="wo_chips_${i}">${words.map((w,wi)=>`<span class="word-chip" id="wc_${i}_${wi}" onclick="woPickWord(${i},${wi},'${w.replace(/'/g,"\\'")}' )">${w}</span>`).join('')}</div>
+      <div style="display:flex;gap:8px;margin-top:10px">
+        <button class="btn btn-purple" onclick="checkWordOrder(${i})">Проверить</button>
+        <button class="btn btn-outline" onclick="resetWordOrder(${i})">Сбросить</button>
+      </div>
+      <div id="wo_res_${i}" style="margin-top:8px;font-size:.85rem"></div>
+    </div>`;
+  }
+  if(b.type==='video'){
+    let embedUrl=b.url||'';
+    const ytMatch=embedUrl.match(/(?:v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
+    if(ytMatch)embedUrl=`https://www.youtube.com/embed/${ytMatch[1]}`;
+    return`<div class="lesson-view-block">
+      ${b.note?`<div style="padding:10px;background:var(--yellow-light);border-radius:8px;font-size:.85rem;margin-bottom:12px">📌 ${b.note}</div>`:''}
+      ${embedUrl?`<div style="position:relative;padding-bottom:56.25%;height:0;overflow:hidden;border-radius:10px;margin-bottom:12px"><iframe src="${embedUrl}" style="position:absolute;top:0;left:0;width:100%;height:100%;border:none;border-radius:10px" allowfullscreen></iframe></div>`:'<div style="color:var(--text3);padding:20px;text-align:center">🎬 Видео не указано</div>'}
+      ${b.question?`<div style="font-weight:700;margin-top:8px">❓ ${b.question}</div><textarea style="width:100%;margin-top:8px;padding:8px 10px;border:2px solid var(--gray-border);border-radius:8px;font-family:var(--font);min-height:60px" placeholder="Напиши свой ответ..."></textarea>`:''}
+    </div>`;
+  }
+  return'';
+}
+
+// exercise check functions
+function checkFillBlank(i,answer){
+  const inp=C(`fb_${i}`),res=C(`fb_res_${i}`);
+  const val=(inp.value||'').trim().toLowerCase(),ans=answer.trim().toLowerCase();
+  if(val===ans){inp.classList.add('correct');inp.classList.remove('wrong');res.innerHTML='<span style="color:var(--green)">✅ Правильно!</span>';}
+  else{inp.classList.add('wrong');inp.classList.remove('correct');res.innerHTML=`<span style="color:var(--red)">❌ Неверно. Правильный ответ: <b>${answer}</b></span>`;}
+}
+function checkQuiz(blockI,chosen,correct){
+  document.querySelectorAll(`[id^="qo_${blockI}_"]`).forEach(o=>o.onclick=null);
+  C(`qo_${blockI}_${correct}`).classList.add('correct');
+  if(chosen!==correct)C(`qo_${blockI}_${chosen}`).classList.add('wrong');
+}
+function checkTF(i,chosen,correct){
+  const isCorrect=chosen===correct;
+  C(`tf_${i}_t`).classList.add(correct===true?'correct':chosen===true?'wrong':'');
+  C(`tf_${i}_f`).classList.add(correct===false?'correct':chosen===false?'wrong':'');
+  [C(`tf_${i}_t`),C(`tf_${i}_f`)].forEach(b=>{if(b)b.onclick=null;});
+  C(`tf_res_${i}`).innerHTML=isCorrect?'<span style="color:var(--green)">✅ Правильно!</span>':'<span style="color:var(--red)">❌ Неверно!</span>';
+  const exp=C(`tf_exp_${i}`);if(exp)exp.style.display='block';
+}
+function matchLeft(i,pi){
+  const st=window._matchState[i];if(!st)return;
+  if(st.matched[`l${pi}`])return;
+  st.selectedLeft=pi;
+  document.querySelectorAll(`[id^="ml_${i}_"]`).forEach(el=>el.classList.remove('selected'));
+  C(`ml_${i}_${pi}`).classList.add('selected');
+}
+function matchRight(i,ri){
+  const st=window._matchState[i];if(!st)return;
+  if(st.selectedLeft===null||st.selectedLeft===undefined)return;
+  const li=st.selectedLeft;
+  const correctRight=st.pairs[li].right;
+  const chosen=st.rights[ri];
+  if(chosen===correctRight){
+    C(`ml_${i}_${li}`).classList.add('matched');C(`ml_${i}_${li}`).classList.remove('selected');
+    C(`mr_${i}_${ri}`).classList.add('matched');
+    st.matched[`l${li}`]=true;st.matched[`r${ri}`]=true;
+    const done=Object.keys(st.matched).length/2;
+    if(done===st.pairs.length)C(`match_res_${i}`).innerHTML='<span style="color:var(--green)">🎉 Все совпадения верны!</span>';
+  } else {
+    C(`ml_${i}_${li}`).classList.add('wrong-match');C(`mr_${i}_${ri}`).classList.add('wrong-match');
+    setTimeout(()=>{C(`ml_${i}_${li}`).classList.remove('wrong-match','selected');C(`mr_${i}_${ri}`).classList.remove('wrong-match');},800);
+  }
+  st.selectedLeft=null;
+}
+function woPickWord(i,wi,word){
+  const st=window[`_wo_${i}`];if(!st)return;
+  const el=C(`wc_${i}_${wi}`);if(el.classList.contains('used'))return;
+  el.classList.add('used');st.chosen.push({word,wi});
+  const s=C(`wo_sentence_${i}`);s.innerHTML=st.chosen.map(c=>`<span style="display:inline-block;padding:4px 10px;background:var(--purple-light);color:var(--purple);border-radius:6px;margin:2px;font-weight:600">${c.word}</span>`).join(' ');
+}
+function resetWordOrder(i){
+  const st=window[`_wo_${i}`];if(!st)return;
+  st.chosen=[];
+  document.querySelectorAll(`[id^="wc_${i}_"]`).forEach(el=>el.classList.remove('used'));
+  C(`wo_sentence_${i}`).innerHTML='<span style="color:var(--text3);font-size:.85rem">Кликай слова ниже...</span>';
+  C(`wo_res_${i}`).innerHTML='';
+}
+function checkWordOrder(i){
+  const st=window[`_wo_${i}`];if(!st)return;
+  const answer=st.chosen.map(c=>c.word).join(' ');
+  const correct=st.correct.trim();
+  C(`wo_res_${i}`).innerHTML=answer.toLowerCase()===correct.toLowerCase()?
+    '<span style="color:var(--green)">✅ Правильно!</span>':
+    `<span style="color:var(--red)">❌ Неверно. Правильно: <b>${correct}</b></span>`;
+}
+async function completeLessonView(){
+  if(S.currentAssignId){
+    await sb.from('lesson_assignments').update({completed:true}).eq('id',S.currentAssignId);
+    showToast('Урок завершён! 🎉');renderStudentLessons();
+  } else {showToast('Просмотр завершён ✓');}
+  closeClassroomView();
+}
+// Teacher preview — no assignment needed
+function openLessonPreview(title,contentEnc){
+  openClassroomView(title,_parseLessonContent(contentEnc),null,null);
+}
+
+// ─── LESSON ASSIGNMENT (class lessons tab uses openLessonEditor) ───────────────
+// lesson count helper
+function lessonExCount(l){
+  if(l.content?.sections)return l.content.sections.reduce((a,s)=>a+(s.exercises?.length||0),0);
+  return Array.isArray(l.content)?l.content.length:0;
+}
+</script>
+</body>
+</html>
