@@ -682,7 +682,7 @@ tr:hover td{background:#FAFAFA}
     <div class="cv-left-sidebar">
       <button class="cv-tool-btn" title="Заметки" onclick="toggleToolPanel('notes')">💬</button>
       <button class="cv-tool-btn" title="Словарь" style="font-size:.75rem;letter-spacing:-.5px" onclick="toggleToolPanel('dict')">Ax</button>
-      <button class="cv-tool-btn" title="Задания">📋</button>
+      <button class="cv-tool-btn" title="Задания" onclick="toggleToolPanel('tasks')">📋</button>
       <button class="cv-tool-btn" title="Таймер" onclick="toggleToolPanel('timer')">⏱</button>
       <button class="cv-tool-btn" title="Шаблоны" onclick="toggleToolPanel('templates')">▦</button>
     </div>
@@ -762,7 +762,7 @@ tr:hover td{background:#FAFAFA}
     <div class="cv-left-sidebar">
       <button class="cv-tool-btn" title="Заметки" onclick="toggleToolPanel('notes')">💬</button>
       <button class="cv-tool-btn" title="Словарь" style="font-size:.75rem;letter-spacing:-.5px" onclick="toggleToolPanel('dict')">Ax</button>
-      <button class="cv-tool-btn" title="Задания">📋</button>
+      <button class="cv-tool-btn" title="Задания" onclick="toggleToolPanel('tasks')">📋</button>
       <button class="cv-tool-btn" title="Таймер" onclick="toggleToolPanel('timer')">⏱</button>
       <button class="cv-tool-btn" title="Шаблоны" style="font-size:1rem" onclick="toggleToolPanel('templates')">▦</button>
     </div>
@@ -885,7 +885,7 @@ const TOOL_CONTENT={
   dict:{
     title:'📖 Словарь',
     html:`<div style="margin-bottom:12px;display:flex;gap:8px">
-      <input id="dictSearch" placeholder="Введи слово..." style="flex:1;padding:9px 12px;border:1.5px solid var(--gray-border);border-radius:8px;font-size:.88rem;font-family:var(--font);outline:none" onkeydown="if(event.key==='Enter')lookupWord()">
+      <input id="dictSearch" placeholder="Слово на RU или EN..." style="flex:1;padding:9px 12px;border:1.5px solid var(--gray-border);border-radius:8px;font-size:.88rem;font-family:var(--font);outline:none" onkeydown="if(event.key==='Enter')lookupWord()">
       <button onclick="lookupWord()" style="padding:9px 14px;background:var(--purple);color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:.88rem;font-family:var(--font)">🔍</button>
     </div>
     <div id="dictResult" style="font-size:.88rem;color:var(--text2);line-height:1.6"></div>
@@ -895,6 +895,10 @@ const TOOL_CONTENT={
     </div>`
   },
   timer:{title:'',html:''},
+  tasks:{
+    title:'📋 Упражнения урока',
+    html:`<div id="tasksPanelBody"><div style="color:var(--text3);font-size:.85rem;text-align:center;padding:20px">Открой урок чтобы увидеть список упражнений</div></div>`
+  },
   templates:{
     title:'▦ Шаблоны упражнений',
     html:`<div style="display:flex;flex-direction:column;gap:8px">
@@ -907,8 +911,9 @@ const TOOL_CONTENT={
 function toggleToolPanel(type){
   if(type==='timer'){
     const tp=document.getElementById('timerPopup');
-    tp.style.display=tp.style.display==='none'?'flex':'none';
-    if(tp.style.display==='flex')tp.style.flexDirection='column';
+    const vis=tp.style.display==='none'||tp.style.display==='';
+    tp.style.display=vis?'flex':'none';
+    if(vis)tp.style.flexDirection='column';
     return;
   }
   const panel=document.getElementById('toolPanel');
@@ -925,9 +930,29 @@ function toggleToolPanel(type){
   // Restore notes
   if(type==='notes'){
     const saved=localStorage.getItem('teachya_notes_'+(LV.assignId||'general'));
-    if(saved)document.getElementById('toolNotes').value=saved;
+    if(saved&&document.getElementById('toolNotes'))document.getElementById('toolNotes').value=saved;
   }
   if(type==='dict')renderDictSaved();
+  if(type==='tasks')renderTasksPanel();
+}
+
+function renderTasksPanel(){
+  const body=document.getElementById('tasksPanelBody');
+  if(!body)return;
+  if(!LV.sections||!LV.sections.length){
+    body.innerHTML='<div style="color:var(--text3);font-size:.85rem;text-align:center;padding:20px">Открой урок чтобы увидеть список упражнений</div>';
+    return;
+  }
+  const TYPE_L={quiz:'Тест',fillblank:'Пропуск',truefalse:'Верно/Неверно',wordorder:'Порядок слов',match:'Соответствие',openq:'Открытый вопрос',text:'Текст',image:'Изображение'};
+  body.innerHTML=LV.sections.map((sec,si)=>`
+    <div style="margin-bottom:12px">
+      <div style="font-size:.75rem;font-weight:700;color:var(--text3);text-transform:uppercase;padding:6px 0;border-bottom:1px solid var(--gray-border);margin-bottom:6px">${sec.title||'Раздел '+(si+1)}</div>
+      ${(sec.exercises||[]).map((ex,ei)=>`
+        <div onclick="lvGoSection(${si});LV.curEx=${ei};lvRender();closeToolPanel()" style="padding:7px 10px;border-radius:8px;cursor:pointer;font-size:.83rem;display:flex;align-items:center;gap:8px;${si===LV.curSec&&ei===LV.curEx?'background:var(--purple-light);color:var(--purple);font-weight:600':''}" onmouseover="this.style.background='var(--gray-light)'" onmouseout="this.style.background='${si===LV.curSec&&ei===LV.curEx?'var(--purple-light)':'transparent'}'">
+          <span style="width:20px;height:20px;border-radius:50%;background:${si===LV.curSec&&ei===LV.curEx?'var(--purple)':'var(--gray-border)'};color:#fff;font-size:.65rem;display:flex;align-items:center;justify-content:center;flex-shrink:0">${ei+1}</span>
+          ${TYPE_L[ex.type]||ex.type||'Упражнение'}: ${(ex.question||ex.text||ex.statement||'').slice(0,35)||'—'}
+        </div>`).join('')}
+    </div>`).join('');
 }
 
 function closeToolPanel(){document.getElementById('toolPanel').style.display='none';}
@@ -938,25 +963,74 @@ function saveToolNotes(){
   showToast('Заметки сохранены ✓');
 }
 
-// Dictionary
-function lookupWord(){
+// Dictionary — auto-detects RU or EN
+function isRussian(w){return /[а-яёА-ЯЁ]/.test(w);}
+
+async function lookupWord(){
   const w=(document.getElementById('dictSearch')?.value||'').trim();
   if(!w)return;
   const res=document.getElementById('dictResult');
-  res.innerHTML='<div style="color:var(--text3)">Ищем...</div>';
-  fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(w)}`)
-    .then(r=>r.json()).then(data=>{
-      if(!Array.isArray(data)||!data[0]){res.innerHTML='<div style="color:var(--pink)">Слово не найдено</div>';return;}
+  res.innerHTML='<div style="color:var(--text3)">🔍 Ищем...</div>';
+
+  if(isRussian(w)){
+    // Russian word → translate RU→EN via MyMemory, then look up EN definition
+    try{
+      // Step 1: translate to English
+      const tr=await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(w)}&langpair=ru|en`).then(r=>r.json());
+      const enWord=(tr.responseData?.translatedText||'').trim();
+      if(!enWord){res.innerHTML='<div style="color:var(--pink)">Перевод не найден</div>';return;}
+
+      // Step 2: get EN definition
+      const data=await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(enWord.toLowerCase())}`).then(r=>r.json());
+      const entry=Array.isArray(data)&&data[0];
+      const phonetic=entry?.phonetics?.find(p=>p.text)?.text||'';
+      const meanings=entry?(entry.meanings||[]).slice(0,2).map(m=>`
+        <div style="margin-bottom:8px">
+          <span style="font-size:.75rem;font-weight:700;color:var(--purple);text-transform:uppercase">${m.partOfSpeech}</span>
+          ${(m.definitions||[]).slice(0,2).map(d=>`<div style="margin-top:4px">• ${d.definition}</div>`).join('')}
+        </div>`).join(''):'';
+
+      res.innerHTML=`
+        <div style="background:var(--purple-light);border-radius:8px;padding:8px 12px;margin-bottom:10px">
+          <div style="font-size:.75rem;color:var(--text3)">🇷🇺 ${w}</div>
+          <div style="font-weight:700;font-size:1.1rem;color:var(--purple)">🇬🇧 ${enWord} <span style="font-size:.85rem;color:var(--text3);font-weight:400">${phonetic}</span></div>
+        </div>
+        ${meanings}
+        <button onclick="saveDictWord('${w} → ${enWord}')" style="margin-top:8px;padding:5px 12px;background:var(--purple-light);color:var(--purple);border:none;border-radius:6px;font-size:.78rem;font-weight:600;cursor:pointer">+ Сохранить</button>`;
+    }catch(e){res.innerHTML='<div style="color:var(--pink)">Ошибка: '+e.message+'</div>';}
+  } else {
+    // English word → direct lookup
+    try{
+      const data=await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(w.toLowerCase())}`).then(r=>r.json());
+      if(!Array.isArray(data)||!data[0]){
+        // fallback: translate EN→RU
+        const tr=await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(w)}&langpair=en|ru`).then(r=>r.json());
+        const ruWord=tr.responseData?.translatedText||'—';
+        res.innerHTML=`<div style="background:var(--purple-light);border-radius:8px;padding:8px 12px;margin-bottom:10px">
+          <div style="font-weight:700;font-size:1.1rem">🇬🇧 ${w} → 🇷🇺 ${ruWord}</div>
+        </div>
+        <button onclick="saveDictWord('${w} → ${ruWord}')" style="margin-top:8px;padding:5px 12px;background:var(--purple-light);color:var(--purple);border:none;border-radius:6px;font-size:.78rem;font-weight:600;cursor:pointer">+ Сохранить</button>`;
+        return;
+      }
       const entry=data[0];
       const phonetic=entry.phonetics?.find(p=>p.text)?.text||'';
+      // Also get RU translation
+      const tr=await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(w)}&langpair=en|ru`).then(r=>r.json());
+      const ruWord=tr.responseData?.translatedText||'';
       const meanings=(entry.meanings||[]).slice(0,2).map(m=>`
         <div style="margin-bottom:8px">
           <span style="font-size:.75rem;font-weight:700;color:var(--purple);text-transform:uppercase">${m.partOfSpeech}</span>
           ${(m.definitions||[]).slice(0,2).map(d=>`<div style="margin-top:4px">• ${d.definition}</div>`).join('')}
         </div>`).join('');
-      res.innerHTML=`<div style="font-weight:700;font-size:1rem;margin-bottom:4px">${entry.word} <span style="font-size:.85rem;color:var(--text3);font-weight:400">${phonetic}</span></div>${meanings}
-      <button onclick="saveDictWord('${entry.word}')" style="margin-top:8px;padding:5px 12px;background:var(--purple-light);color:var(--purple);border:none;border-radius:6px;font-size:.78rem;font-weight:600;cursor:pointer">+ Сохранить</button>`;
-    }).catch(()=>{res.innerHTML='<div style="color:var(--pink)">Ошибка запроса</div>';});
+      res.innerHTML=`
+        <div style="background:var(--purple-light);border-radius:8px;padding:8px 12px;margin-bottom:10px">
+          <div style="font-weight:700;font-size:1.1rem">🇬🇧 ${entry.word} <span style="font-size:.85rem;color:var(--text3);font-weight:400">${phonetic}</span></div>
+          ${ruWord?`<div style="font-size:.85rem;color:var(--purple);margin-top:2px">🇷🇺 ${ruWord}</div>`:''}
+        </div>
+        ${meanings}
+        <button onclick="saveDictWord('${entry.word}${ruWord?' → '+ruWord:''}')" style="margin-top:8px;padding:5px 12px;background:var(--purple-light);color:var(--purple);border:none;border-radius:6px;font-size:.78rem;font-weight:600;cursor:pointer">+ Сохранить</button>`;
+    }catch(e){res.innerHTML='<div style="color:var(--pink)">Ошибка: '+e.message+'</div>';}
+  }
 }
 
 function saveDictWord(w){
