@@ -1053,9 +1053,25 @@ function ceAddExType(type){
   if(typeof CE==='undefined'||!CE.sections.length){showToast('Сначала открой редактор урока');return;}
   const sec=CE.sections[CE.curSec];
   if(!sec)return;
-  const defaults={quiz:{type:'quiz',question:'Вопрос?',options:['Вариант A','Вариант B','Вариант C'],correct:0},fillblank:{type:'fillblank',text:'Заполни ___ пропуск.',answers:['пропуск']},truefalse:{type:'truefalse',statement:'Утверждение.',answer:true},wordorder:{type:'wordorder',words:['Расставь','слова','в','порядке']},match:{type:'match',pairs:[{left:'Слово',right:'Перевод'}]},openq:{type:'openq',question:'Открытый вопрос?'},text:{type:'text',content:'Текст раздела...'},image:{type:'image',url:'',caption:''}};
-  sec.exercises.push(defaults[type]||{type:'text',content:''});
-  CE.curEx=sec.exercises.length-1;ceRender();showToast('Упражнение добавлено');
+  // Map template panel shorthand → CE_DEFAULTS key
+  const typeMap={fillblank:'fill_blank',wordorder:'word_order',match:'matching',openq:'openq',quiz:'quiz',truefalse:'truefalse',text:'text',image:'image',video:'video',vocab:'vocab'};
+  const actualType=typeMap[type]||type;
+  const def=CE_DEFAULTS[actualType];
+  if(!def){showToast('Неизвестный тип: '+type);return;}
+  sec.exercises.push({...def});
+  CE.curEx=sec.exercises.length-1;ceRenderAll();showToast('Упражнение добавлено ✓');
+}
+
+// Upload image file → base64 data URL
+function ceUploadImage(input){
+  const file=input.files[0];if(!file)return;
+  if(file.size>5*1024*1024){showToast('Файл слишком большой (макс 5 МБ)');return;}
+  const reader=new FileReader();
+  reader.onload=e=>{
+    CE.sections[CE.curSec].exercises[CE.curEx].url=e.target.result;
+    ceExercise();
+  };
+  reader.readAsDataURL(file);
 }
 
 // ── TIMER ──────────────────────────────────────────────────────────────────────
@@ -2044,7 +2060,9 @@ const BLOCK_META={
   matching:{icon:'🔗',name:'Соответствие',color:'#FCE7F3'},
   truefalse:{icon:'✅',name:'Верно/Неверно',color:'#D1FAE5'},
   word_order:{icon:'🔀',name:'Порядок слов',color:'#FEF3C7'},
-  video:{icon:'🎬',name:'Видео',color:'#F3F4F6'}
+  video:{icon:'🎬',name:'Видео',color:'#F3F4F6'},
+  image:{icon:'🖼',name:'Картинка',color:'#E0F2FE'},
+  openq:{icon:'💬',name:'Открытый вопрос',color:'#FCE7F3'}
 };
 const CE_DEFAULTS={
   text:{type:'text',text:'',image:''},
@@ -2054,7 +2072,9 @@ const CE_DEFAULTS={
   matching:{type:'matching',pairs:[{left:'',right:''}]},
   truefalse:{type:'truefalse',statement:'',answer:true,explanation:''},
   word_order:{type:'word_order',words:['I','am','a','student'],correct:'I am a student'},
-  video:{type:'video',url:'',question:'',note:''}
+  video:{type:'video',url:'',question:'',note:''},
+  image:{type:'image',url:'',caption:''},
+  openq:{type:'openq',question:''}
 };
 
 // ─── CLASSROOM EDITOR STATE ──────────────────────────────────────────────────
@@ -2262,6 +2282,21 @@ function ceEditorHTML(b){
     <div class="form-group" style="margin:0 0 8px"><label>YouTube URL</label>${ci(b.url,'url','https://www.youtube.com/watch?v=...')}</div>
     <div class="form-group" style="margin:0 0 8px"><label>Вопрос к видео (необяз.)</label>${ci(b.question,'question','What is the video about?')}</div>
     <div class="form-group" style="margin:0"><label>Заметка учителя</label>${ci(b.note,'note','Обрати внимание на...')}</div>`;
+
+  if(b.type==='image')return`
+    <div class="form-group" style="margin:0 0 10px"><label>URL картинки</label>${ci(b.url,'url','https://...')}</div>
+    <div class="form-group" style="margin:0 0 10px">
+      <label>Или загрузи файл (JPG, PNG, GIF, WebP, SVG)</label>
+      <input type="file" accept="image/jpeg,image/png,image/gif,image/webp,image/svg+xml" style="width:100%;padding:8px;border:2px dashed var(--gray-border);border-radius:8px;font-family:var(--font);font-size:.82rem;cursor:pointer;background:#fafafa" onchange="ceUploadImage(this)">
+    </div>
+    ${b.url?`<div style="margin-bottom:10px;text-align:center"><img src="${b.url}" style="max-width:100%;max-height:180px;object-fit:contain;border-radius:8px;border:1px solid var(--gray-border)"></div>`:''}
+    <div class="form-group" style="margin:0"><label>Подпись (необяз.)</label>${ci(b.caption,'caption','Подпись к картинке...')}</div>`;
+
+  if(b.type==='openq')return`
+    <div class="form-group" style="margin:0 0 8px"><label>Вопрос</label>
+    <textarea oninput="${P}.question=this.value" style="min-height:70px;width:100%;padding:8px 10px;border:2px solid var(--gray-border);border-radius:6px;font-family:var(--font)">${b.question||''}</textarea></div>
+    <div style="font-size:.78rem;color:var(--text3)">Ученик напишет ответ в свободной форме</div>`;
+
   return'';
 }
 
@@ -2308,11 +2343,20 @@ function openLessonEditor(id,title,lang,level,contentEnc){
 // keep editLesson alias for calls from loadClassTab
 function editLesson(id,title,lang,level,contentEnc){openLessonEditor(id,title,lang,level,contentEnc);}
 
-function openAssignLesson(lessonId){S.assignLessonId=lessonId;openM('mAssignLesson');}
+async function openAssignLesson(lessonId){
+  S.assignLessonId=lessonId;
+  // Always refresh student list before opening
+  const{data:sts}=await sb.from('students').select('id,first_name,last_name').eq('school_id',S.schoolId).order('last_name');
+  const sel=C('assign_student');
+  sel.innerHTML=(sts||[]).map(s=>`<option value="${s.id}">${s.first_name} ${s.last_name}</option>`).join('');
+  if(!sts||!sts.length){showToast('Нет учеников в школе');return;}
+  openM('mAssignLesson');
+}
 async function assignLesson(){
   const sid=C('assign_student').value;if(!sid){showToast('Выбери ученика');return;}
-  await sb.from('lesson_assignments').insert({school_id:S.schoolId,lesson_id:S.assignLessonId,student_id:sid});
-  closeM('mAssignLesson');showToast('Урок назначен!');
+  const{error}=await sb.from('lesson_assignments').insert({school_id:S.schoolId,lesson_id:S.assignLessonId,student_id:sid});
+  if(error){showToast('Ошибка: '+error.message);return;}
+  closeM('mAssignLesson');showToast('✅ Урок назначен ученику!');
 }
 
 // ─── CLASSROOM VIEW (EdVibe-style lesson viewer) ──────────────────────────────
@@ -2492,6 +2536,14 @@ function renderBlockView(b,i){
       ${b.question?`<div style="font-weight:700;margin-top:8px">❓ ${b.question}</div><textarea style="width:100%;margin-top:8px;padding:8px 10px;border:2px solid var(--gray-border);border-radius:8px;font-family:var(--font);min-height:60px" placeholder="Напиши свой ответ..."></textarea>`:''}
     </div>`;
   }
+  if(b.type==='image') return`<div class="lesson-view-block">
+    ${b.url?`<img src="${b.url}" style="max-width:100%;border-radius:10px;display:block;margin:0 auto 8px">`:`<div style="text-align:center;padding:30px;color:var(--text3);border:2px dashed var(--gray-border);border-radius:10px">🖼 Изображение не добавлено</div>`}
+    ${b.caption?`<p style="font-size:.85rem;color:var(--text3);text-align:center;margin:0">${b.caption}</p>`:''}
+  </div>`;
+  if(b.type==='openq') return`<div class="lesson-view-block">
+    <div style="font-weight:700;margin-bottom:10px">💬 ${b.question||'Вопрос'}</div>
+    <textarea style="width:100%;padding:10px 12px;border:2px solid var(--gray-border);border-radius:8px;font-family:var(--font);min-height:80px;font-size:.92rem" placeholder="Напиши свой ответ..."></textarea>
+  </div>`;
   return'';
 }
 
