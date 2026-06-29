@@ -1349,7 +1349,15 @@ async function loadContacts(){
 }
 
 // ─── WEBRTC ──────────────────────────────────────────────────────────────────
-const ICE={iceServers:[{urls:'stun:stun.l.google.com:19302'},{urls:'stun:stun1.l.google.com:19302'},{urls:'stun:stun.cloudflare.com:3478'}]};
+const ICE={iceServers:[
+  {urls:'stun:stun.l.google.com:19302'},
+  {urls:'stun:stun1.l.google.com:19302'},
+  {urls:'stun:stun.cloudflare.com:3478'},
+  {urls:'turn:openrelay.metered.ca:80',username:'openrelayproject',credential:'openrelayproject'},
+  {urls:'turn:openrelay.metered.ca:443',username:'openrelayproject',credential:'openrelayproject'},
+  {urls:'turns:openrelay.metered.ca:443?transport=tcp',username:'openrelayproject',credential:'openrelayproject'},
+  {urls:'turn:openrelay.metered.ca:80?transport=tcp',username:'openrelayproject',credential:'openrelayproject'}
+]};
 function getRoomId(a,b){const clean=id=>id.replace('stu_','');const ids=[clean(a),clean(b)].sort();return`teachyaed-${ids[0].slice(0,8)}-${ids[1].slice(0,8)}`;}
 function subscribeNotifications(){
   S.notifyChannel=sb.channel(`notify-${S.profile.id}`)
@@ -1418,12 +1426,27 @@ async function initCall(roomId,partnerName,isCallee){
     .on('broadcast',{event:'hangup'},()=>{showToast('Собеседник завершил звонок');hangUp();})
     .on('presence',{event:'join'},async()=>{
       const ids=Object.keys(S.callChannel.presenceState());
-      if(ids.length>=2&&!isCallee){const offer=await S.pc.createOffer();await S.pc.setLocalDescription(offer);S.callChannel.send({type:'broadcast',event:'offer',payload:{sdp:offer}});}
+      // Только caller (не callee) создаёт offer, только когда оба в комнате
+      if(ids.length>=2&&!isCallee&&S.pc&&S.pc.signalingState==='stable'&&!S.pc.localDescription){
+        try{const offer=await S.pc.createOffer();await S.pc.setLocalDescription(offer);S.callChannel.send({type:'broadcast',event:'offer',payload:{sdp:offer}});}
+        catch(e){showToast('Ошибка создания звонка: '+e.message);}
+      }
     })
     .subscribe(async(st)=>{
       if(st==='SUBSCRIBED'){
         await S.callChannel.track({userId:S.profile.id,name:S.profile.first_name});
-        if(!isCallee)setTimeout(async()=>{if(S.pc&&S.pc.signalingState==='stable'&&!S.pc.localDescription){const offer=await S.pc.createOffer();await S.pc.setLocalDescription(offer);S.callChannel.send({type:'broadcast',event:'offer',payload:{sdp:offer}});}},1500);
+        // Fallback: если presence join уже был (оба подписались почти одновременно)
+        if(!isCallee){
+          setTimeout(async()=>{
+            if(S.pc&&S.pc.signalingState==='stable'&&!S.pc.localDescription){
+              const ids=Object.keys(S.callChannel.presenceState());
+              if(ids.length>=2){
+                try{const offer=await S.pc.createOffer();await S.pc.setLocalDescription(offer);S.callChannel.send({type:'broadcast',event:'offer',payload:{sdp:offer}});}
+                catch(e){}
+              }
+            }
+          },2000);
+        }
       }
     });
   updateCallControls();
