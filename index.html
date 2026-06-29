@@ -319,6 +319,9 @@ tr:hover td{background:#FAFAFA}
 .ce-ex-card{background:#fff;border-radius:14px;padding:22px;box-shadow:var(--shadow);margin-bottom:12px}
 .ce-empty-sec{text-align:center;padding:50px 20px;color:var(--text3)}
 .ce-add-panel{background:#fff;border-radius:14px;padding:16px;box-shadow:var(--shadow);margin-top:12px}
+.ce-all-item{padding:10px 14px;border:1.5px solid var(--gray-border);border-radius:10px;margin-bottom:8px;cursor:pointer;transition:.15s;background:#fff;display:flex;align-items:center;gap:8px}
+.ce-all-item:hover{border-color:var(--purple);background:var(--purple-light)}
+.ce-all-num{width:22px;height:22px;border-radius:50%;background:var(--purple-light);color:var(--purple);font-size:.72rem;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0}
 .ce-add-head{font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);margin-bottom:10px}
 .ce-type-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:7px}
 .ce-type-card{padding:10px 4px;border:2px solid var(--gray-border);border-radius:10px;text-align:center;cursor:pointer;font-size:.75rem;font-weight:700;color:var(--text2);transition:.15s;background:#fff}
@@ -693,6 +696,10 @@ tr:hover td{background:#FAFAFA}
         <button class="btn btn-outline" id="ce_btnBack" onclick="ceNav(-1)">← Назад</button>
         <span class="cv-counter-label" id="ce_counter">— из —</span>
         <button class="btn btn-purple" id="ce_btnNext" onclick="ceNav(1)">Далее →</button>
+        <div class="ce-mode-grp" style="flex-shrink:0;margin-left:4px" title="Режим отображения">
+          <button class="ce-mode-btn active" id="ce_view1btn" onclick="setCEViewAll(false)" title="По одному">① По одному</button>
+          <button class="ce-mode-btn" id="ce_viewAllBtn" onclick="setCEViewAll(true)" title="Показать все">☰ Все</button>
+        </div>
       </div>
     </div>
     <!-- Right sidebar: sections + save -->
@@ -777,6 +784,10 @@ tr:hover td{background:#FAFAFA}
         <span class="cv-counter-label" id="cv_counter">1 из 1</span>
         <button class="btn btn-purple" id="cv_btnNext" onclick="lvNav(1)">Далее →</button>
         <button class="btn btn-outline" id="cv_btnFinishSec" onclick="lvFinishSection()">Завершить раздел →</button>
+        <div class="ce-mode-grp" style="flex-shrink:0;margin-left:4px" title="Режим отображения">
+          <button class="ce-mode-btn active" id="cv_view1btn" onclick="setLVViewAll(false)" title="По одному">① По одному</button>
+          <button class="ce-mode-btn" id="cv_viewAllBtn" onclick="setLVViewAll(true)" title="Показать все">☰ Все</button>
+        </div>
       </div>
     </div>
     <!-- Right sidebar -->
@@ -2078,7 +2089,7 @@ const CE_DEFAULTS={
 };
 
 // ─── CLASSROOM EDITOR STATE ──────────────────────────────────────────────────
-const CE={lessonId:null,sections:[],curSec:0,curEx:0,mode:'edit'};
+const CE={lessonId:null,sections:[],curSec:0,curEx:0,mode:'edit',viewAll:false};
 
 function openCE(lessonId,rawContent){
   CE.lessonId=lessonId;
@@ -2089,8 +2100,9 @@ function openCE(lessonId,rawContent){
   } else {
     CE.sections=[{title:'Раздел 1',exercises:[]}];
   }
-  CE.curSec=0;CE.curEx=0;CE.mode='edit';
+  CE.curSec=0;CE.curEx=0;CE.mode='edit';CE.viewAll=false;
   C('ceModeEdit').classList.add('active');C('ceModePreview').classList.remove('active');
+  C('ce_view1btn').classList.add('active');C('ce_viewAllBtn').classList.remove('active');
   C('classroomEditor').classList.add('open');
   ceRenderAll();
 }
@@ -2157,6 +2169,32 @@ function ceExercise(){
   const secTitle=`<input class="ce-sec-heading" value="${(sec?.title||'Раздел '+(CE.curSec+1)).replace(/"/g,'&quot;')}" placeholder="Название раздела..." oninput="CE.sections[CE.curSec].title=this.value;ceSidebar()">`;
 
   if(!sec){wrap.innerHTML='<div class="ce-empty-sec">Нет разделов</div>';return;}
+
+  // ── VIEW ALL MODE ──────────────────────────────────────────────────────────
+  if(CE.viewAll){
+    C('ce_btnBack').style.visibility='hidden';
+    C('ce_btnNext').style.visibility='hidden';
+    C('ce_counter').style.visibility='hidden';
+    const items=sec.exercises.map((ex,ei)=>{
+      const m=BLOCK_META[ex.type]||{icon:'❓',name:ex.type,color:'#eee'};
+      const prev=ceExPreview(ex);
+      return`<div class="ce-all-item" onclick="setCEViewAll(false);CE.curEx=${ei};ceRenderAll()">
+        <div class="ce-all-num">${ei+1}</div>
+        <span style="padding:3px 10px;border-radius:20px;font-size:.72rem;font-weight:700;background:${m.color};flex-shrink:0">${m.icon} ${m.name}</span>
+        <span style="flex:1;font-size:.84rem;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${prev||'—'}</span>
+        <button class="btn btn-sm btn-outline" style="font-size:.7rem;padding:2px 8px;flex-shrink:0" onclick="event.stopPropagation();setCEViewAll(false);CE.curEx=${ei};ceRenderAll()">✎ Ред.</button>
+        <button class="btn btn-sm btn-red" style="font-size:.7rem;padding:2px 8px;flex-shrink:0" onclick="event.stopPropagation();CE.curEx=${ei};if(confirm('Удалить упражнение?')){CE.sections[CE.curSec].exercises.splice(CE.curEx,1);CE.curEx=Math.max(0,CE.curEx-1);ceRenderAll();}">✕</button>
+      </div>`;
+    }).join('');
+    wrap.innerHTML=`${secTitle}
+      <div style="margin-bottom:12px;font-size:.82rem;color:var(--text3)">${total} упражнений · Нажми на карточку чтобы редактировать</div>
+      ${items||'<div class="ce-empty-sec" style="padding:30px 0">Нет упражнений. Добавь первое ниже.</div>'}
+      ${ceAddPanelHTML()}`;
+    return;
+  }
+  C('ce_btnBack').style.visibility='';
+  C('ce_btnNext').style.visibility='';
+  C('ce_counter').style.visibility='';
 
   if(total===0){
     wrap.innerHTML=`${secTitle}<div class="ce-empty-sec">
@@ -2360,7 +2398,7 @@ async function assignLesson(){
 }
 
 // ─── CLASSROOM VIEW (EdVibe-style lesson viewer) ──────────────────────────────
-const LV={sections:[],curSec:0,curEx:0,assignId:null};
+const LV={sections:[],curSec:0,curEx:0,assignId:null,viewAll:false};
 
 function _parseLessonContent(contentEnc){
   const raw=JSON.parse(decodeURIComponent(contentEnc));
@@ -2370,9 +2408,10 @@ function _parseLessonContent(contentEnc){
 }
 
 function openClassroomView(title,sections,assignId,studentName){
-  LV.sections=sections;LV.curSec=0;LV.curEx=0;LV.assignId=assignId;
+  LV.sections=sections;LV.curSec=0;LV.curEx=0;LV.assignId=assignId;LV.viewAll=false;
   S.currentAssignId=assignId||null;
   window._matchState={};
+  C('cv_view1btn').classList.add('active');C('cv_viewAllBtn').classList.remove('active');
   C('cv_lessonName').textContent=title;
   const badge=C('cv_studentBadge');
   if(studentName){badge.textContent='👤 '+studentName;badge.style.display='';}
@@ -2390,12 +2429,15 @@ function openLessonView(assignId,title,contentEnc){
 }
 
 function lvRender(){
+  if(LV.viewAll){lvRenderAll();return;}
   const sec=LV.sections[LV.curSec];
   const exs=sec?sec.exercises:[];
   const ex=exs[LV.curEx];
   const total=exs.length;
   const isLastEx=LV.curEx>=total-1;
   const isLastSec=LV.curSec>=LV.sections.length-1;
+  // nav visibility
+  C('cv_btnBack').style.visibility='';C('cv_btnNext').style.visibility='';C('cv_counter').style.visibility='';
   // section title
   C('cv_sectionTitle').textContent=sec?.title||`Раздел ${LV.curSec+1}`;
   // counter
@@ -2464,6 +2506,70 @@ function lvNav(dir){
   }
   window._matchState={};lvRender();
 }
+// ── VIEW MODE TOGGLES ─────────────────────────────────────────────────────────
+function setCEViewAll(all){
+  CE.viewAll=all;
+  C('ce_view1btn').classList.toggle('active',!all);
+  C('ce_viewAllBtn').classList.toggle('active',all);
+  ceExercise();
+}
+
+function setLVViewAll(all){
+  LV.viewAll=all;
+  C('cv_view1btn').classList.toggle('active',!all);
+  C('cv_viewAllBtn').classList.toggle('active',all);
+  lvRender();
+}
+
+// Short preview text for exercise list
+function ceExPreview(ex){
+  if(!ex)return'';
+  if(ex.type==='text')return(ex.text||'').slice(0,70);
+  if(ex.type==='quiz')return(ex.question||'').slice(0,70);
+  if(ex.type==='fill_blank')return(ex.sentence||'').slice(0,70);
+  if(ex.type==='truefalse')return(ex.statement||'').slice(0,70);
+  if(ex.type==='word_order')return(ex.words||[]).join(' ').slice(0,70);
+  if(ex.type==='vocab')return(ex.words||[]).map(w=>w.word).join(', ').slice(0,70);
+  if(ex.type==='matching')return(ex.pairs||[]).map(p=>p.left+'→'+p.right).join(', ').slice(0,70);
+  if(ex.type==='video')return(ex.url||'').slice(0,70);
+  if(ex.type==='image')return ex.caption||(ex.url?'🖼 Картинка':'(нет картинки)');
+  if(ex.type==='openq')return(ex.question||'').slice(0,70);
+  return'';
+}
+
+// Render ALL sections + exercises in one scrollable page (viewer)
+function lvRenderAll(){
+  window._matchState={};
+  C('cv_sectionTitle').textContent='Весь урок';
+  C('cv_btnBack').style.visibility='hidden';
+  C('cv_btnNext').style.visibility='hidden';
+  C('cv_counter').style.visibility='hidden';
+  C('cv_btnFinishSec').style.display='none';
+  let html='';
+  LV.sections.forEach((sec,si)=>{
+    const exs=sec.exercises||[];
+    html+=`<div style="margin-bottom:32px">
+      <div class="cv-section-heading" style="font-size:1.1rem;margin-bottom:16px;padding-bottom:8px;border-bottom:2px solid var(--gray-border)">${sec.title||`Раздел ${si+1}`}<span style="font-size:.78rem;font-weight:500;color:var(--text3);margin-left:8px">${exs.length} упр.</span></div>
+      ${exs.length===0?'<div style="color:var(--text3);font-size:.85rem;padding:8px 0">Нет упражнений</div>':
+        exs.map((ex,ei)=>{
+          const m=BLOCK_META[ex.type]||{icon:'?',name:ex.type,color:'#eee'};
+          return`<div style="margin-bottom:20px">
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
+              <span style="padding:2px 10px;border-radius:20px;font-size:.72rem;font-weight:700;background:${m.color}">${m.icon} ${m.name}</span>
+              <span style="font-size:.75rem;color:var(--text3)">${ei+1} из ${exs.length}</span>
+            </div>
+            ${renderBlockView(ex,si*1000+ei)}
+          </div>`;
+        }).join('')}
+    </div>`;
+  });
+  html+=`<div style="text-align:center;padding:16px 0 32px">
+    <button class="btn btn-green" style="font-size:1rem;padding:12px 32px;border-radius:12px" onclick="completeLessonView()">🏁 Завершить урок</button>
+  </div>`;
+  C('cv_exerciseContent').innerHTML=html;
+  lvRenderSections();
+}
+
 function renderBlockView(b,i){
   if(b.type==='text') return`<div class="lesson-view-block">
     ${b.image?`<img src="${b.image}" style="max-width:100%;border-radius:8px;margin-bottom:10px">`:''}
