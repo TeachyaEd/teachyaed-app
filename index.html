@@ -1353,7 +1353,7 @@ const ICE={iceServers:[
   {urls:'turns:openrelay.metered.ca:443?transport=tcp',username:'openrelayproject',credential:'openrelayproject'},
   {urls:'turn:openrelay.metered.ca:80?transport=tcp',username:'openrelayproject',credential:'openrelayproject'}
 ]};
-function getRoomId(a,b){const clean=id=>id.replace('stu_','');const ids=[clean(a),clean(b)].sort();return`teachyaed-${ids[0].slice(0,8)}-${ids[1].slice(0,8)}`;}
+function getRoomId(a,b){const clean=id=>id.replace('stu_','').replace(/[^a-zA-Z0-9]/g,'').slice(0,12);const ids=[clean(a),clean(b)].sort();return`ty-${ids[0]}-${ids[1]}`;}
 function subscribeNotifications(){
   S.notifyChannel=sb.channel(`notify-${S.profile.id}`)
     .on('broadcast',{event:'ring'},({payload})=>{
@@ -1392,6 +1392,7 @@ function declineCall(){
   if(S.pendingRoom){const ch=sb.channel(S.pendingRoom);ch.subscribe(st=>{if(st==='SUBSCRIBED'){ch.send({type:'broadcast',event:'decline',payload:{}});setTimeout(()=>sb.removeChannel(ch),1000);}});}
   S.pendingRoom=null;
 }
+const DAILY_KEY='db5b22eee2805b3a3f27a5e86870049eba81b56e0fcbfdc3cff9ded4a54c8efc';
 async function initCall(roomId,partnerName,isCallee){
   S.inCall=true;
   C('callTitle').textContent=partnerName;
@@ -1399,19 +1400,21 @@ async function initCall(roomId,partnerName,isCallee){
   C('dialBtn').classList.add('incall');C('dialBtn').textContent='📵';
   C('callStatus').textContent='⏳ Создаю комнату...';C('callStatus').classList.remove('hidden');
   try{
-    // Получаем URL комнаты через Edge Function (Daily.co)
-    const session=await sb.auth.getSession();
-    const token=session?.data?.session?.access_token||'';
-    const resp=await fetch(`https://juwvlyrepwdcndkqiqna.supabase.co/functions/v1/create-call-room`,{
+    // Создаём/получаем комнату Daily.co — участникам регистрация не нужна
+    let resp=await fetch('https://api.daily.co/v1/rooms',{
       method:'POST',
-      headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
-      body:JSON.stringify({room_name:roomId})
+      headers:{'Authorization':'Bearer '+DAILY_KEY,'Content-Type':'application/json'},
+      body:JSON.stringify({name:roomId,properties:{enable_prejoin_ui:false,start_video_off:false,start_audio_off:false,exp:Math.floor(Date.now()/1000)+7200}})
     });
-    const{url,error}=await resp.json();
-    if(error||!url){showToast('Ошибка создания комнаты: '+(error||'нет URL'));hangUp();return;}
+    let data=await resp.json();
+    // Комната уже существует — получаем её
+    if(resp.status===409){
+      const gr=await fetch('https://api.daily.co/v1/rooms/'+roomId,{headers:{'Authorization':'Bearer '+DAILY_KEY}});
+      data=await gr.json();
+    }
+    if(!data.url){showToast('Ошибка создания комнаты');hangUp();return;}
     C('callStatus').textContent='⏳ Соединяю...';
-    // Daily.co — не требует регистрации от участников
-    C('jitsiFrame').src=url;
+    C('jitsiFrame').src=data.url;
     setTimeout(()=>C('callStatus').classList.add('hidden'),4000);
   }catch(e){showToast('Ошибка: '+e.message);hangUp();return;}
   // Канал для уведомления о завершении звонка
