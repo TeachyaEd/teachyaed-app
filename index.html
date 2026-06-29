@@ -1397,12 +1397,23 @@ async function initCall(roomId,partnerName,isCallee){
   C('callTitle').textContent=partnerName;
   C('callWindow').classList.add('visible');
   C('dialBtn').classList.add('incall');C('dialBtn').textContent='📵';
-  C('callStatus').textContent='⏳ Соединяю...';C('callStatus').classList.remove('hidden');
-  // Jitsi Meet — надёжный видеозвонок со своими TURN серверами
-  const jitsiRoom=roomId.replace(/[^a-zA-Z0-9]/g,'-');
-  const displayName=encodeURIComponent((S.profile.first_name||'')+' '+(S.profile.last_name||''));
-  C('jitsiFrame').src=`https://meet.jit.si/${jitsiRoom}#userInfo.displayName="${displayName}"&config.prejoinPageEnabled=false&config.startWithAudioMuted=false&config.startWithVideoMuted=false`;
-  setTimeout(()=>C('callStatus').classList.add('hidden'),3000);
+  C('callStatus').textContent='⏳ Создаю комнату...';C('callStatus').classList.remove('hidden');
+  try{
+    // Получаем URL комнаты через Edge Function (Daily.co)
+    const session=await sb.auth.getSession();
+    const token=session?.data?.session?.access_token||'';
+    const resp=await fetch(`https://juwvlyrepwdcndkqiqna.supabase.co/functions/v1/create-call-room`,{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
+      body:JSON.stringify({room_name:roomId})
+    });
+    const{url,error}=await resp.json();
+    if(error||!url){showToast('Ошибка создания комнаты: '+(error||'нет URL'));hangUp();return;}
+    C('callStatus').textContent='⏳ Соединяю...';
+    // Daily.co — не требует регистрации от участников
+    C('jitsiFrame').src=url;
+    setTimeout(()=>C('callStatus').classList.add('hidden'),4000);
+  }catch(e){showToast('Ошибка: '+e.message);hangUp();return;}
   // Канал для уведомления о завершении звонка
   S.callChannel=sb.channel(roomId)
     .on('broadcast',{event:'hangup'},()=>{showToast('Собеседник завершил звонок');hangUp();})
