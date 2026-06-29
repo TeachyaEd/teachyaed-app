@@ -148,9 +148,8 @@ tr:hover td{background:#FAFAFA}
 #callHeader .call-title{flex:1;font-weight:600;font-size:.9rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .chbtn{background:rgba(255,255,255,.2);border:none;color:#fff;width:28px;height:28px;border-radius:6px;cursor:pointer;font-size:.85rem;display:flex;align-items:center;justify-content:center}
 .chbtn:hover{background:rgba(255,255,255,.35)}
-#videoArea{position:relative;background:#111;aspect-ratio:4/3;width:100%}
-#remoteVideo{width:100%;height:100%;object-fit:cover;display:block;background:#111}
-#localVideo{position:absolute;bottom:8px;right:8px;width:90px;height:68px;object-fit:cover;border-radius:8px;border:2px solid var(--purple);background:#222}
+#videoArea{position:relative;background:#111;width:100%;height:380px}
+#jitsiFrame{width:100%;height:100%;border:none;display:block}
 #callStatus{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#aaa;font-size:.9rem;pointer-events:none}
 #callStatus.hidden{display:none}
 #callControls{display:flex;justify-content:center;gap:10px;padding:12px 10px;background:#1a1a2e}
@@ -419,15 +418,11 @@ tr:hover td{background:#FAFAFA}
   </div>
   <div id="callBody">
     <div id="videoArea">
-      <video id="remoteVideo" autoplay playsinline></video>
-      <video id="localVideo" autoplay playsinline muted></video>
-      <div id="callStatus">⏳ Ожидание...</div>
+      <iframe id="jitsiFrame" allow="camera *;microphone *;display-capture *;autoplay *;fullscreen *" allowfullscreen></iframe>
+      <div id="callStatus">⏳ Соединяю...</div>
     </div>
     <div id="callControls">
-      <div style="text-align:center"><button class="ctrl-btn on" id="btnMic" onclick="toggleMic()">🎤</button><div class="ctrl-label" id="lblMic">Микрофон</div></div>
-      <div style="text-align:center"><button class="ctrl-btn on" id="btnCam" onclick="toggleCam()">📷</button><div class="ctrl-label" id="lblCam">Камера</div></div>
       <div style="text-align:center"><button class="ctrl-btn end" onclick="hangUp()">📵</button><div class="ctrl-label" style="color:#f87171">Завершить</div></div>
-      <div style="text-align:center"><button class="ctrl-btn on" id="btnScreen" onclick="toggleScreen()">🖥</button><div class="ctrl-label">Экран</div></div>
       <div style="text-align:center"><button class="ctrl-btn on" onclick="openWb()">✏️</button><div class="ctrl-label">Доска</div></div>
     </div>
   </div>
@@ -1398,79 +1393,26 @@ function declineCall(){
   S.pendingRoom=null;
 }
 async function initCall(roomId,partnerName,isCallee){
-  S.inCall=true;C('callTitle').textContent=partnerName;C('callWindow').classList.add('visible');
-  C('callStatus').textContent='⏳ Соединяю...';C('callStatus').classList.remove('hidden');
+  S.inCall=true;
+  C('callTitle').textContent=partnerName;
+  C('callWindow').classList.add('visible');
   C('dialBtn').classList.add('incall');C('dialBtn').textContent='📵';
-  try{S.localStream=await navigator.mediaDevices.getUserMedia({video:true,audio:true});}
-  catch(e){try{S.localStream=await navigator.mediaDevices.getUserMedia({video:false,audio:true});}catch(e2){showToast('Нет доступа к камере/микрофону');hangUp();return;}}
-  C('localVideo').srcObject=S.localStream;
-  S.pc=new RTCPeerConnection(ICE);
-  S.localStream.getTracks().forEach(t=>S.pc.addTrack(t,S.localStream));
-  S.pc.ontrack=e=>{C('remoteVideo').srcObject=e.streams[0];C('callStatus').classList.add('hidden');showToast('✅ Соединение установлено!');};
-  S.pc.oniceconnectionstatechange=()=>{
-    const st=S.pc?.iceConnectionState;
-    if(st==='connected'||st==='completed')C('callStatus').classList.add('hidden');
-    if(st==='failed'||st==='disconnected'){C('callStatus').textContent='⚠️ Соединение потеряно...';C('callStatus').classList.remove('hidden');}
-  };
-  S.pc.onicecandidate=e=>{if(e.candidate&&S.callChannel)S.callChannel.send({type:'broadcast',event:'ice',payload:{candidate:e.candidate}});};
-  S.callChannel=sb.channel(roomId,{config:{presence:{key:S.profile.id}}})
-    .on('broadcast',{event:'offer'},async({payload})=>{
-      if(S.pc.signalingState==='stable'||isCallee){
-        await S.pc.setRemoteDescription(new RTCSessionDescription(payload.sdp));
-        const ans=await S.pc.createAnswer();await S.pc.setLocalDescription(ans);
-        S.callChannel.send({type:'broadcast',event:'answer',payload:{sdp:ans}});
-      }
-    })
-    .on('broadcast',{event:'answer'},async({payload})=>{if(S.pc.signalingState!=='stable')await S.pc.setRemoteDescription(new RTCSessionDescription(payload.sdp));})
-    .on('broadcast',{event:'ice'},async({payload})=>{if(payload.candidate&&S.pc)try{await S.pc.addIceCandidate(new RTCIceCandidate(payload.candidate));}catch(e){}})
+  C('callStatus').textContent='⏳ Соединяю...';C('callStatus').classList.remove('hidden');
+  // Jitsi Meet — надёжный видеозвонок со своими TURN серверами
+  const jitsiRoom=roomId.replace(/[^a-zA-Z0-9]/g,'-');
+  const displayName=encodeURIComponent((S.profile.first_name||'')+' '+(S.profile.last_name||''));
+  C('jitsiFrame').src=`https://meet.jit.si/${jitsiRoom}#userInfo.displayName="${displayName}"&config.prejoinPageEnabled=false&config.startWithAudioMuted=false&config.startWithVideoMuted=false`;
+  setTimeout(()=>C('callStatus').classList.add('hidden'),3000);
+  // Канал для уведомления о завершении звонка
+  S.callChannel=sb.channel(roomId)
     .on('broadcast',{event:'hangup'},()=>{showToast('Собеседник завершил звонок');hangUp();})
-    .on('presence',{event:'join'},async()=>{
-      const ids=Object.keys(S.callChannel.presenceState());
-      // Только caller (не callee) создаёт offer, только когда оба в комнате
-      if(ids.length>=2&&!isCallee&&S.pc&&S.pc.signalingState==='stable'&&!S.pc.localDescription){
-        try{const offer=await S.pc.createOffer();await S.pc.setLocalDescription(offer);S.callChannel.send({type:'broadcast',event:'offer',payload:{sdp:offer}});}
-        catch(e){showToast('Ошибка создания звонка: '+e.message);}
-      }
-    })
-    .subscribe(async(st)=>{
-      if(st==='SUBSCRIBED'){
-        await S.callChannel.track({userId:S.profile.id,name:S.profile.first_name});
-        // Fallback: если presence join уже был (оба подписались почти одновременно)
-        if(!isCallee){
-          setTimeout(async()=>{
-            if(S.pc&&S.pc.signalingState==='stable'&&!S.pc.localDescription){
-              const ids=Object.keys(S.callChannel.presenceState());
-              if(ids.length>=2){
-                try{const offer=await S.pc.createOffer();await S.pc.setLocalDescription(offer);S.callChannel.send({type:'broadcast',event:'offer',payload:{sdp:offer}});}
-                catch(e){}
-              }
-            }
-          },2000);
-        }
-      }
-    });
-  updateCallControls();
+    .subscribe();
 }
 async function hangUp(){
   if(S.callChannel){try{S.callChannel.send({type:'broadcast',event:'hangup',payload:{}});}catch(e){}sb.removeChannel(S.callChannel);S.callChannel=null;}
-  if(S.localStream){S.localStream.getTracks().forEach(t=>t.stop());S.localStream=null;}
-  if(S.screenTrack){S.screenTrack.stop();S.screenTrack=null;}
-  if(S.pc){S.pc.close();S.pc=null;}
-  C('remoteVideo').srcObject=null;C('localVideo').srcObject=null;
+  C('jitsiFrame').src='about:blank';
   C('callWindow').classList.remove('visible');C('dialBtn').classList.remove('incall');C('dialBtn').textContent='📞';
-  S.inCall=false;S.micOn=true;S.camOn=true;S.screenOn=false;closeWb();
-}
-function toggleMic(){S.micOn=!S.micOn;if(S.localStream)S.localStream.getAudioTracks().forEach(t=>t.enabled=S.micOn);updateCallControls();}
-function toggleCam(){S.camOn=!S.camOn;if(S.localStream)S.localStream.getVideoTracks().forEach(t=>t.enabled=S.camOn);updateCallControls();}
-async function toggleScreen(){
-  if(S.screenOn){if(S.screenTrack)S.screenTrack.stop();if(S.localStream&&S.pc){const cam=S.localStream.getVideoTracks()[0];if(cam){const s=S.pc.getSenders().find(s=>s.track?.kind==='video');if(s)s.replaceTrack(cam);}}S.screenOn=false;S.screenTrack=null;}
-  else{try{const stream=await navigator.mediaDevices.getDisplayMedia({video:true});S.screenTrack=stream.getVideoTracks()[0];if(S.pc){const s=S.pc.getSenders().find(s=>s.track?.kind==='video');if(s)s.replaceTrack(S.screenTrack);}S.screenTrack.onended=()=>{S.screenOn=false;S.screenTrack=null;updateCallControls();};S.screenOn=true;}catch(e){showToast('Нет доступа к экрану');}}
-  updateCallControls();
-}
-function updateCallControls(){
-  C('btnMic').className=`ctrl-btn ${S.micOn?'on':'off'}`;C('btnMic').textContent=S.micOn?'🎤':'🔇';C('lblMic').textContent=S.micOn?'Микрофон':'Без звука';
-  C('btnCam').className=`ctrl-btn ${S.camOn?'on':'off'}`;C('btnCam').textContent=S.camOn?'📷':'🚫';C('lblCam').textContent=S.camOn?'Камера':'Без камеры';
-  C('btnScreen').className=`ctrl-btn ${S.screenOn?'off':'on'}`;C('btnScreen').textContent=S.screenOn?'🛑':'🖥';
+  S.inCall=false;closeWb();
 }
 function minimizeCall(){const b=C('callBody');b.style.display=b.style.display==='none'?'block':'none';}
 
