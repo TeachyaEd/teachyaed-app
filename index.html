@@ -1353,7 +1353,7 @@ const ICE={iceServers:[
   {urls:'turns:openrelay.metered.ca:443?transport=tcp',username:'openrelayproject',credential:'openrelayproject'},
   {urls:'turn:openrelay.metered.ca:80?transport=tcp',username:'openrelayproject',credential:'openrelayproject'}
 ]};
-function getRoomId(a,b){const clean=id=>id.replace('stu_','').replace(/[^a-zA-Z0-9]/g,'').slice(0,12);const ids=[clean(a),clean(b)].sort();return`ty-${ids[0]}-${ids[1]}`;}
+function getRoomId(a,b){const clean=id=>String(id||'x').replace('stu_','').replace(/[^a-zA-Z0-9]/g,'').slice(0,12)||'x';const ids=[clean(a),clean(b)].sort();return`ty-${ids[0]}-${ids[1]}`;}
 function subscribeNotifications(){
   S.notifyChannel=sb.channel(`notify-${S.profile.id}`)
     .on('broadcast',{event:'ring'},({payload})=>{
@@ -1408,11 +1408,12 @@ async function initCall(roomId,partnerName,isCallee){
     });
     let data=await resp.json();
     // Комната уже существует — получаем её
-    if(resp.status===409){
+    // Daily.co возвращает 400 (не 409) если комната уже существует
+    if(!data.url){
       const gr=await fetch('https://api.daily.co/v1/rooms/'+roomId,{headers:{'Authorization':'Bearer '+DAILY_KEY}});
       data=await gr.json();
     }
-    if(!data.url){showToast('Ошибка создания комнаты');hangUp();return;}
+    if(!data.url){showToast('Ошибка Daily.co: '+(data.error||data.info||JSON.stringify(data).slice(0,80)));hangUp();return;}
     C('callStatus').textContent='⏳ Соединяю...';
     C('jitsiFrame').src=data.url;
     setTimeout(()=>C('callStatus').classList.add('hidden'),4000);
