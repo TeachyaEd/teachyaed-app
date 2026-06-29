@@ -1514,7 +1514,10 @@ async function renderTeacherStudents(){
   const rows=(sts||[]).map(s=>`<tr>
     <td><div style="display:flex;align-items:center;gap:10px">${avHTML(s.first_name,s.last_name)}<div><div style="font-weight:600">${s.first_name} ${s.last_name}</div><div style="font-size:.75rem;color:var(--text3)">${s.email||'—'}</div></div></div></td>
     <td>${s.language||'—'}</td><td><span class="badge badge-purple">${s.level||'—'}</span></td><td>${s.phone||'—'}</td>
-    <td><button class="btn btn-sm btn-purple" style="font-size:.75rem;padding:4px 10px" onclick="prefillHwForStudent('${s.id}','${s.first_name} ${s.last_name}')">📋 ДЗ</button></td>
+    <td style="display:flex;gap:6px">
+      <button class="btn btn-sm btn-purple" style="font-size:.73rem;padding:4px 8px" onclick="prefillHwForStudent('${s.id}','${s.first_name} ${s.last_name}')">📋 ДЗ</button>
+      <button class="btn btn-sm btn-green" style="font-size:.73rem;padding:4px 8px" onclick="callContact('stu_${s.id}','${s.first_name} ${s.last_name}','student')">📞</button>
+    </td>
   </tr>`).join('')||'<tr><td colspan="5" style="text-align:center;color:var(--text3)">Нет учеников</td></tr>';
   setContent(`<div class="section-header"><h2>👥 Ученики</h2></div>
     <div class="card" style="padding:0;overflow:hidden"><table><thead><tr><th>Ученик</th><th>Язык</th><th>Уровень</th><th>Телефон</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>`);
@@ -1591,7 +1594,10 @@ async function renderAdminTeachers(){
   const{data:ts}=await sb.from('profiles').select('*').eq('school_id',S.schoolId).eq('role','teacher');
   const rows=(ts||[]).map(t=>`<tr><td><div style="display:flex;align-items:center;gap:10px">${avHTML(t.first_name,t.last_name)}<div><div style="font-weight:600">${t.first_name} ${t.last_name}</div><div style="font-size:.75rem;color:var(--text3)">${t.email||'—'}</div></div></div></td>
     <td><span class="badge badge-green">Учитель</span></td>
-    <td><button class="btn btn-sm btn-outline" style="font-size:.73rem;padding:4px 8px" onclick="openSetSalary('${t.id}','${t.first_name} ${t.last_name}')">💰 Ставка</button></td></tr>`).join('')||'<tr><td colspan="3" style="text-align:center;color:var(--text3)">Нет учителей</td></tr>';
+    <td style="display:flex;gap:6px;flex-wrap:wrap">
+      <button class="btn btn-sm btn-outline" style="font-size:.73rem;padding:4px 8px" onclick="openSetSalary('${t.id}','${t.first_name} ${t.last_name}')">💰 Ставка</button>
+      <button class="btn btn-sm btn-green" style="font-size:.73rem;padding:4px 8px" onclick="callContact('${t.id}','${t.first_name} ${t.last_name}','teacher')">📞 Позвонить</button>
+    </td></tr>`).join('')||'<tr><td colspan="3" style="text-align:center;color:var(--text3)">Нет учителей</td></tr>';
   setContent(`<div class="section-header"><h2>👨‍🏫 Учителя</h2></div>
     <div class="card" style="padding:0;overflow:hidden"><table><thead><tr><th>Учитель</th><th>Роль</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>`);
 }
@@ -1600,7 +1606,11 @@ async function renderOwnerUsers(){
   const rows=(users||[]).map(u=>`<tr>
     <td><div style="display:flex;align-items:center;gap:10px">${avHTML(u.first_name,u.last_name)}<div><div style="font-weight:600">${u.first_name} ${u.last_name}</div><div style="font-size:.75rem;color:var(--text3)">${u.email||'—'}</div></div></div></td>
     <td><span class="badge ${u.role==='owner'?'badge-pink':u.role==='admin'?'badge-yellow':u.role==='teacher'?'badge-green':'badge-purple'}">${ROLE_L[u.role]||u.role}</span></td>
-    <td>${u.id===S.profile.id?'—':`<button class="btn btn-sm btn-outline" style="font-size:.73rem;padding:4px 8px" onclick="openChangeRole('${u.id}','${u.first_name} ${u.last_name}','${u.role}')">✎ Роль</button>`}</td>
+    <td style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+      ${u.id===S.profile.id?'<span style="font-size:.75rem;color:var(--text3)">Это вы</span>':`
+        <button class="btn btn-sm btn-outline" style="font-size:.73rem;padding:4px 8px" onclick="openChangeRole('${u.id}','${u.first_name} ${u.last_name}','${u.role}')">✎ Роль</button>
+        <button class="btn btn-sm btn-green" style="font-size:.73rem;padding:4px 8px" onclick="callContact('${u.id}','${u.first_name} ${u.last_name}','${u.role}')">📞 Позвонить</button>`}
+    </td>
   </tr>`).join('');
   setContent(`<div class="section-header"><h2>👥 Все пользователи</h2><button class="btn btn-purple" onclick="openM('mInviteStaff')">+ Пригласить сотрудника</button></div>
     <div class="card" style="padding:0;overflow:hidden"><table><thead><tr><th>Пользователь</th><th>Роль</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>`);
