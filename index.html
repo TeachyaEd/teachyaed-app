@@ -1245,8 +1245,33 @@ async function doLogin(){
   await afterLogin(data.user);
 }
 async function afterLogin(user){
-  const{data:prof}=await sb.from('profiles').select('*').eq('id',user.id).single();
-  if(!prof){showToast('Профиль не найден');return;}
+  let{data:prof}=await sb.from('profiles').select('*').eq('id',user.id).single();
+
+  // ── Fallback: profile not found — create from invite metadata ──────────────
+  if(!prof){
+    const meta=user.user_metadata||{};
+    const role=meta.role||null;
+    const schoolId=meta.school_id||null;
+    if(role&&schoolId){
+      // Create profile from invite data (DB trigger may have failed)
+      const{data:newProf,error:insErr}=await sb.from('profiles').upsert({
+        id:user.id,
+        school_id:schoolId,
+        role,
+        first_name:meta.first_name||'',
+        last_name:meta.last_name||'',
+        email:user.email||''
+      },{onConflict:'id'}).select().single();
+      if(!insErr&&newProf){prof=newProf;showToast('Профиль создан ✓');}
+    }
+  }
+
+  if(!prof){
+    showToast('Профиль не найден. Обратитесь к администратору.');
+    C('inviteScreen').style.display='none';
+    C('loginScreen').style.display='flex';
+    return;
+  }
   S.profile=prof;S.role=prof.role;S.schoolId=prof.school_id;
   C('loginScreen').style.display='none';
   C('app').style.display='flex';
