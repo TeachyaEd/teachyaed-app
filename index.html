@@ -353,6 +353,168 @@ tr:hover td{background:#FAFAFA}
 .avatar-circle{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.9rem;color:#fff;flex-shrink:0}
 #toast{position:fixed;bottom:100px;right:24px;background:#111827;color:#fff;padding:10px 18px;border-radius:10px;font-size:.85rem;z-index:500;opacity:0;transition:.3s;pointer-events:none}
 #toast.show{opacity:1}
+
+/* ── МОБИЛЬНАЯ НАВИГАЦИЯ ── */
+#menuBtn{display:none;background:none;border:none;font-size:1.3rem;cursor:pointer;color:var(--text2);padding:6px 8px;border-radius:8px;line-height:1;flex-shrink:0;-webkit-tap-highlight-color:transparent}
+#menuBtn:hover{background:var(--gray-light)}
+#sidebarBackdrop{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:198}
+#sidebarBackdrop.open{display:block}
+
+/* Touch-friendly: убираем tap-задержку на iOS */
+button,a,.nav-item,.btn,.ev-class-card,.cdp-tab,.cv-tab,.contact-item,.quiz-opt,.match-item,.word-chip,.tf-btn{-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+input,select,textarea{font-size:16px!important} /* Предотвращаем зум на iOS при фокусе */
+
+/* ── МОБИЛЬНЫЕ (≤ 767px) ── */
+@media(max-width:767px){
+  /* Login / Invite */
+  .login-box,.invite-box{width:calc(100vw - 32px);max-width:100%;padding:28px 20px;border-radius:16px}
+  #loginScreen,#inviteScreen{padding:16px}
+
+  /* TopBar */
+  #topBar{padding:0 12px;gap:8px}
+  #menuBtn{display:flex;align-items:center;justify-content:center}
+  #userChip{display:none}
+  #roleChip{font-size:.68rem;padding:3px 8px}
+  #topBar .logo{font-size:1rem}
+  .btn-logout{font-size:.75rem;padding:5px 10px}
+
+  /* Main layout */
+  #main{flex-direction:row}
+  #sidebar{
+    position:fixed;top:56px;left:-260px;bottom:0;
+    width:240px;z-index:199;
+    transition:left .25s cubic-bezier(.4,0,.2,1);
+    box-shadow:none;overflow-y:auto;
+    padding-bottom:24px
+  }
+  #sidebar.mobile-open{left:0;box-shadow:6px 0 24px rgba(0,0,0,.2)}
+  #content{
+    max-height:calc(100vh - 56px);
+    padding:12px;overflow-y:auto;
+    width:100%
+  }
+
+  /* Stats grid */
+  .stats-row{grid-template-columns:repeat(2,1fr);gap:10px}
+  .stat-card{padding:12px 14px}
+  .stat-val{font-size:1.5rem}
+  .stat-lbl{font-size:.72rem}
+
+  /* Forms */
+  .form-row{grid-template-columns:1fr}
+  .form-group input,.form-group select,.form-group textarea{font-size:16px!important}
+
+  /* Tables → горизонтальный скролл */
+  table{display:block;overflow-x:auto;-webkit-overflow-scrolling:touch;white-space:nowrap}
+  th,td{padding:8px 10px;font-size:.8rem}
+
+  /* Cards */
+  .card{padding:14px}
+  .card-title{font-size:.95rem}
+  .section-header{flex-wrap:wrap;gap:8px}
+  .section-header h2{font-size:1rem}
+
+  /* Modals */
+  .modal{padding:20px 14px;width:calc(100vw - 20px);max-width:none;max-height:88vh;border-radius:18px 18px 0 0}
+  .modal-bg{align-items:flex-end}
+  .modal-wide,.modal-xl{max-width:calc(100vw - 20px)}
+  .modal h3{font-size:1rem}
+
+  /* Call window → bottom sheet */
+  #callWindow{
+    position:fixed;top:auto;right:0;bottom:0;left:0;
+    width:100%;border-radius:18px 18px 0 0;
+    border:none;border-top:2px solid var(--purple);
+    max-height:92vh
+  }
+  #callHeader{cursor:default}
+  #videoArea{height:calc(50vh - 60px);min-height:200px}
+
+  /* Входящий звонок → вверху */
+  #incomingCall{bottom:auto;top:68px;right:12px;left:12px;width:auto}
+
+  /* Dial & contact picker */
+  #dialBtn{bottom:16px;right:14px;width:50px;height:50px;font-size:1.3rem}
+  #contactPicker{bottom:74px;right:10px;left:10px;width:auto;max-height:55vh}
+  #toast{left:12px;right:12px;bottom:74px;text-align:center}
+
+  /* Classes grid */
+  .ev-classes-grid{grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px}
+  .ev-class-card{min-height:130px}
+  .ev-class-initial{font-size:2.8rem}
+  .classes-toolbar{gap:8px}
+  .ev-filter-tabs{flex-wrap:wrap}
+  .ev-filter-tab{padding:6px 12px;font-size:.78rem}
+
+  /* Class detail page */
+  .cdp-topbar{padding:0 12px;gap:8px}
+  .cdp-body{padding:12px}
+  .cdp-header-card{flex-direction:column;text-align:center;gap:10px;padding:16px}
+  .cdp-big-av{width:52px;height:52px;font-size:1.6rem}
+  .cdp-actions{justify-content:center}
+  .cdp-tabs{overflow-x:auto;-webkit-overflow-scrolling:touch;gap:0}
+  .cdp-tab{white-space:nowrap;padding:10px 12px;font-size:.82rem}
+
+  /* Classroom viewer */
+  .cv-right-sidebar{display:none}
+  .cv-left-sidebar{display:none}
+  .cv-content-scroll{padding:14px 16px}
+  .cv-lesson-name{max-width:120px}
+  .cv-tabs-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  .cv-tab{white-space:nowrap;padding:0 12px;font-size:.78rem}
+  .cv-bottom-nav{padding:0 12px;gap:6px;height:56px}
+  .cv-topbar{overflow-x:auto}
+
+  /* Classroom editor */
+  .ce-scroll{padding:14px 16px}
+  .ce-type-grid{grid-template-columns:repeat(2,1fr);gap:6px}
+  .ce-title-inp{max-width:180px;font-size:.85rem}
+
+  /* Homework */
+  .period-tabs{flex-wrap:wrap;gap:6px}
+  .materials-grid{grid-template-columns:repeat(auto-fill,minmax(150px,1fr))}
+
+  /* Lesson builder */
+  .block-add-bar{gap:4px}
+  .block-type-btn{font-size:.76rem;padding:5px 10px}
+
+  /* Buttons */
+  .btn-row{gap:6px}
+  .btn{padding:9px 14px;font-size:.83rem}
+
+  /* Whiteboard bar */
+  #wbBar{flex-wrap:wrap;gap:6px;padding:8px 12px}
+  .wb-btn{padding:4px 10px;font-size:.77rem}
+
+  /* Vocab/exercise cards */
+  .vocab-inner{height:52px}
+  .lesson-view-block{padding:14px}
+  .cv-section-heading{font-size:1.2rem;margin-bottom:18px}
+}
+
+/* ── Очень маленькие экраны (≤ 400px) ── */
+@media(max-width:400px){
+  .stats-row{grid-template-columns:1fr}
+  .ev-classes-grid{grid-template-columns:repeat(2,1fr)}
+  .ce-type-grid{grid-template-columns:repeat(2,1fr)}
+  #topBar .logo{font-size:.85rem}
+  #videoArea{height:180px}
+  .modal{border-radius:14px 14px 0 0}
+}
+
+/* ── ПЛАНШЕТ (768–1023px) ── */
+@media(min-width:768px) and (max-width:1023px){
+  #sidebar{width:185px}
+  #content{padding:16px}
+  .stats-row{grid-template-columns:repeat(auto-fill,minmax(140px,1fr))}
+  .ev-classes-grid{grid-template-columns:repeat(auto-fill,minmax(155px,1fr))}
+  #callWindow{width:300px}
+  #videoArea{height:320px}
+  .modal-xl{max-width:700px}
+  .cv-right-sidebar{width:220px}
+  .cv-content-scroll{padding:20px 24px}
+  .form-row{grid-template-columns:1fr 1fr}
+}
 </style>
 </head>
 <body>
@@ -387,11 +549,13 @@ tr:hover td{background:#FAFAFA}
 </div>
 <div id="app">
   <div id="topBar">
+    <button id="menuBtn" onclick="toggleSidebar()" aria-label="Меню">☰</button>
     <div class="logo">TeachyaED</div>
     <span id="userChip"></span>
     <span id="roleChip"></span>
     <button class="btn-sm btn-logout" onclick="doLogout()">Выйти</button>
   </div>
+  <div id="sidebarBackdrop" onclick="closeSidebar()"></div>
   <div id="main">
     <div id="sidebar"></div>
     <div id="content"></div>
@@ -1283,6 +1447,7 @@ async function afterLogin(user){
   if(firstItem)showScreen(firstItem.id);
 }
 async function doLogout(){
+  closeSidebar();
   await sb.auth.signOut();hangUp();
   if(S.notifyChannel)sb.removeChannel(S.notifyChannel);
   C('app').style.display='none';C('loginScreen').style.display='flex';
@@ -1306,8 +1471,22 @@ function buildSidebar(){
     return`<div class="nav-item" id="nav_${n.id}" onclick="showScreen('${n.id}')"><span style="font-size:1rem;width:20px;text-align:center">${n.icon}</span>${n.l}</div>`;
   }).join('');
 }
+// ─── МОБИЛЬНЫЙ SIDEBAR ───────────────────────────────────────────────────────
+function toggleSidebar(){
+  const sb=C('sidebar');const bd=C('sidebarBackdrop');
+  const isOpen=sb.classList.toggle('mobile-open');
+  bd.classList.toggle('open',isOpen);
+  document.body.style.overflow=isOpen?'hidden':'';
+}
+function closeSidebar(){
+  C('sidebar').classList.remove('mobile-open');
+  C('sidebarBackdrop').classList.remove('open');
+  document.body.style.overflow='';
+}
+
 function showScreen(id){
   S.screen=id;
+  closeSidebar(); // Закрываем мобильный sidebar при переходе
   document.querySelectorAll('.nav-item').forEach(el=>el.classList.toggle('active',el.id===`nav_${id}`));
   const fn={
     s_home:renderStudentHome,s_homework:renderStudentHw,s_lessons:renderStudentLessons,s_materials:renderMaterials,
