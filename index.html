@@ -351,6 +351,24 @@ tr:hover td{background:#FAFAFA}
 .material-card:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(0,0,0,.1)}
 .material-card.mat-no-link{opacity:.6;cursor:default}
 .material-card.mat-no-link:hover{transform:none;box-shadow:var(--shadow)}
+.material-card.mat-selected{border:2px solid var(--purple);background:var(--purple-light)}
+/* Material Preview Modal */
+#mMatPreview .modal{max-width:860px;width:95vw;max-height:90vh;padding:0;overflow:hidden;border-radius:16px}
+.mp-header{display:flex;align-items:center;gap:12px;padding:16px 20px;border-bottom:1px solid var(--gray-border)}
+.mp-title{flex:1;font-weight:700;font-size:1rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mp-iframe-wrap{width:100%;height:60vh;background:#000;position:relative}
+.mp-iframe-wrap iframe{width:100%;height:100%;border:none}
+.mp-no-embed{display:flex;flex-direction:column;align-items:center;justify-content:center;height:60vh;gap:16px;background:var(--gray-light)}
+.mp-no-embed .mp-icon{font-size:3rem}
+.mp-footer{padding:12px 20px;border-top:1px solid var(--gray-border);display:flex;align-items:center;justify-content:space-between;gap:12px}
+/* Tool panel materials */
+.tp-mat-item{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:10px;border:1.5px solid var(--gray-border);margin-bottom:8px;cursor:pointer;transition:.15s;background:#fff}
+.tp-mat-item:hover{border-color:var(--purple)}
+.tp-mat-item.selected{border-color:var(--purple);background:var(--purple-light)}
+.tp-mat-icon{font-size:1.4rem;flex-shrink:0}
+.tp-mat-info{flex:1;overflow:hidden}
+.tp-mat-name{font-weight:600;font-size:.83rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tp-mat-meta{font-size:.72rem;color:var(--text3)}
 .material-icon{font-size:2rem;margin-bottom:8px}
 .progress-bar{height:6px;background:var(--gray-border);border-radius:3px;overflow:hidden;margin-top:4px}
 .progress-fill{height:100%;background:linear-gradient(90deg,var(--purple),var(--pink));border-radius:3px;transition:.3s}
@@ -885,6 +903,7 @@ input,select,textarea{font-size:16px!important} /* Предотвращаем з
       <button class="cv-tool-btn" title="Задания" onclick="toggleToolPanel('tasks')">📋</button>
       <button class="cv-tool-btn" title="Таймер" onclick="toggleToolPanel('timer')">⏱</button>
       <button class="cv-tool-btn" title="Шаблоны" onclick="toggleToolPanel('templates')">▦</button>
+      <button class="cv-tool-btn" title="Материалы урока" onclick="toggleToolPanel('ce_materials')">📎</button>
     </div>
     <!-- Main editor -->
     <div class="cv-main">
@@ -933,6 +952,23 @@ input,select,textarea{font-size:16px!important} /* Предотвращаем з
   </div>
 </div>
 
+<!-- MATERIAL PREVIEW -->
+<div class="modal-bg" id="mMatPreview" onclick="if(event.target===this)closeM('mMatPreview')">
+  <div class="modal">
+    <div class="mp-header">
+      <span id="mp_icon" style="font-size:1.5rem"></span>
+      <span class="mp-title" id="mp_title">Материал</span>
+      <button class="btn btn-sm btn-outline" id="mp_openBtn" onclick="window.open(document.getElementById('mp_openBtn').dataset.url,'_blank')" style="flex-shrink:0">🔗 Открыть</button>
+      <button class="modal-close" style="position:static;margin-left:8px" onclick="closeM('mMatPreview')">✕</button>
+    </div>
+    <div id="mp_body"></div>
+    <div class="mp-footer">
+      <span id="mp_meta" style="font-size:.8rem;color:var(--text3)"></span>
+      <button class="btn btn-purple" onclick="window.open(document.getElementById('mp_openBtn').dataset.url,'_blank')">Открыть в новой вкладке ↗</button>
+    </div>
+  </div>
+</div>
+
 <!-- ASSIGN LESSON -->
 <div class="modal-bg" id="mAssignLesson">
   <div class="modal">
@@ -969,6 +1005,7 @@ input,select,textarea{font-size:16px!important} /* Предотвращаем з
       <button class="cv-tool-btn" title="Задания" onclick="toggleToolPanel('tasks')">📋</button>
       <button class="cv-tool-btn" title="Таймер" onclick="toggleToolPanel('timer')">⏱</button>
       <button class="cv-tool-btn" title="Шаблоны" style="font-size:1rem" onclick="toggleToolPanel('templates')">▦</button>
+      <button class="cv-tool-btn" title="Материалы урока" onclick="toggleToolPanel('cv_materials')">📎</button>
     </div>
     <!-- Main content -->
     <div class="cv-main">
@@ -999,6 +1036,7 @@ input,select,textarea{font-size:16px!important} /* Предотвращаем з
         <div id="cv_sectionsList"></div>
         <button class="cv-action-row finish" onclick="completeLessonView()">🏁 Завершить урок</button>
         <button class="cv-action-row" onclick="toggleToolPanel('notes')">📝 Заметки к уроку</button>
+        <button class="cv-action-row" id="cv_matBtn" onclick="toggleToolPanel('cv_materials')" style="display:none">📎 Материалы урока</button>
       </div>
       <div class="cv-ai-panel">
         <button class="cv-ai-toggle-btn" onclick="toggleAIPanel('cv')">🤖 AI Ассистент</button>
@@ -1545,7 +1583,9 @@ const TOOL_CONTENT={
       ${[['Множественный выбор','quiz'],['Заполни пропуск','fillblank'],['Верно/Неверно','truefalse'],['Порядок слов','wordorder'],['Соответствие','match'],['Открытый вопрос','openq'],['Текст','text'],['Изображение','image']].map(([l,t])=>`
       <button onclick="ceAddExType('${t}')" style="text-align:left;padding:10px 14px;border:1.5px solid var(--gray-border);border-radius:10px;background:#fff;cursor:pointer;font-size:.85rem;font-family:var(--font);color:var(--text2);transition:.15s" onmouseover="this.style.borderColor='var(--purple)';this.style.color='var(--purple)'" onmouseout="this.style.borderColor='var(--gray-border)';this.style.color='var(--text2)'">${l}</button>`).join('')}
     </div>`
-  }
+  },
+  ce_materials:{title:'📎 Материалы урока',html:'<div id="ceMatsBody"><div style="color:var(--text3);font-size:.85rem;text-align:center;padding:20px">Загрузка...</div></div>'},
+  cv_materials:{title:'📎 Материалы урока',html:'<div id="cvMatsBody"><div style="color:var(--text3);font-size:.85rem;text-align:center;padding:20px">Загрузка...</div></div>'}
 };
 
 function toggleToolPanel(type){
@@ -1574,6 +1614,8 @@ function toggleToolPanel(type){
   }
   if(type==='dict')renderDictSaved();
   if(type==='tasks')renderTasksPanel();
+  if(type==='ce_materials')renderCEMaterialsPanel();
+  if(type==='cv_materials')renderCVMaterialsPanel();
 }
 
 function renderTasksPanel(){
@@ -2417,7 +2459,7 @@ async function renderMaterials(){
   const grid=(mats||[]).map(m=>{
     const url=m.url||m.data_url||'';
     const hasUrl=!!url;
-    return `<div class="material-card${!hasUrl?' mat-no-link':''}" data-murl="${encodeURIComponent(url)}" onclick="openMatCard(this)">
+    return `<div class="material-card${!hasUrl?' mat-no-link':''}" data-murl="${encodeURIComponent(url)}" data-mtype="${m.type||'link'}" data-mlang="${m.language||''}" data-mlevel="${m.level||''}" onclick="openMatCard(this)">
       <div class="material-icon">${MICONS[m.type]||'📎'}</div>
       <div style="font-weight:600;font-size:.88rem;margin-bottom:4px">${m.title||m.name||'—'}</div>
       <div style="font-size:.75rem;color:var(--text3)">${m.language||''} · ${m.level||''}</div>
@@ -2430,7 +2472,11 @@ async function renderMaterials(){
 function openMatCard(el){
   const url=decodeURIComponent(el.dataset.murl||'');
   if(!url){showToast('У этого материала нет ссылки ⚠️');return;}
-  window.open(url,'_blank');
+  const title=el.querySelector('[style*="font-weight:600"]')?.textContent||'Материал';
+  const type=el.dataset.mtype||'link';
+  const lang=el.dataset.mlang||'';
+  const level=el.dataset.mlevel||'';
+  openMaterialPreview(url,title,type,lang,level);
 }
 async function saveMaterial(){
   const name=C('mat_name').value.trim(),type=C('mat_type').value,url=C('mat_url').value.trim(),language=C('mat_lang').value,level=C('mat_level').value;
@@ -2601,7 +2647,8 @@ function cdpPickLesson(id,title,lang,level,contentEnc){
   closeM('mLessonPicker');
   // Open EdVibe-style classroom view with class name as context
   const className=S._currentClassData?.name||'Класс';
-  openClassroomView(title,_parseLessonContent(contentEnc),null,className);
+  const{sections:_s,materials:_m}=_parseLessonContent(contentEnc);
+  openClassroomView(title,_s,null,className,_m);
 }
 async function switchCDPTab(tab,el){
   S.currentClassTab=tab;
@@ -2817,7 +2864,7 @@ const CE_DEFAULTS={
 };
 
 // ─── CLASSROOM EDITOR STATE ──────────────────────────────────────────────────
-const CE={lessonId:null,sections:[],curSec:0,curEx:0,mode:'edit',viewAll:false};
+const CE={lessonId:null,sections:[],materials:[],curSec:0,curEx:0,mode:'edit',viewAll:false};
 
 function openCE(lessonId,rawContent){
   CE.lessonId=lessonId;
@@ -2828,6 +2875,7 @@ function openCE(lessonId,rawContent){
   } else {
     CE.sections=[{title:'Раздел 1',exercises:[]}];
   }
+  CE.materials=Array.isArray(rawContent?.materials)?rawContent.materials:[];
   CE.curSec=0;CE.curEx=0;CE.mode='edit';CE.viewAll=false;
   C('ceModeEdit').classList.add('active');C('ceModePreview').classList.remove('active');
   C('ce_view1btn').classList.add('active');C('ce_viewAllBtn').classList.remove('active');
@@ -3070,7 +3118,7 @@ async function saveFromCE(publish){
   const title=C('ce_title').value.trim();if(!title){showToast('Введи название урока!');return;}
   const data={school_id:S.schoolId,teacher_id:S.profile.id,title,
     language:C('ce_lang').value,level:C('ce_level').value,
-    content:{sections:CE.sections},published:publish};
+    content:{sections:CE.sections,materials:CE.materials},published:publish};
   if(CE.lessonId){await sb.from('lessons').update(data).eq('id',CE.lessonId);}
   else{const{data:ins}=await sb.from('lessons').insert(data).select().single();if(ins)CE.lessonId=ins.id;}
   showToast(publish?'🚀 Опубликовано!':'💾 Сохранено!');
@@ -3126,17 +3174,18 @@ async function assignLesson(){
 }
 
 // ─── CLASSROOM VIEW (EdVibe-style lesson viewer) ──────────────────────────────
-const LV={sections:[],curSec:0,curEx:0,assignId:null,viewAll:false};
+const LV={sections:[],materials:[],curSec:0,curEx:0,assignId:null,viewAll:false};
 
 function _parseLessonContent(contentEnc){
   const raw=JSON.parse(decodeURIComponent(contentEnc));
-  if(raw&&raw.sections&&Array.isArray(raw.sections))return raw.sections;
-  if(Array.isArray(raw)&&raw.length>0)return[{title:'Урок',exercises:raw}];
-  return[{title:'Урок',exercises:[]}];
+  const secs=(raw&&raw.sections&&Array.isArray(raw.sections))?raw.sections
+    :(Array.isArray(raw)&&raw.length>0)?[{title:'Урок',exercises:raw}]:[{title:'Урок',exercises:[]}];
+  return{sections:secs,materials:Array.isArray(raw?.materials)?raw.materials:[]};
 }
 
-function openClassroomView(title,sections,assignId,studentName){
-  LV.sections=sections;LV.curSec=0;LV.curEx=0;LV.assignId=assignId;LV.viewAll=false;
+function openClassroomView(title,sections,assignId,studentName,materials){
+  LV.sections=sections;LV.materials=Array.isArray(materials)?materials:[];LV.curSec=0;LV.curEx=0;LV.assignId=assignId;LV.viewAll=false;
+  const matBtn=C('cv_matBtn');if(matBtn)matBtn.style.display=LV.materials.length?'':'none';
   S.currentAssignId=assignId||null;
   window._matchState={};
   C('cv_view1btn').classList.add('active');C('cv_viewAllBtn').classList.remove('active');
@@ -3153,7 +3202,8 @@ function openClassroomView(title,sections,assignId,studentName){
 }
 
 function openLessonView(assignId,title,contentEnc){
-  openClassroomView(title,_parseLessonContent(contentEnc),assignId,null);
+  const{sections:_s,materials:_m}=_parseLessonContent(contentEnc);
+  openClassroomView(title,_s,assignId,null,_m);
 }
 
 function lvRender(){
@@ -3456,7 +3506,83 @@ async function completeLessonView(){
 }
 // Teacher preview — no assignment needed
 function openLessonPreview(title,contentEnc){
-  openClassroomView(title,_parseLessonContent(contentEnc),null,null);
+  const{sections:_s,materials:_m}=_parseLessonContent(contentEnc);
+  openClassroomView(title,_s,null,null,_m);
+}
+
+// ─── MATERIAL PREVIEW ─────────────────────────────────────────────────────────
+function _matEmbedUrl(url,type){
+  if(!url)return null;
+  // YouTube
+  const yt1=/(?:youtube\.com\/watch\?v=|youtu\.be\/)([A-Za-z0-9_-]{11})/.exec(url);
+  if(yt1)return`https://www.youtube.com/embed/${yt1[1]}?rel=0&autoplay=0`;
+  // Google Drive
+  const gd=/drive\.google\.com\/file\/d\/([^/]+)/.exec(url);
+  if(gd)return`https://drive.google.com/file/d/${gd[1]}/preview`;
+  // Google Docs/Slides/Sheets
+  if(/docs\.google\.com\/(document|presentation|spreadsheets)/.test(url))return url.replace(/\/edit.*$/,'/preview');
+  // PDF direct
+  if(url.endsWith('.pdf')||type==='pdf')return url;
+  return null;
+}
+function openMaterialPreview(url,title,type,lang,level){
+  const icon=MICONS[type]||'📎';
+  const embedUrl=_matEmbedUrl(url,type);
+  C('mp_icon').textContent=icon;
+  C('mp_title').textContent=title||'Материал';
+  C('mp_meta').textContent=[lang,level].filter(Boolean).join(' · ');
+  C('mp_openBtn').dataset.url=url;
+  if(embedUrl){
+    C('mp_body').innerHTML=`<div class="mp-iframe-wrap"><iframe src="${embedUrl}" allowfullscreen allow="autoplay" sandbox="allow-scripts allow-same-origin allow-popups allow-forms"></iframe></div>`;
+  } else {
+    C('mp_body').innerHTML=`<div class="mp-no-embed">
+      <div class="mp-icon">${icon}</div>
+      <div style="font-weight:600;font-size:1rem">${title||'Материал'}</div>
+      <div style="font-size:.85rem;color:var(--text3)">Превью недоступно для этого типа ресурса</div>
+      <button class="btn btn-purple" onclick="window.open('${url.replace(/'/g,"\\'")}','_blank')">Открыть в новой вкладке ↗</button>
+    </div>`;
+  }
+  openM('mMatPreview');
+}
+
+// CE materials panel — pick from school library
+async function renderCEMaterialsPanel(){
+  const body=document.getElementById('ceMatsBody');
+  if(!body)return;
+  body.innerHTML='<div style="color:var(--text3);font-size:.83rem;text-align:center;padding:16px">Загрузка материалов...</div>';
+  const{data:mats}=await sb.from('materials').select('*').eq('school_id',S.schoolId).order('created_at',{ascending:false});
+  if(!mats||!mats.length){body.innerHTML='<div style="color:var(--text3);font-size:.83rem;text-align:center;padding:16px">Нет материалов в библиотеке</div>';return;}
+  const selectedIds=new Set(CE.materials.map(m=>m.id));
+  body.innerHTML=mats.map(m=>`
+    <div class="tp-mat-item${selectedIds.has(m.id)?' selected':''}" data-mid="${m.id}" onclick="toggleCEMaterial(this,'${m.id}','${(m.title||m.name||'').replace(/'/g,"\\'")}','${m.type||'link'}','${(m.url||'').replace(/'/g,"\\'")}','${(m.language||'').replace(/'/g,"\\'")}','${(m.level||'').replace(/'/g,"\\'")}')">
+      <span class="tp-mat-icon">${MICONS[m.type]||'📎'}</span>
+      <div class="tp-mat-info">
+        <div class="tp-mat-name">${m.title||m.name||'—'}</div>
+        <div class="tp-mat-meta">${m.language||''} · ${m.level||''}</div>
+      </div>
+      <span style="font-size:.75rem;color:var(--purple);font-weight:600">${selectedIds.has(m.id)?'✓ Добавлен':''}</span>
+    </div>`).join('');
+}
+function toggleCEMaterial(el,id,title,type,url,lang,level){
+  const idx=CE.materials.findIndex(m=>m.id===id);
+  if(idx>=0){CE.materials.splice(idx,1);el.classList.remove('selected');el.querySelector('span:last-child').textContent='';}
+  else{CE.materials.push({id,title,type,url,language:lang,level});el.classList.add('selected');el.querySelector('span:last-child').textContent='✓ Добавлен';}
+}
+
+// CV materials panel — view lesson materials
+function renderCVMaterialsPanel(){
+  const body=document.getElementById('cvMatsBody');
+  if(!body)return;
+  if(!LV.materials.length){body.innerHTML='<div style="color:var(--text3);font-size:.83rem;text-align:center;padding:16px">В этом уроке нет прикреплённых материалов</div>';return;}
+  body.innerHTML=LV.materials.map(m=>`
+    <div class="tp-mat-item" onclick="openMaterialPreview('${(m.url||'').replace(/'/g,"\\'")}','${(m.title||'').replace(/'/g,"\\'")}','${m.type||'link'}','${(m.language||'').replace(/'/g,"\\'")}','${(m.level||'').replace(/'/g,"\\'")}')">
+      <span class="tp-mat-icon">${MICONS[m.type]||'📎'}</span>
+      <div class="tp-mat-info">
+        <div class="tp-mat-name">${m.title||'—'}</div>
+        <div class="tp-mat-meta">${m.language||''} · ${m.level||''}</div>
+      </div>
+      <span style="font-size:.85rem;color:var(--purple)">▶</span>
+    </div>`).join('');
 }
 
 // ─── LESSON ASSIGNMENT (class lessons tab uses openLessonEditor) ───────────────
