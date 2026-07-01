@@ -881,11 +881,11 @@ input,select,textarea{font-size:16px!important} /* Предотвращаем з
 <div class="modal-bg" id="mAddMaterial">
   <div class="modal">
     <button class="modal-close" onclick="closeM('mAddMaterial')">✕</button>
-    <h3>Новый материал</h3>
-    <div class="form-group"><label>Название</label><input id="mat_name" placeholder="Название"></div>
+    <h3 id="mat_modal_title">Новый материал</h3>
+    <div class="form-group"><label id="mat_name_label">Название</label><input id="mat_name" placeholder="Название"></div>
     <div class="form-row">
-      <div class="form-group"><label>Тип</label><select id="mat_type" onchange="onMatTypeChange()"><option value="pdf">📄 PDF</option><option value="video">🎬 Видео</option><option value="audio">🎵 Аудио</option><option value="link">🔗 Ссылка</option><option value="doc">📝 Документ</option></select></div>
-      <div class="form-group"><label>Уровень</label><select id="mat_level"><option>A1</option><option>A2</option><option>B1</option><option>B2</option><option>C1</option><option>C2</option><option>Все</option></select></div>
+      <div class="form-group"><label id="mat_type_label">Тип</label><select id="mat_type" onchange="onMatTypeChange()"><option value="pdf">📄 PDF</option><option value="video">🎬 Видео</option><option value="audio">🎵 Аудио</option><option value="link">🔗 Ссылка</option><option value="doc">📝 Документ</option></select></div>
+      <div class="form-group"><label id="mat_level_label">Уровень</label><select id="mat_level"><option>A1</option><option>A2</option><option>B1</option><option>B2</option><option>C1</option><option>C2</option><option>Все</option></select></div>
     </div>
     <div id="mat_file_area" class="form-group">
       <label id="mat_file_label">Файл</label>
@@ -899,8 +899,8 @@ input,select,textarea{font-size:16px!important} /* Предотвращаем з
       <label id="mat_url_label">URL</label>
       <input id="mat_url" placeholder="https://...">
     </div>
-    <div class="form-group"><label>Язык</label><select id="mat_lang"><option>Английский</option><option>Грузинский</option><option>Русский</option><option>Немецкий</option><option>Французский</option></select></div>
-    <div class="btn-row"><button class="btn btn-purple" onclick="saveMaterial()" id="mat_save_btn">Добавить</button><button class="btn btn-outline" onclick="closeM('mAddMaterial')">Отмена</button></div>
+    <div class="form-group"><label id="mat_lang_label">Язык</label><select id="mat_lang"><option>Английский</option><option>Грузинский</option><option>Русский</option><option>Немецкий</option><option>Французский</option></select></div>
+    <div class="btn-row"><button class="btn btn-purple" onclick="saveMaterial()" id="mat_save_btn">Добавить</button><button class="btn btn-outline" id="mat_cancel_btn" onclick="closeM('mAddMaterial')">Отмена</button></div>
   </div>
 </div>
 
@@ -1594,7 +1594,8 @@ const TRANSLATIONS={
   'MP4, WebM, MOV — или вставь ссылку ниже':'MP4, WebM, MOV — or paste a link below',
   'Или URL файла (необязательно)':'Or file URL (optional)',
   'Ссылка на видео (YouTube, Vimeo) — или загрузи файл выше':'Video link (YouTube, Vimeo) — or upload file above',
-  'Новый материал':'New Material','Файл':'File','Название':'Title',
+  'Новый материал':'New Material','Файл':'File','Название':'Title','Тип':'Type','Уровень':'Level','Язык':'Language',
+  'Видео':'Video','Аудио':'Audio','Ссылка':'Link','Документ':'Document',
   'Материал удалён':'Material deleted',
   'Нет материалов в библиотеке':'No materials in library',
   'Загрузка материалов...':'Loading materials...',
@@ -3188,10 +3189,23 @@ const MAT_ACCEPT_HINT={pdf:()=>t('PDF до 50MB'),audio:()=>t('MP3, WAV, OGG, M4
 
 function openAddMaterial(){
   C('mat_name').value='';C('mat_url').value='';
-  const fi=C('mat_file');fi.value='';
+  C('mat_file').value='';
   C('mat_drop_zone').classList.remove('has-file');
   C('mat_drop_text').textContent=t('📁 Нажми или перетащи файл сюда');
   C('mat_drop_sub').textContent='';
+  // Явно сбрасываем все лейблы через t() — applyEN мог их перевести в EN,
+  // а при переключении на RU они остались бы на EN навсегда
+  C('mat_modal_title').textContent=t('Новый материал');
+  C('mat_name_label').textContent=t('Название');
+  C('mat_name').placeholder=t('Название');
+  C('mat_type_label').textContent=t('Тип');
+  C('mat_level_label').textContent=t('Уровень');
+  C('mat_file_label').textContent=t('Файл');
+  C('mat_lang_label').textContent=t('Язык');
+  C('mat_save_btn').textContent=t('Добавить');
+  C('mat_cancel_btn').textContent=t('Отмена');
+  // Rebuild type options with correct language
+  C('mat_type').innerHTML=`<option value="pdf">📄 PDF</option><option value="video">🎬 ${t('Видео')}</option><option value="audio">🎵 ${t('Аудио')}</option><option value="link">🔗 ${t('Ссылка')}</option><option value="doc">📝 ${t('Документ')}</option>`;
   C('mat_type').value='pdf';
   onMatTypeChange();
   openM('mAddMaterial');
