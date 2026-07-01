@@ -814,8 +814,8 @@ input,select,textarea{font-size:16px!important} /* Предотвращаем з
       <div class="form-group"><label>Валюта</label><select id="pay_cur"><option>GEL</option><option>USD</option><option>EUR</option></select></div>
     </div>
     <div class="form-row">
-      <div class="form-group"><label>С</label><input id="pay_from" type="date"></div>
-      <div class="form-group"><label>По</label><input id="pay_to" type="date"></div>
+      <div class="form-group"><label>С даты</label><input id="pay_from" type="date"></div>
+      <div class="form-group"><label>По дату</label><input id="pay_to" type="date"></div>
     </div>
     <div class="form-group"><label>Статус</label><select id="pay_status"><option value="pending">Ожидает</option><option value="paid">Оплачено</option><option value="overdue">Просрочено</option></select></div>
     <div class="form-group"><label>Заметка</label><textarea id="pay_note" placeholder="..."></textarea></div>
@@ -1736,6 +1736,9 @@ const TRANSLATIONS={
   'Приоритет':'Priority',
 
   // ── FORM LABELS & MISC ────────────────────────────────────────────────────
+  'Название класса':'Class title',
+  'С даты':'From',
+  'По дату':'To',
   'Время':'Time',
   '🚀 Опубликовать':'🚀 Publish',
   'Нет занятий':'No events',
