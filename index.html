@@ -1684,8 +1684,40 @@ const TRANSLATIONS={
   '📋 ДЗ':'📋 HW',
   '+ Новое ДЗ':'+ New HW',
   'ДЗ':'HW',
+  'Задача':'Task',
+  '🔍 Поиск...':'🔍 Search...',
   '← Выйти из урока':'← Exit Lesson',
   '← Выйти':'← Close',
+  '▶ Продолжить':'▶ Resume',
+  '⏸ Пауза':'⏸ Pause',
+  'Просмотр завершён!':'Preview done!',
+  'Завершить раздел →':'Complete section →',
+  'Следующий раздел →':'Next section →',
+  'Далее →':'Next →',
+  '✓ Завершить урок':'✓ Finish Lesson',
+  'Нет упражнений в этом разделе':'No exercises in this section',
+  'Нет разделов':'No sections',
+  '✓ Добавлен':'✓ Added',
+  '🚀 Опубликовано!':'🚀 Published!','💾 Сохранено!':'💾 Saved!',
+  'удалён':'deleted','📎 Файл':'📎 File','⏰ Напоминание':'⏰ Reminder',
+  'Ищем...':'Searching...','Перевод не найден':'Translation not found',
+  'Думаю...':'Thinking...','Ошибка':'Error',
+  'Пароль должен быть не менее 6 символов':'Password must be at least 6 characters',
+  'Пароли не совпадают':'Passwords do not match','Сохраняем...':'Saving...',
+  'Войти в систему →':'Enter system →','Звонок':'Call',
+  '⏳ Создаю комнату...':'⏳ Creating room...','⏳ Соединяю...':'⏳ Connecting...',
+  'Ответ':'Answer','(пусто)':'(empty)','Кол-во классов':'Total classes',
+  'Новое занятие':'New event','Раздел':'Section','Весь урок':'Full lesson',
+  'Правильно!':'Correct!','Неверно!':'Wrong!','Неверно.':'Wrong.',
+  'Правильный ответ':'Correct answer','Правильно':'Correct',
+  'Все совпадения верны!':'All matches correct!',
+  'Кликай слова ниже...':'Click words below...',
+  'Материал':'Material','Загрузка материалов...':'Loading materials...',
+  'Чат только для себя — заметки, ссылки, файлы.':'Private notes — links, files, reminders.',
+  'Выбрать человека':'Select person','Название группы':'Group name',
+  'Например: Команда учителей':'E.g. Teachers team',
+  'Участники (все по умолчанию)':'Members (all by default)',
+  'Редактировать задачу':'Edit task','Новая задача':'New task',
 
   // ── LOGIN SCREEN ───────────────────────────────────────────────────────────
   'Платформа языковой школы':'Language School Platform',
@@ -2024,7 +2056,7 @@ async function saveProfile(){
     .select();
 
   if(error){
-    showToast('Ошибка сохранения: '+error.message);
+    showToast(t('Ошибка сохранения:')+' '+error.message);
     return;
   }
   if(!data||data.length===0){
@@ -2074,7 +2106,7 @@ async function changeEmail(){
   const newEmail=(C('sec_new_email')?.value||'').trim();
   if(!newEmail){showToast('Введи новый email');return;}
   const{error}=await sb.auth.updateUser({email:newEmail});
-  if(error){showToast('Ошибка: '+error.message);return;}
+  if(error){showToast(t('Ошибка')+': '+error.message);return;}
   showToast('Проверь почту для подтверждения нового email');
 }
 
@@ -2084,7 +2116,7 @@ async function changePassword(){
   if(!np||np.length<6){showToast('Пароль должен быть не менее 6 символов');return;}
   if(np!==cp){showToast('Пароли не совпадают');return;}
   const{error}=await sb.auth.updateUser({password:np});
-  if(error){showToast('Ошибка: '+error.message);return;}
+  if(error){showToast(t('Ошибка')+': '+error.message);return;}
   showToast('Пароль изменён ✓');
   closeM('mProfile');
 }
@@ -2192,7 +2224,7 @@ function renderTasksPanel(){
   const body=document.getElementById('tasksPanelBody');
   if(!body)return;
   if(!LV.sections||!LV.sections.length){
-    body.innerHTML='<div style="color:var(--text3);font-size:.85rem;text-align:center;padding:20px">Открой урок чтобы увидеть список упражнений</div>';
+    body.innerHTML=`<div style="color:var(--text3);font-size:.85rem;text-align:center;padding:20px">${t('Открой урок чтобы увидеть список упражнений')}</div>`;
     return;
   }
   const TYPE_L={quiz:'Тест',fillblank:'Пропуск',truefalse:'Верно/Неверно',wordorder:'Порядок слов',match:'Соответствие',openq:'Открытый вопрос',text:'Текст',image:'Изображение'};
@@ -2222,7 +2254,7 @@ async function lookupWord(){
   const w=(document.getElementById('dictSearch')?.value||'').trim();
   if(!w)return;
   const res=document.getElementById('dictResult');
-  res.innerHTML='<div style="color:var(--text3)">🔍 Ищем...</div>';
+  res.innerHTML=`<div style="color:var(--text3)">🔍 ${t('Ищем...')}</div>`;
 
   if(isRussian(w)){
     // Russian word → translate RU→EN via MyMemory, then look up EN definition
@@ -2230,7 +2262,7 @@ async function lookupWord(){
       // Step 1: translate to English
       const tr=await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(w)}&langpair=ru|en`).then(r=>r.json());
       const enWord=(tr.responseData?.translatedText||'').trim();
-      if(!enWord){res.innerHTML='<div style="color:var(--pink)">Перевод не найден</div>';return;}
+      if(!enWord){res.innerHTML=`<div style="color:var(--pink)">${t('Перевод не найден')}</div>`;return;}
 
       // Step 2: get EN definition
       const data=await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(enWord.toLowerCase())}`).then(r=>r.json());
@@ -2248,8 +2280,8 @@ async function lookupWord(){
           <div style="font-weight:700;font-size:1.1rem;color:var(--purple)">🇬🇧 ${enWord} <span style="font-size:.85rem;color:var(--text3);font-weight:400">${phonetic}</span></div>
         </div>
         ${meanings}
-        <button onclick="saveDictWord('${w} → ${enWord}')" style="margin-top:8px;padding:5px 12px;background:var(--purple-light);color:var(--purple);border:none;border-radius:6px;font-size:.78rem;font-weight:600;cursor:pointer">+ Сохранить</button>`;
-    }catch(e){res.innerHTML='<div style="color:var(--pink)">Ошибка: '+e.message+'</div>';}
+        <button onclick="saveDictWord('${w} → ${enWord}')" style="margin-top:8px;padding:5px 12px;background:var(--purple-light);color:var(--purple);border:none;border-radius:6px;font-size:.78rem;font-weight:600;cursor:pointer">+ ${t('Сохранить')}</button>`;
+    }catch(e){res.innerHTML=`<div style="color:var(--pink)">${t('Ошибка')}: ${e.message}</div>`;}
   } else {
     // English word → direct lookup
     try{
@@ -2280,8 +2312,8 @@ async function lookupWord(){
           ${ruWord?`<div style="font-size:.85rem;color:var(--purple);margin-top:2px">🇷🇺 ${ruWord}</div>`:''}
         </div>
         ${meanings}
-        <button onclick="saveDictWord('${entry.word}${ruWord?' → '+ruWord:''}')" style="margin-top:8px;padding:5px 12px;background:var(--purple-light);color:var(--purple);border:none;border-radius:6px;font-size:.78rem;font-weight:600;cursor:pointer">+ Сохранить</button>`;
-    }catch(e){res.innerHTML='<div style="color:var(--pink)">Ошибка: '+e.message+'</div>';}
+        <button onclick="saveDictWord('${entry.word}${ruWord?' → '+ruWord:''}')" style="margin-top:8px;padding:5px 12px;background:var(--purple-light);color:var(--purple);border:none;border-radius:6px;font-size:.78rem;font-weight:600;cursor:pointer">+ ${t('Сохранить')}</button>`;
+    }catch(e){res.innerHTML=`<div style="color:var(--pink)">${t('Ошибка')}: ${e.message}</div>`;}
   }
 }
 
@@ -2309,7 +2341,7 @@ function ceAddExType(type){
   const typeMap={fillblank:'fill_blank',wordorder:'word_order',match:'matching',openq:'openq',quiz:'quiz',truefalse:'truefalse',text:'text',image:'image',video:'video',vocab:'vocab'};
   const actualType=typeMap[type]||type;
   const def=CE_DEFAULTS[actualType];
-  if(!def){showToast('Неизвестный тип: '+type);return;}
+  if(!def){showToast(t('Неизвестный тип:')+' '+type);return;}
   sec.exercises.push({...def});
   CE.curEx=sec.exercises.length-1;ceRenderAll();showToast('Упражнение добавлено ✓');
 }
@@ -2332,7 +2364,7 @@ let _timerSec=300,_timerInt=null,_timerRunning=false;
 function setTimer(mins){
   _timerSec=mins*60;_timerRunning=false;
   clearInterval(_timerInt);
-  document.getElementById('timerStartBtn').textContent='▶ Старт';
+  document.getElementById('timerStartBtn').textContent=t('▶ Старт');
   updateTimerDisplay();
 }
 
@@ -2344,12 +2376,12 @@ function updateTimerDisplay(){
 function startTimer(){
   if(_timerRunning){
     clearInterval(_timerInt);_timerRunning=false;
-    document.getElementById('timerStartBtn').textContent='▶ Продолжить';
+    document.getElementById('timerStartBtn').textContent=t('▶ Продолжить');
   } else {
     _timerRunning=true;
-    document.getElementById('timerStartBtn').textContent='⏸ Пауза';
+    document.getElementById('timerStartBtn').textContent=t('⏸ Пауза');
     _timerInt=setInterval(()=>{
-      if(_timerSec<=0){clearInterval(_timerInt);_timerRunning=false;showToast('⏱ Время вышло!');document.getElementById('timerStartBtn').textContent='▶ Старт';return;}
+      if(_timerSec<=0){clearInterval(_timerInt);_timerRunning=false;showToast(t('⏱ Время вышло!'));document.getElementById('timerStartBtn').textContent=t('▶ Старт');return;}
       _timerSec--;updateTimerDisplay();
     },1000);
   }
@@ -2357,7 +2389,7 @@ function startTimer(){
 
 function resetTimer(){
   clearInterval(_timerInt);_timerRunning=false;_timerSec=300;
-  document.getElementById('timerStartBtn').textContent='▶ Старт';
+  document.getElementById('timerStartBtn').textContent=t('▶ Старт');
   updateTimerDisplay();
 }
 
@@ -2386,7 +2418,7 @@ async function sendAIMsg(prefix){
   // Add user bubble
   msgs.innerHTML+=`<div class="cv-ai-msg user">${text}</div>`;
   const loadId='load_'+Date.now();
-  msgs.innerHTML+=`<div class="cv-ai-msg ai loading" id="${loadId}">✨ Думаю...</div>`;
+  msgs.innerHTML+=`<div class="cv-ai-msg ai loading" id="${loadId}">✨ ${t('Думаю...')}</div>`;
   msgs.scrollTop=msgs.scrollHeight;
 
   _aiHistory[prefix].push({role:'user',content:text});
@@ -2405,7 +2437,7 @@ async function sendAIMsg(prefix){
     if(el){el.classList.remove('loading');el.textContent=reply;}
   }catch(e){
     const el=document.getElementById(loadId);
-    if(el){el.classList.remove('loading');el.style.color='var(--pink)';el.textContent='Ошибка: '+e.message;}
+    if(el){el.classList.remove('loading');el.style.color='var(--pink)';el.textContent=t('Ошибка')+': '+e.message;}
   }
   msgs.scrollTop=msgs.scrollHeight;
 }
@@ -2449,11 +2481,11 @@ async function setInvitePassword(){
   const p1=C('inv_pass1').value,p2=C('inv_pass2').value;
   const errEl=C('inviteErr');
   errEl.style.display='none';
-  if(!p1||p1.length<6){errEl.textContent='Пароль должен быть не менее 6 символов';errEl.style.display='block';return;}
-  if(p1!==p2){errEl.textContent='Пароли не совпадают';errEl.style.display='block';return;}
-  C('inv_btn').textContent='Сохраняем...';C('inv_btn').disabled=true;
+  if(!p1||p1.length<6){errEl.textContent=t('Пароль должен быть не менее 6 символов');errEl.style.display='block';return;}
+  if(p1!==p2){errEl.textContent=t('Пароли не совпадают');errEl.style.display='block';return;}
+  C('inv_btn').textContent=t('Сохраняем...');C('inv_btn').disabled=true;
   const{error}=await sb.auth.updateUser({password:p1});
-  if(error){errEl.textContent='Ошибка: '+error.message;errEl.style.display='block';C('inv_btn').textContent='Войти в систему →';C('inv_btn').disabled=false;return;}
+  if(error){errEl.textContent=t('Ошибка')+': '+error.message;errEl.style.display='block';C('inv_btn').textContent=t('Войти в систему →');C('inv_btn').disabled=false;return;}
   // Password set — now login
   C('inviteScreen').style.display='none';
   const{data:{session}}=await sb.auth.getSession();
@@ -2647,7 +2679,7 @@ function renderContacts(){
   const sorted=[...S.contacts].sort((a,b)=>(order[a.role]||9)-(order[b.role]||9));
   C('contactList').innerHTML=sorted.map(c=>`<div class="contact-item" onclick="callContact('${c.id}','${c.first_name} ${c.last_name}','${c.role}')">
     ${avHTML(c.first_name,c.last_name,32)}
-    <div><div style="font-weight:600;font-size:.9rem">${c.first_name} ${c.last_name}</div><div style="font-size:.75rem;color:var(--text3)">${ROLE_L[c.role]||c.role}</div></div>
+    <div><div style="font-weight:600;font-size:.9rem">${c.first_name} ${c.last_name}</div><div style="font-size:.75rem;color:var(--text3)">${t(ROLE_L[c.role]||c.role)}</div></div>
   </div>`).join('')||'<div style="padding:16px;color:var(--text3);font-size:.85rem">Нет контактов</div>';
 }
 async function callContact(partnerId,partnerName,partnerRole){
@@ -2679,10 +2711,10 @@ const DAILY_KEY='db5b22eee2805b3a3f27a5e86870049eba81b56e0fcbfdc3cff9ded4a54c8ef
 async function initCall(roomId,partnerName,isCallee){
   if(!roomId){showToast('Ошибка: ID комнаты не задан');return;}
   S.inCall=true;
-  C('callTitle').textContent=partnerName||'Звонок';
+  C('callTitle').textContent=partnerName||t('Звонок');
   C('callWindow').classList.add('visible');
   C('dialBtn').classList.add('incall');C('dialBtn').textContent='📵';
-  C('callStatus').textContent='⏳ Создаю комнату...';C('callStatus').classList.remove('hidden');
+  C('callStatus').textContent=t('⏳ Создаю комнату...');C('callStatus').classList.remove('hidden');
   try{
     // Шаг 1: создать комнату (или получить существующую)
     // Daily.co возвращает 400 «already exists» — НЕ 409
@@ -2700,14 +2732,14 @@ async function initCall(roomId,partnerName,isCallee){
       data=await gr.json();
     }
     if(!data.url){
-      showToast('Ошибка Daily.co ['+(resp.status)+']: '+(data.error||data.info||JSON.stringify(data).slice(0,120)));
+      showToast(t('Ошибка')+' Daily.co ['+(resp.status)+']: '+(data.error||data.info||JSON.stringify(data).slice(0,120)));
       hangUp();return;
     }
-    C('callStatus').textContent='⏳ Соединяю...';
+    C('callStatus').textContent=t('⏳ Соединяю...');
     C('jitsiFrame').src=data.url;
     setTimeout(()=>C('callStatus').classList.add('hidden'),4000);
   }catch(e){
-    showToast('Ошибка сети при звонке: '+e.message);
+    showToast(t('Ошибка сети при звонке:')+' '+e.message);
     hangUp();return;
   }
   // Канал для уведомления о завершении звонка
@@ -2840,7 +2872,7 @@ async function saveHw(){
   await sb.from('homeworks').insert({school_id:S.schoolId,teacher_id:S.profile.id,student_id:sid,title,description:desc,deadline:dl||null});
   closeM('mAddHomework');showToast('Задание отправлено!');if(S.screen==='t_homework')renderTeacherHw();
 }
-function openReviewHw(id,ans){S.currentHwId=id;C('reviewBody').innerHTML=`<div class="hw-answer">📝 Ответ: ${ans||'(пусто)'}</div>`;C('review_comment').value='';openM('mReviewHw');}
+function openReviewHw(id,ans){S.currentHwId=id;C('reviewBody').innerHTML=`<div class="hw-answer">📝 ${t('Ответ')}: ${ans||t('(пусто)')}</div>`;C('review_comment').value='';openM('mReviewHw');}
 async function saveReview(){
   await sb.from('homeworks').update({status:'reviewed',teacher_comment:C('review_comment').value.trim()}).eq('id',S.currentHwId);
   closeM('mReviewHw');showToast('Проверено!');if(S.screen==='t_homework')renderTeacherHw();
@@ -2940,14 +2972,14 @@ async function doDeleteUser(){
   if(!_deleteUserId){closeM('mDeleteUser');return;}
   const{error}=await sb.from('profiles').delete().eq('id',_deleteUserId).eq('school_id',S.schoolId);
   if(error){
-    showToast('Ошибка удаления: '+error.message);
+    showToast(t('Ошибка удаления:')+' '+error.message);
     closeM('mDeleteUser');
     return;
   }
   // Clean up localStorage avatar data for deleted user
   ['ty_av_color_','ty_av_emoji_','ty_av_photo_'].forEach(k=>localStorage.removeItem(k+_deleteUserId));
   closeM('mDeleteUser');
-  showToast(`${_deleteUserName} удалён`);
+  showToast(_deleteUserName+' '+t('удалён'));
   _deleteUserId='';_deleteUserName='';
   // Re-render current users screen
   if(S.role==='owner')renderOwnerUsers();
@@ -2956,8 +2988,8 @@ async function doDeleteUser(){
 async function confirmDeleteStudent(sid,name){
   if(!confirm(`Удалить ученика ${name}?\nЭто также удалит все его задания и оплаты.`))return;
   const{error}=await sb.from('students').delete().eq('id',sid).eq('school_id',S.schoolId);
-  if(error){showToast('Ошибка: '+error.message);return;}
-  showToast(`${name} удалён`);
+  if(error){showToast(t('Ошибка')+': '+error.message);return;}
+  showToast(name+' '+t('удалён'));
   if(S.screen==='a_students')renderAdminStudents();
   else if(S.screen==='o_students')renderOwnerStudents();
   else if(S.screen==='t_students')renderTeacherStudents();
@@ -3081,7 +3113,7 @@ async function renderMaterials(){
 async function deleteMaterial(id){
   if(!confirm('Удалить этот материал?'))return;
   const{error}=await sb.from('materials').delete().eq('id',id).eq('school_id',S.schoolId);
-  if(error){showToast('Ошибка: '+error.message);return;}
+  if(error){showToast(t('Ошибка')+': '+error.message);return;}
   showToast('Материал удалён');renderMaterials();
 }
 function openMatCard(el){
@@ -3116,7 +3148,7 @@ async function saveStudent(){
     await callInviteFunction(email,'student',f,l,{language:C('st_lang').value,level:C('st_level').value,phone:C('st_phone').value.trim()});
     showToast('Ученик добавлен — письмо отправлено! 💌');
   }catch(e){
-    showToast('Ученик добавлен, но письмо не отправлено: '+e.message);
+    showToast(t('Ученик добавлен, но письмо не отправлено:')+' '+e.message);
   }
   if(S.screen==='a_students')renderAdminStudents();else if(S.screen==='o_students')renderOwnerStudents();
 }
@@ -3135,7 +3167,7 @@ async function saveInviteStaff(){
     showToast('Приглашение отправлено! 💌');
     if(S.screen==='o_users')renderOwnerUsers();
   }catch(e){
-    showToast('Ошибка: '+e.message);
+    showToast(t('Ошибка')+': '+e.message);
   }
 }
 // ─── CLASSES ──────────────────────────────────────────────────────────────────
@@ -3175,7 +3207,7 @@ function filterClasses(){
     const matchQ=!q||cl.name.toLowerCase().includes(q)||(cl.description||'').toLowerCase().includes(q);
     return matchType&&matchQ;
   });
-  C('classesCount').textContent=`Кол-во классов ${list.length}`;
+  C('classesCount').textContent=`${t('Кол-во классов')} ${list.length}`;
   const canCreate=['teacher','admin','owner'].includes(S.role);
   renderClassCards(list,canCreate);
 }
@@ -3195,16 +3227,16 @@ function renderClassCards(list,canCreate){
   }).join('');
   const createCard=canCreate?`<div class="ev-class-card ev-class-create" onclick="openNewClass()">
     <div class="ev-class-initial">+</div>
-    <div class="ev-class-name" style="color:var(--purple)">Создать класс</div>
+    <div class="ev-class-name" style="color:var(--purple)">${t('Создать класс')}</div>
   </div>`:'';
-  grid.innerHTML=createCard+cards||(canCreate?createCard:'<div class="empty-state" style="grid-column:1/-1"><div class="ei">🎓</div><p>Классов пока нет</p></div>');
+  grid.innerHTML=createCard+cards||(canCreate?createCard:`<div class="empty-state" style="grid-column:1/-1"><div class="ei">🎓</div><p>${t('Классов пока нет')}</p></div>`);
 }
 
 async function openNewClass(){
   S.editClassId=null;
   ['cl_name','cl_desc'].forEach(id=>C(id).value='');
   C('cl_emoji').value='📚';C('cl_type').value='individual';C('cl_lang').value='Английский';C('cl_level').value='A1';C('cl_color').value='#7C3AED';
-  C('classModalTitle').textContent='Новый класс';
+  C('classModalTitle').textContent=t('Новый класс');
   openM('mAddClass');
 }
 async function editClass(id){
@@ -3213,7 +3245,7 @@ async function editClass(id){
   C('cl_name').value=cl.name||'';C('cl_desc').value=cl.description||'';C('cl_emoji').value=cl.emoji||'📚';
   C('cl_type').value=cl.type||'individual';C('cl_lang').value=cl.language||'Английский';C('cl_level').value=cl.level||'A1';
   C('cl_color').value=cl.color||'#7C3AED';C('cl_teacher').value=cl.teacher_id||'';
-  C('classModalTitle').textContent='Редактировать класс';openM('mAddClass');
+  C('classModalTitle').textContent=t('Редактировать класс');openM('mAddClass');
 }
 async function saveClass(){
   const name=C('cl_name').value.trim();if(!name){showToast('Введи название!');return;}
@@ -3318,19 +3350,19 @@ async function loadClassTab(tab){
           </div>
         </div>
       </div>`;}).join('');
-    C('classDetailContent').innerHTML=`<div class="section-header" style="margin-bottom:12px"><span style="font-weight:700">Уроки</span><button class="btn btn-purple" onclick="newLesson()">+ Создать урок</button></div>${cards||'<div class="empty-state"><div class="ei">📖</div><p>Уроков пока нет</p></div>'}`;
+    C('classDetailContent').innerHTML=`<div class="section-header" style="margin-bottom:12px"><span style="font-weight:700">${t('Уроки')}</span><button class="btn btn-purple" onclick="newLesson()">+ ${t('Создать урок')}</button></div>${cards||`<div class="empty-state"><div class="ei">📖</div><p>${t('Уроков пока нет')}</p></div>`}`;
   }
   else if(tab==='schedule'){
     const{data:evs}=await sb.from('schedule_events').select('*').eq('class_id',classId).order('event_date').order('event_time');
     const rows=(evs||[]).map(ev=>`<tr>
       <td>${fmtDate(ev.event_date)}</td><td>${ev.event_time?.slice(0,5)||'—'}</td>
-      <td>${ev.duration_minutes} мин</td>
-      <td><span class="badge ${ev.status==='completed'?'badge-green':ev.status==='cancelled'?'badge-gray':'badge-purple'}">${{scheduled:'Запланировано',completed:'Проведено',cancelled:'Отменено'}[ev.status]||ev.status}</span></td>
+      <td>${ev.duration_minutes} ${t('мин')}</td>
+      <td><span class="badge ${ev.status==='completed'?'badge-green':ev.status==='cancelled'?'badge-gray':'badge-purple'}">${{scheduled:t('Запланировано'),completed:t('Проведено'),cancelled:t('Отменено')}[ev.status]||ev.status}</span></td>
       <td style="font-size:.78rem;color:var(--text3)">${ev.notes||''}</td>
       <td><button class="btn btn-sm btn-red" style="font-size:.7rem;padding:3px 8px" onclick="deleteEvent('${ev.id}')">✕</button></td>
     </tr>`).join('');
-    C('classDetailContent').innerHTML=`<div class="section-header" style="margin-bottom:12px"><span style="font-weight:700">Занятия класса</span><button class="btn btn-purple" onclick="openAddEventForClass('${classId}')">+ Занятие</button></div>
-      <div class="card" style="padding:0;overflow:hidden"><table><thead><tr><th>Дата</th><th>Время</th><th>Длит.</th><th>Статус</th><th>Заметки</th><th></th></tr></thead><tbody>${rows||'<tr><td colspan="6" style="text-align:center;color:var(--text3)">Нет занятий</td></tr>'}</tbody></table></div>`;
+    C('classDetailContent').innerHTML=`<div class="section-header" style="margin-bottom:12px"><span style="font-weight:700">${t('Занятия класса')}</span><button class="btn btn-purple" onclick="openAddEventForClass('${classId}')">+ ${t('Занятие')}</button></div>
+      <div class="card" style="padding:0;overflow:hidden"><table><thead><tr><th>${t('Дата')}</th><th>${t('Время')}</th><th>${t('Длит.')}</th><th>${t('Статус')}</th><th>${t('Заметки')}</th><th></th></tr></thead><tbody>${rows||`<tr><td colspan="6" style="text-align:center;color:var(--text3)">${t('Нет занятий')}</td></tr>`}</tbody></table></div>`;
   }
   else if(tab==='progress'){
     const[{data:cs},{data:assigns}]=await Promise.all([
@@ -3348,7 +3380,7 @@ async function loadClassTab(tab){
         <td><div style="min-width:120px"><div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div><div style="font-size:.72rem;color:var(--text3);margin-top:2px">${pct}%</div></div></td>
       </tr>`;
     }).join('');
-    C('classDetailContent').innerHTML=`<div class="card" style="padding:0;overflow:hidden"><table><thead><tr><th>Ученик</th><th>Уроков пройдено</th><th>Прогресс</th></tr></thead><tbody>${rows||'<tr><td colspan="3" style="text-align:center;color:var(--text3)">Нет учеников</td></tr>'}</tbody></table></div>`;
+    C('classDetailContent').innerHTML=`<div class="card" style="padding:0;overflow:hidden"><table><thead><tr><th>${t('Ученик')}</th><th>${t('Уроков пройдено')}</th><th>${t('Прогресс')}</th></tr></thead><tbody>${rows||`<tr><td colspan="3" style="text-align:center;color:var(--text3)">${t('Нет учеников')}</td></tr>`}</tbody></table></div>`;
   }
 }
 async function addToClass(){
@@ -3421,7 +3453,7 @@ function openAddEventOnDate(date,time){
   C('ev_title').value='';C('ev_notes').value='';C('ev_status').value='scheduled';
   C('ev_date').value=date||new Date().toISOString().split('T')[0];
   C('ev_time').value=time||'09:00';C('ev_dur').value='60';
-  C('eventModalTitle').textContent='Новое занятие';openM('mAddEvent');
+  C('eventModalTitle').textContent=t('Новое занятие');openM('mAddEvent');
 }
 function openAddEventForClass(classId){
   openAddEventOnDate('','');
@@ -3434,7 +3466,7 @@ async function viewEvent(id){
   C('ev_title').value=ev.title||'';C('ev_date').value=ev.event_date||'';C('ev_time').value=ev.event_time?.slice(0,5)||'';
   C('ev_dur').value=ev.duration_minutes||60;C('ev_status').value=ev.status||'scheduled';C('ev_notes').value=ev.notes||'';
   if(ev.class_id)C('ev_class').value=ev.class_id;
-  C('eventModalTitle').textContent='Занятие: '+ev.title;openM('mAddEvent');
+  C('eventModalTitle').textContent=t('Занятие')+': '+ev.title;openM('mAddEvent');
 }
 async function saveEvent(){
   const title=C('ev_title').value.trim();if(!title){showToast('Введи название!');return;}
@@ -3542,7 +3574,7 @@ function ceExercise(){
   const wrap=C('ce_exWrap');
 
   // counter
-  C('ce_counter').textContent=total>0?`${CE.curEx+1} из ${total}`:'— из —';
+  C('ce_counter').textContent=total>0?`${CE.curEx+1} ${t('из')} ${total}`:t('— из —');
   C('ce_btnBack').disabled=CE.curEx<=0;
 
   // next button
@@ -3550,16 +3582,16 @@ function ceExercise(){
   const isLastEx=CE.curEx>=total-1;
   const isLastSec=CE.curSec>=CE.sections.length-1;
   if(isLastEx&&total>0){
-    if(isLastSec){nb.textContent='✓ Завершить урок';nb.className='btn btn-green';nb.onclick=()=>{setCEMode('edit');showToast('Просмотр завершён!');};}
-    else{nb.textContent='Завершить раздел →';nb.className='btn btn-purple';nb.onclick=()=>{CE.curSec++;CE.curEx=0;ceRenderAll();};}
+    if(isLastSec){nb.textContent=t('✓ Завершить урок');nb.className='btn btn-green';nb.onclick=()=>{setCEMode('edit');showToast(t('Просмотр завершён!'));};}
+    else{nb.textContent=t('Завершить раздел →');nb.className='btn btn-purple';nb.onclick=()=>{CE.curSec++;CE.curEx=0;ceRenderAll();};}
   } else {
-    nb.textContent='Далее →';nb.className='btn btn-purple';nb.onclick=()=>ceNav(1);
+    nb.textContent=t('Далее →');nb.className='btn btn-purple';nb.onclick=()=>ceNav(1);
   }
 
   // Editable section heading (always visible at top)
   const secTitle=`<input class="ce-sec-heading" value="${(sec?.title||'Раздел '+(CE.curSec+1)).replace(/"/g,'&quot;')}" placeholder="Название раздела..." oninput="CE.sections[CE.curSec].title=this.value;ceSidebar()">`;
 
-  if(!sec){wrap.innerHTML='<div class="ce-empty-sec">Нет разделов</div>';return;}
+  if(!sec){wrap.innerHTML=`<div class="ce-empty-sec">${t('Нет разделов')}</div>`;return;}
 
   // ── VIEW ALL MODE ──────────────────────────────────────────────────────────
   if(CE.viewAll){
@@ -3736,7 +3768,7 @@ async function saveFromCE(publish){
     content:{sections:CE.sections,materials:CE.materials},published:publish};
   if(CE.lessonId){await sb.from('lessons').update(data).eq('id',CE.lessonId);}
   else{const{data:ins}=await sb.from('lessons').insert(data).select().single();if(ins)CE.lessonId=ins.id;}
-  showToast(publish?'🚀 Опубликовано!':'💾 Сохранено!');
+  showToast(publish?t('🚀 Опубликовано!'):t('💾 Сохранено!'));
 }
 
 async function renderTeacherLessons(){
@@ -3784,7 +3816,7 @@ async function openAssignLesson(lessonId){
 async function assignLesson(){
   const sid=C('assign_student').value;if(!sid){showToast('Выбери ученика');return;}
   const{error}=await sb.from('lesson_assignments').insert({school_id:S.schoolId,lesson_id:S.assignLessonId,student_id:sid});
-  if(error){showToast('Ошибка: '+error.message);return;}
+  if(error){showToast(t('Ошибка')+': '+error.message);return;}
   closeM('mAssignLesson');showToast('✅ Урок назначен ученику!');
 }
 
@@ -3832,20 +3864,20 @@ function lvRender(){
   // nav visibility
   C('cv_btnBack').style.visibility='';C('cv_btnNext').style.visibility='';C('cv_counter').style.visibility='';
   // section title
-  C('cv_sectionTitle').textContent=sec?.title||`Раздел ${LV.curSec+1}`;
+  C('cv_sectionTitle').textContent=sec?.title||`${t('Раздел')} ${LV.curSec+1}`;
   // counter
-  C('cv_counter').textContent=total>0?`${LV.curEx+1} из ${total}`:'—';
+  C('cv_counter').textContent=total>0?`${LV.curEx+1} ${t('из')} ${total}`:'—';
   // back button
   C('cv_btnBack').disabled=LV.curEx===0&&LV.curSec===0;
   // next button
   const nb=C('cv_btnNext');
-  if(isLastEx&&isLastSec){nb.textContent='✓ Завершить урок';nb.className='btn btn-green';}
-  else if(isLastEx){nb.textContent='Следующий раздел →';nb.className='btn btn-purple';}
-  else{nb.textContent='Далее →';nb.className='btn btn-purple';}
+  if(isLastEx&&isLastSec){nb.textContent=t('✓ Завершить урок');nb.className='btn btn-green';}
+  else if(isLastEx){nb.textContent=t('Следующий раздел →');nb.className='btn btn-purple';}
+  else{nb.textContent=t('Далее →');nb.className='btn btn-purple';}
   // finish section btn
   C('cv_btnFinishSec').style.display=(isLastEx&&!isLastSec)?'':'none';
   // content
-  if(!ex){C('cv_exerciseContent').innerHTML='<div class="empty-state" style="padding:60px 0"><div class="ei">📭</div><p>Нет упражнений в этом разделе</p></div>';
+  if(!ex){C('cv_exerciseContent').innerHTML=`<div class="empty-state" style="padding:60px 0"><div class="ei">📭</div><p>${t('Нет упражнений в этом разделе')}</p></div>`;
   } else {C('cv_exerciseContent').innerHTML=renderBlockView(ex,LV.curSec*1000+LV.curEx);}
   // scroll top
   const sc=C('cv_exerciseContent').closest('.cv-content-scroll');if(sc)sc.scrollTop=0;
@@ -3874,8 +3906,8 @@ function switchCVTab(tab,el){
   document.querySelectorAll('.cv-tab').forEach(t=>t.classList.remove('active'));
   el.classList.add('active');
   if(tab==='homework'){
-    C('cv_sectionTitle').textContent='Домашняя работа';
-    C('cv_exerciseContent').innerHTML='<div class="empty-state" style="padding:60px 0"><div class="ei">📋</div><p>Домашних заданий нет</p></div>';
+    C('cv_sectionTitle').textContent=t('Домашняя работа');
+    C('cv_exerciseContent').innerHTML=`<div class="empty-state" style="padding:60px 0"><div class="ei">📋</div><p>${t('Домашних заданий нет')}</p></div>`;
     C('cv_btnBack').style.display='none';C('cv_btnNext').style.display='none';C('cv_btnFinishSec').style.display='none';
   } else {
     C('cv_btnBack').style.display='';C('cv_btnNext').style.display='';
@@ -3934,7 +3966,7 @@ function ceExPreview(ex){
 // Render ALL sections + exercises in one scrollable page (viewer)
 function lvRenderAll(){
   window._matchState={};
-  C('cv_sectionTitle').textContent='Весь урок';
+  C('cv_sectionTitle').textContent=t('Весь урок');
   C('cv_btnBack').style.visibility='hidden';
   C('cv_btnNext').style.visibility='hidden';
   C('cv_counter').style.visibility='hidden';
@@ -4052,8 +4084,8 @@ function renderBlockView(b,i){
 function checkFillBlank(i,answer){
   const inp=C(`fb_${i}`),res=C(`fb_res_${i}`);
   const val=(inp.value||'').trim().toLowerCase(),ans=answer.trim().toLowerCase();
-  if(val===ans){inp.classList.add('correct');inp.classList.remove('wrong');res.innerHTML='<span style="color:var(--green)">✅ Правильно!</span>';}
-  else{inp.classList.add('wrong');inp.classList.remove('correct');res.innerHTML=`<span style="color:var(--red)">❌ Неверно. Правильный ответ: <b>${answer}</b></span>`;}
+  if(val===ans){inp.classList.add('correct');inp.classList.remove('wrong');res.innerHTML=`<span style="color:var(--green)">✅ ${t('Правильно!')}</span>`;}
+  else{inp.classList.add('wrong');inp.classList.remove('correct');res.innerHTML=`<span style="color:var(--red)">❌ ${t('Неверно.')} ${t('Правильный ответ')}: <b>${answer}</b></span>`;}
 }
 function checkQuiz(blockI,chosen,correct){
   document.querySelectorAll(`[id^="qo_${blockI}_"]`).forEach(o=>o.onclick=null);
@@ -4065,7 +4097,7 @@ function checkTF(i,chosen,correct){
   C(`tf_${i}_t`).classList.add(correct===true?'correct':chosen===true?'wrong':'');
   C(`tf_${i}_f`).classList.add(correct===false?'correct':chosen===false?'wrong':'');
   [C(`tf_${i}_t`),C(`tf_${i}_f`)].forEach(b=>{if(b)b.onclick=null;});
-  C(`tf_res_${i}`).innerHTML=isCorrect?'<span style="color:var(--green)">✅ Правильно!</span>':'<span style="color:var(--red)">❌ Неверно!</span>';
+  C(`tf_res_${i}`).innerHTML=isCorrect?`<span style="color:var(--green)">✅ ${t('Правильно!')}</span>`:`<span style="color:var(--red)">❌ ${t('Неверно!')}</span>`;
   const exp=C(`tf_exp_${i}`);if(exp)exp.style.display='block';
 }
 function matchLeft(i,pi){
@@ -4086,7 +4118,7 @@ function matchRight(i,ri){
     C(`mr_${i}_${ri}`).classList.add('matched');
     st.matched[`l${li}`]=true;st.matched[`r${ri}`]=true;
     const done=Object.keys(st.matched).length/2;
-    if(done===st.pairs.length)C(`match_res_${i}`).innerHTML='<span style="color:var(--green)">🎉 Все совпадения верны!</span>';
+    if(done===st.pairs.length)C(`match_res_${i}`).innerHTML=`<span style="color:var(--green)">🎉 ${t('Все совпадения верны!')}</span>`;
   } else {
     C(`ml_${i}_${li}`).classList.add('wrong-match');C(`mr_${i}_${ri}`).classList.add('wrong-match');
     setTimeout(()=>{C(`ml_${i}_${li}`).classList.remove('wrong-match','selected');C(`mr_${i}_${ri}`).classList.remove('wrong-match');},800);
@@ -4103,7 +4135,7 @@ function resetWordOrder(i){
   const st=window[`_wo_${i}`];if(!st)return;
   st.chosen=[];
   document.querySelectorAll(`[id^="wc_${i}_"]`).forEach(el=>el.classList.remove('used'));
-  C(`wo_sentence_${i}`).innerHTML='<span style="color:var(--text3);font-size:.85rem">Кликай слова ниже...</span>';
+  C(`wo_sentence_${i}`).innerHTML=`<span style="color:var(--text3);font-size:.85rem">${t('Кликай слова ниже...')}</span>`;
   C(`wo_res_${i}`).innerHTML='';
 }
 function checkWordOrder(i){
@@ -4111,8 +4143,8 @@ function checkWordOrder(i){
   const answer=st.chosen.map(c=>c.word).join(' ');
   const correct=st.correct.trim();
   C(`wo_res_${i}`).innerHTML=answer.toLowerCase()===correct.toLowerCase()?
-    '<span style="color:var(--green)">✅ Правильно!</span>':
-    `<span style="color:var(--red)">❌ Неверно. Правильно: <b>${correct}</b></span>`;
+    `<span style="color:var(--green)">✅ ${t('Правильно!')}</span>`:
+    `<span style="color:var(--red)">❌ ${t('Неверно.')} ${t('Правильно')}: <b>${correct}</b></span>`;
 }
 async function completeLessonView(){
   if(S.currentAssignId){
@@ -4146,7 +4178,7 @@ function openMaterialPreview(url,title,type,lang,level){
   const icon=MICONS[type]||'📎';
   const embedUrl=_matEmbedUrl(url,type);
   C('mp_icon').textContent=icon;
-  C('mp_title').textContent=title||'Материал';
+  C('mp_title').textContent=title||t('Материал');
   C('mp_meta').textContent=[lang,level].filter(Boolean).join(' · ');
   C('mp_openBtn').dataset.url=url;
   if(embedUrl){
@@ -4166,9 +4198,9 @@ function openMaterialPreview(url,title,type,lang,level){
 async function renderCEMaterialsPanel(){
   const body=document.getElementById('ceMatsBody');
   if(!body)return;
-  body.innerHTML='<div style="color:var(--text3);font-size:.83rem;text-align:center;padding:16px">Загрузка материалов...</div>';
+  body.innerHTML=`<div style="color:var(--text3);font-size:.83rem;text-align:center;padding:16px">${t('Загрузка материалов...')}</div>`;
   const{data:mats}=await sb.from('materials').select('*').eq('school_id',S.schoolId).order('created_at',{ascending:false});
-  if(!mats||!mats.length){body.innerHTML='<div style="color:var(--text3);font-size:.83rem;text-align:center;padding:16px">Нет материалов в библиотеке</div>';return;}
+  if(!mats||!mats.length){body.innerHTML=`<div style="color:var(--text3);font-size:.83rem;text-align:center;padding:16px">${t('Нет материалов в библиотеке')}</div>`;return;}
   const selectedIds=new Set(CE.materials.map(m=>m.id));
   body.innerHTML=mats.map(m=>`
     <div class="tp-mat-item${selectedIds.has(m.id)?' selected':''}" data-mid="${m.id}" onclick="toggleCEMaterial(this,'${m.id}','${(m.title||m.name||'').replace(/'/g,"\\'")}','${m.type||'link'}','${(m.url||'').replace(/'/g,"\\'")}','${(m.language||'').replace(/'/g,"\\'")}','${(m.level||'').replace(/'/g,"\\'")}')">
@@ -4177,20 +4209,20 @@ async function renderCEMaterialsPanel(){
         <div class="tp-mat-name">${m.title||m.name||'—'}</div>
         <div class="tp-mat-meta">${m.language||''} · ${m.level||''}</div>
       </div>
-      <span style="font-size:.75rem;color:var(--purple);font-weight:600">${selectedIds.has(m.id)?'✓ Добавлен':''}</span>
+      <span style="font-size:.75rem;color:var(--purple);font-weight:600">${selectedIds.has(m.id)?t('✓ Добавлен'):''}</span>
     </div>`).join('');
 }
 function toggleCEMaterial(el,id,title,type,url,lang,level){
   const idx=CE.materials.findIndex(m=>m.id===id);
   if(idx>=0){CE.materials.splice(idx,1);el.classList.remove('selected');el.querySelector('span:last-child').textContent='';}
-  else{CE.materials.push({id,title,type,url,language:lang,level});el.classList.add('selected');el.querySelector('span:last-child').textContent='✓ Добавлен';}
+  else{CE.materials.push({id,title,type,url,language:lang,level});el.classList.add('selected');el.querySelector('span:last-child').textContent=t('✓ Добавлен');}
 }
 
 // CV materials panel — view lesson materials
 function renderCVMaterialsPanel(){
   const body=document.getElementById('cvMatsBody');
   if(!body)return;
-  if(!LV.materials.length){body.innerHTML='<div style="color:var(--text3);font-size:.83rem;text-align:center;padding:16px">В этом уроке нет прикреплённых материалов</div>';return;}
+  if(!LV.materials.length){body.innerHTML=`<div style="color:var(--text3);font-size:.83rem;text-align:center;padding:16px">${t('В этом уроке нет прикреплённых материалов')}</div>`;return;}
   body.innerHTML=LV.materials.map(m=>`
     <div class="tp-mat-item" onclick="openMaterialPreview('${(m.url||'').replace(/'/g,"\\'")}','${(m.title||'').replace(/'/g,"\\'")}','${m.type||'link'}','${(m.language||'').replace(/'/g,"\\'")}','${(m.level||'').replace(/'/g,"\\'")}')">
       <span class="tp-mat-icon">${MICONS[m.type]||'📎'}</span>
@@ -4230,7 +4262,7 @@ const MS={convId:null,convs:[],msgs:[],uploading:false,rtSub:null,profiles:[]};
 async function renderMessenger(){
   setContent(`<div class="messenger-layout" id="msgrLayout">
     <div class="msg-sidebar">
-      <div class="msg-search"><input type="text" placeholder="🔍 Поиск..." oninput="filterConvs(this.value)" id="msSearch"></div>
+      <div class="msg-search"><input type="text" placeholder="${t('🔍 Поиск...')}" oninput="filterConvs(this.value)" id="msSearch"></div>
       <button class="btn btn-purple msg-new-btn btn-sm" onclick="openNewConv()">+ Новый чат</button>
       <div class="conv-list" id="convList"><div class="empty-state" style="padding:24px"><p>Загрузка...</p></div></div>
     </div>
@@ -4279,7 +4311,7 @@ function convAvatar(c){
 function renderConvList(convs){
   const el=document.getElementById('convList');
   if(!el)return;
-  if(!convs.length){el.innerHTML='<div class="empty-state" style="padding:24px"><div class="ei">💬</div><p>Нет чатов</p></div>';return;}
+  if(!convs.length){el.innerHTML=`<div class="empty-state" style="padding:24px"><div class="ei">💬</div><p>${t('Нет чатов')}</p></div>`;return;}
   el.innerHTML=convs.map(c=>{
     const{bg,icon}=convAvatar(c);
     const lastName=c.lastMsg?(c.lastMsg.body||'📎 Файл'):'';
@@ -4393,7 +4425,7 @@ async function sendMsg(){
   if(!body)return;
   inp.value='';inp.style.height='auto';
   const{error}=await sb.from('messages').insert({conversation_id:MS.convId,sender_id:S.profile.id,body});
-  if(error){showToastCard('Ошибка',''+error.message,'error','❌');return;}
+  if(error){showToastCard(t('Ошибка'),''+error.message,'error','❌');return;}
   // Optimistic
   MS.msgs.push({id:'tmp_'+Date.now(),conversation_id:MS.convId,sender_id:S.profile.id,body,created_at:new Date().toISOString()});
   refreshMsgThread();
@@ -4403,16 +4435,16 @@ async function uploadMsgFile(input){
   if(!input.files||!input.files[0]||!MS.convId)return;
   const file=input.files[0];
   input.value='';
-  if(file.size>20*1024*1024){showToastCard('Файл слишком большой','Максимум 20MB','error','❌');return;}
-  showToastCard('Загрузка файла...','','','📎',60000);
+  if(file.size>20*1024*1024){showToastCard(t('Файл слишком большой'),t('Максимум 20MB'),'error','❌');return;}
+  showToastCard(t('Загрузка файла...'),'','','📎',60000);
   const path=`${S.schoolId}/${MS.convId}/${Date.now()}_${file.name}`;
   const{data:upData,error:upErr}=await sb.storage.from('chat-files').upload(path,file,{upsert:true});
-  if(upErr){showToastCard('Ошибка загрузки',''+upErr.message,'error','❌');return;}
+  if(upErr){showToastCard(t('Ошибка загрузки'),''+upErr.message,'error','❌');return;}
   const{data:urlData}=sb.storage.from('chat-files').getPublicUrl(path);
   const fileUrl=urlData?.publicUrl;
   // Clear loading toast (it auto-removes)
   await sb.from('messages').insert({conversation_id:MS.convId,sender_id:S.profile.id,body:'',file_url:fileUrl,file_name:file.name,file_size:file.size,file_type:file.type});
-  showToastCard('Файл отправлен','','success','✅');
+  showToastCard(t('Файл отправлен'),'','success','✅');
 }
 
 function refreshMsgThread(){
@@ -4436,7 +4468,7 @@ function initMsgrRealtime(){
         const prof=MS.profiles.find(p=>p.id===m.sender_id);
         const sName=prof?prof.first_name+' '+prof.last_name:'Кто-то';
         if(m.sender_id!==S.profile.id){
-          showToastCard(sName,m.body||'📎 Файл','msg','💬',6000);
+          showToastCard(sName,m.body||t('📎 Файл'),'msg','💬',6000);
           updateNotifBadge(1);
         }
         if(c){c.lastMsg=m;c.unread=(c.unread||0)+(m.sender_id!==S.profile.id?1:0);}
@@ -4458,7 +4490,7 @@ function openNotifPanel(){
   // Clear badge + show recent notifications
   const badge=document.getElementById('notifBadge');
   if(badge){badge.textContent='';badge.style.display='none';}
-  showToastCard('Уведомления','Откройте Задачи или Сообщения для просмотра','','🔔',3000);
+  showToastCard(t('Уведомления'),t('Откройте Задачи или Сообщения для просмотра'),'','🔔',3000);
 }
 
 // New conversation modal
@@ -4483,15 +4515,15 @@ async function openNewConv(){
 function renderNewConvForm(type){
   const extra=document.getElementById('nc_extra');
   if(!extra)return;
-  if(type==='self'){extra.innerHTML='<p style="font-size:.84rem;color:var(--text3)">Чат только для себя — заметки, ссылки, файлы.</p>';return;}
+  if(type==='self'){extra.innerHTML=`<p style="font-size:.84rem;color:var(--text3)">${t('Чат только для себя — заметки, ссылки, файлы.')}</p>`;return;}
   const others=MS.profiles.filter(p=>p.id!==S.profile.id);
   if(type==='direct'){
-    extra.innerHTML=`<div class="form-group"><label>Выбрать человека</label>
-      <select id="nc_user">${others.map(p=>`<option value="${p.id}">${p.first_name} ${p.last_name} (${p.role})</option>`).join('')}</select></div>`;
+    extra.innerHTML=`<div class="form-group"><label>${t('Выбрать человека')}</label>
+      <select id="nc_user">${others.map(p=>`<option value="${p.id}">${p.first_name} ${p.last_name} (${t(p.role)||p.role})</option>`).join('')}</select></div>`;
   } else {
-    extra.innerHTML=`<div class="form-group"><label>Название группы</label><input type="text" id="nc_name" placeholder="Например: Команда учителей"></div>
-      <div class="form-group"><label>Участники (все по умолчанию)</label>
-      <div style="max-height:160px;overflow-y:auto;border:2px solid var(--gray-border);border-radius:8px;padding:8px">${others.map(p=>`<label style="display:flex;align-items:center;gap:8px;padding:4px 0;cursor:pointer"><input type="checkbox" value="${p.id}" checked> ${p.first_name} ${p.last_name} (${p.role})</label>`).join('')}</div></div>`;
+    extra.innerHTML=`<div class="form-group"><label>${t('Название группы')}</label><input type="text" id="nc_name" placeholder="${t('Например: Команда учителей')}"></div>
+      <div class="form-group"><label>${t('Участники (все по умолчанию)')}</label>
+      <div style="max-height:160px;overflow-y:auto;border:2px solid var(--gray-border);border-radius:8px;padding:8px">${others.map(p=>`<label style="display:flex;align-items:center;gap:8px;padding:4px 0;cursor:pointer"><input type="checkbox" value="${p.id}" checked> ${p.first_name} ${p.last_name} (${t(p.role)||p.role})</label>`).join('')}</div></div>`;
   }
 }
 
@@ -4514,7 +4546,7 @@ async function createConv(){
     members=[...new Set(members)];
   }
   const{data:conv,error}=await sb.from('conversations').insert({school_id:S.schoolId,type,name}).select().single();
-  if(error){showToastCard('Ошибка',''+error.message,'error','❌');return;}
+  if(error){showToastCard(t('Ошибка'),''+error.message,'error','❌');return;}
   // Add members
   await sb.from('conversation_members').insert(members.map(uid=>({conversation_id:conv.id,user_id:uid})));
   closeM('mNewConv');
@@ -4536,7 +4568,7 @@ async function renderTasks(){
           <option value="all">Все сотрудники</option>
           <option value="${S.profile.id}">Мои задачи</option>
         </select>`:''}
-        <button class="btn btn-purple" onclick="openAddTask()">+ Задача</button>
+        <button class="btn btn-purple" onclick="openAddTask()">+ ${t('Задача')}</button>
       </div></div>
     <div class="task-kanban" id="kanbanBoard">
       <div class="task-col"><div class="task-col-hdr" style="color:var(--text3)">📋 К выполнению <span class="task-col-count" id="cnt_todo">0</span></div><div id="col_todo"></div></div>
@@ -4577,7 +4609,7 @@ function refreshKanban(){
     const filtered=tasks.filter(tk=>tk.status===status);
     if(cnt)cnt.textContent=filtered.length;
     if(!col)return;
-    if(!filtered.length){col.innerHTML='<div class="task-drag-hint">Нет задач</div>';return;}
+    if(!filtered.length){col.innerHTML=`<div class="task-drag-hint">${t('Нет задач')}</div>`;return;}
     col.innerHTML=filtered.map(tk=>renderTaskCard(tk)).join('');
   });
 }
@@ -4588,16 +4620,16 @@ function renderTaskCard(tk){
   const overdue=due&&due<now&&tk.status!=='done';
   const prof=TK.profiles?.find(p=>p.id===tk.user_id);
   const assignee=prof?prof.first_name+' '+prof.last_name:'';
-  const prioLabel={high:'🔴 Высокий',medium:'🟡 Средний',low:'🟢 Низкий'};
+  const prioLabel={high:t('🔴 Высокий'),medium:t('🟡 Средний'),low:t('🟢 Низкий')};
   const nextStatus={todo:'in_progress',in_progress:'done',done:'todo'};
-  const nextLabel={todo:'▶ Начать',in_progress:'✓ Завершить',done:'↩ Вернуть'};
+  const nextLabel={todo:t('▶ Начать'),in_progress:t('✓ Завершить'),done:t('↩ Вернуть')};
   return`<div class="task-card p-${tk.priority||'medium'}" onclick="openTaskDetail('${tk.id}')">
     <div class="tc-title">${tk.title}</div>
     ${tk.description?`<div style="font-size:.78rem;color:var(--text3);margin-top:3px;line-height:1.3">${tk.description.substring(0,80)}${tk.description.length>80?'...':''}</div>`:''}
     <div class="tc-tags">
       <span class="badge badge-${tk.priority==='high'?'pink':tk.priority==='low'?'green':'yellow'}" style="font-size:.68rem">${prioLabel[tk.priority||'medium']}</span>
     </div>
-    ${due?`<div class="tc-due${overdue?' overdue':''}">📅 ${due.toLocaleDateString('ru',{day:'numeric',month:'short'})}${overdue?' ⚠️ Просрочено':''}</div>`:''}
+    ${due?`<div class="tc-due${overdue?' overdue':''}">📅 ${due.toLocaleDateString('ru',{day:'numeric',month:'short'})}${overdue?` ⚠️ ${t('Просрочено')}`:''}</div>`:''}
     ${assignee&&['owner','admin'].includes(S.role)?`<div class="tc-assignee">👤 ${assignee}</div>`:''}
     <div style="display:flex;gap:6px;margin-top:8px" onclick="event.stopPropagation()">
       <button class="btn-sm" style="font-size:.72rem;padding:3px 8px;background:var(--gray-light);border:none;border-radius:6px;cursor:pointer" onclick="moveTask('${tk.id}','${nextStatus[tk.status||'todo']}')">${nextLabel[tk.status||'todo']}</button>
@@ -4612,7 +4644,7 @@ async function moveTask(id,newStatus){
   const tk=TK.tasks.find(t=>t.id===id);
   if(tk)tk.status=newStatus;
   refreshKanban();
-  showToastCard('Статус обновлён','','success','✅',2000);
+  showToastCard(t('Статус обновлён'),'','success','✅',2000);
 }
 
 async function deleteTask(id){
@@ -4639,7 +4671,7 @@ function populateTaskModal(tk){
   C('task_status').value=tk.status||'todo';
   C('task_due').value=tk.due_date||'';
   C('task_remind').value=tk.remind_at?tk.remind_at.substring(0,16):'';
-  C('mAddTaskTitle').textContent=S.editTaskId?'✏️ Редактировать задачу':'➕ Новая задача';
+  C('mAddTaskTitle').textContent=S.editTaskId?`✏️ ${t('Редактировать задачу')}`:`➕ ${t('Новая задача')}`;
   // Assignee (for owner/admin)
   const assignRow=document.getElementById('task_assign_row');
   if(assignRow){
@@ -4658,7 +4690,7 @@ function populateTaskModal(tk){
 
 async function saveTask(){
   const title=C('task_title').value.trim();
-  if(!title){showToastCard('Введи название задачи','','error','❌');return;}
+  if(!title){showToastCard(t('Введи название задачи'),'','error','❌');return;}
   const userId=['owner','admin'].includes(S.role)?C('task_assignee')?.value||S.profile.id:S.profile.id;
   const payload={
     school_id:S.schoolId,user_id:userId,
@@ -4670,17 +4702,17 @@ async function saveTask(){
   };
   if(S.editTaskId){
     const{error}=await sb.from('tasks').update(payload).eq('id',S.editTaskId);
-    if(error){showToastCard('Ошибка',''+error.message,'error','❌');return;}
+    if(error){showToastCard(t('Ошибка'),''+error.message,'error','❌');return;}
     const idx=TK.tasks.findIndex(t=>t.id===S.editTaskId);
     if(idx>=0)TK.tasks[idx]={...TK.tasks[idx],...payload,id:S.editTaskId};
   } else {
     const{data,error}=await sb.from('tasks').insert(payload).select().single();
-    if(error){showToastCard('Ошибка',''+error.message,'error','❌');return;}
+    if(error){showToastCard(t('Ошибка'),''+error.message,'error','❌');return;}
     TK.tasks.unshift(data);
   }
   closeM('mAddTask');
   refreshKanban();
-  showToastCard('Задача сохранена','','success','✅');
+  showToastCard(t('Задача сохранена'),'','success','✅');
 }
 
 // ─── TASK REMINDERS ───────────────────────────────────────────────────────────
@@ -4690,7 +4722,7 @@ function initTaskReminders(){
   _taskReminderInterval=setInterval(checkTaskReminders,60000);
   // Request push permission
   if('Notification' in window&&Notification.permission==='default'){
-    Notification.requestPermission().then(p=>{if(p==='granted')showToastCard('Уведомления включены','Вы будете получать напоминания о задачах','success','🔔',4000);});
+    Notification.requestPermission().then(p=>{if(p==='granted')showToastCard(t('Уведомления включены'),t('Вы будете получать напоминания о задачах'),'success','🔔',4000);});
   }
 }
 
@@ -4712,7 +4744,7 @@ async function checkTaskReminders(){
 }
 
 function showTaskNotification(tk){
-  showToastCard('⏰ Напоминание',tk.title,'task','✅',10000);
+  showToastCard(t('⏰ Напоминание'),tk.title,'task','✅',10000);
   updateNotifBadge(1);
   if('Notification' in window&&Notification.permission==='granted'){
     new Notification('TeachyaED: '+tk.title,{body:tk.description||'Время выполнить задачу!',icon:'/favicon.ico'});
