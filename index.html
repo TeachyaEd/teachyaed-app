@@ -1587,6 +1587,14 @@ const TRANSLATIONS={
   'Материал добавлен':'Material added',
   'Добавь файл или URL!':'Add a file or URL!',
   'Загрузка...':'Uploading...',
+  '📁 Нажми или перетащи файл сюда':'📁 Click or drag file here',
+  'PDF до 50MB':'PDF up to 50MB',
+  'MP3, WAV, OGG, M4A, AAC — до 50MB':'MP3, WAV, OGG, M4A, AAC — up to 50MB',
+  'DOC, DOCX, TXT, PPTX, XLSX — до 50MB':'DOC, DOCX, TXT, PPTX, XLSX — up to 50MB',
+  'MP4, WebM, MOV — или вставь ссылку ниже':'MP4, WebM, MOV — or paste a link below',
+  'Или URL файла (необязательно)':'Or file URL (optional)',
+  'Ссылка на видео (YouTube, Vimeo) — или загрузи файл выше':'Video link (YouTube, Vimeo) — or upload file above',
+  'Новый материал':'New Material','Файл':'File','Название':'Title',
   'Материал удалён':'Material deleted',
   'Нет материалов в библиотеке':'No materials in library',
   'Загрузка материалов...':'Loading materials...',
@@ -3176,13 +3184,13 @@ function openMatCard(el){
 }
 // ─── MATERIAL UPLOAD HELPERS ──────────────────────────────────────────────────
 const MAT_ACCEPT={pdf:'.pdf',audio:'.mp3,.wav,.ogg,.m4a,.aac,.flac',doc:'.doc,.docx,.txt,.pptx,.xlsx,.ppt,.odp,.ods',video:'.mp4,.webm,.mov,.avi'};
-const MAT_ACCEPT_HINT={pdf:'PDF до 50MB',audio:'MP3, WAV, OGG, M4A, AAC — до 50MB',doc:'DOC, DOCX, TXT, PPTX, XLSX — до 50MB',video:'MP4, WebM, MOV — или вставь ссылку ниже',link:''};
+const MAT_ACCEPT_HINT={pdf:()=>t('PDF до 50MB'),audio:()=>t('MP3, WAV, OGG, M4A, AAC — до 50MB'),doc:()=>t('DOC, DOCX, TXT, PPTX, XLSX — до 50MB'),video:()=>t('MP4, WebM, MOV — или вставь ссылку ниже'),link:()=>''};
 
 function openAddMaterial(){
   C('mat_name').value='';C('mat_url').value='';
   const fi=C('mat_file');fi.value='';
   C('mat_drop_zone').classList.remove('has-file');
-  C('mat_drop_text').textContent='📁 Нажми или перетащи файл сюда';
+  C('mat_drop_text').textContent=t('📁 Нажми или перетащи файл сюда');
   C('mat_drop_sub').textContent='';
   C('mat_type').value='pdf';
   onMatTypeChange();
@@ -3193,27 +3201,23 @@ function onMatTypeChange(){
   const type=C('mat_type').value;
   const isLink=type==='link';
   const isVideo=type==='video';
-  // File area: show for pdf/audio/doc/video
   C('mat_file_area').style.display=isLink?'none':'block';
-  // URL area: always show; label changes
   C('mat_url_area').style.display='block';
   if(isLink){
-    C('mat_url_label').textContent='URL';
+    C('mat_url_label').textContent=t('URL');
     C('mat_url').placeholder='https://...';
   } else if(isVideo){
-    C('mat_url_label').textContent='Ссылка на видео (YouTube, Vimeo) — или загрузи файл выше';
+    C('mat_url_label').textContent=t('Ссылка на видео (YouTube, Vimeo) — или загрузи файл выше');
     C('mat_url').placeholder='https://youtube.com/watch?v=...';
   } else {
-    C('mat_url_label').textContent='Или URL файла (необязательно)';
+    C('mat_url_label').textContent=t('Или URL файла (необязательно)');
     C('mat_url').placeholder='https://...';
   }
-  // Set file accept
   C('mat_file').accept=MAT_ACCEPT[type]||'*';
-  C('mat_drop_sub').textContent=MAT_ACCEPT_HINT[type]||'';
-  // Reset file selection when type changes
+  C('mat_drop_sub').textContent=(MAT_ACCEPT_HINT[type]||MAT_ACCEPT_HINT.link)();
   C('mat_file').value='';
   C('mat_drop_zone').classList.remove('has-file');
-  C('mat_drop_text').textContent='📁 Нажми или перетащи файл сюда';
+  C('mat_drop_text').textContent=t('📁 Нажми или перетащи файл сюда');
 }
 
 function onMatFileSelect(input){
