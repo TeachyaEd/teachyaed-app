@@ -349,6 +349,9 @@ tr:hover td{background:#FAFAFA}
 .materials-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px}
 .material-card{background:#fff;border-radius:var(--radius);padding:16px;box-shadow:var(--shadow);cursor:pointer;transition:.2s}
 .material-card:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(0,0,0,.1)}
+.material-card{position:relative}
+.mat-del-btn{position:absolute;top:6px;right:6px;width:20px;height:20px;border-radius:50%;background:var(--red,#ef4444);color:#fff;border:none;cursor:pointer;font-size:.65rem;display:flex;align-items:center;justify-content:center;opacity:0;transition:.15s;z-index:2;padding:0}
+.material-card:hover .mat-del-btn{opacity:1}
 .material-card.mat-no-link{opacity:.6;cursor:default}
 .material-card.mat-no-link:hover{transform:none;box-shadow:var(--shadow)}
 .material-card.mat-selected{border:2px solid var(--purple);background:var(--purple-light)}
@@ -2305,21 +2308,29 @@ async function renderOwnerHome(){
 }
 async function renderAdminStudents(){
   const{data:sts}=await sb.from('students').select('*').eq('school_id',S.schoolId).order('last_name');
-  const rows=(sts||[]).map(s=>`<tr><td><div style="display:flex;align-items:center;gap:10px">${avHTML(s.first_name,s.last_name)}<div><div style="font-weight:600">${s.first_name} ${s.last_name}</div><div style="font-size:.75rem;color:var(--text3)">${s.email||'—'}</div></div></div></td><td>${s.language||'—'}</td><td><span class="badge badge-purple">${s.level||'—'}</span></td><td>${s.phone||'—'}</td></tr>`).join('')||'<tr><td colspan="4" style="text-align:center;color:var(--text3)">Нет учеников</td></tr>';
-  setContent(`<div class="section-header"><h2>👥 Ученики</h2><button class="btn btn-purple" onclick="openAddStudent()">+ Добавить</button></div>
-    <div class="card" style="padding:0;overflow:hidden"><table><thead><tr><th>Ученик</th><th>Язык</th><th>Уровень</th><th>Телефон</th></tr></thead><tbody>${rows}</tbody></table></div>`);
+  const rows=(sts||[]).map(s=>`<tr>
+    <td><div style="display:flex;align-items:center;gap:10px">${avHTML(s.first_name,s.last_name)}<div><div style="font-weight:600">${s.first_name} ${s.last_name}</div><div style="font-size:.75rem;color:var(--text3)">${s.email||'—'}</div></div></div></td>
+    <td>${s.language||'—'}</td>
+    <td><span class="badge badge-purple">${s.level||'—'}</span></td>
+    <td>${s.phone||'—'}</td>
+    <td class="td-actions">
+      <button class="btn btn-sm btn-green" style="font-size:.73rem;padding:4px 8px" onclick="callContact('${s.id}','${(s.first_name+' '+s.last_name).replace(/'/g,"\\'")}','student')">📞</button>
+      <button class="btn-danger" onclick="confirmDeleteStudent('${s.id}','${(s.first_name+' '+s.last_name).replace(/'/g,"\\'")}')">🗑</button>
+    </td></tr>`).join('')||`<tr><td colspan="5" style="text-align:center;color:var(--text3)">${t('Нет учеников')}</td></tr>`;
+  setContent(`<div class="section-header"><h2>👥 ${t('Ученики')}</h2><button class="btn btn-purple" onclick="openAddStudent()">+ ${t('Добавить')}</button></div>
+    <div class="card" style="padding:0;overflow:hidden"><table><thead><tr><th>${t('Ученик')}</th><th>${t('Язык')}</th><th>${t('Уровень')}</th><th>${t('Телефон')}</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>`);
 }
 async function renderAdminTeachers(){
   const{data:ts}=await sb.from('profiles').select('*').eq('school_id',S.schoolId).eq('role','teacher');
-  const rows=(ts||[]).map(t=>`<tr><td><div style="display:flex;align-items:center;gap:10px">${avHTML(t.first_name,t.last_name)}<div><div style="font-weight:600">${t.first_name} ${t.last_name}</div><div style="font-size:.75rem;color:var(--text3)">${t.email||'—'}</div></div></div></td>
-    <td><span class="badge badge-green">Учитель</span></td>
+  const rows=(ts||[]).map(tc=>`<tr><td><div style="display:flex;align-items:center;gap:10px">${avHTML(tc.first_name,tc.last_name)}<div><div style="font-weight:600">${tc.first_name} ${tc.last_name}</div><div style="font-size:.75rem;color:var(--text3)">${tc.email||'—'}</div></div></div></td>
+    <td><span class="badge badge-green">${t('Учитель')}</span></td>
     <td class="td-actions">
-      <button class="btn btn-sm btn-outline" style="font-size:.73rem;padding:4px 8px" onclick="openSetSalary('${t.id}','${t.first_name} ${t.last_name}')">💰 ${t('Ставка')}</button>
-      <button class="btn btn-sm btn-green" style="font-size:.73rem;padding:4px 8px" onclick="callContact('${t.id}','${t.first_name} ${t.last_name}','teacher')">📞</button>
-      <button class="btn-danger" onclick="confirmDeleteUser('${t.id}','${(t.first_name+' '+t.last_name).replace(/'/g,"\\'")}','teacher')">🗑</button>
-    </td></tr>`).join('')||'<tr><td colspan="3" style="text-align:center;color:var(--text3)">Нет учителей</td></tr>';
-  setContent(`<div class="section-header"><h2>👨‍🏫 Учителя</h2></div>
-    <div class="card" style="padding:0;overflow:hidden"><table><thead><tr><th>Учитель</th><th>Роль</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>`);
+      <button class="btn btn-sm btn-outline" style="font-size:.73rem;padding:4px 8px" onclick="openSetSalary('${tc.id}','${(tc.first_name+' '+tc.last_name).replace(/'/g,"\\'")}')">💰 ${t('Ставка')}</button>
+      <button class="btn btn-sm btn-green" style="font-size:.73rem;padding:4px 8px" onclick="callContact('${tc.id}','${(tc.first_name+' '+tc.last_name).replace(/'/g,"\\'")}','teacher')">📞</button>
+      <button class="btn-danger" onclick="confirmDeleteUser('${tc.id}','${(tc.first_name+' '+tc.last_name).replace(/'/g,"\\'")}','teacher')">🗑</button>
+    </td></tr>`).join('')||`<tr><td colspan="3" style="text-align:center;color:var(--text3)">${t('Нет учителей')}</td></tr>`;
+  setContent(`<div class="section-header"><h2>👨‍🏫 ${t('Учителя')}</h2><button class="btn btn-purple" onclick="openM('mInviteStaff')">+ ${t('Пригласить')}</button></div>
+    <div class="card" style="padding:0;overflow:hidden"><table><thead><tr><th>${t('Учитель')}</th><th>${t('Роль')}</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>`);
 }
 async function renderOwnerUsers(){
   const{data:users}=await sb.from('profiles').select('*').eq('school_id',S.schoolId).order('role');
@@ -2367,11 +2378,26 @@ async function doDeleteUser(){
   if(S.role==='owner')renderOwnerUsers();
   else if(S.role==='admin'){if(S.screen==='a_teachers')renderAdminTeachers();else if(S.screen==='a_students')renderAdminStudents();}
 }
+async function confirmDeleteStudent(sid,name){
+  if(!confirm(`Удалить ученика ${name}?\nЭто также удалит все его задания и оплаты.`))return;
+  const{error}=await sb.from('students').delete().eq('id',sid).eq('school_id',S.schoolId);
+  if(error){showToast('Ошибка: '+error.message);return;}
+  showToast(`${name} удалён`);
+  if(S.screen==='a_students')renderAdminStudents();
+  else if(S.screen==='o_students')renderOwnerStudents();
+  else if(S.screen==='t_students')renderTeacherStudents();
+}
 async function renderOwnerStudents(){
   const{data:sts}=await sb.from('students').select('*').eq('school_id',S.schoolId).order('last_name');
-  const rows=(sts||[]).map(s=>`<tr><td><div style="display:flex;align-items:center;gap:10px">${avHTML(s.first_name,s.last_name)}<div><div style="font-weight:600">${s.first_name} ${s.last_name}</div><div style="font-size:.75rem;color:var(--text3)">${s.email||'—'}</div></div></div></td><td>${s.language||'—'}</td><td><span class="badge badge-purple">${s.level||'—'}</span></td><td>${s.phone||'—'}</td></tr>`).join('');
-  setContent(`<div class="section-header"><h2>🎓 Ученики</h2><button class="btn btn-purple" onclick="openAddStudent()">+ Добавить</button></div>
-    <div class="card" style="padding:0;overflow:hidden"><table><thead><tr><th>Ученик</th><th>Язык</th><th>Уровень</th><th>Телефон</th></tr></thead><tbody>${rows}</tbody></table></div>`);
+  const rows=(sts||[]).map(s=>`<tr>
+    <td><div style="display:flex;align-items:center;gap:10px">${avHTML(s.first_name,s.last_name)}<div><div style="font-weight:600">${s.first_name} ${s.last_name}</div><div style="font-size:.75rem;color:var(--text3)">${s.email||'—'}</div></div></div></td>
+    <td>${s.language||'—'}</td><td><span class="badge badge-purple">${s.level||'—'}</span></td><td>${s.phone||'—'}</td>
+    <td class="td-actions">
+      <button class="btn btn-sm btn-green" style="font-size:.73rem;padding:4px 8px" onclick="callContact('${s.id}','${(s.first_name+' '+s.last_name).replace(/'/g,"\\'")}','student')">📞</button>
+      <button class="btn-danger" onclick="confirmDeleteStudent('${s.id}','${(s.first_name+' '+s.last_name).replace(/'/g,"\\'")}')">🗑</button>
+    </td></tr>`).join('')||`<tr><td colspan="5" style="text-align:center;color:var(--text3)">${t('Нет учеников')}</td></tr>`;
+  setContent(`<div class="section-header"><h2>🎓 ${t('Ученики')}</h2><button class="btn btn-purple" onclick="openAddStudent()">+ ${t('Добавить')}</button></div>
+    <div class="card" style="padding:0;overflow:hidden"><table><thead><tr><th>${t('Ученик')}</th><th>${t('Язык')}</th><th>${t('Уровень')}</th><th>${t('Телефон')}</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>`);
 }
 
 // ─── PAYMENTS ─────────────────────────────────────────────────────────────────
@@ -2398,7 +2424,13 @@ async function renderPayments(){
     </div>
     <div class="card" style="padding:0;overflow:hidden"><table><thead><tr><th>Ученик</th><th>Сумма</th><th>Период</th><th>Статус</th><th>Заметка</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>`);
 }
-function openAddPayment(){S.editPayId=null;C('payTitle').textContent='Новый платёж';['pay_amount','pay_note'].forEach(id=>C(id).value='');C('pay_status').value='pending';openM('mAddPayment');}
+function openAddPayment(){
+  S.editPayId=null;
+  C('payTitle').textContent=t('Новый платёж')||'Новый платёж';
+  ['pay_amount','pay_note','pay_from','pay_to'].forEach(id=>C(id).value='');
+  C('pay_status').value='pending';
+  openM('mAddPayment');
+}
 async function markPaid(id){await sb.from('payments').update({status:'paid'}).eq('id',id);showToast('Отмечено оплаченным');renderPayments();}
 async function savePayment(){
   const sid=C('pay_student').value,amt=C('pay_amount').value,cur=C('pay_cur').value;
@@ -2420,15 +2452,16 @@ async function renderSalaries(){
   const now=new Date();
   function periodStart(p){const d=new Date();if(p==='week')d.setDate(d.getDate()-7);else if(p==='biweek')d.setDate(d.getDate()-14);else d.setDate(1);d.setHours(0,0,0);return d;}
   const start=periodStart(salPeriod);
-  const rows=(ts||[]).map(t=>{
-    const sal=(sals||[]).find(s=>s.teacher_id===t.id);
+  const rows=(ts||[]).map(tc=>{
+    const sal=(sals||[]).find(s=>s.teacher_id===tc.id);
     const rate=sal?.rate_per_lesson||0,cur=sal?.currency||'GEL';
-    const cnt=(logs||[]).filter(l=>l.teacher_id===t.id&&new Date(l.lesson_date)>=start).length;
+    const cnt=(logs||[]).filter(l=>l.teacher_id===tc.id&&new Date(l.lesson_date)>=start).length;
+    const tname=(tc.first_name+' '+tc.last_name).replace(/'/g,"\\'");
     return`<tr>
-      <td><div style="display:flex;align-items:center;gap:10px">${avHTML(t.first_name,t.last_name)}<div style="font-weight:600">${t.first_name} ${t.last_name}</div></div></td>
+      <td><div style="display:flex;align-items:center;gap:10px">${avHTML(tc.first_name,tc.last_name)}<div style="font-weight:600">${tc.first_name} ${tc.last_name}</div></div></td>
       <td>${fmtCur(rate,cur)}</td><td>${cnt}</td><td><b style="color:var(--green)">${fmtCur(rate*cnt,cur)}</b></td>
-      <td><button class="btn btn-sm btn-outline" style="font-size:.73rem;padding:4px 8px" onclick="openSetSalary('${t.id}','${t.first_name} ${t.last_name}')">✎ ${t('Ставка')}</button>
-      <button class="btn btn-sm btn-purple" style="font-size:.73rem;padding:4px 8px;margin-left:4px" onclick="logLessonFor('${t.id}','${t.first_name} ${t.last_name}')">${t('+ Урок')}</button></td></tr>`;
+      <td class="td-actions"><button class="btn btn-sm btn-outline" style="font-size:.73rem;padding:4px 8px" onclick="openSetSalary('${tc.id}','${tname}')">✎ ${t('Ставка')}</button>
+      <button class="btn btn-sm btn-purple" style="font-size:.73rem;padding:4px 8px" onclick="logLessonFor('${tc.id}','${tname}')">+ ${t('Урок')}</button></td></tr>`;
   }).join('');
   setContent(`<div class="section-header"><h2>${t('💰 Зарплаты')||'💰 Salaries'}</h2></div>
     <div class="period-tabs">
@@ -2455,19 +2488,26 @@ async function logLessonFor(tid,tname){
 const MICONS={pdf:'📄',video:'🎬',audio:'🎵',link:'🔗',doc:'📝'};
 async function renderMaterials(){
   const{data:mats}=await sb.from('materials').select('*').eq('school_id',S.schoolId).order('created_at',{ascending:false});
-  const canAdd=['teacher','admin','owner'].includes(S.role);
+  const canManage=['teacher','admin','owner'].includes(S.role);
   const grid=(mats||[]).map(m=>{
     const url=m.url||m.data_url||'';
     const hasUrl=!!url;
     return `<div class="material-card${!hasUrl?' mat-no-link':''}" data-murl="${encodeURIComponent(url)}" data-mtype="${m.type||'link'}" data-mlang="${m.language||''}" data-mlevel="${m.level||''}" onclick="openMatCard(this)">
+      ${canManage?`<button class="mat-del-btn" onclick="event.stopPropagation();deleteMaterial('${m.id}')" title="Удалить">✕</button>`:''}
       <div class="material-icon">${MICONS[m.type]||'📎'}</div>
       <div style="font-weight:600;font-size:.88rem;margin-bottom:4px">${m.title||m.name||'—'}</div>
       <div style="font-size:.75rem;color:var(--text3)">${m.language||''} · ${m.level||''}</div>
       ${!hasUrl?'<div style="font-size:.7rem;color:var(--red);margin-top:4px">⚠️ Нет ссылки</div>':'<div style="font-size:.7rem;color:var(--text3);margin-top:4px">🔗 Открыть</div>'}
     </div>`;
-  }).join('')||'<div style="grid-column:1/-1" class="empty-state"><div class="ei">📁</div><p>Нет материалов</p></div>';
-  setContent(`<div class="section-header"><h2>📁 Материалы</h2>${canAdd?'<button class="btn btn-purple" onclick="openM(\'mAddMaterial\')">+ Добавить</button>':''}</div>
+  }).join('')||`<div style="grid-column:1/-1" class="empty-state"><div class="ei">📁</div><p>${t('Нет материалов')}</p></div>`;
+  setContent(`<div class="section-header"><h2>📁 ${t('Материалы')}</h2>${canManage?`<button class="btn btn-purple" onclick="openM('mAddMaterial')">+ ${t('Добавить')}</button>`:''}</div>
     <div class="materials-grid">${grid}</div>`);
+}
+async function deleteMaterial(id){
+  if(!confirm('Удалить этот материал?'))return;
+  const{error}=await sb.from('materials').delete().eq('id',id).eq('school_id',S.schoolId);
+  if(error){showToast('Ошибка: '+error.message);return;}
+  showToast('Материал удалён');renderMaterials();
 }
 function openMatCard(el){
   const url=decodeURIComponent(el.dataset.murl||'');
@@ -2530,7 +2570,7 @@ async function renderClasses(){
     sb.from('classes').select('*').eq('school_id',S.schoolId).order('created_at',{ascending:false}),
     sb.from('profiles').select('id,first_name,last_name').eq('school_id',S.schoolId).in('role',['teacher','admin','owner'])
   ]);
-  C('cl_teacher').innerHTML=(teachers||[]).map(t=>`<option value="${t.id}">${t.first_name} ${t.last_name}</option>`).join('');
+  C('cl_teacher').innerHTML=(teachers||[]).map(tc=>`<option value="${tc.id}">${tc.first_name} ${tc.last_name}</option>`).join('');
   _allClasses=classes||[];
   const canCreate=['teacher','admin','owner'].includes(S.role);
   setContent(`<div class="section-header"><h2>🎓 Классы</h2>${canCreate?'<button class="btn btn-purple" onclick="openNewClass()">+ Новый класс</button>':''}</div>
