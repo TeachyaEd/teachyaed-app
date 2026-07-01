@@ -43,7 +43,7 @@ body{font-family:var(--font);background:#F8F7FF;color:var(--text);min-height:100
 #app{display:none;flex-direction:column;min-height:100vh}
 #topBar{height:56px;background:#fff;border-bottom:1px solid var(--gray-border);display:flex;align-items:center;padding:0 20px;gap:12px;position:sticky;top:0;z-index:100}
 #topBar .logo{font-weight:800;font-size:1.1rem;background:linear-gradient(135deg,var(--purple),var(--pink));-webkit-background-clip:text;-webkit-text-fill-color:transparent;flex:1}
-#userChip{font-size:.8rem;color:var(--text3);background:var(--gray-light);padding:4px 10px;border-radius:20px}
+#userChip{display:flex;align-items:center}
 #roleChip{font-size:.75rem;font-weight:600;padding:4px 10px;border-radius:20px;background:var(--purple-light);color:var(--purple)}
 .btn-sm{padding:6px 14px;border:none;border-radius:8px;font-size:.8rem;font-weight:600;cursor:pointer;font-family:var(--font)}
 .btn-logout{background:var(--gray-light);color:var(--gray)}.btn-logout:hover{background:#E5E7EB}
@@ -373,8 +373,10 @@ input,select,textarea{font-size:16px!important} /* Предотвращаем з
   /* TopBar */
   #topBar{padding:0 12px;gap:8px}
   #menuBtn{display:flex;align-items:center;justify-content:center}
-  #userChip{display:none}
+  #userChip{padding:2px 4px}
+  #userNameChip{display:none}
   #roleChip{font-size:.68rem;padding:3px 8px}
+  #langBtn{min-width:30px;font-size:.72rem;padding:4px 8px}
   #topBar .logo{font-size:1rem}
   .btn-logout{font-size:.75rem;padding:5px 10px}
 
@@ -515,6 +517,15 @@ input,select,textarea{font-size:16px!important} /* Предотвращаем з
   .cv-content-scroll{padding:20px 24px}
   .form-row{grid-template-columns:1fr 1fr}
 }
+
+/* ── PROFILE MODAL ── */
+.profile-tabs{display:flex;border-bottom:2px solid var(--gray-border);margin-bottom:18px}
+.profile-tab{padding:10px 20px;border:none;background:none;font-size:.88rem;font-weight:600;cursor:pointer;color:var(--text3);border-bottom:3px solid transparent;margin-bottom:-2px;font-family:var(--font);transition:.15s}
+.profile-tab.active{color:var(--purple);border-bottom-color:var(--purple)}
+.av-color-picker{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+.av-color-swatch{width:32px;height:32px;border-radius:50%;cursor:pointer;border:3px solid transparent;transition:.15s;display:flex;align-items:center;justify-content:center;font-size:.85rem;color:#fff;font-weight:700}
+.av-color-swatch.selected{border-color:var(--text);box-shadow:0 0 0 2px #fff,0 0 0 4px var(--text)}
+.av-preview{width:64px;height:64px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:1.4rem;color:#fff;margin:0 auto 16px;flex-shrink:0}
 </style>
 </head>
 <body>
@@ -551,8 +562,9 @@ input,select,textarea{font-size:16px!important} /* Предотвращаем з
   <div id="topBar">
     <button id="menuBtn" onclick="toggleSidebar()" aria-label="Меню">☰</button>
     <div class="logo">TeachyaED</div>
-    <span id="userChip"></span>
+    <button id="userChip" onclick="openProfile()" style="display:flex;align-items:center;gap:8px;background:none;border:none;cursor:pointer;padding:4px 8px;border-radius:20px;transition:.15s" onmouseover="this.style.background='var(--gray-light)'" onmouseout="this.style.background='none'"><span id="userAvatar" style="width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.75rem;color:#fff;flex-shrink:0"></span><span id="userNameChip" style="font-size:.8rem;color:var(--text3);white-space:nowrap;max-width:120px;overflow:hidden;text-overflow:ellipsis"></span></button>
     <span id="roleChip"></span>
+    <button id="langBtn" onclick="toggleLang()" class="btn-sm" style="background:var(--gray-light);color:var(--gray);min-width:36px">RU</button>
     <button class="btn-sm btn-logout" onclick="doLogout()">Выйти</button>
   </div>
   <div id="sidebarBackdrop" onclick="closeSidebar()"></div>
@@ -1004,6 +1016,16 @@ input,select,textarea{font-size:16px!important} /* Предотвращаем з
   <button onclick="document.getElementById('timerPopup').style.display='none'" style="position:absolute;top:8px;right:10px;background:none;border:none;cursor:pointer;color:var(--text3);font-size:1rem">✕</button>
 </div>
 
+<!-- PROFILE MODAL -->
+<div class="modal-bg" id="mProfile">
+  <div class="modal">
+    <button class="modal-close" onclick="closeM('mProfile')">✕</button>
+    <h3>Мой профиль</h3>
+    <div class="profile-tabs" id="profModalTabs"></div>
+    <div id="profModalBody"></div>
+  </div>
+</div>
+
 <div id="toast"></div>
 <script>
 // ─── SUPABASE ────────────────────────────────────────────────────────────────
@@ -1018,8 +1040,271 @@ const S={
   micOn:true,camOn:true,screenOn:false,screenTrack:null,
   editPayId:null,currentHwId:null,currentSalTId:null,
   editLessonId:null,assignLessonId:null,currentAssignId:null,
-  editClassId:null,currentClassId:null,editEventId:null,currentClassTab:'students'
+  editClassId:null,currentClassId:null,editEventId:null,currentClassTab:'students',
+  lang:localStorage.getItem('ty_lang')||'ru'
 };
+
+// ─── TRANSLATIONS (i18n) ─────────────────────────────────────────────────────
+const TRANSLATIONS={
+  // Navigation
+  'Учёба':'Study','Классы':'Classes','Аналитика':'Analytics','Управление':'Management',
+  'Кабинет':'Dashboard','Уроки':'Lessons','Задания':'Assignments','Материалы':'Materials',
+  'Мои классы':'My Classes','Расписание':'Schedule','Ученики':'Students','Дашборд':'Dashboard',
+  'Учителя':'Teachers','Оплата':'Payments','Зарплаты':'Salaries','Пользователи':'Users',
+  // Roles
+  'Владелец':'Owner','Администратор':'Administrator','Учитель':'Teacher','Ученик':'Student',
+  // Common UI
+  'Выйти':'Log out','Сохранить':'Save','Отмена':'Cancel','Добавить':'Add','Удалить':'Delete',
+  'Редактировать':'Edit','Создать':'Create','Закрыть':'Close','Поиск':'Search',
+  'Нет данных':'No data','Загрузка...':'Loading...','Ошибка':'Error',
+  // Screens/headings
+  '🎓 Классы':'🎓 Classes','📅 Расписание':'📅 Schedule','📊 Дашборд':'📊 Dashboard',
+  '👥 Ученики':'👥 Students','👨‍🏫 Учителя':'👨‍🏫 Teachers','💳 Оплата':'💳 Payments',
+  '💰 Зарплаты':'💰 Salaries','📁 Материалы':'📁 Materials','📋 Задания':'📋 Assignments',
+  '📖 Уроки':'📖 Lessons','🏠 Кабинет':'🏠 My Workspace',
+  // Buttons/actions
+  '+ Новый класс':'+ New Class','+ Занятие':'+ Lesson','Сегодня':'Today','Все':'All',
+  'Индивидуальные':'Individual','Групповые':'Group','Кол-во классов':'Total classes',
+  '+ Добавить':'+ Add','Пригласить':'Invite','▶ Начать урок':'▶ Start Lesson',
+  '✎ Изменить':'✎ Edit','📅 Расписание':'📅 Schedule','📊 Прогресс':'📊 Progress',
+  // Table headers
+  'Имя':'Name','Email':'Email','Телефон':'Phone','Роль':'Role','Уровень':'Level',
+  'Язык':'Language','Статус':'Status','Дата':'Date','Сумма':'Amount','Валюта':'Currency',
+  'Учитель':'Teacher','Класс':'Class','Ставка':'Rate','Действия':'Actions','Тип':'Type',
+  'Оплачено':'Paid','Ожидает':'Pending','Просрочено':'Overdue','Запланировано':'Scheduled',
+  'Проведено':'Completed','Отменено':'Cancelled',
+  // Modals
+  'Новый ученик':'New Student','Пригласить сотрудника':'Invite Staff',
+  'Изменить роль':'Change Role','Новый платёж':'New Payment','Домашнее задание':'Homework',
+  'Сдать задание':'Submit Assignment','Проверить задание':'Review Assignment',
+  'Ставка учителя':'Teacher Rate','Новый материал':'New Material','Новый класс':'New Class',
+  'Новое занятие':'New Lesson','Назначить урок':'Assign Lesson',
+  // Form labels
+  'Название':'Title','Описание':'Description','Срок сдачи':'Due date','Ответ':'Answer',
+  'Комментарий':'Comment','Ставка за урок':'Rate per lesson','Новая роль':'New role',
+  'URL':'URL','Цвет':'Color','Эмодзи':'Emoji','Длительность (мин)':'Duration (min)',
+  'Заметки':'Notes','Заметка':'Note',
+  // Badges/status
+  '✓ Проверено':'✓ Reviewed','⏳ На проверке':'⏳ Submitted','📋 Задано':'📋 Assigned',
+  // Lesson builder types
+  'Текст':'Text','Изображение':'Image','Видео':'Video','Словарь':'Vocabulary',
+  'Множественный выбор':'Multiple Choice','Заполни пропуск':'Fill in the Blank',
+  'Верно/Неверно':'True/False','Порядок слов':'Word Order','Соответствие':'Matching',
+  'Открытый вопрос':'Open Question',
+  // Months
+  'января':'January','февраля':'February','марта':'March','апреля':'April','мая':'May',
+  'июня':'June','июля':'July','августа':'August','сентября':'September',
+  'октября':'October','ноября':'November','декабря':'December',
+  // Stats and extra
+  'Всего учеников':'Total Students','Активных классов':'Active Classes',
+  'Занятий на этой неделе':'Lessons This Week','Ожидает проверки':'Awaiting Review',
+  'Оплат на сумму':'Total Payments','Пользователей в системе':'Total Users',
+  'Зарплат выплачено':'Salaries Paid',
+  '+ Пригласить сотрудника':'+ Invite Staff','+ Добавить ученика':'+ Add Student',
+  '+ Новый платёж':'+ New Payment','+ Выплатить зарплату':'+ Pay Salary',
+  '+ Добавить материал':'+ Add Material',
+  'Нет классов':'No classes','Поиск классов...':'Search classes...','Создать класс':'Create class',
+  'Нет контактов':'No contacts','Позвонить':'Call','Принять':'Accept','Отклонить':'Decline',
+  '✓ Принять':'✓ Accept','✕ Отклонить':'✕ Decline','Завершить':'End',
+  'Доска':'Whiteboard','Звонок':'Call','✏️ Доска':'✏️ Whiteboard',
+  // Profile modal
+  'Профиль':'Profile','Безопасность':'Security','Аватар':'Avatar',
+  'Имя':'First Name','Фамилия':'Last Name','Текущий email':'Current email',
+  'Новый email':'New email','Изменить email':'Change email',
+  'Текущий пароль':'Current password','Новый пароль':'New password',
+  'Подтвердить пароль':'Confirm password','Изменить пароль':'Change password'
+};
+
+function t(str){
+  if(S.lang==='en'&&TRANSLATIONS[str])return TRANSLATIONS[str];
+  return str;
+}
+
+function applyEN(root){
+  if(!root)return;
+  // Walk text nodes
+  const walker=document.createTreeWalker(root,NodeFilter.SHOW_TEXT,null,false);
+  const nodes=[];
+  let node;
+  while(node=walker.nextNode())nodes.push(node);
+  nodes.forEach(n=>{
+    const orig=n.nodeValue;
+    let replaced=orig;
+    Object.entries(TRANSLATIONS).forEach(([ru,en])=>{
+      if(replaced.includes(ru)){
+        replaced=replaced.split(ru).join(en);
+      }
+    });
+    if(replaced!==orig)n.nodeValue=replaced;
+  });
+  // Translate placeholder attributes
+  root.querySelectorAll('[placeholder]').forEach(el=>{
+    const p=el.getAttribute('placeholder');
+    if(p&&TRANSLATIONS[p])el.setAttribute('placeholder',TRANSLATIONS[p]);
+  });
+}
+
+function toggleLang(){
+  S.lang=S.lang==='ru'?'en':'ru';
+  localStorage.setItem('ty_lang',S.lang);
+  const btn=C('langBtn');
+  if(btn)btn.textContent=S.lang.toUpperCase();
+  // Update role chip text
+  if(S.role)C('roleChip').textContent=t(S.role==='owner'?'Владелец':S.role==='admin'?'Администратор':S.role==='teacher'?'Учитель':'Ученик');
+  buildSidebar();
+  // Re-render current screen
+  const fn={
+    s_home:renderStudentHome,s_homework:renderStudentHw,s_lessons:renderStudentLessons,s_materials:renderMaterials,
+    t_home:renderStudentHome,t_classes:renderClasses,t_schedule:renderSchedule,
+    t_students:renderTeacherStudents,t_homework:renderTeacherHw,t_lessons:renderTeacherLessons,t_materials:renderMaterials,
+    a_home:renderAdminHome,a_classes:renderClasses,a_schedule:renderSchedule,
+    a_students:renderAdminStudents,a_teachers:renderAdminTeachers,a_payments:renderPayments,a_salaries:renderSalaries,a_materials:renderMaterials,
+    o_home:renderOwnerHome,o_classes:renderClasses,o_schedule:renderSchedule,
+    o_users:renderOwnerUsers,o_students:renderOwnerStudents,o_payments:renderPayments,o_salaries:renderSalaries,o_materials:renderMaterials
+  };
+  if(S.screen&&fn[S.screen])fn[S.screen]();
+}
+
+// ─── PROFILE MODAL ────────────────────────────────────────────────────────────
+const AVCOLORS_PROFILE=['#7C3AED','#EC4899','#10B981','#F59E0B','#3B82F6','#EF4444'];
+let _profileTab='profile';
+
+function openProfile(){
+  if(!S.profile)return;
+  _profileTab='profile';
+  _renderProfileModal();
+  openM('mProfile');
+}
+
+function _profileAvatarColor(){
+  return S.profile.avatar_color||AVCOLORS[0];
+}
+function _profileAvatarEmoji(){
+  return S.profile.avatar_emoji||null;
+}
+
+function _renderProfileModal(){
+  const prof=S.profile;
+  const color=_profileAvatarColor();
+  const emoji=_profileAvatarEmoji();
+  const displayChar=emoji||((prof.first_name||'?')[0]+(prof.last_name||'')[0]).toUpperCase()||'?';
+
+  const swatches=AVCOLORS_PROFILE.map(c=>`<div class="av-color-swatch${c===color?' selected':''}" style="background:${c}" onclick="selectAvColor('${c}')" title="${c}">${c===color?(emoji||((prof.first_name||'')[0]+(prof.last_name||'')[0]).toUpperCase()||'?'):'&nbsp;'}</div>`).join('');
+
+  const profileTabHTML=`
+    <div class="av-preview" id="profAvPreview" style="background:${color}">${emoji||((prof.first_name||'')[0]+(prof.last_name||'')[0]).toUpperCase()||'?'}</div>
+    <div class="form-group">
+      <label>Цвет аватара</label>
+      <div class="av-color-picker" id="avColorPicker">${swatches}</div>
+    </div>
+    <div class="form-group">
+      <label>Эмодзи (необязательно)</label>
+      <input id="prof_emoji" value="${emoji||''}" placeholder="😊" maxlength="2" style="font-size:1.4rem;text-align:center;width:80px" oninput="updateAvPreview()">
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Имя</label><input id="prof_first" value="${prof.first_name||''}"></div>
+      <div class="form-group"><label>Фамилия</label><input id="prof_last" value="${prof.last_name||''}"></div>
+    </div>
+    <div class="btn-row"><button class="btn btn-purple" onclick="saveProfile()">Сохранить</button></div>`;
+
+  const secTabHTML=`
+    <div class="form-group">
+      <label>Текущий email</label>
+      <input value="${prof.email||''}" disabled style="background:var(--gray-light);color:var(--text3)">
+    </div>
+    <div class="form-group"><label>Новый email</label><input id="sec_new_email" type="email" placeholder="новый@email.com"></div>
+    <div class="btn-row" style="margin-bottom:20px"><button class="btn btn-purple" onclick="changeEmail()">Изменить email</button></div>
+    <hr class="divider">
+    <div class="form-group"><label>Текущий пароль</label><input id="sec_cur_pass" type="password" placeholder="••••••"></div>
+    <div class="form-group"><label>Новый пароль</label><input id="sec_new_pass" type="password" placeholder="минимум 6 символов"></div>
+    <div class="form-group"><label>Подтвердить пароль</label><input id="sec_conf_pass" type="password" placeholder="повтори пароль"></div>
+    <div class="btn-row"><button class="btn btn-purple" onclick="changePassword()">Изменить пароль</button></div>`;
+
+  C('profModalTabs').innerHTML=`
+    <button class="profile-tab${_profileTab==='profile'?' active':''}" onclick="switchProfileTab('profile',this)">Профиль</button>
+    <button class="profile-tab${_profileTab==='security'?' active':''}" onclick="switchProfileTab('security',this)">Безопасность</button>`;
+  C('profModalBody').innerHTML=_profileTab==='profile'?profileTabHTML:secTabHTML;
+}
+
+function switchProfileTab(tab,el){
+  _profileTab=tab;
+  document.querySelectorAll('.profile-tab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  C('profModalBody').innerHTML='';
+  _renderProfileModal();
+}
+
+function selectAvColor(color){
+  S.profile.avatar_color=color;
+  document.querySelectorAll('.av-color-swatch').forEach(s=>{
+    const isSelected=s.style.background===color||s.getAttribute('onclick')===`selectAvColor('${color}')`;
+    s.classList.toggle('selected',s.getAttribute('onclick')===`selectAvColor('${color}')`);
+  });
+  updateAvPreview();
+  // Re-render swatches to show selection
+  _renderProfileModal();
+}
+
+function updateAvPreview(){
+  const emoji=(C('prof_emoji')?.value||'').trim();
+  S.profile.avatar_emoji=emoji||null;
+  const color=_profileAvatarColor();
+  const prof=S.profile;
+  const displayChar=emoji||((prof.first_name||'')[0]+(prof.last_name||'')[0]).toUpperCase()||'?';
+  const prev=C('profAvPreview');
+  if(prev){prev.style.background=color;prev.textContent=displayChar;}
+}
+
+async function saveProfile(){
+  const first=C('prof_first').value.trim();
+  const last=C('prof_last').value.trim();
+  const emoji=(C('prof_emoji')?.value||'').trim()||null;
+  const color=_profileAvatarColor();
+  if(!first){showToast('Введи имя!');return;}
+  const{error}=await sb.from('profiles').update({
+    first_name:first,last_name:last,
+    avatar_color:color,avatar_emoji:emoji
+  }).eq('id',S.profile.id);
+  if(error){showToast('Ошибка: '+error.message);return;}
+  S.profile.first_name=first;S.profile.last_name=last;
+  S.profile.avatar_color=color;S.profile.avatar_emoji=emoji;
+  updateTopBarAvatar();
+  closeM('mProfile');
+  showToast('Профиль сохранён ✓');
+}
+
+function updateTopBarAvatar(){
+  const prof=S.profile;
+  const color=prof.avatar_color||AVCOLORS[0];
+  const emoji=prof.avatar_emoji||null;
+  const av=C('userAvatar');
+  if(av){
+    av.style.background=color;
+    av.textContent=emoji||(((prof.first_name||'')[0]||'')+((prof.last_name||'')[0]||'')).toUpperCase()||'?';
+  }
+  const chip=C('userNameChip');
+  if(chip)chip.textContent=`${prof.first_name||''} ${prof.last_name||''}`.trim();
+}
+
+async function changeEmail(){
+  const newEmail=(C('sec_new_email')?.value||'').trim();
+  if(!newEmail){showToast('Введи новый email');return;}
+  const{error}=await sb.auth.updateUser({email:newEmail});
+  if(error){showToast('Ошибка: '+error.message);return;}
+  showToast('Проверь почту для подтверждения нового email');
+}
+
+async function changePassword(){
+  const cur=(C('sec_cur_pass')?.value||'');
+  const np=(C('sec_new_pass')?.value||'');
+  const cp=(C('sec_conf_pass')?.value||'');
+  if(!np||np.length<6){showToast('Пароль должен быть не менее 6 символов');return;}
+  if(np!==cp){showToast('Пароли не совпадают');return;}
+  const{error}=await sb.auth.updateUser({password:np});
+  if(error){showToast('Ошибка: '+error.message);return;}
+  showToast('Пароль изменён ✓');
+  closeM('mProfile');
+}
 
 // ─── NAV ─────────────────────────────────────────────────────────────────────
 const NAV={
@@ -1437,8 +1722,9 @@ async function afterLogin(user){
   S.profile=prof;S.role=prof.role;S.schoolId=prof.school_id;
   C('loginScreen').style.display='none';
   C('app').style.display='flex';
-  C('userChip').textContent=`${prof.first_name} ${prof.last_name}`;
-  C('roleChip').textContent=ROLE_L[prof.role]||prof.role;
+  updateTopBarAvatar();
+  C('roleChip').textContent=t(ROLE_L[prof.role]||prof.role);
+  const langBtnEl=C('langBtn');if(langBtnEl)langBtnEl.textContent=S.lang.toUpperCase();
   C('dialBtn').style.display='flex';
   buildSidebar();
   await loadContacts();
@@ -1467,9 +1753,10 @@ async function doLogout(){
 // ─── SIDEBAR ──────────────────────────────────────────────────────────────────
 function buildSidebar(){
   C('sidebar').innerHTML=(NAV[S.role]||[]).map(n=>{
-    if(n.sec)return`<div class="nav-section">${n.sec}</div>`;
-    return`<div class="nav-item" id="nav_${n.id}" onclick="showScreen('${n.id}')"><span style="font-size:1rem;width:20px;text-align:center">${n.icon}</span>${n.l}</div>`;
+    if(n.sec)return`<div class="nav-section">${t(n.sec)}</div>`;
+    return`<div class="nav-item" id="nav_${n.id}" onclick="showScreen('${n.id}')"><span style="font-size:1rem;width:20px;text-align:center">${n.icon}</span>${t(n.l)}</div>`;
   }).join('');
+  if(S.screen)document.querySelectorAll('.nav-item').forEach(el=>el.classList.toggle('active',el.id===`nav_${S.screen}`));
 }
 // ─── МОБИЛЬНЫЙ SIDEBAR ───────────────────────────────────────────────────────
 function toggleSidebar(){
@@ -1502,7 +1789,7 @@ function showScreen(id){
 
 // ─── HELPERS ──────────────────────────────────────────────────────────────────
 const C=id=>document.getElementById(id);
-const setContent=h=>C('content').innerHTML=h;
+const setContent=h=>{C('content').innerHTML=h;if(S.lang==='en')applyEN(C('content'));};
 function showToast(m){const t=C('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2800);}
 function openM(id){C(id).classList.add('open');}
 function closeM(id){C(id).classList.remove('open');}
