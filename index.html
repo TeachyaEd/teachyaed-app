@@ -360,6 +360,12 @@ tr:hover td{background:#FAFAFA}
 .material-card.mat-no-link{opacity:.6;cursor:default}
 .material-card.mat-no-link:hover{transform:none;box-shadow:var(--shadow)}
 .material-card.mat-selected{border:2px solid var(--purple);background:var(--purple-light)}
+.mat-upload-drop{border:2px dashed var(--purple);border-radius:12px;padding:22px 16px;text-align:center;cursor:pointer;transition:background .2s,border-color .2s;user-select:none}
+.mat-upload-drop:hover,.mat-upload-drop.drag-over{background:var(--purple-light);border-color:var(--purple)}
+.mat-drop-text{font-size:15px;font-weight:600;color:var(--purple);margin-bottom:4px}
+.mat-drop-sub{font-size:12px;color:var(--text-secondary)}
+.mat-upload-drop.has-file{border-style:solid;background:var(--purple-light)}
+.mat-upload-drop.has-file .mat-drop-text{color:var(--green)}
 /* Material Preview Modal */
 #mMatPreview .modal{max-width:860px;width:95vw;max-height:90vh;padding:0;overflow:hidden;border-radius:16px}
 .mp-header{display:flex;align-items:center;gap:12px;padding:16px 20px;border-bottom:1px solid var(--gray-border)}
@@ -878,12 +884,23 @@ input,select,textarea{font-size:16px!important} /* Предотвращаем з
     <h3>Новый материал</h3>
     <div class="form-group"><label>Название</label><input id="mat_name" placeholder="Название"></div>
     <div class="form-row">
-      <div class="form-group"><label>Тип</label><select id="mat_type"><option value="pdf">📄 PDF</option><option value="video">🎬 Видео</option><option value="audio">🎵 Аудио</option><option value="link">🔗 Ссылка</option><option value="doc">📝 Документ</option></select></div>
+      <div class="form-group"><label>Тип</label><select id="mat_type" onchange="onMatTypeChange()"><option value="pdf">📄 PDF</option><option value="video">🎬 Видео</option><option value="audio">🎵 Аудио</option><option value="link">🔗 Ссылка</option><option value="doc">📝 Документ</option></select></div>
       <div class="form-group"><label>Уровень</label><select id="mat_level"><option>A1</option><option>A2</option><option>B1</option><option>B2</option><option>C1</option><option>C2</option><option>Все</option></select></div>
     </div>
-    <div class="form-group"><label>URL</label><input id="mat_url" placeholder="https://..."></div>
+    <div id="mat_file_area" class="form-group">
+      <label id="mat_file_label">Файл</label>
+      <div class="mat-upload-drop" id="mat_drop_zone" onclick="C('mat_file').click()" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="matDropFile(event)">
+        <div id="mat_drop_text" class="mat-drop-text">📁 Нажми или перетащи файл сюда</div>
+        <div id="mat_drop_sub" class="mat-drop-sub"></div>
+        <input type="file" id="mat_file" style="display:none" onchange="onMatFileSelect(this)">
+      </div>
+    </div>
+    <div class="form-group" id="mat_url_area">
+      <label id="mat_url_label">URL</label>
+      <input id="mat_url" placeholder="https://...">
+    </div>
     <div class="form-group"><label>Язык</label><select id="mat_lang"><option>Английский</option><option>Грузинский</option><option>Русский</option><option>Немецкий</option><option>Французский</option></select></div>
-    <div class="btn-row"><button class="btn btn-purple" onclick="saveMaterial()">Добавить</button><button class="btn btn-outline" onclick="closeM('mAddMaterial')">Отмена</button></div>
+    <div class="btn-row"><button class="btn btn-purple" onclick="saveMaterial()" id="mat_save_btn">Добавить</button><button class="btn btn-outline" onclick="closeM('mAddMaterial')">Отмена</button></div>
   </div>
 </div>
 
@@ -1568,6 +1585,8 @@ const TRANSLATIONS={
   // ── MATERIALS ─────────────────────────────────────────────────────────────
   'Материал':'Material',
   'Материал добавлен':'Material added',
+  'Добавь файл или URL!':'Add a file or URL!',
+  'Загрузка...':'Uploading...',
   'Материал удалён':'Material deleted',
   'Нет материалов в библиотеке':'No materials in library',
   'Загрузка материалов...':'Loading materials...',
@@ -3137,7 +3156,7 @@ async function renderMaterials(){
       ${!hasUrl?'<div style="font-size:.7rem;color:var(--red);margin-top:4px">⚠️ Нет ссылки</div>':'<div style="font-size:.7rem;color:var(--text3);margin-top:4px">🔗 Открыть</div>'}
     </div>`;
   }).join('')||`<div style="grid-column:1/-1" class="empty-state"><div class="ei">📁</div><p>${t('Нет материалов')}</p></div>`;
-  setContent(`<div class="section-header"><h2>📁 ${t('Материалы')}</h2>${canManage?`<button class="btn btn-purple" onclick="openM('mAddMaterial')">+ ${t('Добавить')}</button>`:''}</div>
+  setContent(`<div class="section-header"><h2>📁 ${t('Материалы')}</h2>${canManage?`<button class="btn btn-purple" onclick="openAddMaterial()">+ ${t('Добавить')}</button>`:''}</div>
     <div class="materials-grid">${grid}</div>`);
 }
 async function deleteMaterial(id){
@@ -3155,12 +3174,105 @@ function openMatCard(el){
   const level=el.dataset.mlevel||'';
   openMaterialPreview(url,title,type,lang,level);
 }
+// ─── MATERIAL UPLOAD HELPERS ──────────────────────────────────────────────────
+const MAT_ACCEPT={pdf:'.pdf',audio:'.mp3,.wav,.ogg,.m4a,.aac,.flac',doc:'.doc,.docx,.txt,.pptx,.xlsx,.ppt,.odp,.ods',video:'.mp4,.webm,.mov,.avi'};
+const MAT_ACCEPT_HINT={pdf:'PDF до 50MB',audio:'MP3, WAV, OGG, M4A, AAC — до 50MB',doc:'DOC, DOCX, TXT, PPTX, XLSX — до 50MB',video:'MP4, WebM, MOV — или вставь ссылку ниже',link:''};
+
+function openAddMaterial(){
+  C('mat_name').value='';C('mat_url').value='';
+  const fi=C('mat_file');fi.value='';
+  C('mat_drop_zone').classList.remove('has-file');
+  C('mat_drop_text').textContent='📁 Нажми или перетащи файл сюда';
+  C('mat_drop_sub').textContent='';
+  C('mat_type').value='pdf';
+  onMatTypeChange();
+  openM('mAddMaterial');
+}
+
+function onMatTypeChange(){
+  const type=C('mat_type').value;
+  const isLink=type==='link';
+  const isVideo=type==='video';
+  // File area: show for pdf/audio/doc/video
+  C('mat_file_area').style.display=isLink?'none':'block';
+  // URL area: always show; label changes
+  C('mat_url_area').style.display='block';
+  if(isLink){
+    C('mat_url_label').textContent='URL';
+    C('mat_url').placeholder='https://...';
+  } else if(isVideo){
+    C('mat_url_label').textContent='Ссылка на видео (YouTube, Vimeo) — или загрузи файл выше';
+    C('mat_url').placeholder='https://youtube.com/watch?v=...';
+  } else {
+    C('mat_url_label').textContent='Или URL файла (необязательно)';
+    C('mat_url').placeholder='https://...';
+  }
+  // Set file accept
+  C('mat_file').accept=MAT_ACCEPT[type]||'*';
+  C('mat_drop_sub').textContent=MAT_ACCEPT_HINT[type]||'';
+  // Reset file selection when type changes
+  C('mat_file').value='';
+  C('mat_drop_zone').classList.remove('has-file');
+  C('mat_drop_text').textContent='📁 Нажми или перетащи файл сюда';
+}
+
+function onMatFileSelect(input){
+  if(!input.files||!input.files[0])return;
+  const file=input.files[0];
+  const sizeMB=(file.size/1024/1024).toFixed(1);
+  C('mat_drop_text').textContent='✅ '+file.name;
+  C('mat_drop_sub').textContent=sizeMB+' MB';
+  C('mat_drop_zone').classList.add('has-file');
+  // Auto-fill name if empty
+  if(!C('mat_name').value.trim()){
+    C('mat_name').value=file.name.replace(/\.[^.]+$/,'').replace(/[-_]/g,' ');
+  }
+}
+
+function matDropFile(e){
+  e.preventDefault();
+  C('mat_drop_zone').classList.remove('drag-over');
+  const files=e.dataTransfer?.files;
+  if(!files||!files[0])return;
+  const dt=new DataTransfer();dt.items.add(files[0]);
+  C('mat_file').files=dt.files;
+  onMatFileSelect(C('mat_file'));
+}
+
 async function saveMaterial(){
-  const name=C('mat_name').value.trim(),type=C('mat_type').value,url=C('mat_url').value.trim(),language=C('mat_lang').value,level=C('mat_level').value;
-  if(!name){showToast('Введи название!');return;}
-  if(!url){showToast('Введи URL материала!');return;}
+  const name=C('mat_name').value.trim();
+  const type=C('mat_type').value;
+  const language=C('mat_lang').value;
+  const level=C('mat_level').value;
+  const fileInput=C('mat_file');
+  const file=fileInput?.files?.[0];
+  let url=C('mat_url').value.trim();
+
+  if(!name){showToast(t('Введи название!'));return;}
+  if(!file&&!url){showToast(t('Добавь файл или URL!'));return;}
+  if(file&&file.size>50*1024*1024){showToastCard(t('Файл слишком большой'),'Максимум 50MB','error','❌');return;}
+
+  const btn=C('mat_save_btn');
+  btn.disabled=true;btn.textContent=t('Загрузка...');
+
+  if(file){
+    const ext=file.name.split('.').pop();
+    const path=`${S.schoolId}/${Date.now()}_${name.replace(/[^a-zA-Z0-9_-]/g,'_')}.${ext}`;
+    const{data:upData,error:upErr}=await sb.storage.from('materials').upload(path,file,{upsert:true});
+    if(upErr){
+      showToastCard(t('Ошибка загрузки'),''+upErr.message,'error','❌');
+      btn.disabled=false;btn.textContent=t('Добавить');
+      return;
+    }
+    const{data:urlData}=sb.storage.from('materials').getPublicUrl(path);
+    url=urlData?.publicUrl||'';
+  }
+
   await sb.from('materials').insert({school_id:S.schoolId,name,title:name,type,url,language,level});
-  closeM('mAddMaterial');showToast('Материал добавлен');renderMaterials();
+  btn.disabled=false;btn.textContent=t('Добавить');
+  closeM('mAddMaterial');
+  showToast(t('Материал добавлен'));
+  renderMaterials();
 }
 
 // ─── STUDENTS CRUD ────────────────────────────────────────────────────────────
