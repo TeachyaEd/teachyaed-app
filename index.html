@@ -558,6 +558,82 @@ input,select,textarea{font-size:16px!important} /* Предотвращаем з
 .av-initials-big{width:80px;height:80px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:1.5rem;color:#fff;margin:0 auto 16px}
 .btn-danger{background:#FEE2E2;color:#B91C1C;border:none;border-radius:8px;padding:5px 11px;font-size:.78rem;font-weight:600;cursor:pointer;font-family:var(--font);transition:.15s}
 .btn-danger:hover{background:#FECACA}
+
+/* ── MESSENGER ── */
+.messenger-layout{display:flex;height:calc(100vh - 56px - 32px);gap:0;background:#fff;border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden}
+.msg-sidebar{width:280px;border-right:1px solid var(--gray-border);display:flex;flex-direction:column;flex-shrink:0;background:#fff}
+.msg-search{padding:10px 12px;border-bottom:1px solid var(--gray-border)}
+.msg-search input{width:100%;padding:7px 12px;border:2px solid var(--gray-border);border-radius:20px;font-size:.83rem;font-family:var(--font)}
+.msg-search input:focus{outline:none;border-color:var(--purple)}
+.msg-new-btn{margin:10px 12px 4px;width:calc(100% - 24px)}
+.conv-list{flex:1;overflow-y:auto}
+.conv-item{display:flex;align-items:center;gap:10px;padding:11px 14px;cursor:pointer;border-bottom:1px solid var(--gray-border);transition:.15s;position:relative}
+.conv-item:hover,.conv-item.active{background:var(--purple-light)}
+.conv-item .ci-av{width:38px;height:38px;border-radius:50%;background:var(--purple);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.85rem;flex-shrink:0}
+.conv-item .ci-info{flex:1;min-width:0}
+.conv-item .ci-name{font-weight:600;font-size:.84rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.conv-item .ci-last{font-size:.73rem;color:var(--text3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px}
+.conv-item .ci-time{font-size:.68rem;color:var(--text3);flex-shrink:0;padding-left:4px}
+.conv-unread{background:var(--purple);color:#fff;border-radius:10px;font-size:.67rem;font-weight:700;padding:1px 6px;min-width:16px;text-align:center;flex-shrink:0}
+.msg-main{flex:1;display:flex;flex-direction:column;overflow:hidden;background:#F8F7FF}
+.msg-header{padding:11px 16px;border-bottom:1px solid var(--gray-border);display:flex;align-items:center;gap:10px;background:#fff;flex-shrink:0}
+.msg-header-av{width:36px;height:36px;border-radius:50%;background:var(--purple);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.83rem;flex-shrink:0}
+.msg-thread{flex:1;overflow-y:auto;padding:14px 16px;display:flex;flex-direction:column;gap:6px}
+.msg-row{display:flex;flex-direction:column;max-width:72%}
+.msg-row.mine{align-self:flex-end;align-items:flex-end}
+.msg-row.theirs{align-self:flex-start;align-items:flex-start}
+.msg-sender{font-size:.7rem;color:var(--purple);font-weight:600;padding:0 4px;margin-bottom:2px}
+.msg-bubble{padding:9px 13px;border-radius:16px;font-size:.87rem;line-height:1.5;word-break:break-word}
+.msg-row.mine .msg-bubble{background:var(--purple);color:#fff;border-bottom-right-radius:4px}
+.msg-row.theirs .msg-bubble{background:#fff;color:var(--text);border-bottom-left-radius:4px;box-shadow:0 1px 4px rgba(0,0,0,.08)}
+.msg-time{font-size:.67rem;color:var(--text3);padding:2px 4px}
+.msg-file-card{display:flex;align-items:center;gap:8px;padding:8px 11px;background:rgba(255,255,255,.15);border-radius:10px;margin-top:5px;cursor:pointer;text-decoration:none;color:inherit;border:1px solid rgba(255,255,255,.25)}
+.msg-row.theirs .msg-file-card{background:var(--gray-light);border-color:var(--gray-border);color:var(--text)}
+.msg-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;flex:1;color:var(--text3);gap:12px;padding:40px}
+.msg-compose{padding:10px 14px;border-top:1px solid var(--gray-border);display:flex;gap:8px;align-items:flex-end;background:#fff;flex-shrink:0}
+.msg-compose textarea{flex:1;padding:9px 12px;border:2px solid var(--gray-border);border-radius:12px;font-size:.88rem;font-family:var(--font);resize:none;max-height:110px;min-height:38px;line-height:1.4;overflow-y:auto}
+.msg-compose textarea:focus{outline:none;border-color:var(--purple)}
+.msg-compose-btn{width:36px;height:36px;border-radius:50%;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:1rem;flex-shrink:0;transition:.15s}
+@media(max-width:768px){.msg-sidebar{width:220px}.msg-row{max-width:85%}}
+@media(max-width:520px){.messenger-layout{flex-direction:column}.msg-sidebar{width:100%;height:180px;flex-shrink:0}}
+
+/* ── TASKS / KANBAN ── */
+.task-toolbar{display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap}
+.task-kanban{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+@media(max-width:680px){.task-kanban{grid-template-columns:1fr}}
+.task-col{background:var(--gray-light);border-radius:var(--radius);padding:12px;min-height:250px}
+.task-col-hdr{font-weight:700;font-size:.78rem;text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;gap:8px}
+.task-col-count{background:#fff;border-radius:10px;padding:1px 7px;font-size:.73rem;color:var(--text3)}
+.task-card{background:#fff;border-radius:10px;padding:11px 13px;margin-bottom:8px;box-shadow:0 1px 4px rgba(0,0,0,.07);cursor:pointer;transition:.15s;border-left:3px solid var(--gray-border)}
+.task-card:hover{transform:translateY(-1px);box-shadow:0 4px 14px rgba(0,0,0,.1)}
+.task-card.p-high{border-left-color:var(--red)}
+.task-card.p-medium{border-left-color:var(--yellow)}
+.task-card.p-low{border-left-color:var(--green)}
+.task-card .tc-title{font-weight:600;font-size:.86rem;margin-bottom:5px;line-height:1.35}
+.task-card .tc-tags{display:flex;gap:5px;flex-wrap:wrap;margin-top:6px}
+.task-card .tc-due{font-size:.72rem;color:var(--text3);margin-top:4px;display:flex;align-items:center;gap:4px}
+.task-card .tc-due.overdue{color:var(--red);font-weight:600}
+.task-card .tc-assignee{font-size:.72rem;color:var(--text3);margin-top:3px}
+.task-drag-hint{border:2px dashed var(--gray-border);border-radius:10px;padding:16px;text-align:center;color:var(--text3);font-size:.8rem}
+
+/* ── NOTIFICATION BELL ── */
+#notifBell{position:relative;cursor:pointer;padding:6px;border-radius:8px;transition:.15s;border:none;background:none;font-size:1.1rem}
+#notifBell:hover{background:var(--gray-light)}
+#notifBadge{position:absolute;top:2px;right:2px;background:var(--red);color:#fff;border-radius:50%;width:14px;height:14px;font-size:.6rem;font-weight:700;display:none;align-items:center;justify-content:center;pointer-events:none}
+
+/* ── TOAST CONTAINER (improved multi-toast) ── */
+#toastStack{position:fixed;top:68px;right:16px;z-index:9999;display:flex;flex-direction:column;gap:8px;pointer-events:none;max-width:340px}
+.toast-card{background:#fff;border-radius:12px;padding:12px 16px;box-shadow:0 4px 20px rgba(0,0,0,.14);border-left:4px solid var(--purple);display:flex;gap:10px;align-items:flex-start;pointer-events:all;animation:tcSlide .3s ease}
+.toast-card.tc-task{border-left-color:var(--yellow)}
+.toast-card.tc-msg{border-left-color:var(--purple)}
+.toast-card.tc-success{border-left-color:var(--green)}
+.toast-card.tc-error{border-left-color:var(--red)}
+.toast-card .tc-icon{font-size:1.1rem;flex-shrink:0;margin-top:1px}
+.toast-card .tc-body{flex:1}
+.toast-card .tc-title{font-weight:700;font-size:.84rem;line-height:1.3}
+.toast-card .tc-text{font-size:.78rem;color:var(--text3);margin-top:2px}
+.toast-card .tc-close{color:var(--text3);background:none;border:none;cursor:pointer;font-size:1rem;padding:0;line-height:1;flex-shrink:0}
+@keyframes tcSlide{from{opacity:0;transform:translateX(30px)}to{opacity:1;transform:translateX(0)}}
 </style>
 </head>
 <body>
@@ -596,9 +672,11 @@ input,select,textarea{font-size:16px!important} /* Предотвращаем з
     <div class="logo">TeachyaED</div>
     <button id="userChip" onclick="openProfile()" style="display:flex;align-items:center;gap:8px;background:none;border:none;cursor:pointer;padding:4px 8px;border-radius:20px;transition:.15s" onmouseover="this.style.background='var(--gray-light)'" onmouseout="this.style.background='none'"><span id="userAvatar" style="width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.75rem;color:#fff;flex-shrink:0"></span><span id="userNameChip" style="font-size:.8rem;color:var(--text3);white-space:nowrap;max-width:120px;overflow:hidden;text-overflow:ellipsis"></span></button>
     <span id="roleChip"></span>
+    <button id="notifBell" onclick="openNotifPanel()" title="Уведомления">🔔<span id="notifBadge"></span></button>
     <button id="langBtn" onclick="toggleLang()" class="btn-sm" style="background:var(--gray-light);color:var(--gray);min-width:36px">RU</button>
     <button class="btn-sm btn-logout" onclick="doLogout()">Выйти</button>
   </div>
+  <div id="toastStack"></div>
   <div id="sidebarBackdrop" onclick="closeSidebar()"></div>
   <div id="main">
     <div id="sidebar"></div>
@@ -1090,6 +1168,52 @@ input,select,textarea{font-size:16px!important} /* Предотвращаем з
   </div>
 </div>
 
+<!-- NEW CONVERSATION MODAL -->
+<div class="modal-bg" id="mNewConv">
+  <div class="modal" style="max-width:440px">
+    <button class="modal-close" onclick="closeM('mNewConv')">✕</button>
+    <div id="mNewConvBody"></div>
+  </div>
+</div>
+
+<!-- ADD / EDIT TASK MODAL -->
+<div class="modal-bg" id="mAddTask">
+  <div class="modal" style="max-width:480px">
+    <button class="modal-close" onclick="closeM('mAddTask')">✕</button>
+    <h3 id="mAddTaskTitle">➕ Новая задача</h3>
+    <div class="form-group"><label>Название *</label><input type="text" id="task_title" placeholder="Название задачи"></div>
+    <div class="form-group"><label>Описание</label><textarea id="task_desc" rows="3" placeholder="Подробнее..."></textarea></div>
+    <div class="form-row">
+      <div class="form-group"><label>Приоритет</label>
+        <select id="task_priority">
+          <option value="low">🟢 Низкий</option>
+          <option value="medium" selected>🟡 Средний</option>
+          <option value="high">🔴 Высокий</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Статус</label>
+        <select id="task_status">
+          <option value="todo">📋 К выполнению</option>
+          <option value="in_progress">⚡ В процессе</option>
+          <option value="done">✅ Готово</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Срок выполнения</label><input type="date" id="task_due"></div>
+      <div class="form-group"><label>⏰ Напомнить в</label><input type="datetime-local" id="task_remind"></div>
+    </div>
+    <div class="form-group" id="task_assign_row">
+      <label>Назначить</label>
+      <select id="task_assignee"></select>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-purple" onclick="saveTask()">💾 Сохранить</button>
+      <button class="btn btn-outline" onclick="closeM('mAddTask')">Отмена</button>
+    </div>
+  </div>
+</div>
+
 <div id="toast"></div>
 <script>
 // ─── SUPABASE ────────────────────────────────────────────────────────────────
@@ -1283,10 +1407,13 @@ function toggleLang(){
     s_home:renderStudentHome,s_homework:renderStudentHw,s_lessons:renderStudentLessons,s_materials:renderMaterials,
     t_home:renderStudentHome,t_classes:renderClasses,t_schedule:renderSchedule,
     t_students:renderTeacherStudents,t_homework:renderTeacherHw,t_lessons:renderTeacherLessons,t_materials:renderMaterials,
+    t_messages:renderMessenger,t_tasks:renderTasks,
     a_home:renderAdminHome,a_classes:renderClasses,a_schedule:renderSchedule,
     a_students:renderAdminStudents,a_teachers:renderAdminTeachers,a_payments:renderPayments,a_salaries:renderSalaries,a_materials:renderMaterials,
+    a_messages:renderMessenger,a_tasks:renderTasks,
     o_home:renderOwnerHome,o_classes:renderClasses,o_schedule:renderSchedule,
-    o_users:renderOwnerUsers,o_students:renderOwnerStudents,o_payments:renderPayments,o_salaries:renderSalaries,o_materials:renderMaterials
+    o_users:renderOwnerUsers,o_students:renderOwnerStudents,o_payments:renderPayments,o_salaries:renderSalaries,o_materials:renderMaterials,
+    o_messages:renderMessenger,o_tasks:renderTasks
   };
   if(S.screen&&fn[S.screen])fn[S.screen]();
 }
@@ -1539,19 +1666,25 @@ const NAV={
     {sec:'Классы'},
     {id:'t_classes',icon:'🎓',l:'Мои классы'},{id:'t_schedule',icon:'📅',l:'Расписание'},
     {sec:'Учёба'},
-    {id:'t_lessons',icon:'📖',l:'Уроки'},{id:'t_homework',icon:'📋',l:'Задания'},{id:'t_students',icon:'👥',l:'Ученики'},{id:'t_materials',icon:'📁',l:'Материалы'}
+    {id:'t_lessons',icon:'📖',l:'Уроки'},{id:'t_homework',icon:'📋',l:'Задания'},{id:'t_students',icon:'👥',l:'Ученики'},{id:'t_materials',icon:'📁',l:'Материалы'},
+    {sec:'Инструменты'},
+    {id:'t_messages',icon:'💬',l:'Сообщения'},{id:'t_tasks',icon:'✅',l:'Задачи'}
   ],
   admin:[
     {sec:'Классы'},
     {id:'a_classes',icon:'🎓',l:'Классы'},{id:'a_schedule',icon:'📅',l:'Расписание'},
     {sec:'Аналитика'},
-    {id:'a_home',icon:'📊',l:'Дашборд'},{id:'a_students',icon:'👥',l:'Ученики'},{id:'a_teachers',icon:'👨‍🏫',l:'Учителя'},{id:'a_payments',icon:'💳',l:'Оплата'},{id:'a_salaries',icon:'💰',l:'Зарплаты'},{id:'a_materials',icon:'📁',l:'Материалы'}
+    {id:'a_home',icon:'📊',l:'Дашборд'},{id:'a_students',icon:'👥',l:'Ученики'},{id:'a_teachers',icon:'👨‍🏫',l:'Учителя'},{id:'a_payments',icon:'💳',l:'Оплата'},{id:'a_salaries',icon:'💰',l:'Зарплаты'},{id:'a_materials',icon:'📁',l:'Материалы'},
+    {sec:'Инструменты'},
+    {id:'a_messages',icon:'💬',l:'Сообщения'},{id:'a_tasks',icon:'✅',l:'Задачи'}
   ],
   owner:[
     {sec:'Классы'},
     {id:'o_classes',icon:'🎓',l:'Классы'},{id:'o_schedule',icon:'📅',l:'Расписание'},
     {sec:'Управление'},
-    {id:'o_home',icon:'📊',l:'Дашборд'},{id:'o_users',icon:'👥',l:'Пользователи'},{id:'o_students',icon:'🎓',l:'Ученики'},{id:'o_payments',icon:'💳',l:'Оплата'},{id:'o_salaries',icon:'💰',l:'Зарплаты'},{id:'o_materials',icon:'📁',l:'Материалы'}
+    {id:'o_home',icon:'📊',l:'Дашборд'},{id:'o_users',icon:'👥',l:'Пользователи'},{id:'o_students',icon:'🎓',l:'Ученики'},{id:'o_payments',icon:'💳',l:'Оплата'},{id:'o_salaries',icon:'💰',l:'Зарплаты'},{id:'o_materials',icon:'📁',l:'Материалы'},
+    {sec:'Инструменты'},
+    {id:'o_messages',icon:'💬',l:'Сообщения'},{id:'o_tasks',icon:'✅',l:'Задачи'}
   ]
 };
 const ROLE_L={owner:'Владелец',admin:'Администратор',teacher:'Учитель',student:'Ученик'};
@@ -1957,6 +2090,7 @@ async function afterLogin(user){
   buildSidebar();
   await loadContacts();
   subscribeNotifications();
+  if(['owner','admin','teacher'].includes(prof.role))initTaskReminders();
   const firstItem=(NAV[S.role]||[]).find(n=>n.id);
   if(firstItem)showScreen(firstItem.id);
 }
@@ -2007,10 +2141,13 @@ function showScreen(id){
     s_home:renderStudentHome,s_homework:renderStudentHw,s_lessons:renderStudentLessons,s_materials:renderMaterials,
     t_home:renderStudentHome,t_classes:renderClasses,t_schedule:renderSchedule,
     t_students:renderTeacherStudents,t_homework:renderTeacherHw,t_lessons:renderTeacherLessons,t_materials:renderMaterials,
+    t_messages:renderMessenger,t_tasks:renderTasks,
     a_home:renderAdminHome,a_classes:renderClasses,a_schedule:renderSchedule,
     a_students:renderAdminStudents,a_teachers:renderAdminTeachers,a_payments:renderPayments,a_salaries:renderSalaries,a_materials:renderMaterials,
+    a_messages:renderMessenger,a_tasks:renderTasks,
     o_home:renderOwnerHome,o_classes:renderClasses,o_schedule:renderSchedule,
-    o_users:renderOwnerUsers,o_students:renderOwnerStudents,o_payments:renderPayments,o_salaries:renderSalaries,o_materials:renderMaterials
+    o_users:renderOwnerUsers,o_students:renderOwnerStudents,o_payments:renderPayments,o_salaries:renderSalaries,o_materials:renderMaterials,
+    o_messages:renderMessenger,o_tasks:renderTasks
   };
   if(fn[id])fn[id]();
 }
@@ -3630,6 +3767,516 @@ function renderCVMaterialsPanel(){
 function lessonExCount(l){
   if(l.content?.sections)return l.content.sections.reduce((a,s)=>a+(s.exercises?.length||0),0);
   return Array.isArray(l.content)?l.content.length:0;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ─── TOAST STACK (replaces old single toast) ──────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════════
+function showToastCard(title,text='',type='',icon='ℹ️',duration=4000){
+  const stack=document.getElementById('toastStack');
+  if(!stack)return showToast(title);
+  const d=document.createElement('div');
+  d.className='toast-card'+(type?' tc-'+type:'');
+  d.innerHTML=`<span class="tc-icon">${icon}</span><div class="tc-body"><div class="tc-title">${title}</div>${text?`<div class="tc-text">${text}</div>`:''}</div><button class="tc-close" onclick="this.closest('.toast-card').remove()">✕</button>`;
+  stack.appendChild(d);
+  setTimeout(()=>{d.style.opacity='0';d.style.transform='translateX(30px)';d.style.transition='.3s';setTimeout(()=>d.remove(),300);},duration);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ─── MESSENGER ────────────────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════════
+const MS={convId:null,convs:[],msgs:[],uploading:false,rtSub:null,profiles:[]};
+
+async function renderMessenger(){
+  setContent(`<div class="messenger-layout" id="msgrLayout">
+    <div class="msg-sidebar">
+      <div class="msg-search"><input type="text" placeholder="🔍 Поиск..." oninput="filterConvs(this.value)" id="msSearch"></div>
+      <button class="btn btn-purple msg-new-btn btn-sm" onclick="openNewConv()">+ Новый чат</button>
+      <div class="conv-list" id="convList"><div class="empty-state" style="padding:24px"><p>Загрузка...</p></div></div>
+    </div>
+    <div class="msg-main" id="msgMain">
+      <div class="msg-empty"><div style="font-size:3rem">💬</div><p style="font-weight:600">Выбери чат или начни новый</p></div>
+    </div>
+  </div>`);
+  await loadConvs();
+  initMsgrRealtime();
+}
+
+async function loadConvs(){
+  // Get all conversations user is a member of
+  const{data:members}=await sb.from('conversation_members').select('conversation_id,last_read_at').eq('user_id',S.profile.id);
+  if(!members||!members.length){renderConvList([]);return;}
+  const convIds=members.map(m=>m.conversation_id);
+  const[{data:convs},{data:lastMsgs},{data:profs}]=await Promise.all([
+    sb.from('conversations').select('*').in('id',convIds).eq('school_id',S.schoolId),
+    sb.from('messages').select('*').in('conversation_id',convIds).order('created_at',{ascending:false}),
+    sb.from('profiles').select('id,first_name,last_name,role').eq('school_id',S.schoolId)
+  ]);
+  MS.profiles=profs||[];
+  // Build conv list with last message
+  MS.convs=(convs||[]).map(c=>{
+    const last=(lastMsgs||[]).filter(m=>m.conversation_id===c.id)[0];
+    const myRead=members.find(m=>m.conversation_id===c.id)?.last_read_at;
+    const unread=(lastMsgs||[]).filter(m=>m.conversation_id===c.id&&m.sender_id!==S.profile.id&&new Date(m.created_at)>new Date(myRead||0)).length;
+    return{...c,lastMsg:last,unread};
+  }).sort((a,b)=>(b.lastMsg?.created_at||b.created_at)>(a.lastMsg?.created_at||a.created_at)?1:-1);
+  renderConvList(MS.convs);
+}
+
+function convDisplayName(c){
+  if(c.type==='self')return '⭐ Избранное';
+  if(c.type==='group')return c.name||'👥 Общий чат';
+  // direct: find the other person
+  // We need members — for simplicity use name stored or fetch
+  return c.name||'Диалог';
+}
+function convAvatar(c){
+  if(c.type==='self')return{bg:'var(--yellow)',icon:'⭐'};
+  if(c.type==='group')return{bg:'var(--green)',icon:'👥'};
+  return{bg:'var(--purple)',icon:'💬'};
+}
+
+function renderConvList(convs){
+  const el=document.getElementById('convList');
+  if(!el)return;
+  if(!convs.length){el.innerHTML='<div class="empty-state" style="padding:24px"><div class="ei">💬</div><p>Нет чатов</p></div>';return;}
+  el.innerHTML=convs.map(c=>{
+    const{bg,icon}=convAvatar(c);
+    const lastName=c.lastMsg?(c.lastMsg.body||'📎 Файл'):'';
+    const lastTime=c.lastMsg?fmtMsgTime(c.lastMsg.created_at):'';
+    return`<div class="conv-item${MS.convId===c.id?' active':''}" onclick="openConv('${c.id}')">
+      <div class="ci-av" style="background:${bg}">${icon}</div>
+      <div class="ci-info">
+        <div class="ci-name">${convDisplayName(c)}</div>
+        <div class="ci-last">${lastName}</div>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:3px">
+        <span class="ci-time">${lastTime}</span>
+        ${c.unread>0?`<span class="conv-unread">${c.unread}</span>`:''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function filterConvs(q){
+  if(!q){renderConvList(MS.convs);return;}
+  const f=MS.convs.filter(c=>convDisplayName(c).toLowerCase().includes(q.toLowerCase()));
+  renderConvList(f);
+}
+
+function fmtMsgTime(iso){
+  if(!iso)return'';
+  const d=new Date(iso),now=new Date();
+  const diff=now-d;
+  if(diff<60000)return'сейчас';
+  if(diff<3600000)return Math.floor(diff/60000)+'м';
+  if(diff<86400000)return d.getHours()+':'+String(d.getMinutes()).padStart(2,'0');
+  return d.getDate()+'.'+(d.getMonth()+1);
+}
+
+async function openConv(convId){
+  MS.convId=convId;
+  // Mark as read
+  await sb.from('conversation_members').update({last_read_at:new Date().toISOString()}).eq('conversation_id',convId).eq('user_id',S.profile.id);
+  // Update unread badge
+  const c=MS.convs.find(cv=>cv.id===convId);
+  if(c)c.unread=0;
+  renderConvList(MS.convs);
+  // Load messages
+  const{data:msgs}=await sb.from('messages').select('*').eq('conversation_id',convId).order('created_at',{ascending:true});
+  MS.msgs=msgs||[];
+  renderMsgMain(c);
+}
+
+function renderMsgMain(conv){
+  const main=document.getElementById('msgMain');
+  if(!main||!conv)return;
+  const{bg,icon}=convAvatar(conv);
+  main.innerHTML=`
+    <div class="msg-header">
+      <div class="msg-header-av" style="background:${bg}">${icon}</div>
+      <div style="flex:1"><div style="font-weight:700;font-size:.92rem">${convDisplayName(conv)}</div>
+      <div style="font-size:.73rem;color:var(--text3)">${conv.type==='group'?'Групповой чат':conv.type==='self'?'Только для вас':'Личный чат'}</div></div>
+    </div>
+    <div class="msg-thread" id="msgThread">${renderMsgs()}</div>
+    <div class="msg-compose">
+      <label class="msg-compose-btn" style="background:var(--gray-light);color:var(--text3)" title="Прикрепить файл">
+        📎<input type="file" style="display:none" onchange="uploadMsgFile(this)">
+      </label>
+      <textarea id="msgInput" placeholder="Написать сообщение..." rows="1" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMsg()}" oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight,110)+'px'"></textarea>
+      <button class="msg-compose-btn" style="background:var(--purple);color:#fff" onclick="sendMsg()" title="Отправить">➤</button>
+    </div>`;
+  scrollThread();
+}
+
+function renderMsgs(){
+  if(!MS.msgs.length)return'<div class="msg-empty"><p>Нет сообщений. Начни разговор! 👋</p></div>';
+  let lastDate='';
+  return MS.msgs.map(m=>{
+    const mine=m.sender_id===S.profile.id;
+    const prof=MS.profiles.find(p=>p.id===m.sender_id);
+    const senderName=mine?'Вы':(prof?prof.first_name+' '+prof.last_name:'');
+    const d=new Date(m.created_at);
+    const dateStr=d.toLocaleDateString('ru',{day:'numeric',month:'long'});
+    const dateSep=dateStr!==lastDate?`<div style="text-align:center;margin:8px 0;font-size:.72rem;color:var(--text3)">${dateStr}</div>`:'';
+    lastDate=dateStr;
+    const timeStr=d.getHours()+':'+String(d.getMinutes()).padStart(2,'0');
+    let content=m.body?`<span>${m.body.replace(/</g,'&lt;').replace(/\n/g,'<br>')}</span>`:'';
+    if(m.file_url){
+      const isImg=/\.(jpg|jpeg|png|gif|webp)$/i.test(m.file_name||'');
+      content+= isImg
+        ?`<a href="${m.file_url}" target="_blank" class="msg-file-card"><img src="${m.file_url}" style="max-width:200px;max-height:150px;border-radius:8px;display:block"></a>`
+        :`<a href="${m.file_url}" target="_blank" download="${m.file_name||'file'}" class="msg-file-card">📎 ${m.file_name||'Файл'} ${m.file_size?'('+fmtFileSize(m.file_size)+')':''}</a>`;
+    }
+    return`${dateSep}<div class="msg-row ${mine?'mine':'theirs'}">
+      ${!mine&&MS.convs.find(c=>c.id===MS.convId)?.type==='group'?`<span class="msg-sender">${senderName}</span>`:''}
+      <div class="msg-bubble">${content}</div>
+      <span class="msg-time">${timeStr}</span>
+    </div>`;
+  }).join('');
+}
+
+function scrollThread(){
+  setTimeout(()=>{const t=document.getElementById('msgThread');if(t)t.scrollTop=t.scrollHeight;},50);
+}
+
+function fmtFileSize(b){
+  if(b>1048576)return(b/1048576).toFixed(1)+'MB';
+  if(b>1024)return(b/1024).toFixed(0)+'KB';
+  return b+'B';
+}
+
+async function sendMsg(){
+  const inp=document.getElementById('msgInput');
+  if(!inp||!MS.convId)return;
+  const body=inp.value.trim();
+  if(!body)return;
+  inp.value='';inp.style.height='auto';
+  const{error}=await sb.from('messages').insert({conversation_id:MS.convId,sender_id:S.profile.id,body});
+  if(error){showToastCard('Ошибка',''+error.message,'error','❌');return;}
+  // Optimistic
+  MS.msgs.push({id:'tmp_'+Date.now(),conversation_id:MS.convId,sender_id:S.profile.id,body,created_at:new Date().toISOString()});
+  refreshMsgThread();
+}
+
+async function uploadMsgFile(input){
+  if(!input.files||!input.files[0]||!MS.convId)return;
+  const file=input.files[0];
+  input.value='';
+  if(file.size>20*1024*1024){showToastCard('Файл слишком большой','Максимум 20MB','error','❌');return;}
+  showToastCard('Загрузка файла...','','','📎',60000);
+  const path=`${S.schoolId}/${MS.convId}/${Date.now()}_${file.name}`;
+  const{data:upData,error:upErr}=await sb.storage.from('chat-files').upload(path,file,{upsert:true});
+  if(upErr){showToastCard('Ошибка загрузки',''+upErr.message,'error','❌');return;}
+  const{data:urlData}=sb.storage.from('chat-files').getPublicUrl(path);
+  const fileUrl=urlData?.publicUrl;
+  // Clear loading toast (it auto-removes)
+  await sb.from('messages').insert({conversation_id:MS.convId,sender_id:S.profile.id,body:'',file_url:fileUrl,file_name:file.name,file_size:file.size,file_type:file.type});
+  showToastCard('Файл отправлен','','success','✅');
+}
+
+function refreshMsgThread(){
+  const t=document.getElementById('msgThread');
+  if(!t)return;
+  t.innerHTML=renderMsgs();
+  scrollThread();
+}
+
+function initMsgrRealtime(){
+  if(MS.rtSub)MS.rtSub.unsubscribe();
+  MS.rtSub=sb.channel('ms_'+S.schoolId)
+    .on('postgres_changes',{event:'INSERT',schema:'public',table:'messages'},payload=>{
+      const m=payload.new;
+      // If in active conv — append
+      if(m.conversation_id===MS.convId){
+        if(!MS.msgs.find(x=>x.id===m.id)){MS.msgs.push(m);refreshMsgThread();}
+      } else {
+        // Show notification + update conv list
+        const c=MS.convs.find(cv=>cv.id===m.conversation_id);
+        const prof=MS.profiles.find(p=>p.id===m.sender_id);
+        const sName=prof?prof.first_name+' '+prof.last_name:'Кто-то';
+        if(m.sender_id!==S.profile.id){
+          showToastCard(sName,m.body||'📎 Файл','msg','💬',6000);
+          updateNotifBadge(1);
+        }
+        if(c){c.lastMsg=m;c.unread=(c.unread||0)+(m.sender_id!==S.profile.id?1:0);}
+        renderConvList(MS.convs);
+      }
+    }).subscribe();
+}
+
+function updateNotifBadge(delta){
+  const badge=document.getElementById('notifBadge');
+  if(!badge)return;
+  const cur=parseInt(badge.textContent||'0')||0;
+  const n=Math.max(0,cur+delta);
+  badge.textContent=n||'';
+  badge.style.display=n>0?'flex':'none';
+}
+
+function openNotifPanel(){
+  // Clear badge + show recent notifications
+  const badge=document.getElementById('notifBadge');
+  if(badge){badge.textContent='';badge.style.display='none';}
+  showToastCard('Уведомления','Откройте Задачи или Сообщения для просмотра','','🔔',3000);
+}
+
+// New conversation modal
+async function openNewConv(){
+  // Load staff profiles
+  const{data:profs}=await sb.from('profiles').select('id,first_name,last_name,role').eq('school_id',S.schoolId).neq('role','student');
+  MS.profiles=profs||[];
+  let html=`<h3>💬 Новый чат</h3>
+    <div class="form-group"><label>Тип</label>
+      <select id="nc_type" onchange="renderNewConvForm(this.value)">
+        <option value="self">⭐ Избранное (только для меня)</option>
+        <option value="direct">👤 Личный чат</option>
+        <option value="group">👥 Групповой чат</option>
+      </select></div>
+    <div id="nc_extra"></div>
+    <div class="btn-row"><button class="btn btn-purple" onclick="createConv()">Создать</button><button class="btn btn-outline" onclick="closeM('mNewConv')">Отмена</button></div>`;
+  C('mNewConvBody').innerHTML=html;
+  renderNewConvForm('self');
+  openM('mNewConv');
+}
+
+function renderNewConvForm(type){
+  const extra=document.getElementById('nc_extra');
+  if(!extra)return;
+  if(type==='self'){extra.innerHTML='<p style="font-size:.84rem;color:var(--text3)">Чат только для себя — заметки, ссылки, файлы.</p>';return;}
+  const others=MS.profiles.filter(p=>p.id!==S.profile.id);
+  if(type==='direct'){
+    extra.innerHTML=`<div class="form-group"><label>Выбрать человека</label>
+      <select id="nc_user">${others.map(p=>`<option value="${p.id}">${p.first_name} ${p.last_name} (${p.role})</option>`).join('')}</select></div>`;
+  } else {
+    extra.innerHTML=`<div class="form-group"><label>Название группы</label><input type="text" id="nc_name" placeholder="Например: Команда учителей"></div>
+      <div class="form-group"><label>Участники (все по умолчанию)</label>
+      <div style="max-height:160px;overflow-y:auto;border:2px solid var(--gray-border);border-radius:8px;padding:8px">${others.map(p=>`<label style="display:flex;align-items:center;gap:8px;padding:4px 0;cursor:pointer"><input type="checkbox" value="${p.id}" checked> ${p.first_name} ${p.last_name} (${p.role})</label>`).join('')}</div></div>`;
+  }
+}
+
+async function createConv(){
+  const type=document.getElementById('nc_type')?.value;
+  if(!type)return;
+  let members=[S.profile.id];
+  let name=null;
+  if(type==='direct'){
+    const uid=document.getElementById('nc_user')?.value;
+    if(!uid)return;
+    members=[S.profile.id,uid];
+    // Check existing direct conv
+    const prof=MS.profiles.find(p=>p.id===uid);
+    name=prof?prof.first_name+' '+prof.last_name:'Диалог';
+  } else if(type==='group'){
+    name=document.getElementById('nc_name')?.value.trim()||'Группа';
+    const checked=document.querySelectorAll('#nc_extra input[type=checkbox]:checked');
+    checked.forEach(cb=>members.push(cb.value));
+    members=[...new Set(members)];
+  }
+  const{data:conv,error}=await sb.from('conversations').insert({school_id:S.schoolId,type,name}).select().single();
+  if(error){showToastCard('Ошибка',''+error.message,'error','❌');return;}
+  // Add members
+  await sb.from('conversation_members').insert(members.map(uid=>({conversation_id:conv.id,user_id:uid})));
+  closeM('mNewConv');
+  await loadConvs();
+  openConv(conv.id);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ─── TASKS / KANBAN ───────────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════════
+const TK={tasks:[],filterUser:'all',rtSub:null};
+let _taskReminderInterval=null;
+
+async function renderTasks(){
+  setContent(`<div>
+    <div class="section-header"><h2>✅ ${t('Задачи')}</h2>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        ${['owner','admin'].includes(S.role)?`<select id="tkFilterUser" class="btn btn-outline" style="padding:6px 10px;font-size:.83rem" onchange="TK.filterUser=this.value;refreshKanban()">
+          <option value="all">Все сотрудники</option>
+          <option value="${S.profile.id}">Мои задачи</option>
+        </select>`:''}
+        <button class="btn btn-purple" onclick="openAddTask()">+ Задача</button>
+      </div></div>
+    <div class="task-kanban" id="kanbanBoard">
+      <div class="task-col"><div class="task-col-hdr" style="color:var(--text3)">📋 К выполнению <span class="task-col-count" id="cnt_todo">0</span></div><div id="col_todo"></div></div>
+      <div class="task-col"><div class="task-col-hdr" style="color:var(--yellow)">⚡ В процессе <span class="task-col-count" id="cnt_in_progress">0</span></div><div id="col_in_progress"></div></div>
+      <div class="task-col"><div class="task-col-hdr" style="color:var(--green)">✅ Готово <span class="task-col-count" id="cnt_done">0</span></div><div id="col_done"></div></div>
+    </div>
+  </div>`);
+  await loadTasks();
+}
+
+async function loadTasks(){
+  let q=sb.from('tasks').select('*').eq('school_id',S.schoolId).order('created_at',{ascending:false});
+  if(!['owner','admin'].includes(S.role))q=q.eq('user_id',S.profile.id);
+  const{data:tasks}=await q;
+  TK.tasks=tasks||[];
+  if(['owner','admin'].includes(S.role)){
+    const{data:profs}=await sb.from('profiles').select('id,first_name,last_name').eq('school_id',S.schoolId);
+    TK.profiles=profs||[];
+    // Populate filter
+    const sel=document.getElementById('tkFilterUser');
+    if(sel&&profs){
+      const existing=new Set(['all',S.profile.id]);
+      profs.filter(p=>!existing.has(p.id)).forEach(p=>{
+        const o=document.createElement('option');o.value=p.id;o.textContent=p.first_name+' '+p.last_name;
+        sel.appendChild(o);
+      });
+    }
+  }
+  refreshKanban();
+}
+
+function refreshKanban(){
+  let tasks=TK.tasks;
+  if(TK.filterUser!=='all')tasks=tasks.filter(tk=>tk.user_id===TK.filterUser);
+  ['todo','in_progress','done'].forEach(status=>{
+    const col=document.getElementById('col_'+status);
+    const cnt=document.getElementById('cnt_'+status);
+    const filtered=tasks.filter(tk=>tk.status===status);
+    if(cnt)cnt.textContent=filtered.length;
+    if(!col)return;
+    if(!filtered.length){col.innerHTML='<div class="task-drag-hint">Нет задач</div>';return;}
+    col.innerHTML=filtered.map(tk=>renderTaskCard(tk)).join('');
+  });
+}
+
+function renderTaskCard(tk){
+  const now=new Date();
+  const due=tk.due_date?new Date(tk.due_date):null;
+  const overdue=due&&due<now&&tk.status!=='done';
+  const prof=TK.profiles?.find(p=>p.id===tk.user_id);
+  const assignee=prof?prof.first_name+' '+prof.last_name:'';
+  const prioLabel={high:'🔴 Высокий',medium:'🟡 Средний',low:'🟢 Низкий'};
+  const nextStatus={todo:'in_progress',in_progress:'done',done:'todo'};
+  const nextLabel={todo:'▶ Начать',in_progress:'✓ Завершить',done:'↩ Вернуть'};
+  return`<div class="task-card p-${tk.priority||'medium'}" onclick="openTaskDetail('${tk.id}')">
+    <div class="tc-title">${tk.title}</div>
+    ${tk.description?`<div style="font-size:.78rem;color:var(--text3);margin-top:3px;line-height:1.3">${tk.description.substring(0,80)}${tk.description.length>80?'...':''}</div>`:''}
+    <div class="tc-tags">
+      <span class="badge badge-${tk.priority==='high'?'pink':tk.priority==='low'?'green':'yellow'}" style="font-size:.68rem">${prioLabel[tk.priority||'medium']}</span>
+    </div>
+    ${due?`<div class="tc-due${overdue?' overdue':''}">📅 ${due.toLocaleDateString('ru',{day:'numeric',month:'short'})}${overdue?' ⚠️ Просрочено':''}</div>`:''}
+    ${assignee&&['owner','admin'].includes(S.role)?`<div class="tc-assignee">👤 ${assignee}</div>`:''}
+    <div style="display:flex;gap:6px;margin-top:8px" onclick="event.stopPropagation()">
+      <button class="btn-sm" style="font-size:.72rem;padding:3px 8px;background:var(--gray-light);border:none;border-radius:6px;cursor:pointer" onclick="moveTask('${tk.id}','${nextStatus[tk.status||'todo']}')">${nextLabel[tk.status||'todo']}</button>
+      <button class="btn-sm" style="font-size:.72rem;padding:3px 8px;background:var(--gray-light);border:none;border-radius:6px;cursor:pointer" onclick="openEditTask('${tk.id}')">✎</button>
+      <button class="btn-sm btn-danger" style="font-size:.72rem;padding:3px 8px" onclick="deleteTask('${tk.id}')">🗑</button>
+    </div>
+  </div>`;
+}
+
+async function moveTask(id,newStatus){
+  await sb.from('tasks').update({status:newStatus,updated_at:new Date().toISOString()}).eq('id',id);
+  const tk=TK.tasks.find(t=>t.id===id);
+  if(tk)tk.status=newStatus;
+  refreshKanban();
+  showToastCard('Статус обновлён','','success','✅',2000);
+}
+
+async function deleteTask(id){
+  if(!confirm('Удалить задачу?'))return;
+  await sb.from('tasks').delete().eq('id',id);
+  TK.tasks=TK.tasks.filter(t=>t.id!==id);
+  refreshKanban();
+}
+
+function openAddTask(){S.editTaskId=null;populateTaskModal({});openM('mAddTask');}
+function openEditTask(id){
+  const tk=TK.tasks.find(t=>t.id===id);
+  if(!tk)return;
+  S.editTaskId=id;
+  populateTaskModal(tk);
+  openM('mAddTask');
+}
+function openTaskDetail(id){openEditTask(id);}
+
+function populateTaskModal(tk){
+  C('task_title').value=tk.title||'';
+  C('task_desc').value=tk.description||'';
+  C('task_priority').value=tk.priority||'medium';
+  C('task_status').value=tk.status||'todo';
+  C('task_due').value=tk.due_date||'';
+  C('task_remind').value=tk.remind_at?tk.remind_at.substring(0,16):'';
+  C('mAddTaskTitle').textContent=S.editTaskId?'✏️ Редактировать задачу':'➕ Новая задача';
+  // Assignee (for owner/admin)
+  const assignRow=document.getElementById('task_assign_row');
+  if(assignRow){
+    if(['owner','admin'].includes(S.role)){
+      assignRow.style.display='';
+      const sel=document.getElementById('task_assignee');
+      if(sel){
+        sel.innerHTML=(TK.profiles||[]).map(p=>`<option value="${p.id}"${tk.user_id===p.id?' selected':''}>${p.first_name} ${p.last_name}</option>`).join('');
+        if(!tk.user_id)sel.value=S.profile.id;
+      }
+    } else {
+      assignRow.style.display='none';
+    }
+  }
+}
+
+async function saveTask(){
+  const title=C('task_title').value.trim();
+  if(!title){showToastCard('Введи название задачи','','error','❌');return;}
+  const userId=['owner','admin'].includes(S.role)?C('task_assignee')?.value||S.profile.id:S.profile.id;
+  const payload={
+    school_id:S.schoolId,user_id:userId,
+    title,description:C('task_desc').value.trim()||null,
+    priority:C('task_priority').value,status:C('task_status').value,
+    due_date:C('task_due').value||null,
+    remind_at:C('task_remind').value?new Date(C('task_remind').value).toISOString():null,
+    reminded:false,updated_at:new Date().toISOString()
+  };
+  if(S.editTaskId){
+    const{error}=await sb.from('tasks').update(payload).eq('id',S.editTaskId);
+    if(error){showToastCard('Ошибка',''+error.message,'error','❌');return;}
+    const idx=TK.tasks.findIndex(t=>t.id===S.editTaskId);
+    if(idx>=0)TK.tasks[idx]={...TK.tasks[idx],...payload,id:S.editTaskId};
+  } else {
+    const{data,error}=await sb.from('tasks').insert(payload).select().single();
+    if(error){showToastCard('Ошибка',''+error.message,'error','❌');return;}
+    TK.tasks.unshift(data);
+  }
+  closeM('mAddTask');
+  refreshKanban();
+  showToastCard('Задача сохранена','','success','✅');
+}
+
+// ─── TASK REMINDERS ───────────────────────────────────────────────────────────
+function initTaskReminders(){
+  checkTaskReminders();
+  if(_taskReminderInterval)clearInterval(_taskReminderInterval);
+  _taskReminderInterval=setInterval(checkTaskReminders,60000);
+  // Request push permission
+  if('Notification' in window&&Notification.permission==='default'){
+    Notification.requestPermission().then(p=>{if(p==='granted')showToastCard('Уведомления включены','Вы будете получать напоминания о задачах','success','🔔',4000);});
+  }
+}
+
+async function checkTaskReminders(){
+  // Fetch due reminders from DB
+  const now=new Date();
+  const from=new Date(now.getTime()-70000).toISOString();
+  const to=now.toISOString();
+  const{data:due}=await sb.from('tasks').select('*')
+    .eq('school_id',S.schoolId).eq('user_id',S.profile.id)
+    .eq('reminded',false).lte('remind_at',to).gte('remind_at',from);
+  if(!due||!due.length)return;
+  for(const tk of due){
+    showTaskNotification(tk);
+    await sb.from('tasks').update({reminded:true}).eq('id',tk.id);
+    const local=TK.tasks.find(t=>t.id===tk.id);
+    if(local)local.reminded=true;
+  }
+}
+
+function showTaskNotification(tk){
+  showToastCard('⏰ Напоминание',tk.title,'task','✅',10000);
+  updateNotifBadge(1);
+  if('Notification' in window&&Notification.permission==='granted'){
+    new Notification('TeachyaED: '+tk.title,{body:tk.description||'Время выполнить задачу!',icon:'/favicon.ico'});
+  }
 }
 </script>
 </body>
