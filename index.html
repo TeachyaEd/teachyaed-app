@@ -96,6 +96,11 @@ tr:hover td{background:#FAFAFA}
 .divider{border:none;border-top:1px solid var(--gray-border);margin:16px 0}
 .empty-state{text-align:center;padding:40px;color:var(--text3)}
 .empty-state .ei{font-size:3rem;margin-bottom:8px}
+.skel-wrap{display:flex;flex-direction:column;gap:12px;padding:4px 0}
+.skel-card{background:var(--card-bg);border-radius:12px;padding:18px 20px;display:flex;flex-direction:column;gap:10px;border:1.5px solid var(--gray-border)}
+.skel-line{height:12px;border-radius:6px;background:linear-gradient(90deg,var(--gray-border) 25%,var(--purple-light) 50%,var(--gray-border) 75%);background-size:200% 100%;animation:skel-shine 1.2s infinite}
+.skel-line.w60{width:60%}.skel-line.w40{width:40%}
+@keyframes skel-shine{0%{background-position:200% 0}100%{background-position:-200% 0}}
 
 /* ── CLASS CARDS (EdVibe style) ── */
 .classes-toolbar{display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap}
@@ -2630,6 +2635,22 @@ function showScreen(id){
 const C=id=>document.getElementById(id);
 const setContent=h=>{C('content').innerHTML=h;if(S.lang==='en')requestAnimationFrame(()=>applyEN(C('content')));};
 function showToast(m){const t=C('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2800);}
+
+// ─── DATA CACHE (30s TTL) ─────────────────────────────────────────────────────
+const _DC={};
+async function dc(key,fn){
+  const now=Date.now();
+  if(_DC[key]&&now-_DC[key].ts<30000)return _DC[key].v;
+  const v=await fn();
+  _DC[key]={v,ts:now};
+  return v;
+}
+function dcInval(key){delete _DC[key];}
+function dcInvalAll(){Object.keys(_DC).forEach(k=>delete _DC[k]);}
+
+// ─── SKELETON LOADER ─────────────────────────────────────────────────────────
+const SKEL='<div class="skel-wrap">'+Array(3).fill('<div class="skel-card"><div class="skel-line w60"></div><div class="skel-line w40"></div></div>').join('')+'</div>';
+function showSkel(){C('content').innerHTML=SKEL;}
 function openM(id){
   const el=C(id);
   el.classList.add('open');
@@ -2824,8 +2845,9 @@ async function submitHw(){
   closeM('mSubmitHw');showToast('Ответ отправлен!');renderStudentHw();
 }
 async function renderStudentLessons(){
-  const{data:stu}=await sb.from('students').select('id').eq('email',S.profile.email).single();
-  const{data:assigns}=await sb.from('lesson_assignments').select('*,lesson:lesson_id(id,title,language,level,content)').eq('student_id',stu?.id||'');
+  showSkel();
+  const{data:stu}=await dc('stu_me_'+S.profile.id,()=>sb.from('students').select('id').eq('email',S.profile.email).single());
+  const{data:assigns}=await dc('stu_assigns_'+stu?.id,()=>sb.from('lesson_assignments').select('*,lesson:lesson_id(id,title,language,level,content)').eq('student_id',stu?.id||''));
   const cards=(assigns||[]).map(a=>`<div class="card" style="margin-bottom:12px">
     <div style="display:flex;align-items:center;justify-content:space-between">
       <div>
@@ -2843,7 +2865,8 @@ async function renderStudentLessons(){
 
 // ─── TEACHER SCREENS ──────────────────────────────────────────────────────────
 async function renderTeacherStudents(){
-  const{data:sts}=await sb.from('students').select('*').eq('school_id',S.schoolId).order('last_name');
+  showSkel();
+  const{data:sts}=await dc('students_full_'+S.schoolId,()=>sb.from('students').select('*').eq('school_id',S.schoolId).order('last_name'));
   const rows=(sts||[]).map(s=>`<tr>
     <td><div style="display:flex;align-items:center;gap:10px">${avHTML(s.first_name,s.last_name)}<div><div style="font-weight:600">${s.first_name} ${s.last_name}</div><div style="font-size:.75rem;color:var(--text3)">${s.email||'—'}</div></div></div></td>
     <td>${s.language||'—'}</td><td><span class="badge badge-purple">${s.level||'—'}</span></td><td>${s.phone||'—'}</td>
@@ -2856,8 +2879,11 @@ async function renderTeacherStudents(){
     <div class="card" style="padding:0;overflow:hidden"><table><thead><tr><th>Ученик</th><th>Язык</th><th>Уровень</th><th>Телефон</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>`);
 }
 async function renderTeacherHw(){
-  const{data:sts}=await sb.from('students').select('id,first_name,last_name').eq('school_id',S.schoolId);
-  const{data:hws}=await sb.from('homeworks').select('*,student:student_id(first_name,last_name)').eq('teacher_id',S.profile.id).order('created_at',{ascending:false});
+  showSkel();
+  const[{data:sts},{data:hws}]=await Promise.all([
+    dc('students_'+S.schoolId,()=>sb.from('students').select('id,first_name,last_name').eq('school_id',S.schoolId)),
+    dc('hws_'+S.profile.id,()=>sb.from('homeworks').select('*,student:student_id(first_name,last_name)').eq('teacher_id',S.profile.id).order('created_at',{ascending:false}))
+  ]);
   C('hw_student').innerHTML=(sts||[]).map(s=>`<option value="${s.id}">${s.first_name} ${s.last_name}</option>`).join('');
   const cards=(hws||[]).map(hw=>`<div class="hw-card ${hw.status}">
     <div class="hw-title">${hw.title} <span class="badge ${hw.status==='pending'?'badge-purple':hw.status==='submitted'?'badge-yellow':'badge-green'}">${{pending:'Ожидает',submitted:'Сдано',reviewed:'Проверено'}[hw.status]}</span></div>
@@ -3177,9 +3203,10 @@ async function saveInviteStaff(){
 // ─── CLASSES ──────────────────────────────────────────────────────────────────
 let _allClasses=[];
 async function renderClasses(){
+  showSkel();
   const[{data:classes},{data:teachers}]=await Promise.all([
-    sb.from('classes').select('*').eq('school_id',S.schoolId).order('created_at',{ascending:false}),
-    sb.from('profiles').select('id,first_name,last_name').eq('school_id',S.schoolId).in('role',['teacher','admin','owner'])
+    dc('classes_'+S.schoolId,()=>sb.from('classes').select('*').eq('school_id',S.schoolId).order('created_at',{ascending:false})),
+    dc('teachers_'+S.schoolId,()=>sb.from('profiles').select('id,first_name,last_name').eq('school_id',S.schoolId).in('role',['teacher','admin','owner']))
   ]);
   C('cl_teacher').innerHTML=(teachers||[]).map(tc=>`<option value="${tc.id}">${tc.first_name} ${tc.last_name}</option>`).join('');
   _allClasses=classes||[];
@@ -3256,7 +3283,7 @@ async function saveClass(){
   const data={school_id:S.schoolId,teacher_id:C('cl_teacher').value||S.profile.id,name,type:C('cl_type').value,language:C('cl_lang').value,level:C('cl_level').value,color:C('cl_color').value,emoji:C('cl_emoji').value||'📚',description:C('cl_desc').value.trim()};
   if(S.editClassId)await sb.from('classes').update(data).eq('id',S.editClassId);
   else await sb.from('classes').insert(data);
-  closeM('mAddClass');showToast('Класс сохранён!');renderClasses();
+  closeM('mAddClass');dcInval('classes_'+S.schoolId);dcInval('classes_light_'+S.schoolId);showToast('Класс сохранён!');renderClasses();
 }
 
 async function openClassDetail(classId){
@@ -3401,9 +3428,10 @@ async function removeFromClass(csId){
 // ─── SCHEDULE ─────────────────────────────────────────────────────────────────
 let scheduleWeekOffset=0;
 async function renderSchedule(){
+  showSkel();
   const[{data:evs},{data:classes}]=await Promise.all([
-    sb.from('schedule_events').select('*,class:class_id(name,color)').eq('school_id',S.schoolId),
-    sb.from('classes').select('id,name,color').eq('school_id',S.schoolId)
+    dc('schedule_'+S.schoolId,()=>sb.from('schedule_events').select('*,class:class_id(name,color)').eq('school_id',S.schoolId)),
+    dc('classes_light_'+S.schoolId,()=>sb.from('classes').select('id,name,color').eq('school_id',S.schoolId))
   ]);
   C('ev_class').innerHTML=(classes||[]).map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
 
@@ -3477,7 +3505,7 @@ async function saveEvent(){
   const data={school_id:S.schoolId,class_id:C('ev_class').value||null,teacher_id:S.profile.id,title,event_date:C('ev_date').value,event_time:C('ev_time').value,duration_minutes:parseInt(C('ev_dur').value),status:C('ev_status').value,notes:C('ev_notes').value.trim()};
   if(S.editEventId)await sb.from('schedule_events').update(data).eq('id',S.editEventId);
   else await sb.from('schedule_events').insert(data);
-  closeM('mAddEvent');showToast('Занятие сохранено!');
+  closeM('mAddEvent');dcInval('schedule_'+S.schoolId);showToast('Занятие сохранено!');
   if(S.screen==='t_schedule'||S.screen==='a_schedule'||S.screen==='o_schedule')renderSchedule();
   if(S.currentClassId&&S.currentClassTab==='schedule')loadClassTab('schedule');
 }
@@ -3772,12 +3800,16 @@ async function saveFromCE(publish){
     content:{sections:CE.sections,materials:CE.materials},published:publish};
   if(CE.lessonId){await sb.from('lessons').update(data).eq('id',CE.lessonId);}
   else{const{data:ins}=await sb.from('lessons').insert(data).select().single();if(ins)CE.lessonId=ins.id;}
+  dcInval('lessons_'+S.schoolId);
   showToast(publish?t('🚀 Опубликовано!'):t('💾 Сохранено!'));
 }
 
 async function renderTeacherLessons(){
-  const{data:lessons}=await sb.from('lessons').select('*').eq('school_id',S.schoolId).order('created_at',{ascending:false});
-  const{data:sts}=await sb.from('students').select('id,first_name,last_name').eq('school_id',S.schoolId);
+  showSkel();
+  const[{data:lessons},{data:sts}]=await Promise.all([
+    dc('lessons_'+S.schoolId,()=>sb.from('lessons').select('*').eq('school_id',S.schoolId).order('created_at',{ascending:false}).then(r=>r)),
+    dc('students_'+S.schoolId,()=>sb.from('students').select('id,first_name,last_name').eq('school_id',S.schoolId).then(r=>r))
+  ]);
   C('assign_student').innerHTML=(sts||[]).map(s=>`<option value="${s.id}">${s.first_name} ${s.last_name}</option>`).join('');
   const cards=(lessons||[]).map(l=>{
     const cnt=l.content?.sections?l.content.sections.reduce((a,s)=>a+(s.exercises?.length||0),0):Array.isArray(l.content)?l.content.length:0;
