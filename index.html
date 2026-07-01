@@ -1680,6 +1680,13 @@ const TRANSLATIONS={
   'Редактировать класс':'Edit class',
   'Ред.':'Edit',
 
+  // ── HEADER / COMMON ───────────────────────────────────────────────────────
+  '📋 ДЗ':'📋 HW',
+  '+ Новое ДЗ':'+ New HW',
+  'ДЗ':'HW',
+  '← Выйти из урока':'← Exit Lesson',
+  '← Выйти':'← Close',
+
   // ── LOGIN SCREEN ───────────────────────────────────────────────────────────
   'Платформа языковой школы':'Language School Platform',
   'Неверный email или пароль':'Invalid email or password',
@@ -2520,6 +2527,8 @@ async function afterLogin(user){
   if(['owner','admin','teacher'].includes(prof.role))initTaskReminders();
   const firstItem=(NAV[S.role]||[]).find(n=>n.id);
   if(firstItem)showScreen(firstItem.id);
+  // Apply EN translations to all static elements (header, sidebar, etc.) on page load
+  if(S.lang==='en')setTimeout(()=>applyEN(document.body),300);
 }
 async function doLogout(){
   closeSidebar();
@@ -2546,6 +2555,8 @@ function buildSidebar(){
     return`<div class="nav-item" id="nav_${n.id}" onclick="showScreen('${n.id}')"><span style="font-size:1rem;width:20px;text-align:center">${n.icon}</span>${t(n.l)}</div>`;
   }).join('');
   if(S.screen)document.querySelectorAll('.nav-item').forEach(el=>el.classList.toggle('active',el.id===`nav_${S.screen}`));
+  // Translate topBar static elements (Выйти button etc.)
+  if(S.lang==='en')applyEN(C('topBar'));
 }
 // ─── МОБИЛЬНЫЙ SIDEBAR ───────────────────────────────────────────────────────
 function toggleSidebar(){
