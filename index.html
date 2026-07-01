@@ -1851,6 +1851,56 @@ function _getTrEntries(){
   if(!_trEntries)_trEntries=Object.entries(TRANSLATIONS).sort((a,b)=>b[0].length-a[0].length);
   return _trEntries;
 }
+
+// Reverse translation map: EN→RU (for applyRU)
+let _trReverseEntries=null;
+let _trReverseMap=null;
+function _getReverseData(){
+  if(!_trReverseEntries){
+    _trReverseMap=Object.fromEntries(Object.entries(TRANSLATIONS).map(([ru,en])=>[en,ru]).filter(([en,ru])=>en&&en!==ru));
+    _trReverseEntries=Object.entries(_trReverseMap).sort((a,b)=>b[0].length-a[0].length);
+  }
+  return {entries:_trReverseEntries,map:_trReverseMap};
+}
+
+// applyRU: reverse applyEN — restores Russian text from English DOM
+function applyRU(root){
+  if(!root||S.lang==='en')return;
+  const {entries,map}=_getReverseData();
+  const walker=document.createTreeWalker(root,NodeFilter.SHOW_TEXT,null,false);
+  const nodes=[];
+  let node;
+  while(node=walker.nextNode())nodes.push(node);
+  nodes.forEach(n=>{
+    const orig=n.nodeValue;
+    let replaced=orig;
+    entries.forEach(([en,ru])=>{
+      if(replaced.includes(en))replaced=replaced.split(en).join(ru);
+    });
+    if(replaced!==orig)n.nodeValue=replaced;
+  });
+  root.querySelectorAll('[placeholder],[title]').forEach(el=>{
+    const p=el.getAttribute('placeholder');
+    if(p&&map[p])el.setAttribute('placeholder',map[p]);
+    const ti=el.getAttribute('title');
+    if(ti&&map[ti])el.setAttribute('title',map[ti]);
+  });
+  root.querySelectorAll('option').forEach(opt=>{
+    const v=opt.textContent.trim();
+    if(map[v])opt.textContent=map[v];
+  });
+  root.querySelectorAll('[aria-label],[value]').forEach(el=>{
+    const al=el.getAttribute('aria-label');
+    if(al&&map[al])el.setAttribute('aria-label',map[al]);
+  });
+  root.querySelectorAll('button,a,label,th,td,span,div,p,h1,h2,h3,h4,li').forEach(el=>{
+    if(el.children.length===0){
+      const txt=el.textContent.trim();
+      if(txt&&map[txt])el.textContent=el.textContent.replace(txt,map[txt]);
+    }
+  });
+}
+
 function applyEN(root){
   if(!root||S.lang!=='en')return;
   const entries=_getTrEntries();
@@ -1866,26 +1916,22 @@ function applyEN(root){
     });
     if(replaced!==orig)n.nodeValue=replaced;
   });
-  // Translate placeholder and title attributes
   root.querySelectorAll('[placeholder],[title]').forEach(el=>{
     const p=el.getAttribute('placeholder');
     if(p&&TRANSLATIONS[p])el.setAttribute('placeholder',TRANSLATIONS[p]);
     const ti=el.getAttribute('title');
     if(ti&&TRANSLATIONS[ti])el.setAttribute('title',TRANSLATIONS[ti]);
   });
-  // Translate select options (language dropdowns etc.)
   root.querySelectorAll('option').forEach(opt=>{
     const v=opt.textContent.trim();
     if(TRANSLATIONS[v])opt.textContent=TRANSLATIONS[v];
   });
-  // Translate aria-label and value attributes on buttons/inputs
   root.querySelectorAll('[aria-label],[value]').forEach(el=>{
     const al=el.getAttribute('aria-label');
     if(al&&TRANSLATIONS[al])el.setAttribute('aria-label',TRANSLATIONS[al]);
     const val=el.getAttribute('value');
     if(val&&TRANSLATIONS[val])el.setAttribute('value',TRANSLATIONS[val]);
   });
-  // Translate button text content directly
   root.querySelectorAll('button,a,label,th,td,span,div,p,h1,h2,h3,h4,li').forEach(el=>{
     if(el.children.length===0){
       const txt=el.textContent.trim();
@@ -1916,8 +1962,9 @@ function toggleLang(){
     o_messages:renderMessenger,o_tasks:renderTasks
   };
   if(S.screen&&fn[S.screen])fn[S.screen]();
-  // Apply EN to static elements outside content (sidebar headers, modals, overlays, login)
+  // Apply translation to static elements outside content (sidebar headers, modals, overlays, login)
   if(S.lang==='en')applyEN(document.body);
+  else applyRU(document.body);
 }
 
 // ─── PROFILE MODAL ────────────────────────────────────────────────────────────
@@ -2661,7 +2708,7 @@ function showScreen(id){
 
 // ─── HELPERS ──────────────────────────────────────────────────────────────────
 const C=id=>document.getElementById(id);
-const setContent=h=>{C('content').innerHTML=h;if(S.lang==='en')requestAnimationFrame(()=>applyEN(C('content')));};
+const setContent=h=>{C('content').innerHTML=h;requestAnimationFrame(()=>{if(S.lang==='en')applyEN(C('content'));else applyRU(C('content'));});};
 function showToast(m){const t=C('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2800);}
 
 // ─── DATA CACHE (30s TTL) ─────────────────────────────────────────────────────
@@ -2682,7 +2729,7 @@ function showSkel(){C('content').innerHTML=SKEL;}
 function openM(id){
   const el=C(id);
   el.classList.add('open');
-  if(S.lang==='en')requestAnimationFrame(()=>applyEN(el));
+  requestAnimationFrame(()=>{if(S.lang==='en')applyEN(el);else applyRU(el);});
 }
 function closeM(id){C(id).classList.remove('open');}
 const fmtDate=d=>d?new Date(d).toLocaleDateString('ru-RU'):'—';
