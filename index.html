@@ -1812,11 +1812,15 @@ function t(str){
   return str;
 }
 
+// Pre-sorted translation entries cache (computed once, reused on every applyEN call)
+let _trEntries=null;
+function _getTrEntries(){
+  if(!_trEntries)_trEntries=Object.entries(TRANSLATIONS).sort((a,b)=>b[0].length-a[0].length);
+  return _trEntries;
+}
 function applyEN(root){
   if(!root||S.lang!=='en')return;
-  // Sort entries by key length DESCENDING to prevent partial word replacement
-  // (e.g. "Учеников" must be replaced before "Ученик")
-  const entries=Object.entries(TRANSLATIONS).sort((a,b)=>b[0].length-a[0].length);
+  const entries=_getTrEntries();
   const walker=document.createTreeWalker(root,NodeFilter.SHOW_TEXT,null,false);
   const nodes=[];
   let node;
@@ -2624,12 +2628,12 @@ function showScreen(id){
 
 // ─── HELPERS ──────────────────────────────────────────────────────────────────
 const C=id=>document.getElementById(id);
-const setContent=h=>{C('content').innerHTML=h;if(S.lang==='en')applyEN(C('content'));};
+const setContent=h=>{C('content').innerHTML=h;if(S.lang==='en')requestAnimationFrame(()=>applyEN(C('content')));};
 function showToast(m){const t=C('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2800);}
 function openM(id){
   const el=C(id);
   el.classList.add('open');
-  if(S.lang==='en')applyEN(el);
+  if(S.lang==='en')requestAnimationFrame(()=>applyEN(el));
 }
 function closeM(id){C(id).classList.remove('open');}
 const fmtDate=d=>d?new Date(d).toLocaleDateString('ru-RU'):'—';
