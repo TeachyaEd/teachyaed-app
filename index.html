@@ -349,6 +349,8 @@ tr:hover td{background:#FAFAFA}
 .materials-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px}
 .material-card{background:#fff;border-radius:var(--radius);padding:16px;box-shadow:var(--shadow);cursor:pointer;transition:.2s}
 .material-card:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(0,0,0,.1)}
+.material-card.mat-no-link{opacity:.6;cursor:default}
+.material-card.mat-no-link:hover{transform:none;box-shadow:var(--shadow)}
 .material-icon{font-size:2rem;margin-bottom:8px}
 .progress-bar{height:6px;background:var(--gray-border);border-radius:3px;overflow:hidden;margin-top:4px}
 .progress-fill{height:100%;background:linear-gradient(90deg,var(--purple),var(--pink));border-radius:3px;transition:.3s}
@@ -2412,18 +2414,28 @@ const MICONS={pdf:'📄',video:'🎬',audio:'🎵',link:'🔗',doc:'📝'};
 async function renderMaterials(){
   const{data:mats}=await sb.from('materials').select('*').eq('school_id',S.schoolId).order('created_at',{ascending:false});
   const canAdd=['teacher','admin','owner'].includes(S.role);
-  const grid=(mats||[]).map(m=>`<div class="material-card" onclick="openMaterial('${(m.url||m.data_url||'').replace(/'/g,"\\'")}')">
-    <div class="material-icon">${MICONS[m.type]||'📎'}</div>
-    <div style="font-weight:600;font-size:.88rem;margin-bottom:4px">${m.title||m.name||'—'}</div>
-    <div style="font-size:.75rem;color:var(--text3)">${m.language||''} · ${m.level||''}</div>
-  </div>`).join('')||'<div style="grid-column:1/-1" class="empty-state"><div class="ei">📁</div><p>Нет материалов</p></div>';
+  const grid=(mats||[]).map(m=>{
+    const url=m.url||m.data_url||'';
+    const hasUrl=!!url;
+    return `<div class="material-card${!hasUrl?' mat-no-link':''}" data-murl="${encodeURIComponent(url)}" onclick="openMatCard(this)">
+      <div class="material-icon">${MICONS[m.type]||'📎'}</div>
+      <div style="font-weight:600;font-size:.88rem;margin-bottom:4px">${m.title||m.name||'—'}</div>
+      <div style="font-size:.75rem;color:var(--text3)">${m.language||''} · ${m.level||''}</div>
+      ${!hasUrl?'<div style="font-size:.7rem;color:var(--red);margin-top:4px">⚠️ Нет ссылки</div>':'<div style="font-size:.7rem;color:var(--text3);margin-top:4px">🔗 Открыть</div>'}
+    </div>`;
+  }).join('')||'<div style="grid-column:1/-1" class="empty-state"><div class="ei">📁</div><p>Нет материалов</p></div>';
   setContent(`<div class="section-header"><h2>📁 Материалы</h2>${canAdd?'<button class="btn btn-purple" onclick="openM(\'mAddMaterial\')">+ Добавить</button>':''}</div>
     <div class="materials-grid">${grid}</div>`);
 }
-function openMaterial(url){if(url)window.open(url,'_blank');}
+function openMatCard(el){
+  const url=decodeURIComponent(el.dataset.murl||'');
+  if(!url){showToast('У этого материала нет ссылки ⚠️');return;}
+  window.open(url,'_blank');
+}
 async function saveMaterial(){
   const name=C('mat_name').value.trim(),type=C('mat_type').value,url=C('mat_url').value.trim(),language=C('mat_lang').value,level=C('mat_level').value;
   if(!name){showToast('Введи название!');return;}
+  if(!url){showToast('Введи URL материала!');return;}
   await sb.from('materials').insert({school_id:S.schoolId,name,title:name,type,url,language,level});
   closeM('mAddMaterial');showToast('Материал добавлен');renderMaterials();
 }
