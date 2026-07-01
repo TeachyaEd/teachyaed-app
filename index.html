@@ -1679,6 +1679,90 @@ const TRANSLATIONS={
   'Новое занятие':'New Event',
   'Редактировать класс':'Edit class',
   'Ред.':'Edit',
+
+  // ── LOGIN SCREEN ───────────────────────────────────────────────────────────
+  'Платформа языковой школы':'Language School Platform',
+  'Неверный email или пароль':'Invalid email or password',
+
+  // ── WHITEBOARD ────────────────────────────────────────────────────────────
+  '⏳ Соединяю...':'⏳ Connecting...',
+  '🖊 Ручка':'🖊 Pen',
+  'Тонкий':'Thin',
+  'Толстый':'Thick',
+  '🗑 Очистить':'🗑 Clear',
+
+  // ── INVITE MODALS ─────────────────────────────────────────────────────────
+  '📧 Ученик получит письмо со ссылкой для входа на указанный email':'📧 Student will receive a login link via email',
+  '📧 Сотрудник получит письмо с приглашением и ссылкой для создания пароля':'📧 Staff will receive an invitation email with a link to set a password',
+  '💌 Сохранить и пригласить':'💌 Save & Invite',
+  '💌 Отправить приглашение':'💌 Send Invitation',
+
+  // ── MATERIAL TYPE OPTIONS ─────────────────────────────────────────────────
+  'Ссылка':'Link','Аудио':'Audio','Документ':'Document',
+  '🔗 Ссылка':'🔗 Link','📝 Документ':'📝 Document','🎵 Аудио':'🎵 Audio',
+
+  // ── COLOR OPTIONS ─────────────────────────────────────────────────────────
+  '🟣 Фиолетовый':'🟣 Purple','🩷 Розовый':'🩷 Pink',
+  '🟢 Зелёный':'🟢 Green','🟡 Жёлтый':'🟡 Yellow',
+  '🔵 Синий':'🔵 Blue','🔴 Красный':'🔴 Red',
+  'Фиолетовый':'Purple','Розовый':'Pink','Зелёный':'Green',
+  'Жёлтый':'Yellow','Синий':'Blue','Красный':'Red',
+
+  // ── LESSON EDITOR / VIEWER ────────────────────────────────────────────────
+  '← Назад':'← Back',
+  '— из —':'— of —',
+  '① По одному':'① One by one',
+  'Позвоните, когда урок начнется':'Call when the lesson starts',
+  '📎 Материалы урока':'📎 Lesson Materials',
+  'Разделы':'Sections',
+  'Нет упражнений':'No exercises',
+  '🏁 Завершить урок':'🏁 Finish Lesson',
+  'Весь урок':'Full Lesson',
+  '✎ Ред.':'✎ Edit',
+  'Название раздела...':'Section title...',
+  'Раздел пустой':'Section is empty',
+  'Добавь первое упражнение ниже':'Add the first exercise below',
+  '+ Добавить раздел':'+ Add section',
+
+  // ── TOOL PANEL ────────────────────────────────────────────────────────────
+  'Панель':'Panel',
+  '1м':'1m','3м':'3m','5м':'5m','10м':'10m',
+  '▶ Старт':'▶ Start',
+  '↺ Сброс':'↺ Reset',
+  '⏱ Время вышло!':'⏱ Time\'s up!',
+
+  // ── PROFILE / TASKS ───────────────────────────────────────────────────────
+  'Мой профиль':'My Profile',
+  'Приоритет':'Priority',
+
+  // ── FORM LABELS & MISC ────────────────────────────────────────────────────
+  'Время':'Time',
+  '🚀 Опубликовать':'🚀 Publish',
+  'Нет занятий':'No events',
+  'Длит.':'Dur.',
+  'Предпросмотр':'Preview',
+  '✎ Редактор':'✎ Editor',
+  'Заметки к уроку...':'Lesson notes...',
+  'Слово на RU или EN...':'Word in RU or EN...',
+  'Краткое описание...':'Brief description...',
+  'Сохранённые слова':'Saved words',
+  '🖼 Изображение не добавлено':'🖼 No image added',
+  'Кол-во слов':'Word count',
+  'из':'of',
+
+  // ── PLACEHOLDERS ──────────────────────────────────────────────────────────
+  'Пароль':'Password',
+  'Новый пароль (мин. 6 символов)':'New password (min. 6 characters)',
+  'Повторите пароль':'Confirm password',
+  'Меню':'Menu',
+  'Тема задания':'Assignment topic',
+  'Подробности...':'Details...',
+  'Напиши ответ...':'Write your answer...',
+  'Занятие по английскому':'English lesson',
+  'Название урока...':'Lesson title...',
+  'Спроси что-нибудь...':'Ask something...',
+  'Название задачи':'Task title',
+  'Подробнее...':'More details...',
 };
 
 function t(str){
@@ -1753,6 +1837,8 @@ function toggleLang(){
     o_messages:renderMessenger,o_tasks:renderTasks
   };
   if(S.screen&&fn[S.screen])fn[S.screen]();
+  // Apply EN to static elements outside content (sidebar headers, modals, overlays, login)
+  if(S.lang==='en')applyEN(document.body);
 }
 
 // ─── PROFILE MODAL ────────────────────────────────────────────────────────────
@@ -2089,6 +2175,7 @@ function toggleToolPanel(type){
   if(type==='tasks')renderTasksPanel();
   if(type==='ce_materials')renderCEMaterialsPanel();
   if(type==='cv_materials')renderCVMaterialsPanel();
+  if(S.lang==='en')applyEN(panel);
 }
 
 function renderTasksPanel(){
@@ -2624,7 +2711,7 @@ function minimizeCall(){const b=C('callBody');b.style.display=b.style.display===
 
 // ─── WHITEBOARD ───────────────────────────────────────────────────────────────
 let wbCtx,wbDrawing=false,wbTool='pen',wbLX=0,wbLY=0;
-function openWb(){C('wbOverlay').classList.add('open');initWb();}
+function openWb(){C('wbOverlay').classList.add('open');initWb();if(S.lang==='en')applyEN(C('wbOverlay'));}
 function closeWb(){C('wbOverlay').classList.remove('open');}
 function initWb(){
   const c=C('wbCanvas');c.width=window.innerWidth;c.height=window.innerHeight-56;
@@ -3401,7 +3488,7 @@ function closeCE(){
   if(S.screen==='t_lessons')renderTeacherLessons();
   if(S.currentClassId&&S.currentClassTab==='lessons')loadClassTab('lessons');
 }
-function ceRenderAll(){ceSidebar();ceExercise();ceProgress();}
+function ceRenderAll(){ceSidebar();ceExercise();ceProgress();if(S.lang==='en')applyEN(C('classroomEditor'));}
 
 function ceSidebar(){
   C('ce_secList').innerHTML=CE.sections.map((s,si)=>`
@@ -3750,6 +3837,7 @@ function lvRender(){
   const sc=C('cv_exerciseContent').closest('.cv-content-scroll');if(sc)sc.scrollTop=0;
   // sections list in right sidebar
   lvRenderSections();
+  if(S.lang==='en')applyEN(C('classroomView'));
 }
 
 function lvRenderSections(){
@@ -3860,6 +3948,7 @@ function lvRenderAll(){
   </div>`;
   C('cv_exerciseContent').innerHTML=html;
   lvRenderSections();
+  if(S.lang==='en')applyEN(C('classroomViewer')||C('cv_exerciseContent'));
 }
 
 function renderBlockView(b,i){
