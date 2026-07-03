@@ -654,10 +654,26 @@ input,select,textarea{font-size:16px!important} /* Предотвращаем з
       <span>TeachyaED</span>
       <p>Платформа языковой школы</p>
     </div>
-    <input type="email" id="loginEmail" placeholder="Email" autocomplete="email">
-    <input type="password" id="loginPass" placeholder="Пароль" onkeydown="if(event.key==='Enter')doLogin()">
-    <button class="btn-login" onclick="doLogin()">Войти</button>
-    <div id="loginErr">Неверный email или пароль</div>
+    <!-- Login form -->
+    <div id="loginForm">
+      <input type="email" id="loginEmail" placeholder="Email" autocomplete="email">
+      <input type="password" id="loginPass" placeholder="Пароль" onkeydown="if(event.key==='Enter')doLogin()">
+      <button class="btn-login" onclick="doLogin()">Войти</button>
+      <div id="loginErr">Неверный email или пароль</div>
+      <div style="text-align:center;margin-top:14px">
+        <button onclick="showForgotPw()" style="background:none;border:none;color:#7C3AED;font-size:.85rem;cursor:pointer;font-family:var(--font);text-decoration:underline">Забыли пароль?</button>
+      </div>
+    </div>
+    <!-- Forgot password form -->
+    <div id="forgotPwForm" style="display:none">
+      <p style="text-align:center;font-size:.88rem;color:#6b7280;margin-bottom:14px">Введите ваш email — мы отправим ссылку для сброса пароля</p>
+      <input type="email" id="resetEmail" placeholder="Email" autocomplete="email" onkeydown="if(event.key==='Enter')sendResetEmail()">
+      <button class="btn-login" onclick="sendResetEmail()" id="resetBtn">Отправить ссылку</button>
+      <div id="resetMsg" style="font-size:.85rem;text-align:center;margin-top:10px;display:none"></div>
+      <div style="text-align:center;margin-top:12px">
+        <button onclick="hideForgotPw()" style="background:none;border:none;color:#7C3AED;font-size:.85rem;cursor:pointer;font-family:var(--font);text-decoration:underline">← Назад ко входу</button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -668,8 +684,8 @@ input,select,textarea{font-size:16px!important} /* Предотвращаем з
       <span>TeachyaED</span>
       <p style="color:var(--gray);font-size:.85rem;margin-top:4px">Добро пожаловать! 🎉</p>
     </div>
-    <h3 style="text-align:center;margin-bottom:6px;font-size:1.05rem">Создайте пароль</h3>
-    <p style="text-align:center;font-size:.83rem;color:var(--text3);margin-bottom:16px">Вас пригласили в TeachyaED. Придумайте пароль для входа.</p>
+    <h3 id="inviteTitle" style="text-align:center;margin-bottom:6px;font-size:1.05rem">Создайте пароль</h3>
+    <p id="inviteSubtitle" style="text-align:center;font-size:.83rem;color:var(--text3);margin-bottom:16px">Вас пригласили в TeachyaED. Придумайте пароль для входа.</p>
     <div class="inv-email" id="inv_email"></div>
     <input type="password" id="inv_pass1" placeholder="Новый пароль (мин. 6 символов)" autocomplete="new-password">
     <input type="password" id="inv_pass2" placeholder="Повторите пароль" autocomplete="new-password" onkeydown="if(event.key==='Enter')setInvitePassword()">
@@ -2552,6 +2568,18 @@ async function checkInviteToken(){
   const{data:{session},error}=await sb.auth.getSession();
   if(!session){return false;}
 
+  // Differentiate invite vs password recovery
+  const isRecovery=hash.includes('type=recovery');
+  if(isRecovery){
+    C('inviteTitle').textContent='Восстановление пароля';
+    C('inviteSubtitle').textContent='Придумайте новый пароль для входа.';
+    C('inv_btn').textContent='Сохранить новый пароль';
+  } else {
+    C('inviteTitle').textContent='Создайте пароль';
+    C('inviteSubtitle').textContent='Вас пригласили в TeachyaED. Придумайте пароль для входа.';
+    C('inv_btn').textContent='Войти в систему →';
+  }
+
   // Show the "set password" screen
   C('loginScreen').style.display='none';
   C('inv_email').textContent=session.user.email||'';
@@ -2559,6 +2587,36 @@ async function checkInviteToken(){
   // Clean up URL
   history.replaceState(null,'',window.location.pathname);
   return true;
+}
+
+// ── Forgot password UI ──────────────────────────────────────────────────────
+function showForgotPw(){
+  C('loginForm').style.display='none';
+  C('forgotPwForm').style.display='block';
+  C('resetEmail').value=C('loginEmail').value||'';
+  C('resetMsg').style.display='none';
+}
+function hideForgotPw(){
+  C('forgotPwForm').style.display='none';
+  C('loginForm').style.display='block';
+}
+async function sendResetEmail(){
+  const email=C('resetEmail').value.trim();
+  if(!email){C('resetMsg').textContent='Введите email';C('resetMsg').style.color='var(--pink)';C('resetMsg').style.display='block';return;}
+  C('resetBtn').textContent='Отправляем...';C('resetBtn').disabled=true;
+  const{error}=await sb.auth.resetPasswordForEmail(email,{
+    redirectTo:'https://teachyaed.github.io/teachyaed-app/'
+  });
+  C('resetBtn').textContent='Отправить ссылку';C('resetBtn').disabled=false;
+  if(error){
+    C('resetMsg').textContent='Ошибка: '+error.message;
+    C('resetMsg').style.color='var(--pink)';
+  } else {
+    C('resetMsg').textContent='✅ Ссылка отправлена! Проверьте почту.';
+    C('resetMsg').style.color='var(--green)';
+    C('resetEmail').value='';
+  }
+  C('resetMsg').style.display='block';
 }
 
 async function setInvitePassword(){
