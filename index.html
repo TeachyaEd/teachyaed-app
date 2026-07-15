@@ -1254,6 +1254,18 @@ input,select,textarea{font-size:16px!important} /* Предотвращаем з
 
 <div id="toast"></div>
 <script>
+// ─── CAPTURE URL HASH BEFORE SUPABASE CLEARS IT ──────────────────────────────
+// Supabase JS v2 calls history.replaceState() during createClient init,
+// wiping the hash before checkInviteToken() can read it.
+const _initHash=window.location.hash;
+const _initSearch=window.location.search;
+// Parse type from hash (#access_token=...&type=invite) or query (?type=invite)
+const _initAuthType=(()=>{
+  const hp=new URLSearchParams(_initHash.replace(/^#/,''));
+  const sp=new URLSearchParams(_initSearch);
+  return hp.get('type')||sp.get('type')||null;
+})();
+
 // ─── SUPABASE ────────────────────────────────────────────────────────────────
 const sb=window.supabase.createClient('https://juwvlyrepwdcndkqiqna.supabase.co','sb_publishable_P7un05_VjPp2JOYfeek-jQ_469PQIE_');
 const SCHOOL='00000000-0000-0000-0000-000000000001';
@@ -2559,17 +2571,20 @@ const INVITE_FN='https://juwvlyrepwdcndkqiqna.supabase.co/functions/v1/invite-us
 
 // Called on page load — detects invite/password-reset tokens in URL
 async function checkInviteToken(){
-  const hash=window.location.hash;
-  // Supabase puts token info in URL hash after invite click
-  if(!hash.includes('access_token'))return false;
-  if(!hash.includes('type=invite')&&!hash.includes('type=recovery'))return false;
+  // Use hash captured BEFORE Supabase cleared it on init
+  const hash=_initHash;
+  const type=_initAuthType;
+  // Must be an invite or recovery flow
+  const isInvite=type==='invite'||hash.includes('type=invite');
+  const isRecovery=type==='recovery'||hash.includes('type=recovery');
+  if(!isInvite&&!isRecovery)return false;
+  // Must have a token (hash) or auth code (search params — PKCE flow)
+  const hasToken=hash.includes('access_token')||_initSearch.includes('code=');
+  if(!hasToken)return false;
 
-  // Get session auto-detected by Supabase JS from the URL hash
+  // Get session — Supabase already processed the token from URL
   const{data:{session},error}=await sb.auth.getSession();
   if(!session){return false;}
-
-  // Differentiate invite vs password recovery
-  const isRecovery=hash.includes('type=recovery');
   if(isRecovery){
     C('inviteTitle').textContent='Восстановление пароля';
     C('inviteSubtitle').textContent='Придумайте новый пароль для входа.';
