@@ -2842,12 +2842,42 @@ const ICE={iceServers:[
   {urls:'turn:openrelay.metered.ca:80?transport=tcp',username:'openrelayproject',credential:'openrelayproject'}
 ]};
 function getRoomId(a,b){const clean=id=>String(id||'x').replace('stu_','').replace(/[^a-zA-Z0-9]/g,'').slice(0,12)||'x';const ids=[clean(a),clean(b)].sort();return`ty-${ids[0]}-${ids[1]}`;}
+// ─── RING TONE ─────────────────────────────────────────────────────────────────
+let _ringInterval=null;
+function playRingTone(){
+  stopRingTone();
+  try{
+    const ctx=new(window.AudioContext||window.webkitAudioContext)();
+    const ring=()=>{
+      // Classic "дring-дring" — two short beeps
+      [0,0.22].forEach(offset=>{
+        const o=ctx.createOscillator();const g=ctx.createGain();
+        o.connect(g);g.connect(ctx.destination);
+        o.frequency.value=440;o.type='sine';
+        g.gain.setValueAtTime(0,ctx.currentTime+offset);
+        g.gain.linearRampToValueAtTime(0.35,ctx.currentTime+offset+0.02);
+        g.gain.linearRampToValueAtTime(0,ctx.currentTime+offset+0.18);
+        o.start(ctx.currentTime+offset);o.stop(ctx.currentTime+offset+0.2);
+      });
+    };
+    ring();_ringInterval=setInterval(ring,1200);
+    // Показываем браузерное уведомление если вкладка не в фокусе
+    if(document.hidden&&Notification?.permission==='granted'){
+      new Notification('📞 Входящий звонок',{body:C('icName').textContent||'Звонок',icon:'/favicon.ico'});
+    } else if(document.hidden&&Notification?.permission==='default'){
+      Notification.requestPermission();
+    }
+  }catch(e){console.warn('Ring audio error:',e);}
+}
+function stopRingTone(){if(_ringInterval){clearInterval(_ringInterval);_ringInterval=null;}}
+
 function subscribeNotifications(){
   S.notifyChannel=sb.channel(`notify-${S.profile.id}`)
     .on('broadcast',{event:'ring'},({payload})=>{
       S.pendingRoom=payload.room_id;S.pendingPartner=payload.from_name;
       C('icName').textContent=payload.from_name;C('icRole').textContent=ROLE_L[payload.from_role]||'';
       C('incomingCall').classList.add('show');
+      playRingTone();
       clearTimeout(S._ringTimeout);S._ringTimeout=setTimeout(declineCall,30000);
     })
     .on('broadcast',{event:'decline'},()=>{if(!S.inCall)showToast('Звонок отклонён');})
@@ -2866,16 +2896,34 @@ async function callContact(partnerId,partnerName,partnerRole){
   C('contactPicker').classList.remove('open');
   if(S.inCall){showToast('Уже идёт звонок');return;}
   const roomId=getRoomId(S.profile.id,partnerId);
-  if(!partnerId.startsWith('stu_')){
-    const notifyCh=sb.channel(`notify-${partnerId}`);
-    await new Promise(res=>{notifyCh.subscribe(st=>{if(st==='SUBSCRIBED')res();});});
-    notifyCh.send({type:'broadcast',event:'ring',payload:{from_name:`${S.profile.first_name} ${S.profile.last_name}`,from_role:S.role,room_id:roomId}});
-    setTimeout(()=>sb.removeChannel(notifyCh),3000);
+  // Resolve real profile UUID for students stored with 'stu_' prefix or raw students-table IDs
+  let ringId=partnerId;
+  if(partnerId.startsWith('stu_')){
+    // stu_<students.id> → look up profile by email
+    const realId=partnerId.slice(4);
+    try{
+      const{data:stu}=await sb.from('students').select('email').eq('id',realId).single();
+      if(stu?.email){
+        const{data:prof}=await sb.from('profiles').select('id').eq('email',stu.email).eq('school_id',S.schoolId).single();
+        if(prof?.id)ringId=prof.id;
+      }
+    }catch(e){}
+  }
+  // Send ring notification (only if we have a real profile UUID)
+  if(!ringId.startsWith('stu_')){
+    try{
+      const notifyCh=sb.channel(`notify-${ringId}`);
+      await new Promise(res=>{notifyCh.subscribe(st=>{if(st==='SUBSCRIBED')res();});});
+      notifyCh.send({type:'broadcast',event:'ring',payload:{from_name:`${S.profile.first_name} ${S.profile.last_name}`,from_role:S.role,room_id:roomId}});
+      setTimeout(()=>sb.removeChannel(notifyCh),4000);
+    }catch(e){console.warn('Ring send error:',e);}
+  } else {
+    showToast('⚠️ У ученика нет аккаунта — уведомление не придёт');
   }
   await initCall(roomId,partnerName,false);
 }
 async function acceptCall(){
-  clearTimeout(S._ringTimeout);
+  stopRingTone();clearTimeout(S._ringTimeout);
   C('incomingCall').classList.remove('show');
   if(!S.pendingRoom){showToast('Ошибка: данные звонка потеряны. Попросите собеседника позвонить снова.');return;}
   const room=S.pendingRoom,partner=S.pendingPartner||'Собеседник';
@@ -2883,7 +2931,7 @@ async function acceptCall(){
   await initCall(room,partner,true);
 }
 function declineCall(){
-  clearTimeout(S._ringTimeout);C('incomingCall').classList.remove('show');
+  stopRingTone();clearTimeout(S._ringTimeout);C('incomingCall').classList.remove('show');
   if(S.pendingRoom){const ch=sb.channel(S.pendingRoom);ch.subscribe(st=>{if(st==='SUBSCRIBED'){ch.send({type:'broadcast',event:'decline',payload:{}});setTimeout(()=>sb.removeChannel(ch),1000);}});}
   S.pendingRoom=null;
 }
@@ -3118,7 +3166,7 @@ async function renderAdminStudents(){
     <td><span class="badge badge-purple">${s.level||'—'}</span></td>
     <td>${s.phone||'—'}</td>
     <td class="td-actions">
-      <button class="btn btn-sm btn-green" style="font-size:.73rem;padding:4px 8px" onclick="callContact('${s.id}','${(s.first_name+' '+s.last_name).replace(/'/g,"\\'")}','student')">📞</button>
+      <button class="btn btn-sm btn-green" style="font-size:.73rem;padding:4px 8px" onclick="callContact('stu_${s.id}','${(s.first_name+' '+s.last_name).replace(/'/g,"\\'")}','student')">📞</button>
       <button class="btn-danger" onclick="confirmDeleteStudent('${s.id}','${(s.first_name+' '+s.last_name).replace(/'/g,"\\'")}')">🗑</button>
     </td></tr>`).join('')||`<tr><td colspan="5" style="text-align:center;color:var(--text3)">${t('Нет учеников')}</td></tr>`;
   setContent(`<div class="section-header"><h2>👥 ${t('Ученики')}</h2><button class="btn btn-purple" onclick="openAddStudent()">+ ${t('Добавить')}</button></div>
@@ -3197,7 +3245,7 @@ async function renderOwnerStudents(){
     <td><div style="display:flex;align-items:center;gap:10px">${avHTML(s.first_name,s.last_name)}<div><div style="font-weight:600">${s.first_name} ${s.last_name}</div><div style="font-size:.75rem;color:var(--text3)">${s.email||'—'}</div></div></div></td>
     <td>${s.language||'—'}</td><td><span class="badge badge-purple">${s.level||'—'}</span></td><td>${s.phone||'—'}</td>
     <td class="td-actions">
-      <button class="btn btn-sm btn-green" style="font-size:.73rem;padding:4px 8px" onclick="callContact('${s.id}','${(s.first_name+' '+s.last_name).replace(/'/g,"\\'")}','student')">📞</button>
+      <button class="btn btn-sm btn-green" style="font-size:.73rem;padding:4px 8px" onclick="callContact('stu_${s.id}','${(s.first_name+' '+s.last_name).replace(/'/g,"\\'")}','student')">📞</button>
       <button class="btn-danger" onclick="confirmDeleteStudent('${s.id}','${(s.first_name+' '+s.last_name).replace(/'/g,"\\'")}')">🗑</button>
     </td></tr>`).join('')||`<tr><td colspan="5" style="text-align:center;color:var(--text3)">${t('Нет учеников')}</td></tr>`;
   setContent(`<div class="section-header"><h2>🎓 ${t('Ученики')}</h2><button class="btn btn-purple" onclick="openAddStudent()">+ ${t('Добавить')}</button></div>
