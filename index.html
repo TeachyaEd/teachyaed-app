@@ -3600,6 +3600,8 @@ async function loadClassTab(tab){
     const{data:lessons}=await sb.from('lessons').select('*').eq('school_id',S.schoolId).order('created_at',{ascending:false});
     const{data:sts}=await sb.from('students').select('id,first_name,last_name').eq('school_id',S.schoolId);
     C('assign_student').innerHTML=(sts||[]).map(s=>`<option value="${s.id}">${s.first_name} ${s.last_name}</option>`).join('');
+    window._lessonCache=window._lessonCache||{};
+    (lessons||[]).forEach(l=>{window._lessonCache[l.id]=l;});
     const cards=(lessons||[]).map(l=>{
       const cnt=lessonExCount(l);
       return`<div class="card" style="margin-bottom:10px">
@@ -3610,8 +3612,8 @@ async function loadClassTab(tab){
           </div>
           <div style="display:flex;gap:6px;flex-wrap:wrap">
             ${l.published?'<span class="badge badge-green">✓ Опубликован</span>':'<span class="badge badge-gray">Черновик</span>'}
-            <button class="btn btn-sm btn-outline" style="font-size:.73rem;padding:4px 8px" onclick="openLessonPreview('${(l.title).replace(/'/g,"\\'")}','${encodeURIComponent(JSON.stringify(l.content||[]))}')">👁 Просмотр</button>
-            <button class="btn btn-sm btn-outline" style="font-size:.73rem;padding:4px 8px" onclick="openLessonEditor('${l.id}','${(l.title).replace(/'/g,"\\'")}','${l.language}','${l.level}','${encodeURIComponent(JSON.stringify(l.content||[]))}')">✎ Редактор</button>
+            <button class="btn btn-sm btn-outline" style="font-size:.73rem;padding:4px 8px" onclick="previewLessonById('${l.id}')">👁 Просмотр</button>
+            <button class="btn btn-sm btn-outline" style="font-size:.73rem;padding:4px 8px" onclick="editLessonById('${l.id}')">✎ Редактор</button>
             <button class="btn btn-sm btn-purple" style="font-size:.73rem;padding:4px 8px" onclick="openAssignLesson('${l.id}')">👤 Назначить</button>
           </div>
         </div>
@@ -4033,8 +4035,17 @@ async function saveFromCE(publish){
   const data={school_id:S.schoolId,teacher_id:S.profile.id,title,
     language:C('ce_lang').value,level:C('ce_level').value,
     content:{sections:CE.sections,materials:CE.materials},published:publish};
-  if(CE.lessonId){await sb.from('lessons').update(data).eq('id',CE.lessonId);}
-  else{const{data:ins}=await sb.from('lessons').insert(data).select().single();if(ins)CE.lessonId=ins.id;}
+  let err=null;
+  if(CE.lessonId){
+    const res=await sb.from('lessons').update(data).eq('id',CE.lessonId).select().single();
+    err=res.error;
+    if(!err&&res.data){window._lessonCache=window._lessonCache||{};window._lessonCache[CE.lessonId]=res.data;}
+  } else {
+    const{data:ins,error:insErr}=await sb.from('lessons').insert(data).select().single();
+    err=insErr;
+    if(ins){CE.lessonId=ins.id;window._lessonCache=window._lessonCache||{};window._lessonCache[ins.id]=ins;}
+  }
+  if(err){showToast('❌ Ошибка: '+err.message);console.error('saveFromCE error:',err);return;}
   dcInval('lessons_'+S.schoolId);
   showToast(publish?t('🚀 Опубликовано!'):t('💾 Сохранено!'));
 }
@@ -4046,6 +4057,8 @@ async function renderTeacherLessons(){
     dc('students_'+S.schoolId,()=>sb.from('students').select('id,first_name,last_name').eq('school_id',S.schoolId).then(r=>r))
   ]);
   C('assign_student').innerHTML=(sts||[]).map(s=>`<option value="${s.id}">${s.first_name} ${s.last_name}</option>`).join('');
+  window._lessonCache=window._lessonCache||{};
+  (lessons||[]).forEach(l=>{window._lessonCache[l.id]=l;});
   const cards=(lessons||[]).map(l=>{
     const cnt=l.content?.sections?l.content.sections.reduce((a,s)=>a+(s.exercises?.length||0),0):Array.isArray(l.content)?l.content.length:0;
     return`<div class="card" style="margin-bottom:12px">
@@ -4056,8 +4069,8 @@ async function renderTeacherLessons(){
         </div>
         <div style="display:flex;gap:6px;flex-wrap:wrap">
           ${l.published?'<span class="badge badge-green">✓ Опубликован</span>':'<span class="badge badge-gray">Черновик</span>'}
-          <button class="btn btn-sm btn-outline" style="font-size:.73rem;padding:4px 8px" onclick="openLessonPreview('${(l.title).replace(/'/g,"\\'")}','${encodeURIComponent(JSON.stringify(l.content||[]))}')">👁 Просмотр</button>
-          <button class="btn btn-sm btn-outline" style="font-size:.73rem;padding:4px 8px" onclick="openLessonEditor('${l.id}','${(l.title).replace(/'/g,"\\'")}','${l.language}','${l.level}','${encodeURIComponent(JSON.stringify(l.content||[]))}')">✎ Редактор</button>
+          <button class="btn btn-sm btn-outline" style="font-size:.73rem;padding:4px 8px" onclick="previewLessonById('${l.id}')">👁 Просмотр</button>
+          <button class="btn btn-sm btn-outline" style="font-size:.73rem;padding:4px 8px" onclick="editLessonById('${l.id}')">✎ Редактор</button>
           <button class="btn btn-sm btn-purple" style="font-size:.73rem;padding:4px 8px" onclick="openAssignLesson('${l.id}')">👤 Назначить</button>
         </div>
       </div>
@@ -4428,6 +4441,18 @@ async function completeLessonView(){
 function openLessonPreview(title,contentEnc){
   const{sections:_s,materials:_m}=_parseLessonContent(contentEnc);
   openClassroomView(title,_s,null,null,_m);
+}
+// Cache-based helpers (avoid huge JSON in onclick attributes)
+function previewLessonById(id){
+  const l=(window._lessonCache||{})[id];
+  if(!l){showToast('Урок не найден');return;}
+  const enc=encodeURIComponent(JSON.stringify(l.content||[]));
+  openLessonPreview(l.title,enc);
+}
+function editLessonById(id){
+  const l=(window._lessonCache||{})[id];
+  if(!l){showToast('Урок не найден');return;}
+  openLessonEditor(l.id,l.title,l.language||'Английский',l.level||'A1',encodeURIComponent(JSON.stringify(l.content||[])));
 }
 
 // ─── MATERIAL PREVIEW ─────────────────────────────────────────────────────────
