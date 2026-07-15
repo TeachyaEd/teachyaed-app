@@ -2871,17 +2871,37 @@ function playRingTone(){
 }
 function stopRingTone(){if(_ringInterval){clearInterval(_ringInterval);_ringInterval=null;}}
 
+function handleIncomingCall(payload){
+  if(S.inCall||S.pendingRoom)return; // уже в звонке или уже показано
+  S.pendingRoom=payload.room_id;S.pendingPartner=payload.from_name;
+  C('icName').textContent=payload.from_name||'Звонок';
+  C('icRole').textContent=ROLE_L[payload.from_role]||'';
+  C('incomingCall').classList.add('show');
+  playRingTone();
+  clearTimeout(S._ringTimeout);S._ringTimeout=setTimeout(declineCall,30000);
+}
 function subscribeNotifications(){
   S.notifyChannel=sb.channel(`notify-${S.profile.id}`)
-    .on('broadcast',{event:'ring'},({payload})=>{
-      S.pendingRoom=payload.room_id;S.pendingPartner=payload.from_name;
-      C('icName').textContent=payload.from_name;C('icRole').textContent=ROLE_L[payload.from_role]||'';
-      C('incomingCall').classList.add('show');
-      playRingTone();
-      clearTimeout(S._ringTimeout);S._ringTimeout=setTimeout(declineCall,30000);
-    })
+    // Broadcast (быстро, когда оба онлайн)
+    .on('broadcast',{event:'ring'},({payload})=>handleIncomingCall(payload))
     .on('broadcast',{event:'decline'},()=>{if(!S.inCall)showToast('Звонок отклонён');})
+    // Postgres Changes (надёжно — основной канал уведомлений)
+    .on('postgres_changes',{event:'INSERT',schema:'public',table:'call_signals',
+      filter:`to_profile_id=eq.${S.profile.id}`},
+      ({new:sig})=>{
+        handleIncomingCall({from_name:sig.from_name,from_role:sig.from_role,room_id:sig.room_id});
+        sb.from('call_signals').delete().eq('id',sig.id).then(()=>{});
+      })
     .subscribe();
+  // Проверяем pending сигналы (если пришли пока был офлайн)
+  setTimeout(async()=>{
+    const{data:sigs}=await sb.from('call_signals').select('*').eq('to_profile_id',S.profile.id).order('created_at',{ascending:false}).limit(1);
+    if(sigs?.length){
+      const sig=sigs[0];
+      if(Date.now()-new Date(sig.created_at).getTime()<30000)handleIncomingCall({from_name:sig.from_name,from_role:sig.from_role,room_id:sig.room_id});
+      sb.from('call_signals').delete().eq('to_profile_id',S.profile.id).then(()=>{});
+    }
+  },1500);
 }
 function toggleDialer(){if(S.inCall){hangUp();return;}const p=C('contactPicker');p.classList.toggle('open');if(p.classList.contains('open'))renderContacts();}
 function renderContacts(){
@@ -2911,12 +2931,19 @@ async function callContact(partnerId,partnerName,partnerRole){
   }
   // Send ring notification (only if we have a real profile UUID)
   if(!ringId.startsWith('stu_')){
-    try{
-      const notifyCh=sb.channel(`notify-${ringId}`);
-      await new Promise(res=>{notifyCh.subscribe(st=>{if(st==='SUBSCRIBED')res();});});
-      notifyCh.send({type:'broadcast',event:'ring',payload:{from_name:`${S.profile.first_name} ${S.profile.last_name}`,from_role:S.role,room_id:roomId}});
-      setTimeout(()=>sb.removeChannel(notifyCh),4000);
-    }catch(e){console.warn('Ring send error:',e);}
+    const rPayload={from_name:`${S.profile.first_name} ${S.profile.last_name}`,from_role:S.role,room_id:roomId};
+    // 1️⃣ Postgres Changes — надёжно (основной канал)
+    sb.from('call_signals').insert({to_profile_id:ringId,...rPayload})
+      .then(({error})=>{if(error)console.warn('call_signal insert:',error);});
+    // 2️⃣ Broadcast — быстро (fire-and-forget, без await)
+    const notifyCh=sb.channel(`notify-${ringId}`);
+    notifyCh.subscribe(st=>{
+      if(st==='SUBSCRIBED'){
+        notifyCh.send({type:'broadcast',event:'ring',payload:rPayload})
+          .then(r=>console.log('[ring broadcast]',r));
+        setTimeout(()=>sb.removeChannel(notifyCh),5000);
+      }
+    });
   } else {
     showToast('⚠️ У ученика нет аккаунта — уведомление не придёт');
   }
