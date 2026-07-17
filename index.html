@@ -651,6 +651,49 @@ input,select,textarea{font-size:16px!important} /* Предотвращаем з
 .toast-card .tc-text{font-size:.78rem;color:var(--text3);margin-top:2px}
 .toast-card .tc-close{color:var(--text3);background:none;border:none;cursor:pointer;font-size:1rem;padding:0;line-height:1;flex-shrink:0}
 @keyframes tcSlide{from{opacity:0;transform:translateX(30px)}to{opacity:1;transform:translateX(0)}}
+/* ─── HOMEWORK SYSTEM v2 ─────────────────────────────────────────────────────── */
+.hwe-modal .modal,.hwp-modal .modal,.hwr-modal .modal{max-width:700px;max-height:90vh;overflow-y:auto}
+.hw-ex-card{background:var(--gray-light);border-radius:12px;padding:14px 16px;margin-bottom:10px;border:2px solid var(--gray-border);position:relative}
+.hw-ex-type{display:inline-block;font-size:.7rem;font-weight:700;padding:2px 8px;border-radius:20px;background:var(--purple-light);color:var(--purple);margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px}
+.hw-ex-card .ex-del{position:absolute;top:10px;right:10px;background:none;border:none;color:#ef4444;cursor:pointer;font-size:1.1rem;padding:2px 6px;border-radius:6px;line-height:1}
+.hw-ex-card .ex-del:hover{background:#fee2e2}
+.hw-ex-card input,.hw-ex-card textarea,.hw-ex-card select{width:100%;padding:7px 10px;border:2px solid var(--gray-border);border-radius:8px;font-family:var(--font);font-size:.88rem;background:#fff;margin-bottom:6px;box-sizing:border-box}
+.hw-ex-card input:focus,.hw-ex-card textarea:focus{border-color:var(--purple);outline:none}
+.hw-add-ex-row{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px;padding-bottom:12px;border-bottom:2px solid var(--gray-border)}
+.hw-add-ex-btn{padding:6px 12px;border-radius:20px;border:2px solid var(--gray-border);background:#fff;cursor:pointer;font-size:.8rem;font-weight:600;font-family:var(--font);color:var(--text2);transition:.15s;white-space:nowrap}
+.hw-add-ex-btn:hover{border-color:var(--purple);color:var(--purple);background:var(--purple-light)}
+.hwe-pair-row{display:flex;gap:6px;margin-bottom:6px;align-items:center}
+.hwe-pair-row input{flex:1;margin-bottom:0!important}
+.hwe-pair-del{flex-shrink:0;padding:4px 9px;border-radius:6px;border:none;background:#fee2e2;color:#ef4444;cursor:pointer;font-size:1rem;font-family:var(--font);line-height:1}
+.mc-opt-row{display:flex;gap:6px;align-items:center;margin-bottom:6px}
+.mc-opt-row input[type=text]{flex:1;margin-bottom:0!important}
+.mc-opt-row input[type=radio]{width:auto;flex-shrink:0;margin:0;cursor:pointer}
+.mc-opt-row button{flex-shrink:0;padding:4px 9px;border-radius:6px;border:none;background:#fee2e2;color:#ef4444;cursor:pointer;font-size:1rem;line-height:1;font-family:var(--font)}
+.hw-import-item{padding:10px 14px;border-radius:10px;border:2px solid var(--gray-border);margin-bottom:6px;cursor:pointer;transition:.15s}
+.hw-import-item:hover{border-color:var(--purple);background:var(--purple-light)}
+/* Player */
+.hwp-ex-block{padding:14px 16px;background:var(--gray-light);border-radius:12px;margin-bottom:12px}
+.hwp-mc-opt{display:block;padding:10px 14px;border:2px solid var(--gray-border);border-radius:8px;margin-bottom:7px;cursor:pointer;transition:.15s;font-size:.92rem;font-family:var(--font)}
+.hwp-mc-opt:hover{border-color:var(--purple);background:var(--purple-light)}
+.hwp-mc-opt.sel{border-color:var(--purple);background:var(--purple-light);font-weight:700}
+.hwp-ans-area{width:100%;padding:10px 12px;border:2px solid var(--gray-border);border-radius:8px;font-family:var(--font);font-size:.92rem;min-height:80px;resize:vertical;box-sizing:border-box}
+.hwp-ans-area:focus{border-color:var(--purple);outline:none}
+.hwp-fb-inp{display:inline-block;padding:4px 10px;border:2px solid var(--purple);border-radius:8px;font-family:var(--font);font-size:.95rem;min-width:120px;max-width:200px}
+.hwp-wo-chip{display:inline-block;padding:6px 12px;border-radius:20px;border:2px solid var(--gray-border);cursor:pointer;font-size:.9rem;background:#fff;font-family:var(--font);transition:.15s;margin:3px}
+.hwp-wo-chip:hover:not(.used){border-color:var(--purple);color:var(--purple);background:var(--purple-light)}
+.hwp-wo-chip.used{opacity:.35;cursor:default;pointer-events:none}
+.hwp-wo-sentence{min-height:44px;padding:8px 12px;border:2px dashed var(--gray-border);border-radius:10px;margin-bottom:8px;font-size:.95rem;cursor:pointer;background:#fff;line-height:1.8}
+/* Review */
+.hwr-ex-block{background:var(--gray-light);border-radius:12px;padding:14px 16px;margin-bottom:10px}
+.hwr-q{font-weight:700;font-size:.9rem;margin-bottom:8px;color:var(--text1)}
+.hwr-ans{padding:8px 12px;border-radius:8px;font-size:.9rem;border:2px solid var(--gray-border);background:#fff;white-space:pre-wrap;word-break:break-word}
+.hwr-ans.correct{border-color:#22c55e!important;background:#dcfce7!important}
+.hwr-ans.wrong{border-color:#ef4444!important;background:#fee2e2!important}
+.hwr-ans.neutral{border-color:var(--gray-border)}
+.grade-row{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0 12px}
+.grade-btn{padding:8px 18px;border-radius:20px;border:2px solid var(--gray-border);background:#fff;cursor:pointer;font-size:.95rem;font-weight:700;font-family:var(--font);color:var(--text2);transition:.15s}
+.grade-btn:hover{border-color:var(--purple);color:var(--purple)}
+.grade-btn.sel{border-color:var(--purple);background:var(--purple);color:#fff}
 </style>
 </head>
 <body>
@@ -857,34 +900,59 @@ input,select,textarea{font-size:16px!important} /* Предотвращаем з
   </div>
 </div>
 
-<div class="modal-bg" id="mAddHomework">
+<!-- HW EDITOR (Teacher creates / edits homework) -->
+<div class="modal-bg hwe-modal" id="mHWEditor">
   <div class="modal">
-    <button class="modal-close" onclick="closeM('mAddHomework')">✕</button>
-    <h3>Домашнее задание</h3>
-    <div class="form-group"><label>Ученик</label><select id="hw_student"></select></div>
-    <div class="form-group"><label>Название</label><input id="hw_title" placeholder="Тема задания"></div>
-    <div class="form-group"><label>Описание</label><textarea id="hw_desc" placeholder="Подробности..."></textarea></div>
-    <div class="form-group"><label>Срок сдачи</label><input id="hw_deadline" type="date"></div>
-    <div class="btn-row"><button class="btn btn-purple" onclick="saveHw()">Отправить</button><button class="btn btn-outline" onclick="closeM('mAddHomework')">Отмена</button></div>
+    <button class="modal-close" onclick="closeM('mHWEditor')">✕</button>
+    <h3 id="hweTitle">📋 Новое ДЗ</h3>
+    <div class="form-row">
+      <div class="form-group"><label>Ученик</label><select id="hwe_student"></select></div>
+      <div class="form-group"><label>Срок сдачи</label><input id="hwe_deadline" type="date"></div>
+    </div>
+    <div class="form-group"><label>Название ДЗ</label><input id="hwe_title" placeholder="Тема задания"></div>
+    <div style="font-weight:700;font-size:.83rem;color:var(--text3);margin-bottom:8px;margin-top:4px">Добавить упражнение:</div>
+    <div class="hw-add-ex-row">
+      <button class="hw-add-ex-btn" onclick="hweAddEx('fill_blank')">✏️ Пропуск</button>
+      <button class="hw-add-ex-btn" onclick="hweAddEx('quiz')">🎯 Выбор ответа</button>
+      <button class="hw-add-ex-btn" onclick="hweAddEx('matching')">🔗 Соотнеси</button>
+      <button class="hw-add-ex-btn" onclick="hweAddEx('word_order')">🔀 Порядок слов</button>
+      <button class="hw-add-ex-btn" onclick="hweAddEx('openq')">💬 Открытый вопрос</button>
+      <button class="hw-add-ex-btn" onclick="hweAddEx('text')">📖 Текст</button>
+      <button class="hw-add-ex-btn" style="border-color:var(--pink);color:var(--pink)" onclick="hwImportLesson()">📥 Импорт урока</button>
+    </div>
+    <div id="hweExList"></div>
+    <div class="btn-row">
+      <button class="btn btn-purple" onclick="saveHWEditor()">✉️ Отправить ДЗ</button>
+      <button class="btn btn-outline" onclick="closeM('mHWEditor')">Отмена</button>
+    </div>
   </div>
 </div>
 
-<div class="modal-bg" id="mSubmitHw">
+<!-- HW PLAYER (Student completes homework) -->
+<div class="modal-bg hwp-modal" id="mHWPlayer">
   <div class="modal">
-    <button class="modal-close" onclick="closeM('mSubmitHw')">✕</button>
-    <h3>Сдать задание</h3>
-    <div class="form-group"><label>Ответ</label><textarea id="submit_ans" placeholder="Напиши ответ..." style="min-height:100px"></textarea></div>
-    <div class="btn-row"><button class="btn btn-green" onclick="submitHw()">Отправить</button><button class="btn btn-outline" onclick="closeM('mSubmitHw')">Отмена</button></div>
+    <button class="modal-close" onclick="closeM('mHWPlayer')">✕</button>
+    <h3 id="hwpTitle">📋 Домашнее задание</h3>
+    <div id="hwpExercises" style="max-height:62vh;overflow-y:auto;padding-right:4px;margin-bottom:4px"></div>
+    <div class="btn-row">
+      <button class="btn btn-green" onclick="submitHWAnswers()">✅ Отправить ответы</button>
+      <button class="btn btn-outline" onclick="closeM('mHWPlayer')">Позже</button>
+    </div>
   </div>
 </div>
 
-<div class="modal-bg" id="mReviewHw">
+<!-- HW REVIEW (Teacher checks student answers) -->
+<div class="modal-bg hwr-modal" id="mHWReview">
   <div class="modal">
-    <button class="modal-close" onclick="closeM('mReviewHw')">✕</button>
-    <h3>Проверить задание</h3>
-    <div id="reviewBody" style="margin-bottom:12px"></div>
-    <div class="form-group"><label>Комментарий</label><textarea id="review_comment" placeholder="..."></textarea></div>
-    <div class="btn-row"><button class="btn btn-green" onclick="saveReview()">Сохранить</button><button class="btn btn-outline" onclick="closeM('mReviewHw')">Отмена</button></div>
+    <button class="modal-close" onclick="closeM('mHWReview')">✕</button>
+    <h3 id="hwrTitle">🔍 Проверка ДЗ</h3>
+    <div id="hwrMeta" style="font-size:.83rem;color:var(--text3);margin-bottom:12px"></div>
+    <div id="hwrExercises" style="max-height:46vh;overflow-y:auto;padding-right:4px"></div>
+    <div class="form-group" style="margin-top:14px"><label>Комментарий учителя</label><textarea id="hwr_comment" placeholder="Отлично! / Нужно доработать..."></textarea></div>
+    <div class="btn-row">
+      <button class="btn btn-green" onclick="saveHWReview()">💾 Сохранить оценку</button>
+      <button class="btn btn-outline" onclick="closeM('mHWReview')">Закрыть</button>
+    </div>
   </div>
 </div>
 
@@ -3067,24 +3135,253 @@ async function renderStudentHome(){
     <hr class="divider"><p style="font-size:.85rem;color:var(--text3)">Для звонка с учителем — кнопка 📞 справа внизу.</p>
   </div>`);
 }
-async function renderStudentHw(){
-  const{data:stu}=await sb.from('students').select('id').eq('email',S.profile.email).single();
-  const{data:hws}=await sb.from('homeworks').select('*,teacher:teacher_id(first_name,last_name)').eq('student_id',stu?.id||'').order('created_at',{ascending:false});
-  const cards=(hws||[]).map(hw=>`<div class="hw-card ${hw.status}">
-    <div class="hw-title">${hw.title} <span class="badge ${hw.status==='pending'?'badge-purple':hw.status==='submitted'?'badge-yellow':'badge-green'}">${{pending:'Новое',submitted:'Сдано',reviewed:'Проверено'}[hw.status]}</span></div>
-    <div class="hw-meta">Учитель: ${hw.teacher?.first_name||''} ${hw.teacher?.last_name||''} · Срок: ${fmtDate(hw.deadline)}</div>
-    <div class="hw-desc">${hw.description||''}</div>
-    ${hw.student_answer?`<div class="hw-answer">📝 Твой ответ: ${hw.student_answer}</div>`:''}
-    ${hw.teacher_comment?`<div class="hw-comment">💬 Комментарий: ${hw.teacher_comment}</div>`:''}
-    ${hw.status==='pending'?`<button class="btn btn-green" onclick="openSubmitHw('${hw.id}')">Сдать задание</button>`:''}
-  </div>`).join('')||'<div class="empty-state"><div class="ei">✅</div><p>Нет заданий</p></div>';
-  setContent(`<div class="section-header"><h2>📋 Задания</h2></div>${cards}`);
+// ─── HOMEWORK SYSTEM v2 ───────────────────────────────────────────────────────
+// Storage: exercises JSON → description field, answers JSON → student_answer field,
+//          {grade, comment} JSON → teacher_comment field (no DB schema changes needed)
+const HWE={hwId:null,exercises:[],studentId:null};
+const HWP={hwId:null,exercises:[],answers:{},hwData:null};
+const HWR={hwId:null,grade:null};
+
+function _esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+
+// ── TEACHER: HW EDITOR ──────────────────────────────────────────────────────
+async function openHWEditor(hwId,preStudentId,preStudentName){
+  HWE.hwId=hwId||null;HWE.exercises=[];
+  C('hweTitle').textContent=hwId?'✏️ Редактировать ДЗ':'📋 Новое ДЗ';
+  C('hwe_title').value='';C('hwe_deadline').value='';
+  const{data:sts}=await sb.from('students').select('id,first_name,last_name').eq('school_id',S.schoolId).order('last_name');
+  C('hwe_student').innerHTML=(sts||[]).map(s=>`<option value="${s.id}"${s.id===preStudentId?' selected':''}>${_esc(s.first_name)} ${_esc(s.last_name)}</option>`).join('');
+  if(hwId){
+    const{data:hw}=await sb.from('homeworks').select('*').eq('id',hwId).single();
+    if(hw){
+      C('hwe_title').value=hw.title||'';
+      C('hwe_deadline').value=hw.deadline||'';
+      C('hwe_student').value=hw.student_id||'';
+      try{HWE.exercises=JSON.parse(hw.description)||[];}catch(e){HWE.exercises=[];}
+    }
+  }
+  hweRenderExercises();
+  openM('mHWEditor');
 }
-function openSubmitHw(id){S.currentHwId=id;C('submit_ans').value='';openM('mSubmitHw');}
-async function submitHw(){
-  const ans=C('submit_ans').value.trim();if(!ans){showToast('Напиши ответ!');return;}
-  await sb.from('homeworks').update({status:'submitted',student_answer:ans}).eq('id',S.currentHwId);
-  closeM('mSubmitHw');showToast('Ответ отправлен!');renderStudentHw();
+function prefillHwForStudent(id,name){openHWEditor(null,id,name);}
+
+function hweRenderExercises(){
+  const el=C('hweExList');
+  if(!HWE.exercises.length){
+    el.innerHTML='<div style="text-align:center;padding:18px;color:var(--text3);font-size:.88rem">Добавь упражнения ☝️</div>';
+    return;
+  }
+  el.innerHTML=HWE.exercises.map((ex,i)=>_hweExCard(ex,i)).join('');
+}
+
+function _hweExCard(ex,i){
+  const names={fill_blank:'✏️ Заполни пропуск',quiz:'🎯 Выбор ответа',matching:'🔗 Соотнеси',word_order:'🔀 Порядок слов',openq:'💬 Открытый вопрос',text:'📖 Текст'};
+  let body='';
+  if(ex.type==='fill_blank'){
+    body=`<div style="font-size:.78rem;color:var(--text3);margin-bottom:3px">Предложение ({{blank}} = пропуск):</div>
+      <input placeholder="He {{blank}} English every day." value="${_esc(ex.sentence||'')}" oninput="HWE.exercises[${i}].sentence=this.value">
+      <div style="font-size:.78rem;color:var(--text3);margin-bottom:3px">Правильный ответ:</div>
+      <input placeholder="speaks" value="${_esc(ex.answer||'')}" oninput="HWE.exercises[${i}].answer=this.value">`;
+  } else if(ex.type==='quiz'){
+    const opts=(ex.options||['','']).map((o,oi)=>`<div class="mc-opt-row">
+      <input type="radio" name="mc_${i}" value="${oi}"${ex.correct==oi?' checked':''} onchange="HWE.exercises[${i}].correct=${oi}">
+      <input type="text" placeholder="Вариант ${oi+1}" value="${_esc(o)}" oninput="HWE.exercises[${i}].options[${oi}]=this.value">
+      ${(ex.options||[]).length>2?`<button onclick="hweMcDelOpt(${i},${oi})">✕</button>`:''}
+    </div>`).join('');
+    body=`<input placeholder="Вопрос" value="${_esc(ex.question||'')}" oninput="HWE.exercises[${i}].question=this.value" style="margin-bottom:8px">
+      <div style="font-size:.78rem;color:var(--text3);margin-bottom:4px">Варианты (● = правильный):</div>
+      <div id="hwe_mc_${i}">${opts}</div>
+      <button class="hw-add-ex-btn" style="margin-top:4px;font-size:.76rem" onclick="hweMcAddOpt(${i})">+ вариант</button>`;
+  } else if(ex.type==='matching'){
+    const pairs=(ex.pairs||[{left:'',right:''}]).map((p,pi)=>`<div class="hwe-pair-row">
+      <input placeholder="Слово" value="${_esc(p.left)}" oninput="HWE.exercises[${i}].pairs[${pi}].left=this.value">
+      <span style="color:var(--text3)">→</span>
+      <input placeholder="Перевод/значение" value="${_esc(p.right)}" oninput="HWE.exercises[${i}].pairs[${pi}].right=this.value">
+      <button class="hwe-pair-del" onclick="hwePairDel(${i},${pi})">✕</button>
+    </div>`).join('');
+    body=`<div id="hwe_pairs_${i}">${pairs}</div>
+      <button class="hw-add-ex-btn" style="font-size:.76rem" onclick="hwePairAdd(${i})">+ пара</button>`;
+  } else if(ex.type==='word_order'){
+    body=`<div style="font-size:.78rem;color:var(--text3);margin-bottom:3px">Слова через запятую (будут перемешаны):</div>
+      <input placeholder="He, speaks, English, every, day" value="${_esc((ex.words||[]).join(', '))}" oninput="HWE.exercises[${i}].words=this.value.split(',').map(w=>w.trim()).filter(Boolean)">
+      <div style="font-size:.78rem;color:var(--text3);margin-bottom:3px;margin-top:4px">Правильный порядок:</div>
+      <input placeholder="He speaks English every day" value="${_esc(ex.correct||'')}" oninput="HWE.exercises[${i}].correct=this.value">`;
+  } else if(ex.type==='openq'){
+    body=`<input placeholder="Вопрос для свободного ответа" value="${_esc(ex.question||'')}" oninput="HWE.exercises[${i}].question=this.value">`;
+  } else if(ex.type==='text'){
+    body=`<div style="font-size:.78rem;color:var(--text3);margin-bottom:3px">Текст для чтения:</div>
+      <textarea rows="4" style="resize:vertical" placeholder="Вставь текст сюда..." oninput="HWE.exercises[${i}].text=this.value">${_esc(ex.text||'')}</textarea>
+      <input placeholder="Вопрос по тексту (опционально)" value="${_esc(ex.question||'')}" oninput="HWE.exercises[${i}].question=this.value">`;
+  }
+  return`<div class="hw-ex-card" id="hwe_card_${i}">
+    <span class="hw-ex-type">${names[ex.type]||ex.type}</span>
+    <button class="ex-del" onclick="hweDelEx(${i})" title="Удалить">✕</button>
+    ${body}
+  </div>`;
+}
+
+function hweAddEx(type){
+  const defs={
+    fill_blank:{type:'fill_blank',sentence:'',answer:''},
+    quiz:{type:'quiz',question:'',options:['','',''],correct:0},
+    matching:{type:'matching',pairs:[{left:'',right:''},{left:'',right:''}]},
+    word_order:{type:'word_order',words:[],correct:''},
+    openq:{type:'openq',question:''},
+    text:{type:'text',text:'',question:''}
+  };
+  HWE.exercises.push({...defs[type]||{type}});
+  hweRenderExercises();
+  setTimeout(()=>{const el=C('hweExList');if(el)el.scrollTop=el.scrollHeight;},50);
+}
+function hweDelEx(i){HWE.exercises.splice(i,1);hweRenderExercises();}
+function hweMcAddOpt(i){(HWE.exercises[i].options=HWE.exercises[i].options||[]).push('');hweRenderExercises();}
+function hweMcDelOpt(i,oi){HWE.exercises[i].options.splice(oi,1);if((HWE.exercises[i].correct||0)>=HWE.exercises[i].options.length)HWE.exercises[i].correct=0;hweRenderExercises();}
+function hwePairAdd(i){(HWE.exercises[i].pairs=HWE.exercises[i].pairs||[]).push({left:'',right:''});hweRenderExercises();}
+function hwePairDel(i,pi){HWE.exercises[i].pairs.splice(pi,1);if(!HWE.exercises[i].pairs.length)HWE.exercises[i].pairs=[{left:'',right:''}];hweRenderExercises();}
+
+async function hwImportLesson(){
+  const{data:lessons}=await sb.from('lessons').select('id,title,language,level,content').eq('school_id',S.schoolId).order('title');
+  if(!lessons?.length){showToast('Нет уроков для импорта');return;}
+  const html=`<div style="position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:3100;display:flex;align-items:center;justify-content:center" id="_hwImportOvr" onclick="if(event.target===this)this.remove()">
+    <div style="background:#fff;border-radius:16px;padding:22px 24px;width:min(520px,94vw);max-height:80vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.25)">
+      <h3 style="margin:0 0 14px;font-size:1.05rem">📥 Выбери урок</h3>
+      ${lessons.map(l=>`<div class="hw-import-item" onclick="_hwImportApply(${JSON.stringify(JSON.stringify(l.content||[]))});document.getElementById('_hwImportOvr').remove()">
+        <div style="font-weight:700">${_esc(l.title)}</div>
+        <div style="font-size:.78rem;color:var(--text3)">${l.language||''} · ${l.level||''}</div>
+      </div>`).join('')}
+      <button class="btn btn-outline" style="width:100%;margin-top:6px" onclick="document.getElementById('_hwImportOvr').remove()">Отмена</button>
+    </div>
+  </div>`;
+  document.body.insertAdjacentHTML('beforeend',html);
+}
+function _hwImportApply(contentStr){
+  try{
+    const raw=JSON.parse(contentStr);
+    const supported=['fill_blank','quiz','matching','word_order','openq','text'];
+    const list=Array.isArray(raw)?raw:(raw?.sections?raw.sections.flatMap(s=>s.exercises||[]):[]);
+    const imported=list.filter(e=>supported.includes(e.type));
+    HWE.exercises=[...HWE.exercises,...imported];
+    hweRenderExercises();
+    showToast('✅ Импортировано '+imported.length+' упр.');
+  }catch(e){showToast('Ошибка импорта');}
+}
+
+async function saveHWEditor(){
+  const sid=C('hwe_student').value,title=C('hwe_title').value.trim(),dl=C('hwe_deadline').value;
+  if(!title){showToast('Введи название ДЗ');return;}
+  if(!sid){showToast('Выбери ученика');return;}
+  if(!HWE.exercises.length){showToast('Добавь хотя бы одно упражнение');return;}
+  const payload={school_id:S.schoolId,teacher_id:S.profile.id,student_id:sid,title,description:JSON.stringify(HWE.exercises),deadline:dl||null};
+  if(HWE.hwId){
+    await sb.from('homeworks').update(payload).eq('id',HWE.hwId);
+    showToast('✅ ДЗ обновлено!');
+  } else {
+    await sb.from('homeworks').insert({...payload,status:'pending'});
+    showToast('✅ ДЗ отправлено!');
+  }
+  closeM('mHWEditor');
+  if(S.screen==='t_homework')renderTeacherHw();
+}
+
+// ── STUDENT: HW PLAYER ──────────────────────────────────────────────────────
+async function openHWPlayer(hwId){
+  HWP.hwId=hwId;HWP.answers={};
+  const{data:hw}=await sb.from('homeworks').select('*').eq('id',hwId).single();
+  if(!hw){showToast('ДЗ не найдено');return;}
+  HWP.hwData=hw;
+  try{HWP.exercises=JSON.parse(hw.description)||[];}catch(e){HWP.exercises=[];}
+  C('hwpTitle').textContent='📋 '+hw.title;
+  C('hwpExercises').innerHTML=HWP.exercises.length
+    ?HWP.exercises.map((ex,i)=>_hwpRenderEx(ex,i)).join('')
+    :'<div class="empty-state"><div class="ei">📝</div><p>Нет упражнений</p></div>';
+  // init word-order state for each exercise
+  HWP.exercises.forEach((ex,i)=>{
+    if(ex.type==='word_order')window[`_hwp_wo_${i}`]={words:[...(ex.words||[])].sort(()=>Math.random()-.5),chosen:[]};
+  });
+  openM('mHWPlayer');
+}
+
+function _hwpRenderEx(ex,i){
+  const icons={fill_blank:'✏️',quiz:'🎯',matching:'🔗',word_order:'🔀',openq:'💬',text:'📖'};
+  const labels={fill_blank:'Заполни пропуск',quiz:'Выбор ответа',matching:'Соотнеси',word_order:'Порядок слов',openq:'Открытый вопрос',text:'Прочитай'};
+  let body='';
+  if(ex.type==='text'){
+    body=`<div style="font-size:.92rem;line-height:1.8;white-space:pre-wrap;margin-bottom:${ex.question?'12':'0'}px">${_esc(ex.text||'')}</div>
+      ${ex.question?`<div style="font-weight:700;margin-bottom:6px">❓ ${_esc(ex.question)}</div><textarea class="hwp-ans-area" id="hwp_inp_${i}" placeholder="Твой ответ..."></textarea>`:''}`;
+  } else if(ex.type==='fill_blank'){
+    const sent=(ex.sentence||'').replace('{{blank}}',`<input type="text" id="hwp_inp_${i}" class="hwp-fb-inp" placeholder="...">`);
+    body=`<div style="font-size:1rem;line-height:2.4">${sent}</div>`;
+  } else if(ex.type==='quiz'){
+    body=`<div style="font-weight:600;margin-bottom:10px">${_esc(ex.question||'')}</div>
+      ${(ex.options||[]).map((o,oi)=>`<div class="hwp-mc-opt" id="hwp_mc_${i}_${oi}" onclick="hwpSelectMC(${i},${oi})">${_esc(o)}</div>`).join('')}`;
+  } else if(ex.type==='matching'){
+    // each left item gets its own select with shuffled rights
+    const rights=[...(ex.pairs||[]).map(p=>p.right)].sort(()=>Math.random()-.5);
+    body=`<div style="font-size:.82rem;color:var(--text3);margin-bottom:8px">Выбери правильное соответствие:</div>
+      ${(ex.pairs||[]).map((p,pi)=>`<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
+        <span style="font-weight:600;min-width:90px;font-size:.92rem">${_esc(p.left)}</span>
+        <span style="color:var(--text3)">→</span>
+        <select id="hwp_match_${i}_${pi}" style="flex:1;padding:7px 10px;border:2px solid var(--gray-border);border-radius:8px;font-family:var(--font);font-size:.88rem;background:#fff">
+          <option value="">— выбери —</option>
+          ${rights.map(r=>`<option value="${_esc(r)}">${_esc(r)}</option>`).join('')}
+        </select>
+      </div>`).join('')}`;
+  } else if(ex.type==='word_order'){
+    const st=window[`_hwp_wo_${i}`]||{words:[...(ex.words||[])].sort(()=>Math.random()-.5),chosen:[]};
+    window[`_hwp_wo_${i}`]=st;
+    body=`<div style="font-size:.82rem;color:var(--text3);margin-bottom:6px">Составь предложение — кликай слова:</div>
+      <div class="hwp-wo-sentence" id="hwp_wo_s_${i}" onclick="hwpWoReset(${i})"><span style="color:var(--text3);font-size:.82rem">Кликай слова ниже... (нажми здесь чтобы сбросить)</span></div>
+      <div id="hwp_wo_chips_${i}" style="margin-top:6px">
+        ${st.words.map((w,wi)=>`<span class="hwp-wo-chip" id="hwp_wc_${i}_${wi}" onclick="hwpWoPick(${i},${wi},'${w.replace(/\\/g,'\\\\').replace(/'/g,"\\'")}')">${_esc(w)}</span>`).join('')}
+      </div>`;
+  } else if(ex.type==='openq'){
+    body=`<div style="font-weight:600;margin-bottom:8px">${_esc(ex.question||'')}</div>
+      <textarea class="hwp-ans-area" id="hwp_inp_${i}" placeholder="Напиши свой ответ..."></textarea>`;
+  }
+  return`<div class="hwp-ex-block">
+    <div style="font-size:.7rem;font-weight:700;color:var(--purple);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">${icons[ex.type]||'📝'} ${labels[ex.type]||ex.type} · Упр.&nbsp;${i+1}</div>
+    ${body}
+  </div>`;
+}
+
+function hwpSelectMC(i,oi){
+  document.querySelectorAll(`[id^="hwp_mc_${i}_"]`).forEach(el=>el.classList.remove('sel'));
+  const el=C(`hwp_mc_${i}_${oi}`);if(el)el.classList.add('sel');
+  HWP.answers[i]=oi;
+}
+function hwpWoPick(i,wi,word){
+  const st=window[`_hwp_wo_${i}`];if(!st)return;
+  const el=C(`hwp_wc_${i}_${wi}`);if(!el||el.classList.contains('used'))return;
+  el.classList.add('used');st.chosen.push({word,wi});
+  C(`hwp_wo_s_${i}`).innerHTML=st.chosen.map(c=>`<span style="display:inline-block;padding:3px 10px;background:var(--purple-light);color:var(--purple);border-radius:6px;margin:2px;font-weight:600">${_esc(c.word)}</span>`).join(' ');
+}
+function hwpWoReset(i){
+  const st=window[`_hwp_wo_${i}`];if(!st)return;
+  st.chosen=[];
+  document.querySelectorAll(`[id^="hwp_wc_${i}_"]`).forEach(el=>el.classList.remove('used'));
+  C(`hwp_wo_s_${i}`).innerHTML=`<span style="color:var(--text3);font-size:.82rem">Кликай слова ниже... (нажми здесь чтобы сбросить)</span>`;
+}
+
+function _hwpCollectAnswers(){
+  const ans={};
+  HWP.exercises.forEach((ex,i)=>{
+    if(ex.type==='fill_blank'){const el=C(`hwp_inp_${i}`);ans[i]=(el?el.value:'').trim();}
+    else if(ex.type==='quiz'){ans[i]=HWP.answers[i]!==undefined?HWP.answers[i]:null;}
+    else if(ex.type==='matching'){
+      const map={};(ex.pairs||[]).forEach((p,pi)=>{const sel=C(`hwp_match_${i}_${pi}`);map[p.left]=sel?sel.value:'';});
+      ans[i]=map;
+    }
+    else if(ex.type==='word_order'){const st=window[`_hwp_wo_${i}`];ans[i]=st?st.chosen.map(c=>c.word).join(' '):'';}
+    else if(ex.type==='openq'||ex.type==='text'){const el=C(`hwp_inp_${i}`);ans[i]=el?el.value.trim():'';}
+    else ans[i]='';
+  });
+  return ans;
+}
+
+async function submitHWAnswers(){
+  const answers=_hwpCollectAnswers();
+  await sb.from('homeworks').update({status:'submitted',student_answer:JSON.stringify(answers)}).eq('id',HWP.hwId);
+  closeM('mHWPlayer');showToast('✅ ДЗ отправлено!');renderStudentHw();
 }
 async function renderStudentLessons(){
   showSkel();
@@ -3122,32 +3419,106 @@ async function renderTeacherStudents(){
 }
 async function renderTeacherHw(){
   showSkel();
-  const[{data:sts},{data:hws}]=await Promise.all([
-    dc('students_'+S.schoolId,()=>sb.from('students').select('id,first_name,last_name').eq('school_id',S.schoolId)),
-    dc('hws_'+S.profile.id,()=>sb.from('homeworks').select('*,student:student_id(first_name,last_name)').eq('teacher_id',S.profile.id).order('created_at',{ascending:false}))
-  ]);
-  C('hw_student').innerHTML=(sts||[]).map(s=>`<option value="${s.id}">${s.first_name} ${s.last_name}</option>`).join('');
-  const cards=(hws||[]).map(hw=>`<div class="hw-card ${hw.status}">
-    <div class="hw-title">${hw.title} <span class="badge ${hw.status==='pending'?'badge-purple':hw.status==='submitted'?'badge-yellow':'badge-green'}">${{pending:'Ожидает',submitted:'Сдано',reviewed:'Проверено'}[hw.status]}</span></div>
-    <div class="hw-meta">Ученик: ${hw.student?.first_name||''} ${hw.student?.last_name||''} · Срок: ${fmtDate(hw.deadline)}</div>
-    <div class="hw-desc">${hw.description||''}</div>
-    ${hw.student_answer?`<div class="hw-answer">📝 Ответ: ${hw.student_answer}</div>`:''}
-    ${hw.teacher_comment?`<div class="hw-comment">💬 Мой комментарий: ${hw.teacher_comment}</div>`:''}
-    ${hw.status==='submitted'?`<button class="btn btn-yellow" onclick="openReviewHw('${hw.id}','${(hw.student_answer||'').replace(/'/g,"\\'")}')">Проверить</button>`:''}
-  </div>`).join('')||'<div class="empty-state"><div class="ei">📋</div><p>Нет заданий</p></div>';
-  setContent(`<div class="section-header"><h2>📋 Задания</h2><button class="btn btn-purple" onclick="openM('mAddHomework')">+ Новое ДЗ</button></div>${cards}`);
+  const{data:hws}=await sb.from('homeworks').select('*,student:student_id(first_name,last_name)').eq('teacher_id',S.profile.id).order('created_at',{ascending:false});
+  const cards=(hws||[]).map(hw=>{
+    let exCount=0;try{exCount=(JSON.parse(hw.description)||[]).length;}catch(e){}
+    const sMap={pending:'Ожидает',submitted:'Сдано',reviewed:'Проверено'};
+    const bMap={pending:'badge-purple',submitted:'badge-yellow',reviewed:'badge-green'};
+    return`<div class="hw-card ${hw.status}">
+      <div class="hw-title">${_esc(hw.title)} <span class="badge ${bMap[hw.status]||'badge-purple'}">${sMap[hw.status]||hw.status}</span></div>
+      <div class="hw-meta">👤 ${_esc(hw.student?.first_name||'')} ${_esc(hw.student?.last_name||'')} · 📅 ${fmtDate(hw.deadline)} · 📝 ${exCount} упр.</div>
+      <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
+        <button class="btn btn-sm btn-outline" style="font-size:.78rem" onclick="openHWEditor('${hw.id}')">✏️ Редактировать</button>
+        ${hw.status==='submitted'?`<button class="btn btn-sm btn-yellow" style="font-size:.78rem" onclick="openHWReview('${hw.id}')">🔍 Проверить</button>`:''}
+        ${hw.status==='reviewed'?`<button class="btn btn-sm btn-green" style="font-size:.78rem" onclick="openHWReview('${hw.id}')">✅ Посмотреть</button>`:''}
+      </div>
+    </div>`;
+  }).join('')||'<div class="empty-state"><div class="ei">📋</div><p>Нет заданий</p></div>';
+  setContent(`<div class="section-header"><h2>📋 Задания</h2><button class="btn btn-purple" onclick="openHWEditor()">+ Новое ДЗ</button></div>${cards}`);
 }
-function prefillHwForStudent(id,name){C('hw_student').innerHTML=`<option value="${id}">${name}</option>`;openM('mAddHomework');}
-async function saveHw(){
-  const sid=C('hw_student').value,title=C('hw_title').value.trim(),desc=C('hw_desc').value.trim(),dl=C('hw_deadline').value;
-  if(!title){showToast('Введи название!');return;}
-  await sb.from('homeworks').insert({school_id:S.schoolId,teacher_id:S.profile.id,student_id:sid,title,description:desc,deadline:dl||null});
-  closeM('mAddHomework');showToast('Задание отправлено!');if(S.screen==='t_homework')renderTeacherHw();
+
+// ── TEACHER: HW REVIEW ──────────────────────────────────────────────────────
+async function openHWReview(hwId){
+  HWR.hwId=hwId;HWR.grade=null;
+  const{data:hw}=await sb.from('homeworks').select('*,student:student_id(first_name,last_name)').eq('id',hwId).single();
+  if(!hw){showToast('ДЗ не найдено');return;}
+  let exercises=[],answers={};
+  try{exercises=JSON.parse(hw.description)||[];}catch(e){}
+  try{answers=JSON.parse(hw.student_answer)||{};}catch(e){}
+  C('hwrTitle').textContent='🔍 '+hw.title;
+  C('hwrMeta').textContent=`Ученик: ${hw.student?.first_name||''} ${hw.student?.last_name||''} · Срок: ${fmtDate(hw.deadline)}`;
+  C('hwr_comment').value=hw.teacher_comment||'';
+  HWR.grade=null;
+  C('hwrExercises').innerHTML=exercises.length
+    ?exercises.map((ex,i)=>_hwrRenderEx(ex,i,answers[i])).join('')
+    :'<div style="color:var(--text3);padding:12px;text-align:center">Упражнений нет</div>';
+  openM('mHWReview');
 }
-function openReviewHw(id,ans){S.currentHwId=id;C('reviewBody').innerHTML=`<div class="hw-answer">📝 ${t('Ответ')}: ${ans||t('(пусто)')}</div>`;C('review_comment').value='';openM('mReviewHw');}
-async function saveReview(){
-  await sb.from('homeworks').update({status:'reviewed',teacher_comment:C('review_comment').value.trim()}).eq('id',S.currentHwId);
-  closeM('mReviewHw');showToast('Проверено!');if(S.screen==='t_homework')renderTeacherHw();
+
+function _hwrRenderEx(ex,i,ans){
+  const icons={fill_blank:'✏️',quiz:'🎯',matching:'🔗',word_order:'🔀',openq:'💬',text:'📖'};
+  let q='',ansHtml='',correct=null;
+  if(ex.type==='fill_blank'){
+    q=`${_esc(ex.sentence||'')} <span style="color:var(--text3);font-size:.8rem">→ правильно: <b>${_esc(ex.answer||'')}</b></span>`;
+    correct=String(ans||'').trim().toLowerCase()===String(ex.answer||'').trim().toLowerCase();
+    ansHtml=`<div class="hwr-ans ${correct?'correct':'wrong'}">${_esc(ans||'(нет ответа)')}</div>`;
+  } else if(ex.type==='quiz'){
+    q=_esc(ex.question||'');
+    const chosen=ex.options?.[ans];const correctOpt=ex.options?.[ex.correct||0]||'';
+    correct=(ans==ex.correct);
+    ansHtml=`<div class="hwr-ans ${correct?'correct':'wrong'}">${_esc(chosen||'(нет ответа)')}</div>
+      ${!correct?`<div style="font-size:.78rem;color:#22c55e;margin-top:4px">✅ Правильно: ${_esc(correctOpt)}</div>`:''}`;
+  } else if(ex.type==='matching'){
+    q='Соотнеси слова';
+    if(ans&&typeof ans==='object'){
+      let allOk=true;
+      const rows=(ex.pairs||[]).map(p=>{const sa=ans[p.left]||'';const ok=sa===p.right;if(!ok)allOk=false;
+        return`<div style="display:flex;gap:6px;align-items:center;margin-bottom:5px"><span style="font-weight:600;min-width:80px;font-size:.88rem">${_esc(p.left)}</span><span style="color:var(--text3)">→</span><span class="hwr-ans ${ok?'correct':'wrong'}" style="flex:1;padding:4px 10px;font-size:.85rem">${_esc(sa||'(нет)')}</span>${!ok?`<span style="font-size:.76rem;color:#22c55e;white-space:nowrap">→ ${_esc(p.right)}</span>`:''}</div>`;
+      }).join('');
+      correct=allOk;ansHtml=`<div>${rows}</div>`;
+    } else ansHtml=`<div class="hwr-ans neutral">(нет ответа)</div>`;
+  } else if(ex.type==='word_order'){
+    q=`Правильно: <b>${_esc(ex.correct||'')}</b>`;
+    correct=String(ans||'').trim().toLowerCase()===String(ex.correct||'').trim().toLowerCase();
+    ansHtml=`<div class="hwr-ans ${correct?'correct':'wrong'}">${_esc(ans||'(нет ответа)')}</div>`;
+  } else if(ex.type==='openq'){
+    q=_esc(ex.question||'');ansHtml=`<div class="hwr-ans neutral">${_esc(ans||'(нет ответа)')}</div>`;
+  } else if(ex.type==='text'){
+    q=ex.question?`❓ ${_esc(ex.question)}`:'Текст';ansHtml=ans?`<div class="hwr-ans neutral">${_esc(ans)}</div>`:'';
+  }
+  const badge=correct===true?'<span style="color:#22c55e;margin-left:6px;font-size:.82rem">✅</span>':correct===false?'<span style="color:#ef4444;margin-left:6px;font-size:.82rem">❌</span>':'';
+  return`<div class="hwr-ex-block">
+    <div class="hwr-q">${icons[ex.type]||'📝'} ${q}${badge}</div>
+    ${ansHtml}
+  </div>`;
+}
+
+async function saveHWReview(){
+  const comment=C('hwr_comment').value.trim();
+  await sb.from('homeworks').update({status:'reviewed',teacher_comment:comment}).eq('id',HWR.hwId);
+  closeM('mHWReview');showToast('✅ ДЗ проверено!');
+  if(S.screen==='t_homework')renderTeacherHw();
+}
+
+// ── STUDENT: HW LIST ────────────────────────────────────────────────────────
+async function renderStudentHw(){
+  showSkel();
+  const{data:stu}=await sb.from('students').select('id').eq('email',S.profile.email).single();
+  const{data:hws}=await sb.from('homeworks').select('*,teacher:teacher_id(first_name,last_name)').eq('student_id',stu?.id||'').order('created_at',{ascending:false});
+  const cards=(hws||[]).map(hw=>{
+    let exCount=0;try{exCount=(JSON.parse(hw.description)||[]).length;}catch(e){}
+    const comment=hw.teacher_comment||'';
+    const sMap={pending:'Новое',submitted:'Сдано',reviewed:'Проверено'};
+    const bMap={pending:'badge-purple',submitted:'badge-yellow',reviewed:'badge-green'};
+    return`<div class="hw-card ${hw.status}">
+      <div class="hw-title">${_esc(hw.title)} <span class="badge ${bMap[hw.status]||'badge-purple'}">${sMap[hw.status]||hw.status}</span></div>
+      <div class="hw-meta">👨‍🏫 ${_esc(hw.teacher?.first_name||'')} ${_esc(hw.teacher?.last_name||'')} · 📅 ${fmtDate(hw.deadline)} · 📝 ${exCount} упр.</div>
+      ${comment?`<div class="hw-comment">💬 ${_esc(comment)}</div>`:''}
+      ${hw.status==='pending'?`<button class="btn btn-green" style="margin-top:10px" onclick="openHWPlayer('${hw.id}')">▶️ Начать задание</button>`:''}
+      ${hw.status==='submitted'?`<div style="margin-top:8px;font-size:.84rem;color:var(--text3)">⏳ Ожидает проверки учителя</div>`:''}
+    </div>`;
+  }).join('')||'<div class="empty-state"><div class="ei">✅</div><p>Нет заданий</p></div>';
+  setContent(`<div class="section-header"><h2>📋 Задания</h2></div>${cards}`);
 }
 
 // ─── ADMIN / OWNER ────────────────────────────────────────────────────────────
