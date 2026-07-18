@@ -23,20 +23,54 @@
 }
 body{font-family:var(--font);background:#F8F7FF;color:var(--text);min-height:100vh}
 body[data-theme="dark"]{
-  background:#0F0D1A;
-  --white:#1E1B2E;
-  --text:#F1F0FF;
-  --text2:#D4D0F5;
-  --text3:#9CA3AF;
-  --gray-light:#2D2B45;
-  --gray-border:#3D3B55;
+  background:#15112B;
+  color:#EDE8FF;
+  --white:#211D38;
+  --text:#EDE8FF;
+  --text2:#C4BDEE;
+  --text3:#9490C2;
+  --gray-light:#2C2848;
+  --gray-border:#3E3A60;
   --purple-light:#2D1B6E;
   --pink-light:#3D1A2E;
   --green-light:#0D2E22;
   --yellow-light:#2E2400;
   --blue-light:#0D1B3E;
-  --shadow:0 2px 12px rgba(0,0,0,.5);
+  --shadow:0 2px 16px rgba(0,0,0,.45);
 }
+/* Override hardcoded #fff backgrounds */
+body[data-theme="dark"] #topBar{background:var(--white)!important;border-bottom-color:var(--gray-border)!important;}
+body[data-theme="dark"] #sidebar{background:var(--white)!important;border-right-color:var(--gray-border)!important;}
+body[data-theme="dark"] .card,
+body[data-theme="dark"] .stat-card{background:var(--white)!important;}
+body[data-theme="dark"] .modal{background:var(--white)!important;}
+body[data-theme="dark"] .login-box,
+body[data-theme="dark"] .invite-box{background:var(--white)!important;}
+body[data-theme="dark"] .login-box input,
+body[data-theme="dark"] .invite-box input{background:var(--gray-light)!important;border-color:var(--gray-border)!important;color:var(--text)!important;}
+body[data-theme="dark"] .form-group input,
+body[data-theme="dark"] .form-group select,
+body[data-theme="dark"] .form-group textarea{background:var(--gray-light)!important;border-color:var(--gray-border)!important;color:var(--text)!important;}
+body[data-theme="dark"] th{background:var(--gray-light)!important;color:var(--text3)!important;}
+body[data-theme="dark"] td{border-bottom-color:var(--gray-border)!important;color:var(--text2)!important;}
+body[data-theme="dark"] tr:hover td{background:rgba(255,255,255,.04)!important;}
+body[data-theme="dark"] .cdp-topbar,
+body[data-theme="dark"] .cdp-header-card,
+body[data-theme="dark"] .lesson-block,
+body[data-theme="dark"] .lesson-view-block{background:var(--white)!important;border-color:var(--gray-border)!important;}
+body[data-theme="dark"] .schedule-grid{background:var(--white)!important;border-color:var(--gray-border)!important;}
+body[data-theme="dark"] #incomingCall,
+body[data-theme="dark"] #contactPicker{background:var(--white)!important;}
+body[data-theme="dark"] #wbOverlay,
+body[data-theme="dark"] #wbBar{background:var(--white)!important;border-color:var(--gray-border)!important;}
+body[data-theme="dark"] .wb-btn,
+body[data-theme="dark"] .block-type-btn,
+body[data-theme="dark"] .tf-btn{background:var(--gray-light)!important;border-color:var(--gray-border)!important;color:var(--text2)!important;}
+body[data-theme="dark"] .classes-search{background-color:var(--gray-light)!important;border-color:var(--gray-border)!important;color:var(--text)!important;}
+body[data-theme="dark"] .btn-outline{border-color:var(--gray-border)!important;color:var(--text2)!important;}
+body[data-theme="dark"] .btn-logout{background:var(--gray-light)!important;color:var(--text3)!important;}
+body[data-theme="dark"] #langDropdown{background:var(--white)!important;border-color:var(--gray-border)!important;}
+body[data-theme="dark"] .lang-opt:hover{background:var(--gray-light)!important;}
 #loginScreen{display:flex;align-items:center;justify-content:center;min-height:100vh;background:linear-gradient(135deg,#7C3AED 0%,#EC4899 100%)}
 .login-box{background:#fff;border-radius:20px;padding:40px;width:360px;box-shadow:0 20px 60px rgba(0,0,0,.2)}
 .login-logo{text-align:center;margin-bottom:28px}
@@ -765,7 +799,14 @@ input,select,textarea{font-size:16px!important} /* Предотвращаем з
     <span id="roleChip"></span>
     <button id="notifBell" onclick="openNotifPanel()" title="Уведомления">🔔<span id="notifBadge"></span></button>
     <button id="themeBtn" onclick="toggleTheme()" class="btn-sm" title="Тема" style="background:var(--gray-light);color:var(--gray);min-width:36px;font-size:1rem">🌙</button>
-    <button id="langBtn" onclick="toggleLang()" class="btn-sm" style="background:var(--gray-light);color:var(--gray);min-width:36px">RU</button>
+    <div style="position:relative">
+      <button id="langBtn" onclick="toggleLangDropdown(event)" class="btn-sm" style="background:var(--gray-light);color:var(--gray);min-width:52px;display:flex;align-items:center;gap:4px"><span id="langBtnFlag">🇷🇺</span><span id="langBtnText">RU</span><span style="font-size:.6rem;opacity:.7">▾</span></button>
+      <div id="langDropdown" style="display:none;position:absolute;right:0;top:calc(100% + 6px);background:#fff;border:1px solid var(--gray-border);border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.15);z-index:600;overflow:hidden;min-width:150px">
+        <div class="lang-opt" onclick="setLang('ru')" style="padding:11px 16px;cursor:pointer;display:flex;align-items:center;gap:10px;font-size:.85rem;font-weight:600;color:var(--text2);transition:.1s" onmouseover="this.style.background='var(--gray-light)'" onmouseout="this.style.background=''">🇷🇺 <span>Русский</span></div>
+        <div class="lang-opt" onclick="setLang('en')" style="padding:11px 16px;cursor:pointer;display:flex;align-items:center;gap:10px;font-size:.85rem;font-weight:600;color:var(--text2);transition:.1s" onmouseover="this.style.background='var(--gray-light)'" onmouseout="this.style.background=''">🇬🇧 <span>English</span></div>
+        <div class="lang-opt" onclick="setLang('ge')" style="padding:11px 16px;cursor:pointer;display:flex;align-items:center;gap:10px;font-size:.85rem;font-weight:600;color:var(--text2);transition:.1s" onmouseover="this.style.background='var(--gray-light)'" onmouseout="this.style.background=''">🇬🇪 <span>ქართული</span></div>
+      </div>
+    </div>
     <button class="btn-sm btn-logout" onclick="doLogout()">Выйти</button>
   </div>
   <div id="toastStack"></div>
@@ -2564,12 +2605,44 @@ function toggleTheme(){
   const btn=C('themeBtn');if(btn)btn.textContent=isDark?'🌙':'☀️';
 }
 
+const LANG_FLAGS={ru:'🇷🇺',en:'🇬🇧',ge:'🇬🇪'};
+function _updateLangBtn(){
+  const ft=C('langBtnFlag');const tt=C('langBtnText');
+  if(ft)ft.textContent=LANG_FLAGS[S.lang]||'';
+  if(tt)tt.textContent=S.lang.toUpperCase();
+  // legacy fallback
+  const btn=C('langBtn');if(btn&&!ft)btn.textContent=S.lang.toUpperCase();
+}
+function toggleLangDropdown(e){
+  if(e)e.stopPropagation();
+  const dd=C('langDropdown');
+  if(!dd)return;
+  dd.style.display=dd.style.display==='none'?'block':'none';
+}
+// Close dropdown when clicking outside
+document.addEventListener('click',function(e){
+  const dd=C('langDropdown');
+  if(dd&&dd.style.display==='block'&&!e.target.closest('#langBtn')&&!e.target.closest('#langDropdown'))dd.style.display='none';
+});
+
+function setLang(lang){
+  const prevLang=S.lang;
+  S.lang=lang;
+  localStorage.setItem('ty_lang',S.lang);
+  _updateLangBtn();
+  const dd=C('langDropdown');if(dd)dd.style.display='none';
+  _applyLang(prevLang);
+}
+
 function toggleLang(){
   const prevLang=S.lang;
   S.lang={ru:'en',en:'ge',ge:'ru'}[S.lang]||'ru';
   localStorage.setItem('ty_lang',S.lang);
-  const btn=C('langBtn');
-  if(btn)btn.textContent=S.lang.toUpperCase();
+  _updateLangBtn();
+  _applyLang(prevLang);
+}
+
+function _applyLang(prevLang){
   // Update role chip text
   if(S.role)C('roleChip').textContent=t(S.role==='owner'?'Владелец':S.role==='admin'?'Администратор':S.role==='teacher'?'Учитель':'Ученик');
   buildSidebar();
@@ -3307,7 +3380,7 @@ async function afterLogin(user){
   C('app').style.display='flex';
   updateTopBarAvatar();
   C('roleChip').textContent=t(ROLE_L[prof.role]||prof.role);
-  const langBtnEl=C('langBtn');if(langBtnEl)langBtnEl.textContent=S.lang.toUpperCase();
+  _updateLangBtn();
   C('dialBtn').style.display='flex';
   buildSidebar();
   await loadContacts();
