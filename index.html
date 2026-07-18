@@ -71,6 +71,29 @@ body[data-theme="dark"] .btn-outline{border-color:var(--gray-border)!important;c
 body[data-theme="dark"] .btn-logout{background:var(--gray-light)!important;color:var(--text3)!important;}
 body[data-theme="dark"] #langDropdown{background:var(--white)!important;border-color:var(--gray-border)!important;}
 body[data-theme="dark"] .lang-opt:hover{background:var(--gray-light)!important;}
+/* ── Dark: Messenger ── */
+body[data-theme="dark"] .messenger-layout{background:var(--white)!important;}
+body[data-theme="dark"] .msg-sidebar{background:var(--white)!important;border-right-color:var(--gray-border)!important;}
+body[data-theme="dark"] .msg-header{background:var(--white)!important;border-bottom-color:var(--gray-border)!important;}
+body[data-theme="dark"] .conv-item{border-bottom-color:var(--gray-border)!important;color:var(--text)!important;}
+body[data-theme="dark"] .conv-item:hover,body[data-theme="dark"] .conv-item.active{background:var(--purple-light)!important;}
+body[data-theme="dark"] .ci-last,body[data-theme="dark"] .ci-time{color:var(--text3)!important;}
+body[data-theme="dark"] .msg-row.theirs .msg-bubble{background:var(--gray-light)!important;color:var(--text)!important;box-shadow:none!important;}
+body[data-theme="dark"] .msg-area{background:var(--white)!important;}
+body[data-theme="dark"] .msg-input-row{background:var(--white)!important;border-top-color:var(--gray-border)!important;}
+body[data-theme="dark"] .msg-input-row input,body[data-theme="dark"] .msg-input-row textarea{background:var(--gray-light)!important;border-color:var(--gray-border)!important;color:var(--text)!important;}
+/* ── Dark: Schedule ── */
+body[data-theme="dark"] .sch-time{background:var(--gray-light)!important;border-color:var(--gray-border)!important;color:var(--text3)!important;}
+body[data-theme="dark"] .sch-head{background:var(--gray-light)!important;border-color:var(--gray-border)!important;color:var(--text3)!important;}
+body[data-theme="dark"] .sch-cell{border-color:var(--gray-border)!important;}
+body[data-theme="dark"] .sch-cell:hover{background:var(--purple-light)!important;}
+/* ── Dark: Classroom viewer ── */
+body[data-theme="dark"] .cv-topbar,body[data-theme="dark"] .cv-left-sidebar,body[data-theme="dark"] .cv-bottom-nav,body[data-theme="dark"] .cv-right-sidebar{background:var(--white)!important;border-color:var(--gray-border)!important;}
+body[data-theme="dark"] .cv-ai-msg.ai{background:var(--gray-light)!important;color:var(--text)!important;}
+/* ── Dark: misc hardcoded #fff ── */
+body[data-theme="dark"] .match-item,body[data-theme="dark"] .word-chip,body[data-theme="dark"] .tf-btn{background:var(--gray-light)!important;border-color:var(--gray-border)!important;color:var(--text)!important;}
+body[data-theme="dark"] .kanban-col{background:var(--gray-light)!important;}
+body[data-theme="dark"] .kanban-card{background:var(--white)!important;border-color:var(--gray-border)!important;}
 #loginScreen{display:flex;align-items:center;justify-content:center;min-height:100vh;background:linear-gradient(135deg,#7C3AED 0%,#EC4899 100%)}
 .login-box{background:#fff;border-radius:20px;padding:40px;width:360px;box-shadow:0 20px 60px rgba(0,0,0,.2)}
 .login-logo{text-align:center;margin-bottom:28px}
@@ -3240,6 +3263,7 @@ function cvCallStudent(){
 
 // ─── INVITE SYSTEM ────────────────────────────────────────────────────────────
 const INVITE_FN='https://juwvlyrepwdcndkqiqna.supabase.co/functions/v1/invite-user';
+const DELETE_USER_FN='https://juwvlyrepwdcndkqiqna.supabase.co/functions/v1/delete-user';
 
 // Called on page load — detects invite/password-reset tokens in URL
 async function checkInviteToken(){
@@ -4216,18 +4240,35 @@ function confirmDeleteUser(uid,name,role){
 }
 async function doDeleteUser(){
   if(!_deleteUserId){closeM('mDeleteUser');return;}
-  const{error}=await sb.from('profiles').delete().eq('id',_deleteUserId).eq('school_id',S.schoolId);
-  if(error){
-    showToast(t('Ошибка удаления:')+' '+error.message);
-    closeM('mDeleteUser');
-    return;
-  }
-  // Clean up localStorage avatar data for deleted user
-  ['ty_av_color_','ty_av_emoji_','ty_av_photo_'].forEach(k=>localStorage.removeItem(k+_deleteUserId));
+  const uid=_deleteUserId;
+  const name=_deleteUserName;
   closeM('mDeleteUser');
-  showToast(_deleteUserName+' '+t('удалён'));
+  showToast('⏳ Удаляем...');
+  try{
+    // Call Edge Function — deletes from auth.users (cascades to profiles via DB trigger)
+    const{data:{session}}=await sb.auth.getSession();
+    const res=await fetch(DELETE_USER_FN,{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+(session?.access_token||'')},
+      body:JSON.stringify({user_id:uid})
+    });
+    const json=await res.json();
+    if(!res.ok||json.error){
+      // Fallback: delete only from profiles if edge function not deployed yet
+      const{error}=await sb.from('profiles').delete().eq('id',uid).eq('school_id',S.schoolId);
+      if(error){showToast(t('Ошибка удаления:')+' '+(json.error||error.message));return;}
+      showToast('⚠️ '+name+' удалён из школы (auth запись сохранена — задеплойте delete-user)');
+    } else {
+      showToast('✅ '+name+' '+t('удалён'));
+    }
+  }catch(e){
+    // Network fallback
+    const{error}=await sb.from('profiles').delete().eq('id',uid).eq('school_id',S.schoolId);
+    if(error){showToast(t('Ошибка удаления:')+' '+e.message);return;}
+    showToast('⚠️ '+name+' удалён из школы (без auth)');
+  }
+  ['ty_av_color_','ty_av_emoji_','ty_av_photo_'].forEach(k=>localStorage.removeItem(k+uid));
   _deleteUserId='';_deleteUserName='';
-  // Re-render current users screen
   if(S.role==='owner')renderOwnerUsers();
   else if(S.role==='admin'){if(S.screen==='a_teachers')renderAdminTeachers();else if(S.screen==='a_students')renderAdminStudents();}
 }
