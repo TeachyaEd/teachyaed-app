@@ -1117,6 +1117,7 @@ input,select,textarea{font-size:16px!important} /* Предотвращаем з
     <div class="cdp-title" id="cdp_title">Класс</div>
     <button class="btn btn-purple" id="cdp_startBtn" onclick="cdpStartLesson()">▶ Начать урок</button>
     <button class="btn btn-outline" onclick="cdpEditClass()">✎ Изменить</button>
+    <button class="btn btn-red" id="cdp_deleteBtn" onclick="cdpDeleteClass()" style="display:none">🗑 Удалить</button>
   </div>
   <div class="cdp-body">
     <div class="cdp-tabs">
@@ -2963,6 +2964,8 @@ const NAV={
     {id:'o_classes',icon:'🎓',l:'Классы'},{id:'o_schedule',icon:'📅',l:'Расписание'},
     {sec:'Управление'},
     {id:'o_home',icon:'📊',l:'Дашборд'},{id:'o_users',icon:'👥',l:'Пользователи'},{id:'o_students',icon:'🎓',l:'Ученики'},{id:'o_payments',icon:'💳',l:'Оплата'},{id:'o_salaries',icon:'💰',l:'Зарплаты'},{id:'o_materials',icon:'📁',l:'Материалы'},
+    {sec:'Преподавание'},
+    {id:'t_lessons',icon:'📖',l:'Уроки'},{id:'t_homework',icon:'📋',l:'Задания'},{id:'t_students',icon:'👥',l:'Мои ученики'},
     {sec:'Инструменты'},
     {id:'o_messages',icon:'💬',l:'Сообщения'},{id:'o_tasks',icon:'✅',l:'Задачи'}
   ]
@@ -4268,10 +4271,18 @@ async function doDeleteUser(){
   else if(S.role==='admin'){if(S.screen==='a_teachers')renderAdminTeachers();else if(S.screen==='a_students')renderAdminStudents();}
 }
 async function confirmDeleteStudent(sid,name){
-  if(!confirm(`Удалить ученика ${name}?\nЭто также удалит все его задания и оплаты.`))return;
+  if(!confirm(`Удалить ученика ${name}?\nЭто удалит все его задания, оплаты и записи в классах. Действие нельзя отменить.`))return;
+  showToast('⏳ Удаляем...');
+  // Каскадное удаление зависимых записей
+  await sb.from('class_students').delete().eq('student_id',sid);
+  await sb.from('homeworks').delete().eq('student_id',sid);
+  await sb.from('lesson_assignments').delete().eq('student_id',sid);
+  await sb.from('payments').delete().eq('student_id',sid);
+  // Финальное удаление ученика
   const{error}=await sb.from('students').delete().eq('id',sid).eq('school_id',S.schoolId);
-  if(error){showToast(t('Ошибка')+': '+error.message);return;}
-  showToast(name+' '+t('удалён'));
+  if(error){showToast('❌ '+error.message);console.error('[deleteStudent]',error);return;}
+  showToast('✅ '+name+' удалён');
+  dcInval('students_'+S.schoolId);dcInval('students_full_'+S.schoolId);
   if(S.screen==='a_students')renderAdminStudents();
   else if(S.screen==='o_students')renderOwnerStudents();
   else if(S.screen==='t_students')renderTeacherStudents();
@@ -4640,6 +4651,22 @@ async function saveClass(){
   closeM('mAddClass');dcInval('classes_'+S.schoolId);dcInval('classes_light_'+S.schoolId);showToast('Класс сохранён!');renderClasses();
 }
 
+async function cdpDeleteClass(){
+  const cl=S._currentClassData;
+  if(!cl)return;
+  if(!confirm(`Удалить класс «${cl.name}»?\nУченики останутся, но будут убраны из класса. Расписание класса тоже удалится.`))return;
+  showToast('⏳ Удаляем...');
+  const cid=cl.id;
+  await sb.from('class_students').delete().eq('class_id',cid);
+  await sb.from('schedule_events').delete().eq('class_id',cid);
+  await sb.from('lesson_assignments').delete().eq('class_id',cid);
+  const{error}=await sb.from('classes').delete().eq('id',cid).eq('school_id',S.schoolId);
+  if(error){showToast('❌ '+error.message);return;}
+  showToast('✅ Класс «'+cl.name+'» удалён');
+  dcInval('classes_'+S.schoolId);dcInval('classes_light_'+S.schoolId);
+  closeClassDetail();
+  renderClasses();
+}
 async function openClassDetail(classId){
   S.currentClassId=classId;
   const{data:cl}=await sb.from('classes').select('*').eq('id',classId).single();
@@ -4653,6 +4680,9 @@ async function openClassDetail(classId){
   // store for edit
   S._currentClassData=cl;
   S.currentClassTab='students';
+  // Кнопка удаления — только для admin/owner
+  const deleteBtn=C('cdp_deleteBtn');
+  if(deleteBtn)deleteBtn.style.display=['admin','owner'].includes(S.role)?'':'none';
   document.querySelectorAll('.cdp-tab').forEach((t,i)=>t.classList.toggle('active',i===0));
   await loadClassTab('students');
   C('classDetailPage').classList.add('open');
