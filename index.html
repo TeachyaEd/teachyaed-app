@@ -101,6 +101,25 @@ body[data-theme="dark"] .cv-ai-msg.ai{background:var(--gray-light)!important;col
 body[data-theme="dark"] .match-item,body[data-theme="dark"] .word-chip,body[data-theme="dark"] .tf-btn{background:var(--gray-light)!important;border-color:var(--gray-border)!important;color:var(--text)!important;}
 body[data-theme="dark"] .kanban-col{background:var(--gray-light)!important;}
 body[data-theme="dark"] .kanban-card{background:var(--white)!important;border-color:var(--gray-border)!important;}
+/* ── Dark: Class detail page ── */
+body[data-theme="dark"] #classDetailPage{background:#15112B!important;}
+body[data-theme="dark"] .cdp-body{background:#15112B!important;}
+body[data-theme="dark"] .cdp-tab{background:var(--gray-light)!important;border-color:var(--gray-border)!important;color:var(--text2)!important;}
+body[data-theme="dark"] .cdp-tab.active{background:var(--purple)!important;color:#fff!important;}
+body[data-theme="dark"] .cdp-tabs{border-bottom-color:var(--gray-border)!important;}
+/* ── Dark: Content area ── */
+body[data-theme="dark"] #content{background:transparent!important;}
+body[data-theme="dark"] .section-header{color:var(--text)!important;}
+body[data-theme="dark"] table{background:var(--white)!important;border-radius:12px;}
+body[data-theme="dark"] .ev-class-create{background:var(--gray-light)!important;border-color:var(--gray-border)!important;}
+/* ── Dark: Inputs not in form-group ── */
+body[data-theme="dark"] input:not([type="range"]):not([type="checkbox"]):not([type="radio"]),
+body[data-theme="dark"] select,
+body[data-theme="dark"] textarea{background:var(--gray-light)!important;border-color:var(--gray-border)!important;color:var(--text)!important;}
+/* ── Dark: stat badges ── */
+body[data-theme="dark"] .stats-row{color:var(--text)!important;}
+/* ── Dark: toolbar filter tabs ── */
+body[data-theme="dark"] .ev-filter-tab:not(.active){background:var(--gray-light)!important;color:var(--text3)!important;}
 #loginScreen{display:flex;align-items:center;justify-content:center;min-height:100vh;background:linear-gradient(135deg,#7C3AED 0%,#EC4899 100%)}
 .login-box{background:#fff;border-radius:20px;padding:40px;width:360px;box-shadow:0 20px 60px rgba(0,0,0,.2)}
 .login-logo{text-align:center;margin-bottom:28px}
@@ -4043,7 +4062,15 @@ async function renderStudentLessons(){
 // ─── TEACHER SCREENS ──────────────────────────────────────────────────────────
 async function renderTeacherStudents(){
   showSkel();
-  const{data:sts}=await dc('students_full_'+S.schoolId,()=>sb.from('students').select('*').eq('school_id',S.schoolId).order('last_name'));
+  // Если учитель — показываем только его учеников (teacher_id = S.profile.id)
+  // Если owner/admin — показываем всех (через t_students, как учитель)
+  const isTeacher=S.role==='teacher';
+  const cacheKey='students_full_'+(isTeacher?S.profile.id:S.schoolId);
+  const{data:sts}=await dc(cacheKey,()=>{
+    let q=sb.from('students').select('*').eq('school_id',S.schoolId).order('last_name');
+    if(isTeacher)q=q.eq('teacher_id',S.profile.id);
+    return q;
+  });
   const rows=(sts||[]).map(s=>`<tr>
     <td><div style="display:flex;align-items:center;gap:10px">${avHTML(s.first_name,s.last_name)}<div><div style="font-weight:600;cursor:pointer" onclick="openStudentCard('${s.id}')">${s.first_name} ${s.last_name}</div><div style="font-size:.75rem;color:var(--text3)">${s.email||'—'}</div></div></div></td>
     <td>${s.language||'—'}</td><td><span class="badge badge-purple">${s.level||'—'}</span></td><td>${s.phone||'—'}</td>
@@ -4536,7 +4563,7 @@ async function saveStudent(){
   if(!f||!l){showToast('Введи имя и фамилию!');return;}
   if(!email){showToast('Введи email для приглашения!');return;}
   // Insert student record
-  await sb.from('students').insert({school_id:S.schoolId,first_name:f,last_name:l,email,phone:C('st_phone').value.trim(),language:C('st_lang').value,level:C('st_level').value});
+  await sb.from('students').insert({school_id:S.schoolId,first_name:f,last_name:l,email,phone:C('st_phone').value.trim(),language:C('st_lang').value,level:C('st_level').value,teacher_id:S.profile.id});
   closeM('mAddStudent');
   // Send invite email
   try{
@@ -6218,7 +6245,10 @@ const PLACEMENT_Q=[
 
 // ─── FEATURE 1: STUDENT CARD ─────────────────────────────────────────────────
 async function openStudentCard(id){
-  const{data:s}=await sb.from('students').select('*').eq('id',id).single();
+  const[{data:s},{data:teachers}]=await Promise.all([
+    sb.from('students').select('*').eq('id',id).single(),
+    sb.from('profiles').select('id,first_name,last_name').eq('school_id',S.schoolId).in('role',['teacher','admin','owner']).order('last_name')
+  ]);
   if(!s){showToast('Ученик не найден');return;}
   C('sc_student_id').value=s.id;
   C('sc_avatar').innerHTML=avHTML(s.first_name,s.last_name);
@@ -6229,6 +6259,16 @@ async function openStudentCard(id){
   C('sc_language').value=s.language||'';
   C('sc_level').value=s.level||'A1';
   C('sc_name_display').textContent=(s.first_name||'')+' '+(s.last_name||'');
+  // Блок смены учителя — только для admin/owner
+  const tcRow=C('sc_teacher_row');
+  if(tcRow){
+    const canChange=['admin','owner'].includes(S.role);
+    tcRow.style.display=canChange?'':'none';
+    if(canChange){
+      const tcSel=C('sc_teacher_id');
+      tcSel.innerHTML='<option value="">— Не назначен —</option>'+(teachers||[]).map(t=>`<option value="${t.id}"${t.id===s.teacher_id?' selected':''}>${t.first_name} ${t.last_name}</option>`).join('');
+    }
+  }
   openM('mStudentCard');
 }
 async function saveStudentCard(){
@@ -6238,14 +6278,32 @@ async function saveStudentCard(){
     language:C('sc_language').value,
     level:C('sc_level').value
   };
+  // Смена учителя (только admin/owner)
+  const tcSel=C('sc_teacher_id');
+  if(tcSel&&['admin','owner'].includes(S.role)){
+    const newTeacherId=tcSel.value||null;
+    // Получаем старый teacher_id
+    const{data:old}=await sb.from('students').select('teacher_id').eq('id',id).single();
+    const oldTeacherId=old?.teacher_id;
+    if(newTeacherId!==oldTeacherId){
+      updates.teacher_id=newTeacherId;
+      // Убираем ученика из классов старого учителя
+      if(oldTeacherId){
+        const{data:oldClasses}=await sb.from('classes').select('id').eq('teacher_id',oldTeacherId).eq('school_id',S.schoolId);
+        if(oldClasses&&oldClasses.length>0){
+          const oldClassIds=oldClasses.map(c=>c.id);
+          await sb.from('class_students').delete().eq('student_id',id).in('class_id',oldClassIds);
+        }
+      }
+      dcInval('students_full_'+oldTeacherId);
+      dcInval('students_full_'+newTeacherId);
+    }
+  }
   const{error}=await sb.from('students').update(updates).eq('id',id);
-  if(error){showToast((S.lang==='en'?'Error: ':'Ошибка: ')+error.message);return;}
-  dcInval('students_full_'+S.schoolId);
-  // also refresh teacher students cache
+  if(error){showToast('Ошибка: '+error.message);return;}
   dcInval('students_full_'+S.schoolId);
   closeM('mStudentCard');
-  showToast(S.lang==='en'?'✅ Student data saved!':'✅ Данные ученика сохранены!');
-  // re-render current screen
+  showToast('✅ Данные ученика сохранены!');
   if(S.screen==='t_students')renderTeacherStudents();
   else if(S.screen==='a_students')renderAdminStudents();
   else if(S.screen==='o_students')renderOwnerStudents();
@@ -6522,6 +6580,10 @@ function exportICal(){
           <option>A1</option><option>A2</option><option>B1</option><option>B2</option><option>C1</option><option>C2</option>
         </select>
       </div>
+    </div>
+    <div class="form-group" id="sc_teacher_row" style="display:none">
+      <label>👨‍🏫 Преподаватель</label>
+      <select id="sc_teacher_id"></select>
     </div>
     <div class="btn-row" style="flex-wrap:wrap;gap:8px">
       <button class="btn btn-purple" onclick="saveStudentCard()">💾 Сохранить</button>
