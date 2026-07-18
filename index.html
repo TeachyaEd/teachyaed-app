@@ -1,4 +1,4 @@
-<!-- BUILD: 2026-07-18 22:57 -->
+<!-- BUILD: 2026-07-18 23:05 -->
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -81,6 +81,12 @@ body[data-theme="dark"] .conv-item:hover,body[data-theme="dark"] .conv-item.acti
 body[data-theme="dark"] .ci-last,body[data-theme="dark"] .ci-time{color:var(--text3)!important;}
 body[data-theme="dark"] .msg-row.theirs .msg-bubble{background:var(--gray-light)!important;color:var(--text)!important;box-shadow:none!important;}
 body[data-theme="dark"] .msg-area{background:var(--white)!important;}
+body[data-theme="dark"] .msg-main{background:var(--white)!important;}
+body[data-theme="dark"] .msg-thread{background:var(--white)!important;}
+body[data-theme="dark"] .msg-empty{background:transparent!important;color:var(--text3)!important;}
+body[data-theme="dark"] .msg-compose{background:var(--white)!important;border-top-color:var(--gray-border)!important;}
+body[data-theme="dark"] .msg-compose textarea{background:var(--gray-light)!important;border-color:var(--gray-border)!important;color:var(--text)!important;}
+body[data-theme="dark"] .msg-search{background:var(--gray-light)!important;border-color:var(--gray-border)!important;color:var(--text)!important;}
 body[data-theme="dark"] .msg-input-row{background:var(--white)!important;border-top-color:var(--gray-border)!important;}
 body[data-theme="dark"] .msg-input-row input,body[data-theme="dark"] .msg-input-row textarea{background:var(--gray-light)!important;border-color:var(--gray-border)!important;color:var(--text)!important;}
 /* ── Dark: Schedule ── */
@@ -4245,31 +4251,20 @@ async function doDeleteUser(){
   const name=_deleteUserName;
   closeM('mDeleteUser');
   showToast('⏳ Удаляем...');
-  try{
-    // Call Edge Function — deletes from auth.users (cascades to profiles via DB trigger)
-    const{data:{session}}=await sb.auth.getSession();
-    const res=await fetch(DELETE_USER_FN,{
-      method:'POST',
-      headers:{'Content-Type':'application/json','Authorization':'Bearer '+(session?.access_token||'')},
-      body:JSON.stringify({user_id:uid})
-    });
-    const json=await res.json();
-    if(!res.ok||json.error){
-      // Fallback: delete only from profiles if edge function not deployed yet
-      const{error}=await sb.from('profiles').delete().eq('id',uid).eq('school_id',S.schoolId);
-      if(error){showToast(t('Ошибка удаления:')+' '+(json.error||error.message));return;}
-      showToast('⚠️ '+name+' удалён из школы (auth запись сохранена — задеплойте delete-user)');
-    } else {
-      showToast('✅ '+name+' '+t('удалён'));
+  // Use SECURITY DEFINER RPC — bypasses RLS, handles all FK cascades
+  const{data,error}=await sb.rpc('delete_school_user',{target_user_id:uid});
+  if(error||data?.error){
+    const msg=data?.error||error?.message||'Неизвестная ошибка';
+    showToast('❌ '+msg);
+    // Helpful hint if function not yet created
+    if(msg.includes('function')||msg.includes('does not exist')){
+      setTimeout(()=>showToast('👆 Запусти fix_delete_user.sql в Supabase Dashboard → SQL Editor'),2000);
     }
-  }catch(e){
-    // Network fallback
-    const{error}=await sb.from('profiles').delete().eq('id',uid).eq('school_id',S.schoolId);
-    if(error){showToast(t('Ошибка удаления:')+' '+e.message);return;}
-    showToast('⚠️ '+name+' удалён из школы (без auth)');
+    return;
   }
   ['ty_av_color_','ty_av_emoji_','ty_av_photo_'].forEach(k=>localStorage.removeItem(k+uid));
   _deleteUserId='';_deleteUserName='';
+  showToast('✅ '+name+' удалён');
   if(S.role==='owner')renderOwnerUsers();
   else if(S.role==='admin'){if(S.screen==='a_teachers')renderAdminTeachers();else if(S.screen==='a_students')renderAdminStudents();}
 }
