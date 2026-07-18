@@ -1636,6 +1636,48 @@ const TRANSLATIONS={
   'Просмотр':'Preview',
   'Открыть':'Open',
   'Мои уроки':'My Lessons',
+
+  // ── NEW FEATURES (student card, progress, vocab, placement) ────────────────
+  'Карточка ученика':'Student Profile',
+  'Тест на уровень':'Placement Test',
+  '🎯 Тест на уровень':'🎯 Placement Test',
+  'Отправить тест':'Send Test',
+  '📤 Отправить тест':'📤 Send Test',
+  '📚 Словарь':'📚 Vocabulary',
+  'Словарь':'Vocabulary',
+  'Прогресс':'Progress',
+  '📊 Прогресс':'📊 Progress',
+  'Уроков проведено':'Lessons done',
+  'Заданий':'Assignments',
+  'Проверено':'Reviewed',
+  '% выполнения':'Completion',
+  'Последние задания':'Recent assignments',
+  'Нет заданий':'No assignments',
+  'Тренировка завершена!':'Training complete!',
+  'Все карточки':'All cards',
+  '← Все карточки':'← All cards',
+  'Повторить сложные':'Repeat hard words',
+  'Знаю':'I know it',
+  'Ещё раз':'Again',
+  'Перемешать':'Shuffle',
+  'Режим тренировки':'Training mode',
+  'Тренировка':'Training',
+  '▶️ Режим тренировки':'▶️ Training mode',
+  'Нажмите на карточку, чтобы увидеть перевод':'Tap the card to see the translation',
+  'Сохранить изменения':'Save changes',
+  '📥 iCal':'📥 iCal',
+  'Расписание экспортировано!':'Schedule exported!',
+  '📥 Расписание экспортировано!':'📥 Schedule exported!',
+  'Данные ученика сохранены!':'Student data saved!',
+  '✅ Данные ученика сохранены!':'✅ Student data saved!',
+  'Тест на уровень отправлен!':'Placement test sent!',
+  '🎯 Тест на уровень отправлен!':'🎯 Placement test sent!',
+  'Тест не найден':'Test not found',
+  'Ученик не найден':'Student not found',
+  'Определён уровень':'Level determined',
+  'правильных':'correct',
+  'слов':'words',
+  'Нет слов. Слова появятся из опубликованных уроков вашей школы.':'No words yet. Words appear from published lessons in your school.',
   'Урок':'Lesson',
   'Редактор':'Editor',
   'Создать урок':'Create Lesson',
@@ -5559,7 +5601,6 @@ async function openStudentCard(id){
   C('sc_phone').value=s.phone||'';
   C('sc_language').value=s.language||'';
   C('sc_level').value=s.level||'A1';
-  C('sc_notes').value=s.notes||'';
   C('sc_name_display').textContent=(s.first_name||'')+' '+(s.last_name||'');
   openM('mStudentCard');
 }
@@ -5568,45 +5609,60 @@ async function saveStudentCard(){
   const updates={
     phone:C('sc_phone').value.trim(),
     language:C('sc_language').value,
-    level:C('sc_level').value,
-    notes:C('sc_notes').value.trim()
+    level:C('sc_level').value
   };
   const{error}=await sb.from('students').update(updates).eq('id',id);
-  if(error){showToast('Ошибка: '+error.message);return;}
+  if(error){showToast((S.lang==='en'?'Error: ':'Ошибка: ')+error.message);return;}
+  dcInval('students_full_'+S.schoolId);
+  // also refresh teacher students cache
   dcInval('students_full_'+S.schoolId);
   closeM('mStudentCard');
-  showToast('✅ Данные ученика сохранены!');
+  showToast(S.lang==='en'?'✅ Student data saved!':'✅ Данные ученика сохранены!');
+  // re-render current screen
+  if(S.screen==='t_students')renderTeacherStudents();
+  else if(S.screen==='a_students')renderAdminStudents();
+  else if(S.screen==='o_students')renderOwnerStudents();
 }
 
 // ─── FEATURE 2: STUDENT PROGRESS ─────────────────────────────────────────────
 async function openStudentProgress(studentId,name){
-  C('sp_name').textContent='📊 Прогресс: '+(name||'');
-  C('sp_content').innerHTML='<div style="text-align:center;padding:20px;color:var(--text3)">Загрузка...</div>';
+  const isEn=S.lang==='en';
+  C('sp_name').textContent=(isEn?'📊 Progress: ':'📊 Прогресс: ')+(name||'');
+  C('sp_content').innerHTML='<div style="text-align:center;padding:20px;color:var(--text3)">'+(isEn?'Loading...':'Загрузка...')+'</div>';
   openM('mStudentProgress');
-  const[{data:hws},{data:evs}]=await Promise.all([
+  // Fetch: homeworks for student + class_students to get their classes
+  const[{data:hws},{data:cs}]=await Promise.all([
     sb.from('homeworks').select('id,status,title,deadline').eq('student_id',studentId),
-    sb.from('schedule_events').select('id,status').eq('school_id',S.schoolId).eq('status','completed')
+    sb.from('class_students').select('class_id').eq('student_id',studentId)
   ]);
+  // Count completed schedule events only for this student's classes
+  let lessons_count=0;
+  if(cs&&cs.length>0){
+    const classIds=cs.map(c=>c.class_id);
+    const{data:evs}=await sb.from('schedule_events').select('id').eq('status','completed').in('class_id',classIds);
+    lessons_count=(evs||[]).length;
+  }
   const total_hw=(hws||[]).length;
   const submitted_hw=(hws||[]).filter(h=>h.status==='submitted'||h.status==='reviewed').length;
   const reviewed_hw=(hws||[]).filter(h=>h.status==='reviewed').length;
   const completion_pct=total_hw>0?Math.round(submitted_hw/total_hw*100):0;
-  const lessons_count=(evs||[]).length;
   const sMap={pending:'badge-purple',submitted:'badge-yellow',reviewed:'badge-green'};
-  const sLbl={pending:'Ожидает',submitted:'Сдано',reviewed:'Проверено'};
-  const recentHw=(hws||[]).slice(-5).reverse().map(h=>`
+  const sLbl=isEn
+    ?{pending:'Pending',submitted:'Submitted',reviewed:'Reviewed'}
+    :{pending:'Ожидает',submitted:'Сдано',reviewed:'Проверено'};
+  const recentHw=(hws||[]).sort((a,b)=>new Date(b.deadline||0)-new Date(a.deadline||0)).slice(0,5).map(h=>`
     <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--gray-border)">
       <div style="font-size:.88rem">${_esc(h.title)}</div>
       <span class="badge ${sMap[h.status]||'badge-purple'}">${sLbl[h.status]||h.status}</span>
-    </div>`).join('')||'<div style="color:var(--text3);font-size:.85rem">Нет заданий</div>';
+    </div>`).join('')||`<div style="color:var(--text3);font-size:.85rem">${isEn?'No assignments':'Нет заданий'}</div>`;
   C('sp_content').innerHTML=`
     <div class="stats-row" style="grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:16px">
-      <div class="stat-card"><div class="stat-val">${lessons_count}</div><div class="stat-lbl">📅 Уроков (школа)</div></div>
-      <div class="stat-card yellow"><div class="stat-val">${total_hw}</div><div class="stat-lbl">📋 Заданий</div></div>
-      <div class="stat-card green"><div class="stat-val">${reviewed_hw}</div><div class="stat-lbl">✅ Проверено</div></div>
-      <div class="stat-card" style="border-left-color:var(--purple)"><div class="stat-val">${completion_pct}%</div><div class="stat-lbl">📊 % выполнения</div></div>
+      <div class="stat-card"><div class="stat-val">${lessons_count}</div><div class="stat-lbl">📅 ${isEn?'Lessons done':'Уроков проведено'}</div></div>
+      <div class="stat-card yellow"><div class="stat-val">${total_hw}</div><div class="stat-lbl">📋 ${isEn?'Assignments':'Заданий'}</div></div>
+      <div class="stat-card green"><div class="stat-val">${reviewed_hw}</div><div class="stat-lbl">✅ ${isEn?'Reviewed':'Проверено'}</div></div>
+      <div class="stat-card" style="border-left-color:var(--purple)"><div class="stat-val">${completion_pct}%</div><div class="stat-lbl">📊 ${isEn?'Completion':'% выполнения'}</div></div>
     </div>
-    <h4 style="margin-bottom:10px;font-size:.9rem;color:var(--text2)">Последние задания</h4>
+    <h4 style="margin-bottom:10px;font-size:.9rem;color:var(--text2)">${isEn?'Recent assignments':'Последние задания'}</h4>
     ${recentHw}`;
 }
 
@@ -5615,7 +5671,7 @@ let _vocabWords=[];let _vocabIdx=0;let _vocabTraining=false;let _vocabMissed=[];
 async function renderStudentVocab(){
   showSkel();
   _vocabWords=[];_vocabTraining=false;_vocabIdx=0;
-  const{data:stu}=await sb.from('students').select('id').eq('email',S.profile.email).single();
+  const isEn=S.lang==='en';
   const{data:lessons}=await sb.from('lessons').select('title,content').eq('school_id',S.schoolId).eq('published',true);
   (lessons||[]).forEach(lesson=>{
     let cont;try{cont=typeof lesson.content==='string'?JSON.parse(lesson.content):lesson.content;}catch(e){return;}
@@ -5625,7 +5681,7 @@ async function renderStudentVocab(){
       sec.blocks.forEach(blk=>{
         if(blk.type==='vocab'&&Array.isArray(blk.words)){
           blk.words.forEach(w=>{
-            if(w.word&&w.trans&&!_vocabWords.find(x=>x.word===w.word)){
+            if(w.word&&w.trans&&!_vocabWords.find(x=>x.word===w.word&&x.trans===w.trans)){
               _vocabWords.push({word:w.word,trans:w.trans});
             }
           });
@@ -5636,26 +5692,29 @@ async function renderStudentVocab(){
   _renderVocabScreen();
 }
 function _renderVocabScreen(){
+  const isEn=S.lang==='en';
+  const lblTitle=isEn?'📚 Vocabulary':'📚 Словарь';
+  const lblBack=isEn?'← All cards':'← Все карточки';
   if(_vocabWords.length===0){
-    setContent(`<div class="section-header"><h2>📚 Словарь</h2></div>
-      <div class="empty-state"><div class="ei">📚</div><p>Нет слов. Слова появятся из опубликованных уроков вашей школы.</p></div>`);
+    setContent(`<div class="section-header"><h2>${lblTitle}</h2></div>
+      <div class="empty-state"><div class="ei">📚</div><p>${isEn?'No words yet. Words appear from published lessons.':'Нет слов. Слова появятся из опубликованных уроков вашей школы.'}</p></div>`);
     return;
   }
   if(_vocabTraining){
     if(_vocabIdx>=_vocabWords.length){
       const missedCount=_vocabMissed.length;
-      setContent(`<div class="section-header"><h2>📚 Словарь</h2><button class="btn btn-outline" onclick="_vocabTraining=false;_renderVocabScreen()">← Все карточки</button></div>
+      setContent(`<div class="section-header"><h2>${lblTitle}</h2><button class="btn btn-outline" onclick="_vocabTraining=false;_renderVocabScreen()">${lblBack}</button></div>
         <div class="card" style="text-align:center;padding:40px">
           <div style="font-size:3rem;margin-bottom:12px">🎉</div>
-          <h3 style="margin-bottom:8px">Тренировка завершена!</h3>
-          <p style="color:var(--text3);margin-bottom:20px">Отмечено «Ещё раз»: <b>${missedCount}</b> слов</p>
-          ${missedCount>0?`<button class="btn btn-purple" onclick="_vocabWords=[..._vocabMissed];_vocabIdx=0;_vocabMissed=[];_renderVocabScreen()">🔁 Повторить сложные (${missedCount})</button>`:''}
-          <button class="btn btn-outline" style="margin-left:10px" onclick="_vocabTraining=false;_renderVocabScreen()">← Все карточки</button>
+          <h3 style="margin-bottom:8px">${isEn?'Training complete!':'Тренировка завершена!'}</h3>
+          <p style="color:var(--text3);margin-bottom:20px">${isEn?'Marked "Again":':'Отмечено «Ещё раз»:'} <b>${missedCount}</b> ${isEn?'words':'слов'}</p>
+          ${missedCount>0?`<button class="btn btn-purple" onclick="_vocabWords=[..._vocabMissed];_vocabIdx=0;_vocabMissed=[];_renderVocabScreen()">🔁 ${isEn?'Repeat hard words':'Повторить сложные'} (${missedCount})</button>`:''}
+          <button class="btn btn-outline" style="margin-left:10px" onclick="_vocabTraining=false;_renderVocabScreen()">${lblBack}</button>
         </div>`);
       return;
     }
     const w=_vocabWords[_vocabIdx];
-    setContent(`<div class="section-header"><h2>📚 Тренировка <span class="badge badge-purple">${_vocabIdx+1}/${_vocabWords.length}</span></h2><button class="btn btn-outline" onclick="_vocabTraining=false;_renderVocabScreen()">← Все карточки</button></div>
+    setContent(`<div class="section-header"><h2>📚 ${isEn?'Training':'Тренировка'} <span class="badge badge-purple">${_vocabIdx+1}/${_vocabWords.length}</span></h2><button class="btn btn-outline" onclick="_vocabTraining=false;_renderVocabScreen()">${lblBack}</button></div>
       <div style="max-width:400px;margin:40px auto;text-align:center">
         <div class="vocab-card" id="trainCard" onclick="this.classList.toggle('flipped')" style="height:160px;margin-bottom:24px">
           <div class="vocab-inner" style="height:160px">
@@ -5663,28 +5722,28 @@ function _renderVocabScreen(){
             <div class="vocab-back" style="font-size:1.3rem">${_esc(w.trans)}</div>
           </div>
         </div>
-        <p style="color:var(--text3);font-size:.85rem;margin-bottom:20px">Нажмите на карточку, чтобы увидеть перевод</p>
+        <p style="color:var(--text3);font-size:.85rem;margin-bottom:20px">${isEn?'Tap the card to reveal the translation':'Нажмите на карточку, чтобы увидеть перевод'}</p>
         <div style="display:flex;gap:12px;justify-content:center">
-          <button class="btn btn-green" onclick="_vocabIdx++;_renderVocabScreen()">✅ Знаю</button>
-          <button class="btn btn-outline" style="border-color:var(--pink);color:var(--pink)" onclick="_vocabMissed.push(_vocabWords[_vocabIdx]);_vocabIdx++;_renderVocabScreen()">❌ Ещё раз</button>
+          <button class="btn btn-green" onclick="_vocabIdx++;_renderVocabScreen()">✅ ${isEn?'I know it':'Знаю'}</button>
+          <button class="btn btn-outline" style="border-color:var(--pink);color:var(--pink)" onclick="_vocabMissed.push(_vocabWords[_vocabIdx]);_vocabIdx++;_renderVocabScreen()">❌ ${isEn?'Again':'Ещё раз'}</button>
         </div>
       </div>`);
     return;
   }
   const cards=_vocabWords.map(w=>`
-    <div class="vocab-card" onclick="this.classList.toggle('flipped')">
+    <div class="vocab-card" onclick="this.classList.toggle('flipped')" style="margin-bottom:12px">
       <div class="vocab-inner">
         <div class="vocab-front">${_esc(w.word)}</div>
         <div class="vocab-back">${_esc(w.trans)}</div>
       </div>
     </div>`).join('');
-  setContent(`<div class="section-header"><h2>📚 Словарь <span class="badge badge-purple">${_vocabWords.length} слов</span></h2>
+  setContent(`<div class="section-header"><h2>${lblTitle} <span class="badge badge-purple">${_vocabWords.length} ${isEn?'words':'слов'}</span></h2>
       <div style="display:flex;gap:8px">
-        <button class="btn btn-outline" onclick="_vocabWords=[..._vocabWords].sort(()=>Math.random()-.5);_renderVocabScreen()">🔀 Перемешать</button>
-        <button class="btn btn-purple" onclick="_vocabTraining=true;_vocabIdx=0;_vocabMissed=[];_renderVocabScreen()">▶️ Режим тренировки</button>
+        <button class="btn btn-outline" onclick="_vocabWords=[..._vocabWords].sort(()=>Math.random()-.5);_renderVocabScreen()">🔀 ${isEn?'Shuffle':'Перемешать'}</button>
+        <button class="btn btn-purple" onclick="_vocabTraining=true;_vocabIdx=0;_vocabMissed=[];_renderVocabScreen()">▶️ ${isEn?'Training mode':'Режим тренировки'}</button>
       </div>
     </div>
-    <div style="column-count:2;column-gap:12px;padding-top:4px">${cards}</div>`);
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;padding-top:4px">${cards}</div>`);
 }
 
 // ─── FEATURE 4: PLACEMENT TEST ────────────────────────────────────────────────
@@ -5695,8 +5754,9 @@ function openPlacementTest(studentId,name){
   openM('mPlacementTest');
 }
 async function sendPlacementTest(){
+  const isEn=S.lang==='en';
   if(!_ptStudentId){closeM('mPlacementTest');return;}
-  const exercises=PLACEMENT_Q.map((q,i)=>({type:'quiz',question:q.q,options:q.opts,correct:q.correct,_lvl:q.lvl}));
+  const exercises=PLACEMENT_Q.map((q)=>({type:'quiz',question:q.q,options:q.opts,correct:q.correct,_lvl:q.lvl}));
   const deadline=new Date(Date.now()+7*86400000).toISOString().split('T')[0];
   const{error}=await sb.from('homeworks').insert({
     school_id:S.schoolId,
@@ -5707,71 +5767,89 @@ async function sendPlacementTest(){
     status:'pending',
     deadline
   });
-  if(error){showToast('Ошибка: '+error.message);return;}
+  if(error){showToast((isEn?'Error: ':'Ошибка: ')+error.message);return;}
   closeM('mPlacementTest');
-  showToast('🎯 Тест на уровень отправлен!');
+  showToast(isEn?'🎯 Placement test sent!':'🎯 Тест на уровень отправлен!');
 }
 
 // Placement test player for students
 let _ptpHwId='',_ptpAnswers={};
 async function openPlacementTestPlayer(hwId){
+  const isEn=S.lang==='en';
   _ptpHwId=hwId;_ptpAnswers={};
-  C('ptpQuestions').innerHTML='<div style="text-align:center;padding:20px;color:var(--text3)">Загрузка...</div>';
+  C('ptpQuestions').innerHTML='<div style="text-align:center;padding:20px;color:var(--text3)">'+(isEn?'Loading...':'Загрузка...')+'</div>';
   openM('mPlacementTestPlayer');
   const{data:hw}=await sb.from('homeworks').select('*').eq('id',hwId).single();
-  if(!hw){showToast('Тест не найден');return;}
+  if(!hw){showToast(isEn?'Test not found':'Тест не найден');return;}
   let questions=[];try{questions=JSON.parse(hw.description)||[];}catch(e){}
   C('ptpQuestions').innerHTML=questions.map((q,i)=>`
     <div style="margin-bottom:20px;padding:14px;background:var(--gray-light);border-radius:10px">
       <div style="font-weight:600;margin-bottom:10px">${i+1}. ${_esc(q.question)}</div>
       ${(q.options||[]).map((opt,j)=>`
-        <label style="display:flex;align-items:center;gap:8px;padding:6px 0;cursor:pointer">
-          <input type="radio" name="ptp_q${i}" value="${j}" onchange="_ptpAnswers[${i}]=${j}">
+        <label style="display:flex;align-items:center;gap:8px;padding:6px 0;cursor:pointer;font-size:.9rem">
+          <input type="radio" name="ptp_q${i}" value="${j}" onchange="_ptpAnswers[${i}]=${j}" style="flex-shrink:0">
           <span>${_esc(opt)}</span>
         </label>`).join('')}
     </div>`).join('');
 }
 async function submitPlacementTest(){
+  const isEn=S.lang==='en';
   const{data:hw}=await sb.from('homeworks').select('*').eq('id',_ptpHwId).single();
   if(!hw){return;}
   let questions=[];try{questions=JSON.parse(hw.description)||[];}catch(e){}
   let score=0;
-  questions.forEach((q,i)=>{if(parseInt(_ptpAnswers[i])===q.correct)score++;});
-  const cefrMap=score<=3?'A1':score<=6?'A2':score<=9?'B1':score<=12?'B2':score<=14?'C1':'C2';
-  // Update student level
-  const{data:stuRow}=await sb.from('students').select('id').eq('school_id',S.schoolId).eq('email',S.profile.email).single();
-  if(stuRow){await sb.from('students').update({level:cefrMap}).eq('id',stuRow.id);}
-  // Update homework
+  questions.forEach((q,i)=>{if(Number(_ptpAnswers[i])===q.correct)score++;});
+  const cefrLevel=score<=3?'A1':score<=6?'A2':score<=9?'B1':score<=12?'B2':score<=14?'C1':'C2';
+  // Update student level — find student by student_id stored in the HW record
+  await sb.from('students').update({level:cefrLevel}).eq('id',hw.student_id).eq('school_id',S.schoolId);
+  // Mark homework as reviewed
   await sb.from('homeworks').update({
     status:'reviewed',
     student_answer:JSON.stringify(_ptpAnswers),
-    teacher_comment:`🎉 Результат теста: ${score}/15 правильных. Определён уровень: ${cefrMap}`
+    teacher_comment:isEn
+      ?`🎉 Test result: ${score}/15 correct. Level determined: ${cefrLevel}`
+      :`🎉 Результат теста: ${score}/15 правильных. Определён уровень: ${cefrLevel}`
   }).eq('id',_ptpHwId);
   closeM('mPlacementTestPlayer');
   dcInval('students_full_'+S.schoolId);
-  showToast(`🎉 Ваш уровень: ${cefrMap}! (${score}/15 правильных)`);
-  if(typeof renderStudentHw==='function')renderStudentHw();
+  const msg=isEn?`🎉 Your level: ${cefrLevel}! (${score}/15 correct)`:`🎉 Ваш уровень: ${cefrLevel}! (${score}/15 правильных)`;
+  showToast(msg);
+  renderStudentHw();
 }
 
 // ─── FEATURE 5: iCAL EXPORT ───────────────────────────────────────────────────
+function _icalEsc(s){return(s||'').replace(/\\/g,'\\\\').replace(/;/g,'\\;').replace(/,/g,'\\,').replace(/\n/g,'\\n');}
 function exportICal(){
+  const isEn=S.lang==='en';
   sb.from('schedule_events').select('*').eq('school_id',S.schoolId).then(({data:evs})=>{
-    const lines=['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//TeachyaED//EN','X-WR-CALNAME:TeachyaED'];
+    const calName=_icalEsc('TeachyaED');
+    const lines=['BEGIN:VCALENDAR','VERSION:2.0','CALSCALE:GREGORIAN',
+      'PRODID:-//TeachyaED//TeachyaED//EN',`X-WR-CALNAME:${calName}`,'METHOD:PUBLISH'];
     (evs||[]).forEach(ev=>{
       if(!ev.event_date)return;
-      const [h,m]=(ev.event_time||'09:00').split(':');
+      const parts=(ev.event_time||'09:00').split(':');
+      const hh=String(parts[0]||9).padStart(2,'0');
+      const mm=String(parts[1]||0).padStart(2,'0');
       const dt=ev.event_date.replace(/-/g,'');
-      const hh=String(h).padStart(2,'0'),mm=String(m||0).padStart(2,'0');
       const dtStart=`${dt}T${hh}${mm}00`;
-      const endMs=new Date(ev.event_date+'T'+hh+':'+mm+':00').getTime()+(ev.duration_minutes||60)*60000;
+      const startMs=new Date(`${ev.event_date}T${hh}:${mm}:00`).getTime();
+      const endMs=startMs+(Number(ev.duration_minutes)||60)*60000;
       const endD=new Date(endMs);
       const dtEnd=`${endD.getFullYear()}${String(endD.getMonth()+1).padStart(2,'0')}${String(endD.getDate()).padStart(2,'0')}T${String(endD.getHours()).padStart(2,'0')}${String(endD.getMinutes()).padStart(2,'0')}00`;
-      lines.push('BEGIN:VEVENT',`UID:${ev.id}@teachyaed`,`DTSTART:${dtStart}`,`DTEND:${dtEnd}`,`SUMMARY:${(ev.title||'').replace(/,/g,'\\,')}`,`STATUS:${ev.status==='cancelled'?'CANCELLED':'CONFIRMED'}`,'END:VEVENT');
+      lines.push('BEGIN:VEVENT',
+        `UID:${ev.id}@teachyaed`,
+        `DTSTART:${dtStart}`,
+        `DTEND:${dtEnd}`,
+        `SUMMARY:${_icalEsc(ev.title)}`,
+        `DESCRIPTION:${_icalEsc(ev.notes||'')}`,
+        `STATUS:${ev.status==='cancelled'?'CANCELLED':'CONFIRMED'}`,
+        'END:VEVENT');
     });
     lines.push('END:VCALENDAR');
-    const blob=new Blob([lines.join('\r\n')],{type:'text/calendar'});
-    const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='teachyaed-schedule.ics';a.click();
-    showToast('📥 Расписание экспортировано!');
+    const blob=new Blob([lines.join('\r\n')],{type:'text/calendar;charset=utf-8'});
+    const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='teachyaed-schedule.ics';
+    document.body.appendChild(a);a.click();document.body.removeChild(a);
+    showToast(isEn?'📥 Schedule exported!':'📥 Расписание экспортировано!');
   });
 }
 
@@ -5818,9 +5896,8 @@ function exportICal(){
         </select>
       </div>
     </div>
-    <div class="form-group"><label>Заметки</label><textarea id="sc_notes" rows="3" placeholder="Заметки о ученике..." style="width:100%;padding:10px;border:2px solid var(--gray-border);border-radius:var(--radius);font-family:var(--font);font-size:.9rem;resize:vertical"></textarea></div>
     <div class="btn-row" style="flex-wrap:wrap;gap:8px">
-      <button class="btn btn-purple" onclick="saveStudentCard()">Сохранить</button>
+      <button class="btn btn-purple" onclick="saveStudentCard()">💾 Сохранить</button>
       <button class="btn btn-outline" onclick="openStudentProgress(C('sc_student_id').value,C('sc_name_display').textContent)">📊 Прогресс</button>
       <button class="btn btn-outline" onclick="openPlacementTest(C('sc_student_id').value,C('sc_name_display').textContent)">🎯 Тест на уровень</button>
       <button class="btn btn-outline" onclick="closeM('mStudentCard')">Отмена</button>
