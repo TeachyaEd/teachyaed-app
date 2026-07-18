@@ -4251,15 +4251,13 @@ async function doDeleteUser(){
   const name=_deleteUserName;
   closeM('mDeleteUser');
   showToast('⏳ Удаляем...');
-  // Use SECURITY DEFINER RPC — bypasses RLS, handles all FK cascades
   const{data,error}=await sb.rpc('delete_school_user',{target_user_id:uid});
+  console.log('[deleteUser] uid=',uid,'data=',data,'error=',error);
   if(error||data?.error){
     const msg=data?.error||error?.message||'Неизвестная ошибка';
+    console.error('[deleteUser] FAIL:',msg,'fullError=',error,'fullData=',data);
+    alert('❌ Ошибка удаления:\n'+msg);
     showToast('❌ '+msg);
-    // Helpful hint if function not yet created
-    if(msg.includes('function')||msg.includes('does not exist')){
-      setTimeout(()=>showToast('👆 Запусти fix_delete_user.sql в Supabase Dashboard → SQL Editor'),2000);
-    }
     return;
   }
   ['ty_av_color_','ty_av_emoji_','ty_av_photo_'].forEach(k=>localStorage.removeItem(k+uid));
