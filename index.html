@@ -822,6 +822,22 @@ input,select,textarea{font-size:16px!important} /* Предотвращаем з
 .grade-btn{padding:8px 18px;border-radius:20px;border:2px solid var(--gray-border);background:#fff;cursor:pointer;font-size:.95rem;font-weight:700;font-family:var(--font);color:var(--text2);transition:.15s}
 .grade-btn:hover{border-color:var(--purple);color:var(--purple)}
 .grade-btn.sel{border-color:var(--purple);background:var(--purple);color:#fff}
+/* ── Library ── */
+.lib-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;margin-top:16px}
+.lib-card{background:var(--white);border:1.5px solid var(--gray-border);border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:10px;transition:.15s}
+.lib-card:hover{border-color:var(--purple);box-shadow:0 4px 16px rgba(107,33,168,.08)}
+.lib-card-title{font-weight:700;font-size:.95rem;color:var(--text)}
+.lib-card-meta{font-size:.78rem;color:var(--text3);display:flex;gap:8px;flex-wrap:wrap}
+.lib-card-meta span{background:var(--gray-light);border-radius:6px;padding:2px 7px}
+.lib-card-footer{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:4px}
+.lib-like-btn{display:flex;align-items:center;gap:4px;padding:5px 10px;border:1.5px solid var(--gray-border);border-radius:20px;background:none;cursor:pointer;font-size:.8rem;color:var(--text2);transition:.15s;font-family:var(--font)}
+.lib-like-btn:hover,.lib-like-btn.liked{border-color:#e879f9;color:#a21caf;background:#fdf4ff}
+.lib-filters{display:flex;gap:10px;flex-wrap:wrap;margin-top:8px}
+.lib-filters select,.lib-filters input{padding:7px 12px;border:1.5px solid var(--gray-border);border-radius:8px;font-size:.85rem;font-family:var(--font);outline:none;background:var(--white);color:var(--text)}
+.lib-filters input{flex:1;min-width:160px}
+.lib-badge-shared{background:#f0fdf4;color:#15803d;border:1px solid #bbf7d0;border-radius:6px;padding:2px 8px;font-size:.72rem;font-weight:700}
+body[data-theme="dark"] .lib-card{background:var(--white)!important;border-color:var(--gray-border)!important}
+body[data-theme="dark"] .lib-filters select,body[data-theme="dark"] .lib-filters input{background:var(--white)!important;color:var(--text)!important;border-color:var(--gray-border)!important}
 </style>
 </head>
 <body>
@@ -1221,6 +1237,7 @@ input,select,textarea{font-size:16px!important} /* Предотвращаем з
       </div>
       <button class="ce-tbtn ce-tbtn-save" onclick="saveFromCE(false)">💾 Сохранить</button>
       <button class="ce-tbtn ce-tbtn-pub" onclick="saveFromCE(true)">🚀 Опубликовать</button>
+      <button class="ce-tbtn" id="ceShareBtn" onclick="shareToLibrary()" style="background:var(--purple-light);color:var(--purple);border:1.5px solid var(--purple);border-radius:8px;padding:6px 12px;font-size:.8rem;font-weight:600;cursor:pointer;font-family:var(--font)">🌐 В библиотеку</button>
     </div>
   </div>
   <!-- Progress bar -->
@@ -1259,6 +1276,7 @@ input,select,textarea{font-size:16px!important} /* Предотвращаем з
       <div style="padding:12px;border-top:1px solid var(--gray-border)">
         <button onclick="saveFromCE(true)" style="width:100%;padding:10px;background:var(--purple);color:#fff;border:none;border-radius:10px;font-size:.88rem;font-weight:700;cursor:pointer;font-family:var(--font);margin-bottom:8px">🚀 Опубликовать</button>
         <button onclick="saveFromCE(false)" style="width:100%;padding:9px;background:var(--gray-light);color:var(--text2);border:none;border-radius:10px;font-size:.85rem;font-weight:600;cursor:pointer;font-family:var(--font)">💾 Черновик</button>
+        <button onclick="shareToLibrary()" id="ceShareBtnSide" style="width:100%;padding:9px;background:var(--purple-light);color:var(--purple);border:1.5px solid var(--purple);border-radius:10px;font-size:.82rem;font-weight:600;cursor:pointer;font-family:var(--font);margin-top:6px">🌐 Поделиться в библиотеку</button>
       </div>
       <div class="cv-ai-panel">
         <button class="cv-ai-toggle-btn" onclick="toggleAIPanel('ce')">🤖 AI Ассистент</button>
@@ -2150,6 +2168,18 @@ const TRANSLATIONS={
   'DOC, DOCX, TXT, PPTX, XLSX — до 50MB':'DOC, DOCX, TXT, PPTX, XLSX — up to 50MB',
   'MP3, WAV, OGG, M4A, AAC — до 50MB':'MP3, WAV, OGG, M4A, AAC — up to 50MB',
   'MP4, WebM, MOV — или вставь ссылку ниже':'MP4, WebM, MOV — or paste a link below',
+  'Библиотека':'Library',
+  'Мой урок':'My lesson',
+  'Скопировать':'Copy',
+  'Все языки':'All languages',
+  'Все уровни':'All levels',
+  'уроков':'lessons',
+  'В библиотеке пока нет уроков. Поделись своим!':'No lessons in the library yet. Share yours!',
+  'Урок добавлен в библиотеку!':'Lesson added to the library!',
+  'Урок скопирован в твои уроки!':'Lesson copied to your lessons!',
+  'Сначала сохрани урок':'Save the lesson first',
+  'В библиотеке':'In library',
+  'Поиск по названию':'Search by title',
 };
 
 // ─── GEORGIAN TRANSLATIONS ───────────────────────────────────────────────────
@@ -2569,6 +2599,18 @@ const TRANSLATIONS_GE={
   'DOC, DOCX, TXT, PPTX, XLSX — до 50MB':'DOC, DOCX, TXT, PPTX, XLSX — 50MB-მდე',
   'MP3, WAV, OGG, M4A, AAC — до 50MB':'MP3, WAV, OGG, M4A, AAC — 50MB-მდე',
   'MP4, WebM, MOV — или вставь ссылку ниже':'MP4, WebM, MOV — ან ჩასვი ბმული ქვემოთ',
+  'Библиотека':'ბიბლიოთეკა',
+  'Мой урок':'ჩემი გაკვეთილი',
+  'Скопировать':'კოპირება',
+  'Все языки':'ყველა ენა',
+  'Все уровни':'ყველა დონე',
+  'уроков':'გაკვეთილი',
+  'В библиотеке пока нет уроков. Поделись своим!':'ბიბლიოთეკაში გაკვეთილები არ არის. გაუზიარე შენი!',
+  'Урок добавлен в библиотеку!':'გაკვეთილი ბიბლიოთეკაში დაემატა!',
+  'Урок скопирован в твои уроки!':'გაკვეთილი შენს გაკვეთილებში დაკოპირდა!',
+  'Сначала сохрани урок':'ჯერ გაკვეთილი შეინახე',
+  'В библиотеке':'ბიბლიოთეკაში',
+  'Поиск по названию':'სახელით ძიება',
 };
 
 function t(str){
@@ -2800,7 +2842,8 @@ function _applyLang(prevLang){
     a_messages:renderMessenger,a_tasks:renderTasks,
     o_home:renderOwnerHome,o_classes:renderClasses,o_schedule:renderSchedule,
     o_users:renderOwnerUsers,o_students:renderOwnerStudents,o_payments:renderPayments,o_salaries:renderSalaries,o_materials:renderMaterials,
-    o_messages:renderMessenger,o_tasks:renderTasks
+    o_messages:renderMessenger,o_tasks:renderTasks,
+    t_library:renderLibrary,a_library:renderLibrary,o_library:renderLibrary
   };
   if(S.screen&&fn[S.screen])fn[S.screen]();
   // Apply translation to static elements outside content (sidebar headers, modals, overlays, login)
@@ -3061,7 +3104,7 @@ const NAV={
     {sec:'Учёба'},
     {id:'t_lessons',icon:'📖',l:'Уроки'},{id:'t_homework',icon:'📋',l:'Задания'},{id:'t_students',icon:'👥',l:'Ученики'},{id:'t_materials',icon:'📁',l:'Материалы'},
     {sec:'Инструменты'},
-    {id:'t_messages',icon:'💬',l:'Сообщения'},{id:'t_tasks',icon:'✅',l:'Задачи'}
+    {id:'t_messages',icon:'💬',l:'Сообщения'},{id:'t_tasks',icon:'✅',l:'Задачи'},{id:'t_library',icon:'🌐',l:'Библиотека'}
   ],
   admin:[
     {sec:'Классы'},
@@ -3069,7 +3112,7 @@ const NAV={
     {sec:'Аналитика'},
     {id:'a_home',icon:'📊',l:'Дашборд'},{id:'a_students',icon:'👥',l:'Ученики'},{id:'a_teachers',icon:'👨‍🏫',l:'Учителя'},{id:'a_payments',icon:'💳',l:'Оплата'},{id:'a_salaries',icon:'💰',l:'Зарплаты'},{id:'a_materials',icon:'📁',l:'Материалы'},
     {sec:'Инструменты'},
-    {id:'a_messages',icon:'💬',l:'Сообщения'},{id:'a_tasks',icon:'✅',l:'Задачи'}
+    {id:'a_messages',icon:'💬',l:'Сообщения'},{id:'a_tasks',icon:'✅',l:'Задачи'},{id:'a_library',icon:'🌐',l:'Библиотека'}
   ],
   owner:[
     {sec:'Классы'},
@@ -3079,7 +3122,7 @@ const NAV={
     {sec:'Преподавание'},
     {id:'t_lessons',icon:'📖',l:'Уроки'},{id:'t_homework',icon:'📋',l:'Задания'},{id:'t_students',icon:'👥',l:'Мои ученики'},
     {sec:'Инструменты'},
-    {id:'o_messages',icon:'💬',l:'Сообщения'},{id:'o_tasks',icon:'✅',l:'Задачи'}
+    {id:'o_messages',icon:'💬',l:'Сообщения'},{id:'o_tasks',icon:'✅',l:'Задачи'},{id:'o_library',icon:'🌐',l:'Библиотека'}
   ]
 };
 const ROLE_L={owner:'Владелец',admin:'Администратор',teacher:'Учитель',student:'Ученик'};
@@ -3599,7 +3642,8 @@ function showScreen(id){
     a_messages:renderMessenger,a_tasks:renderTasks,
     o_home:renderOwnerHome,o_classes:renderClasses,o_schedule:renderSchedule,
     o_users:renderOwnerUsers,o_students:renderOwnerStudents,o_payments:renderPayments,o_salaries:renderSalaries,o_materials:renderMaterials,
-    o_messages:renderMessenger,o_tasks:renderTasks
+    o_messages:renderMessenger,o_tasks:renderTasks,
+    t_library:renderLibrary,a_library:renderLibrary,o_library:renderLibrary
   };
   if(fn[id])fn[id]();
 }
@@ -5373,6 +5417,141 @@ async function assignLesson(){
   if(error){showToast(t('Ошибка')+': '+error.message);return;}
   closeM('mAssignLesson');showToast('✅ Урок назначен ученику!');
 }
+
+// ─── LIBRARY ──────────────────────────────────────────────────────────────────
+let _libFilter={lang:'',level:'',q:''};
+let _libLikes={};
+
+async function renderLibrary(){
+  showSkel();
+  const[{data:lessons},{data:myLikes}]=await Promise.all([
+    sb.from('lessons')
+      .select('id,title,language,level,content,shared_by,shared_at,school_id')
+      .eq('is_shared',true)
+      .eq('published',true)
+      .order('shared_at',{ascending:false}),
+    sb.from('lesson_library_likes').select('lesson_id').eq('user_id',S.userId)
+  ]);
+  const{data:likeCounts}=await sb.from('lesson_library_likes').select('lesson_id');
+  const likeMap={};
+  (likeCounts||[]).forEach(r=>{likeMap[r.lesson_id]=(likeMap[r.lesson_id]||0)+1;});
+  _libLikes={};
+  (myLikes||[]).forEach(r=>{_libLikes[r.lesson_id]=true;});
+  window._libLessons=lessons||[];
+  window._libLikeMap=likeMap;
+  _renderLibGrid();
+}
+
+function _renderLibGrid(){
+  const lessons=window._libLessons||[];
+  const likeMap=window._libLikeMap||{};
+  const f=_libFilter;
+  const filtered=lessons.filter(l=>{
+    if(f.lang&&l.language!==f.lang)return false;
+    if(f.level&&l.level!==f.level)return false;
+    if(f.q&&!l.title.toLowerCase().includes(f.q.toLowerCase()))return false;
+    return true;
+  });
+  const langs=[...new Set((window._libLessons||[]).map(l=>l.language).filter(Boolean))];
+  const levels=['A1','A2','B1','B2','C1','C2'];
+  const cards=filtered.map(l=>{
+    const cnt=l.content?.sections?l.content.sections.reduce((a,s)=>a+(s.exercises?.length||0),0):Array.isArray(l.content)?l.content.length:0;
+    const liked=_libLikes[l.id]||false;
+    const likes=likeMap[l.id]||0;
+    const own=l.school_id===S.schoolId;
+    return`<div class="lib-card">
+      <div class="lib-card-title">${_escHtml(l.title)}</div>
+      <div class="lib-card-meta">
+        <span>${_escHtml(l.language||'—')}</span>
+        <span>${_escHtml(l.level||'—')}</span>
+        <span>${cnt} ${t('упражнений')}</span>
+        ${own?`<span class="lib-badge-shared">✓ ${t('Мой урок')}</span>`:''}
+      </div>
+      <div class="lib-card-footer">
+        <button class="lib-like-btn${liked?' liked':''}" onclick="toggleLibraryLike('${l.id}',this)">
+          ${liked?'❤️':'🤍'} ${likes}
+        </button>
+        ${!own?`<button class="btn btn-sm btn-purple" style="font-size:.75rem;padding:4px 10px" onclick="copyFromLibrary('${l.id}')">📋 ${t('Скопировать')}</button>`:''}
+        <button class="btn btn-sm btn-outline" style="font-size:.75rem;padding:4px 10px" onclick="previewLibLesson('${l.id}')">👁 ${t('Просмотр')}</button>
+      </div>
+    </div>`;
+  }).join('');
+  setContent(`
+    <div class="section-header">
+      <h2>🌐 ${t('Библиотека')}</h2>
+      <span style="font-size:.85rem;color:var(--text3)">${filtered.length} ${t('уроков')}</span>
+    </div>
+    <div class="lib-filters">
+      <input placeholder="🔍 ${t('Поиск по названию')}..." value="${_escHtml(f.q)}" oninput="_libFilter.q=this.value;_renderLibGrid()">
+      <select onchange="_libFilter.lang=this.value;_renderLibGrid()">
+        <option value="">${t('Все языки')}</option>
+        ${langs.map(l=>`<option value="${l}"${f.lang===l?' selected':''}>${l}</option>`).join('')}
+      </select>
+      <select onchange="_libFilter.level=this.value;_renderLibGrid()">
+        <option value="">${t('Все уровни')}</option>
+        ${levels.map(l=>`<option value="${l}"${f.level===l?' selected':''}>${l}</option>`).join('')}
+      </select>
+    </div>
+    ${filtered.length?`<div class="lib-grid">${cards}</div>`:`<div class="empty-state" style="margin-top:48px"><div class="ei">🌐</div><p>${t('В библиотеке пока нет уроков. Поделись своим!')}</p></div>`}
+  `);
+}
+
+async function shareToLibrary(){
+  if(!CE.lessonId){showToast(t('Сначала сохрани урок'));return;}
+  const{error}=await sb.from('lessons').update({
+    is_shared:true,
+    shared_by:S.userId,
+    shared_at:new Date().toISOString()
+  }).eq('id',CE.lessonId);
+  if(error){showToast('❌ '+error.message);return;}
+  showToast('🌐 '+t('Урок добавлен в библиотеку!'));
+  const btns=[document.getElementById('ceShareBtn'),document.getElementById('ceShareBtnSide')];
+  btns.forEach(b=>{if(b){b.textContent='✅ '+t('В библиотеке');b.disabled=true;b.style.opacity='.6';}});
+}
+
+async function copyFromLibrary(lessonId){
+  const lesson=(window._libLessons||[]).find(l=>l.id===lessonId);
+  if(!lesson){showToast(t('Урок не найден'));return;}
+  const{error}=await sb.from('lessons').insert({
+    school_id:S.schoolId,
+    title:lesson.title+' (копия)',
+    language:lesson.language,
+    level:lesson.level,
+    content:lesson.content,
+    published:false,
+    is_shared:false
+  });
+  if(error){showToast('❌ '+error.message);return;}
+  dcInval('lessons_'+S.schoolId);
+  showToast('✅ '+t('Урок скопирован в твои уроки!'));
+}
+
+async function toggleLibraryLike(lessonId,btn){
+  const liked=_libLikes[lessonId]||false;
+  if(liked){
+    await sb.from('lesson_library_likes').delete().eq('lesson_id',lessonId).eq('user_id',S.userId);
+    _libLikes[lessonId]=false;
+    window._libLikeMap[lessonId]=Math.max(0,(window._libLikeMap[lessonId]||1)-1);
+  }else{
+    await sb.from('lesson_library_likes').insert({lesson_id:lessonId,user_id:S.userId});
+    _libLikes[lessonId]=true;
+    window._libLikeMap[lessonId]=(window._libLikeMap[lessonId]||0)+1;
+  }
+  const cnt=window._libLikeMap[lessonId]||0;
+  btn.classList.toggle('liked',!liked);
+  btn.innerHTML=(!liked?'❤️':'🤍')+' '+cnt;
+}
+
+async function previewLibLesson(lessonId){
+  const lesson=(window._libLessons||[]).find(l=>l.id===lessonId);
+  if(!lesson)return;
+  const raw=lesson.content;
+  const secs=(raw&&raw.sections)?raw.sections:Array.isArray(raw)?[{title:'Урок',exercises:raw}]:[{title:'Урок',exercises:[]}];
+  const mats=Array.isArray(raw?.materials)?raw.materials:[];
+  openClassroomView(lesson.title,secs,null,null,mats);
+}
+
+function _escHtml(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 
 // ─── CLASSROOM VIEW (EdVibe-style lesson viewer) ──────────────────────────────
 const LV={sections:[],materials:[],curSec:0,curEx:0,assignId:null,viewAll:false};
