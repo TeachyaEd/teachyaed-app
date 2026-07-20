@@ -394,7 +394,7 @@ tr:hover td{background:#FAFAFA}
 .cv-bottom-nav{height:64px;background:#fff;border-top:1px solid var(--gray-border);display:flex;align-items:center;padding:0 24px;gap:10px;flex-shrink:0}
 .cv-counter-label{flex:1;text-align:center;font-size:.88rem;font-weight:600;color:var(--text3)}
 /* right sidebar */
-.cv-right-sidebar{width:272px;background:#fff;border-left:1px solid var(--gray-border);display:flex;flex-direction:column;flex-shrink:0;overflow-y:auto}
+.cv-right-sidebar{width:272px;background:#fff;border-left:1px solid var(--gray-border);display:flex;flex-direction:column;flex-shrink:0;overflow-y:auto;overflow-x:hidden}
 .cv-call-panel{padding:20px 16px;border-bottom:1px solid var(--gray-border);text-align:center}
 .cv-call-icon{font-size:1.6rem;margin-bottom:6px;color:var(--text3)}
 .cv-call-text{font-size:.8rem;color:var(--text3);margin-bottom:12px;line-height:1.4}
@@ -426,6 +426,25 @@ tr:hover td{background:#FAFAFA}
 .cv-ai-send{padding:7px 12px;background:var(--purple);color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:.9rem}
 .cv-ai-toggle-btn{width:100%;padding:10px 14px;border:2px solid var(--purple-light);border-radius:10px;background:var(--purple-light);color:var(--purple);font-size:.85rem;font-weight:700;cursor:pointer;font-family:var(--font);display:flex;align-items:center;gap:8px;justify-content:center;transition:.15s}
 .cv-ai-toggle-btn:hover{background:var(--purple);color:#fff;border-color:var(--purple)}
+
+/* ── LESSON CHAT ── */
+.cv-chat-section{display:flex;flex-direction:column;border-top:1px solid var(--gray-border);min-height:0;overflow:hidden}
+.cv-chat-head{padding:10px 14px 8px;font-size:.75rem;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.cv-chat-head-title{display:flex;align-items:center;gap:6px}
+.cv-chat-online-dot{width:7px;height:7px;border-radius:50%;background:var(--green)}
+.cv-chat-msgs{overflow-y:auto;padding:6px 12px;display:flex;flex-direction:column;gap:6px;min-height:100px;max-height:190px}
+.cv-chat-empty{font-size:.8rem;color:var(--text3);text-align:center;padding:18px 0}
+.cv-chat-msg{display:flex;flex-direction:column;gap:2px;max-width:100%}
+.cv-chat-msg-name{font-size:.67rem;font-weight:600;color:var(--text3);padding:0 4px}
+.cv-chat-bubble{padding:7px 10px;border-radius:12px;font-size:.82rem;line-height:1.4;max-width:100%;word-break:break-word}
+.cv-chat-msg.mine .cv-chat-msg-name{text-align:right;align-self:flex-end}
+.cv-chat-msg.mine .cv-chat-bubble{background:var(--purple);color:#fff;align-self:flex-end;border-bottom-right-radius:3px}
+.cv-chat-msg.other .cv-chat-bubble{background:var(--gray-light);color:var(--text);align-self:flex-start;border-bottom-left-radius:3px}
+.cv-chat-input-row{display:flex;gap:6px;padding:8px 12px;border-top:1px solid var(--gray-border);flex-shrink:0}
+.cv-chat-inp{flex:1;padding:7px 10px;border:1.5px solid var(--gray-border);border-radius:8px;font-size:.82rem;font-family:var(--font);outline:none;min-width:0}
+.cv-chat-inp:focus{border-color:var(--purple)}
+.cv-chat-send{padding:7px 13px;background:var(--purple);color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:.9rem;flex-shrink:0}
+.cv-chat-send:hover{opacity:.88}
 
 /* ── EDVIBE CLASSROOM EDITOR ── */
 #classroomEditor{display:none;position:fixed;inset:0;background:#F8F7FF;z-index:350;flex-direction:column}
@@ -1387,6 +1406,24 @@ body[data-theme="dark"] .lib-filters select,body[data-theme="dark"] .lib-filters
         <button class="cv-action-row" onclick="toggleToolPanel('notes')">📝 Заметки к уроку</button>
         <button class="cv-action-row" id="cv_matBtn" onclick="toggleToolPanel('cv_materials')" style="display:none">📎 Материалы урока</button>
       </div>
+      <!-- ── Lesson Chat ── -->
+      <div class="cv-chat-section" id="cv_chatSection">
+        <div class="cv-chat-head">
+          <div class="cv-chat-head-title">
+            <span class="cv-chat-online-dot" id="cv_chatDot" style="display:none"></span>
+            <span>💬 Чат урока</span>
+          </div>
+        </div>
+        <div class="cv-chat-msgs" id="cv_chatMsgs">
+          <div class="cv-chat-empty">Загрузка чата...</div>
+        </div>
+        <div class="cv-chat-input-row">
+          <input class="cv-chat-inp" id="cv_chatInp" placeholder="Сообщение..."
+            onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();cvChatSend();}">
+          <button class="cv-chat-send" onclick="cvChatSend()">➤</button>
+        </div>
+      </div>
+      <!-- ── AI Panel ── -->
       <div class="cv-ai-panel">
         <button class="cv-ai-toggle-btn" onclick="toggleAIPanel('cv')">🤖 AI Ассистент</button>
         <div class="cv-ai-chat" id="cv_aiChat" style="display:none">
@@ -5579,6 +5616,9 @@ function openClassroomView(title,sections,assignId,studentName,materials){
   C('cv_tabLesson').classList.add('active');C('cv_tabHomework').classList.remove('active');
   lvRender();
   C('classroomView').classList.add('open');
+  // Init lesson chat
+  const _chatRoom=assignId||('lib_'+(S.schoolId||'x'));
+  cvChatInit(_chatRoom);
 }
 
 function openLessonView(assignId,title,contentEnc){
@@ -5648,7 +5688,76 @@ function switchCVTab(tab,el){
   }
 }
 
-function closeClassroomView(){C('classroomView').classList.remove('open');}
+function closeClassroomView(){C('classroomView').classList.remove('open');cvChatClose();}
+
+// ── LESSON CHAT ─────────────────────────────────────────────────────────────
+let cvChatChannel=null;
+
+async function cvChatInit(roomId){
+  if(!roomId||!sb)return;
+  LV.chatRoomId=roomId;
+  const msgs=C('cv_chatMsgs');
+  msgs.innerHTML='<div class="cv-chat-empty">Загрузка...</div>';
+  // Load last 60 messages
+  const{data,error}=await sb.from('lesson_chat')
+    .select('id,user_id,user_name,user_role,message,created_at')
+    .eq('room_id',roomId)
+    .order('created_at',{ascending:true})
+    .limit(60);
+  msgs.innerHTML='';
+  if(data&&data.length){data.forEach(m=>cvChatAddMsg(m));}
+  else{msgs.innerHTML='<div class="cv-chat-empty">Пока нет сообщений. Напишите первым! 👋</div>';}
+  cvChatScrollBottom();
+  // Realtime subscription
+  if(cvChatChannel){try{sb.removeChannel(cvChatChannel);}catch(e){}cvChatChannel=null;}
+  const dot=C('cv_chatDot');if(dot)dot.style.display='';
+  cvChatChannel=sb.channel('lc_'+roomId)
+    .on('postgres_changes',{event:'INSERT',schema:'public',table:'lesson_chat',filter:'room_id=eq.'+roomId},(payload)=>{
+      const m=payload.new;
+      if(m&&!document.getElementById('cvm_'+m.id)){
+        const empty=C('cv_chatMsgs').querySelector('.cv-chat-empty');
+        if(empty)empty.remove();
+        cvChatAddMsg(m);
+        cvChatScrollBottom();
+      }
+    }).subscribe();
+}
+
+function cvChatAddMsg(m){
+  const isMine=S.profile&&m.user_id===S.profile.id;
+  const time=new Date(m.created_at).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+  const div=document.createElement('div');
+  div.className='cv-chat-msg '+(isMine?'mine':'other');
+  div.id='cvm_'+m.id;
+  div.innerHTML=`<div class="cv-chat-msg-name">${_escHtml(m.user_name)} · ${time}</div>`+
+    `<div class="cv-chat-bubble">${_escHtml(m.message)}</div>`;
+  C('cv_chatMsgs').appendChild(div);
+}
+
+function cvChatScrollBottom(){const el=C('cv_chatMsgs');if(el)el.scrollTop=el.scrollHeight;}
+
+async function cvChatSend(){
+  const inp=C('cv_chatInp');
+  const msg=(inp?inp.value:'').trim();
+  if(!msg||!LV.chatRoomId)return;
+  inp.value='';
+  const name=S.profile?((S.profile.first_name||'')+(S.profile.last_name?' '+S.profile.last_name:'')).trim()||'Аноним':'Аноним';
+  const{error}=await sb.from('lesson_chat').insert({
+    room_id:LV.chatRoomId,
+    school_id:S.schoolId||null,
+    user_id:S.profile?S.profile.id:null,
+    user_name:name,
+    user_role:S.role||'student',
+    message:msg
+  });
+  if(error)showToast('Ошибка чата: '+error.message,'error');
+}
+
+function cvChatClose(){
+  const dot=C('cv_chatDot');if(dot)dot.style.display='none';
+  if(cvChatChannel){try{sb.removeChannel(cvChatChannel);}catch(e){}cvChatChannel=null;}
+  LV.chatRoomId=null;
+}
 
 function lvNav(dir){
   const sec=LV.sections[LV.curSec];
