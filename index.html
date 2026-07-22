@@ -4896,12 +4896,15 @@ function cdpEditClass(){
 }
 async function cdpStartLesson(){
   // show modal to pick lesson then open CE in classroom mode
-  const{data:lessons}=await sb.from('lessons').select('*').eq('school_id',S.schoolId).eq('published',true).order('created_at',{ascending:false});
-  if(!lessons||lessons.length===0){showToast('Нет опубликованных уроков. Сначала создай урок.');return;}
+  const{data:lessons}=await sb.from('lessons').select('*').eq('school_id',S.schoolId).order('created_at',{ascending:false});
+  if(!lessons||lessons.length===0){showToast('Нет уроков. Сначала создай урок.');return;}
   // build quick picker
   const opts=lessons.map(l=>`<div onclick="cdpPickLesson('${l.id}','${(l.title).replace(/'/g,"\\'")}','${l.language}','${l.level}','${encodeURIComponent(JSON.stringify(l.content||[]))}')" style="padding:12px 16px;cursor:pointer;border-radius:10px;border:2px solid var(--gray-border);margin-bottom:8px;transition:.15s" onmouseover="this.style.borderColor='var(--purple)'" onmouseout="this.style.borderColor='var(--gray-border)'">
-    <div style="font-weight:700">${l.title}</div>
-    <div style="font-size:.8rem;color:var(--text3)">${l.language} · ${l.level}</div>
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+      <div style="font-weight:700;flex:1">${l.title}</div>
+      ${l.published?'<span class="badge badge-green" style="font-size:.68rem">✓ Опубликован</span>':'<span class="badge badge-gray" style="font-size:.68rem">Черновик</span>'}
+    </div>
+    <div style="font-size:.8rem;color:var(--text3);margin-top:2px">${l.language||'—'} · ${l.level||'—'}</div>
   </div>`).join('');
   C('lessonPickerList').innerHTML=opts;
   openM('mLessonPicker');
@@ -5450,8 +5453,15 @@ async function openAssignLesson(lessonId){
 }
 async function assignLesson(){
   const sid=C('assign_student').value;if(!sid){showToast('Выбери ученика');return;}
-  const{error}=await sb.from('lesson_assignments').insert({school_id:S.schoolId,lesson_id:S.assignLessonId,student_id:sid});
-  if(error){showToast(t('Ошибка')+': '+error.message);return;}
+  if(!S.assignLessonId){showToast('Ошибка: урок не выбран');return;}
+  const{error}=await sb.from('lesson_assignments').insert({
+    school_id:S.schoolId,
+    lesson_id:S.assignLessonId,
+    student_id:sid,
+    teacher_id:S.profile?.id||null,
+    completed:false
+  });
+  if(error){showToast('Ошибка назначения: '+error.message,'error');console.error('assignLesson error',error);return;}
   closeM('mAssignLesson');showToast('✅ Урок назначен ученику!');
 }
 
