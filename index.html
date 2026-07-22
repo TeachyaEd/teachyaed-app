@@ -4218,6 +4218,9 @@ async function renderStudentLessons(){
   showSkel();
   const{data:stu}=await dc('stu_me_'+S.profile.id,()=>sb.from('students').select('id').eq('email',S.profile.email).single());
   const{data:assigns}=await dc('stu_assigns_'+stu?.id,()=>sb.from('lesson_assignments').select('*,lesson:lesson_id(id,title,language,level,content)').eq('student_id',stu?.id||''));
+  // Store in cache — never embed content in onclick attributes
+  window._assignCache=window._assignCache||{};
+  (assigns||[]).forEach(a=>{window._assignCache[a.id]=a;});
   const cards=(assigns||[]).map(a=>`<div class="card" style="margin-bottom:12px">
     <div style="display:flex;align-items:center;justify-content:space-between">
       <div>
@@ -4226,7 +4229,7 @@ async function renderStudentLessons(){
       </div>
       <div style="display:flex;align-items:center;gap:8px">
         ${a.completed?'<span class="badge badge-green">✓ Завершён</span>':'<span class="badge badge-purple">📖 Новый</span>'}
-        <button class="btn btn-purple" onclick="openLessonView('${a.id}','${(a.lesson?.title||'').replace(/'/g,"\\'")}','${encodeURIComponent(JSON.stringify(a.lesson?.content||{}))}')">Открыть</button>
+        <button class="btn btn-purple" onclick="openLessonView('${a.id}')">Открыть</button>
       </div>
     </div>
   </div>`).join('')||'<div class="empty-state"><div class="ei">📖</div><p>Уроки не назначены</p></div>';
@@ -5439,12 +5442,14 @@ function newLesson(){
   CE.lessonId=null;C('ce_title').value='';C('ce_lang').value='Английский';C('ce_level').value='A1';
   openCE(null,null);
 }
-function openLessonEditor(id,title,lang,level,contentEnc){
+function openLessonEditor(id,title,lang,level,content){
+  // content can be raw object/array OR legacy encoded string — both work
   C('ce_title').value=title;C('ce_lang').value=lang;C('ce_level').value=level;
-  openCE(id,JSON.parse(decodeURIComponent(contentEnc)));
+  let raw=content;
+  if(typeof content==='string'){try{raw=JSON.parse(decodeURIComponent(content));}catch(e){try{raw=JSON.parse(content);}catch(e2){raw=[];}}}
+  openCE(id,raw||[]);
 }
-// keep editLesson alias for calls from loadClassTab
-function editLesson(id,title,lang,level,contentEnc){openLessonEditor(id,title,lang,level,contentEnc);}
+function editLesson(id,title,lang,level,content){openLessonEditor(id,title,lang,level,content);}
 
 async function openAssignLesson(lessonId){
   S.assignLessonId=lessonId;
@@ -5607,8 +5612,11 @@ function _escHtml(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&l
 // ─── CLASSROOM VIEW (EdVibe-style lesson viewer) ──────────────────────────────
 const LV={sections:[],materials:[],curSec:0,curEx:0,assignId:null,viewAll:false};
 
-function _parseLessonContent(contentEnc){
-  const raw=JSON.parse(decodeURIComponent(contentEnc));
+function _parseLessonContent(content){
+  // Accepts: encoded string (legacy), plain object, or array — never breaks on large content
+  let raw=content;
+  if(typeof content==='string'){try{raw=JSON.parse(decodeURIComponent(content));}catch(e){try{raw=JSON.parse(content);}catch(e2){raw=[];}}}
+  if(!raw)raw=[];
   const secs=(raw&&raw.sections&&Array.isArray(raw.sections))?raw.sections
     :(Array.isArray(raw)&&raw.length>0)?[{title:'Урок',exercises:raw}]:[{title:'Урок',exercises:[]}];
   return{sections:secs,materials:Array.isArray(raw?.materials)?raw.materials:[]};
@@ -5635,9 +5643,13 @@ function openClassroomView(title,sections,assignId,studentName,materials){
   cvChatInit(_chatRoom);
 }
 
-function openLessonView(assignId,title,contentEnc){
-  const{sections:_s,materials:_m}=_parseLessonContent(contentEnc);
-  openClassroomView(title,_s,assignId,null,_m);
+function openLessonView(assignId,title,content){
+  // If called with only assignId (new cache-based call), read from _assignCache
+  const cached=(window._assignCache||{})[assignId];
+  const resolvedTitle=title||cached?.lesson?.title||'Урок';
+  const resolvedContent=content||cached?.lesson?.content||[];
+  const{sections:_s,materials:_m}=_parseLessonContent(resolvedContent);
+  openClassroomView(resolvedTitle,_s,assignId,null,_m);
 }
 
 function lvRender(){
@@ -6010,21 +6022,20 @@ async function completeLessonView(){
   closeClassroomView();
 }
 // Teacher preview — no assignment needed
-function openLessonPreview(title,contentEnc){
-  const{sections:_s,materials:_m}=_parseLessonContent(contentEnc);
+function openLessonPreview(title,content){
+  // content = raw object/array (no encoding needed)
+  const{sections:_s,materials:_m}=_parseLessonContent(content);
   openClassroomView(title,_s,null,null,_m);
 }
-// Cache-based helpers (avoid huge JSON in onclick attributes)
 function previewLessonById(id){
   const l=(window._lessonCache||{})[id];
   if(!l){showToast('Урок не найден');return;}
-  const enc=encodeURIComponent(JSON.stringify(l.content||[]));
-  openLessonPreview(l.title,enc);
+  openLessonPreview(l.title,l.content||[]);
 }
 function editLessonById(id){
   const l=(window._lessonCache||{})[id];
   if(!l){showToast('Урок не найден');return;}
-  openLessonEditor(l.id,l.title,l.language||'Английский',l.level||'A1',encodeURIComponent(JSON.stringify(l.content||[])));
+  openLessonEditor(l.id,l.title,l.language||'Английский',l.level||'A1',l.content||[]);
 }
 
 // ─── MATERIAL PREVIEW ─────────────────────────────────────────────────────────
