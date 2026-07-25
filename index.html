@@ -3039,6 +3039,9 @@ function removeAvPhoto(){
 }
 
 async function saveProfile(){
+  const btn=document.querySelector('#mProfile .btn.btn-purple');
+  if(btn){btn.disabled=true;btn.textContent='Сохранение...';}
+  try{
   const first=(C('prof_first')?.value||'').trim();
   const last=(C('prof_last')?.value||'').trim();
   const emoji=(C('prof_emoji')?.value||'').trim()||null;
@@ -3082,6 +3085,9 @@ async function saveProfile(){
   S.profile.avatar_emoji=emoji;
   updateTopBarAvatar();
   closeM('mProfile');
+  }finally{
+    if(btn){btn.disabled=false;btn.textContent='Сохранить';}
+  }
 }
 
 function updateTopBarAvatar(){
@@ -3110,23 +3116,35 @@ function updateTopBarAvatar(){
 }
 
 async function changeEmail(){
-  const newEmail=(C('sec_new_email')?.value||'').trim();
-  if(!newEmail){showToast('Введи новый email');return;}
-  const{error}=await sb.auth.updateUser({email:newEmail});
-  if(error){showToast(t('Ошибка')+': '+error.message);return;}
-  showToast('Проверь почту для подтверждения нового email');
+  const btn=document.querySelector('#mProfile .btn-row .btn.btn-purple');
+  if(btn){btn.disabled=true;}
+  try{
+    const newEmail=(C('sec_new_email')?.value||'').trim();
+    if(!newEmail){showToast('Введи новый email');return;}
+    const{error}=await sb.auth.updateUser({email:newEmail});
+    if(error){showToast(t('Ошибка')+': '+error.message);return;}
+    showToast('Проверь почту для подтверждения нового email');
+  }finally{
+    if(btn){btn.disabled=false;}
+  }
 }
 
 function togglePassVis(id,btn){const el=C(id);if(!el)return;const show=el.type==='password';el.type=show?'text':'password';btn.textContent=show?'🙈':'👁';}
 async function changePassword(){
-  const np=(C('sec_new_pass')?.value||'');
-  const cp=(C('sec_conf_pass')?.value||'');
-  if(!np||np.length<6){showToast('Пароль должен быть не менее 6 символов');return;}
-  if(np!==cp){showToast('Пароли не совпадают');return;}
-  const{error}=await sb.auth.updateUser({password:np});
-  if(error){showToast(t('Ошибка')+': '+error.message);return;}
-  showToast('Пароль изменён ✓');
-  closeM('mProfile');
+  const btn=document.querySelector('#mProfile [onclick="changePassword()"]');
+  if(btn){btn.disabled=true;}
+  try{
+    const np=(C('sec_new_pass')?.value||'');
+    const cp=(C('sec_conf_pass')?.value||'');
+    if(!np||np.length<6){showToast('Пароль должен быть не менее 6 символов');return;}
+    if(np!==cp){showToast('Пароли не совпадают');return;}
+    const{error}=await sb.auth.updateUser({password:np});
+    if(error){showToast(t('Ошибка')+': '+error.message);return;}
+    showToast('Пароль изменён ✓');
+    closeM('mProfile');
+  }finally{
+    if(btn){btn.disabled=false;}
+  }
 }
 
 // ─── NAV ─────────────────────────────────────────────────────────────────────
@@ -3244,7 +3262,7 @@ function renderTasksPanel(){
       ${(sec.exercises||[]).map((ex,ei)=>`
         <div onclick="lvGoSection(${si});LV.curEx=${ei};lvRender();closeToolPanel()" style="padding:7px 10px;border-radius:8px;cursor:pointer;font-size:.83rem;display:flex;align-items:center;gap:8px;${si===LV.curSec&&ei===LV.curEx?'background:var(--purple-light);color:var(--purple);font-weight:600':''}" onmouseover="this.style.background='var(--gray-light)'" onmouseout="this.style.background='${si===LV.curSec&&ei===LV.curEx?'var(--purple-light)':'transparent'}'">
           <span style="width:20px;height:20px;border-radius:50%;background:${si===LV.curSec&&ei===LV.curEx?'var(--purple)':'var(--gray-border)'};color:#fff;font-size:.65rem;display:flex;align-items:center;justify-content:center;flex-shrink:0">${ei+1}</span>
-          ${TYPE_L[ex.type]||ex.type||'Упражнение'}: ${(ex.question||ex.text||ex.statement||'').slice(0,35)||'—'}
+          ${_esc(TYPE_L[ex.type]||ex.type||'Упражнение')}: ${_esc((ex.question||ex.text||ex.statement||'').slice(0,35)||'—')}
         </div>`).join('')}
     </div>`).join('');
 }
@@ -3277,21 +3295,22 @@ async function lookupWord(){
       // Step 2: get EN definition
       const data=await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(enWord.toLowerCase())}`).then(r=>r.json());
       const entry=Array.isArray(data)&&data[0];
-      const phonetic=entry?.phonetics?.find(p=>p.text)?.text||'';
+      const phonetic=_escHtml(entry?.phonetics?.find(p=>p.text)?.text||'');
       const meanings=entry?(entry.meanings||[]).slice(0,2).map(m=>`
         <div style="margin-bottom:8px">
-          <span style="font-size:.75rem;font-weight:700;color:var(--purple);text-transform:uppercase">${m.partOfSpeech}</span>
-          ${(m.definitions||[]).slice(0,2).map(d=>`<div style="margin-top:4px">• ${d.definition}</div>`).join('')}
+          <span style="font-size:.75rem;font-weight:700;color:var(--purple);text-transform:uppercase">${_escHtml(m.partOfSpeech)}</span>
+          ${(m.definitions||[]).slice(0,2).map(d=>`<div style="margin-top:4px">• ${_escHtml(d.definition)}</div>`).join('')}
         </div>`).join(''):'';
+      const saveKey=`${w} → ${enWord}`;
 
       res.innerHTML=`
         <div style="background:var(--purple-light);border-radius:8px;padding:8px 12px;margin-bottom:10px">
-          <div style="font-size:.75rem;color:var(--text3)">🇷🇺 ${w}</div>
-          <div style="font-weight:700;font-size:1.1rem;color:var(--purple)">🇬🇧 ${enWord} <span style="font-size:.85rem;color:var(--text3);font-weight:400">${phonetic}</span></div>
+          <div style="font-size:.75rem;color:var(--text3)">🇷🇺 ${_escHtml(w)}</div>
+          <div style="font-weight:700;font-size:1.1rem;color:var(--purple)">🇬🇧 ${_escHtml(enWord)} <span style="font-size:.85rem;color:var(--text3);font-weight:400">${phonetic}</span></div>
         </div>
         ${meanings}
-        <button onclick="saveDictWord('${w} → ${enWord}')" style="margin-top:8px;padding:5px 12px;background:var(--purple-light);color:var(--purple);border:none;border-radius:6px;font-size:.78rem;font-weight:600;cursor:pointer">+ ${t('Сохранить')}</button>`;
-    }catch(e){res.innerHTML=`<div style="color:var(--pink)">${t('Ошибка')}: ${e.message}</div>`;}
+        <button onclick="saveDictWord(${JSON.stringify(saveKey)})" style="margin-top:8px;padding:5px 12px;background:var(--purple-light);color:var(--purple);border:none;border-radius:6px;font-size:.78rem;font-weight:600;cursor:pointer">+ ${t('Сохранить')}</button>`;
+    }catch(e){res.innerHTML=`<div style="color:var(--pink)">${t('Ошибка')}: ${_escHtml(e.message)}</div>`;}
   } else {
     // English word → direct lookup
     try{
@@ -3300,30 +3319,32 @@ async function lookupWord(){
         // fallback: translate EN→RU
         const tr=await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(w)}&langpair=en|ru`).then(r=>r.json());
         const ruWord=tr.responseData?.translatedText||'—';
+        const saveKey=`${w} → ${ruWord}`;
         res.innerHTML=`<div style="background:var(--purple-light);border-radius:8px;padding:8px 12px;margin-bottom:10px">
-          <div style="font-weight:700;font-size:1.1rem">🇬🇧 ${w} → 🇷🇺 ${ruWord}</div>
+          <div style="font-weight:700;font-size:1.1rem">🇬🇧 ${_escHtml(w)} → 🇷🇺 ${_escHtml(ruWord)}</div>
         </div>
-        <button onclick="saveDictWord('${w} → ${ruWord}')" style="margin-top:8px;padding:5px 12px;background:var(--purple-light);color:var(--purple);border:none;border-radius:6px;font-size:.78rem;font-weight:600;cursor:pointer">+ Сохранить</button>`;
+        <button onclick="saveDictWord(${JSON.stringify(saveKey)})" style="margin-top:8px;padding:5px 12px;background:var(--purple-light);color:var(--purple);border:none;border-radius:6px;font-size:.78rem;font-weight:600;cursor:pointer">+ Сохранить</button>`;
         return;
       }
       const entry=data[0];
-      const phonetic=entry.phonetics?.find(p=>p.text)?.text||'';
+      const phonetic=_escHtml(entry.phonetics?.find(p=>p.text)?.text||'');
       // Also get RU translation
       const tr=await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(w)}&langpair=en|ru`).then(r=>r.json());
       const ruWord=tr.responseData?.translatedText||'';
       const meanings=(entry.meanings||[]).slice(0,2).map(m=>`
         <div style="margin-bottom:8px">
-          <span style="font-size:.75rem;font-weight:700;color:var(--purple);text-transform:uppercase">${m.partOfSpeech}</span>
-          ${(m.definitions||[]).slice(0,2).map(d=>`<div style="margin-top:4px">• ${d.definition}</div>`).join('')}
+          <span style="font-size:.75rem;font-weight:700;color:var(--purple);text-transform:uppercase">${_escHtml(m.partOfSpeech)}</span>
+          ${(m.definitions||[]).slice(0,2).map(d=>`<div style="margin-top:4px">• ${_escHtml(d.definition)}</div>`).join('')}
         </div>`).join('');
+      const saveKey=`${entry.word}${ruWord?' → '+ruWord:''}`;
       res.innerHTML=`
         <div style="background:var(--purple-light);border-radius:8px;padding:8px 12px;margin-bottom:10px">
-          <div style="font-weight:700;font-size:1.1rem">🇬🇧 ${entry.word} <span style="font-size:.85rem;color:var(--text3);font-weight:400">${phonetic}</span></div>
-          ${ruWord?`<div style="font-size:.85rem;color:var(--purple);margin-top:2px">🇷🇺 ${ruWord}</div>`:''}
+          <div style="font-weight:700;font-size:1.1rem">🇬🇧 ${_escHtml(entry.word)} <span style="font-size:.85rem;color:var(--text3);font-weight:400">${phonetic}</span></div>
+          ${ruWord?`<div style="font-size:.85rem;color:var(--purple);margin-top:2px">🇷🇺 ${_escHtml(ruWord)}</div>`:''}
         </div>
         ${meanings}
-        <button onclick="saveDictWord('${entry.word}${ruWord?' → '+ruWord:''}')" style="margin-top:8px;padding:5px 12px;background:var(--purple-light);color:var(--purple);border:none;border-radius:6px;font-size:.78rem;font-weight:600;cursor:pointer">+ ${t('Сохранить')}</button>`;
-    }catch(e){res.innerHTML=`<div style="color:var(--pink)">${t('Ошибка')}: ${e.message}</div>`;}
+        <button onclick="saveDictWord(${JSON.stringify(saveKey)})" style="margin-top:8px;padding:5px 12px;background:var(--purple-light);color:var(--purple);border:none;border-radius:6px;font-size:.78rem;font-weight:600;cursor:pointer">+ ${t('Сохранить')}</button>`;
+    }catch(e){res.innerHTML=`<div style="color:var(--pink)">${t('Ошибка')}: ${_escHtml(e.message)}</div>`;}
   }
 }
 
@@ -3338,7 +3359,7 @@ function renderDictSaved(){
   const saved=JSON.parse(localStorage.getItem('teachya_dict')||'[]');
   const el=document.getElementById('dictSaved');
   if(!el)return;
-  el.innerHTML=saved.map(w=>`<span onclick="document.getElementById('dictSearch').value='${w}';lookupWord()" style="padding:4px 10px;background:var(--purple-light);color:var(--purple);border-radius:20px;font-size:.78rem;cursor:pointer;font-weight:600">${w}</span>`).join('');
+  el.innerHTML=saved.map(w=>`<span onclick="document.getElementById('dictSearch').value=${JSON.stringify(w)};lookupWord()" style="padding:4px 10px;background:var(--purple-light);color:var(--purple);border-radius:20px;font-size:.78rem;cursor:pointer;font-weight:600">${_escHtml(w)}</span>`).join('');
 }
 
 // Template shortcut in editor
@@ -3568,10 +3589,16 @@ async function callInviteFunction(email,role,firstName,lastName,opts={}){
 
 // ─── AUTH ─────────────────────────────────────────────────────────────────────
 async function doLogin(){
-  const e=C('loginEmail').value.trim(),p=C('loginPass').value;
-  const{data,error}=await sb.auth.signInWithPassword({email:e,password:p});
-  if(error){C('loginErr').style.display='block';return;}
-  await afterLogin(data.user);
+  const btn=document.querySelector('#loginForm button.btn-login');
+  if(btn){btn.disabled=true;btn.textContent='Входим...';}
+  try{
+    const e=C('loginEmail').value.trim(),p=C('loginPass').value;
+    const{data,error}=await sb.auth.signInWithPassword({email:e,password:p});
+    if(error){C('loginErr').style.display='block';return;}
+    await afterLogin(data.user);
+  }finally{
+    if(btn){btn.disabled=false;btn.textContent='Войти';}
+  }
 }
 async function afterLogin(user){
   let{data:prof}=await sb.from('profiles').select('*').eq('id',user.id).single();
@@ -3808,9 +3835,9 @@ function toggleDialer(){if(S.inCall){hangUp();return;}const p=C('contactPicker')
 function renderContacts(){
   const order={owner:0,admin:1,teacher:2,student:3};
   const sorted=[...S.contacts].sort((a,b)=>(order[a.role]||9)-(order[b.role]||9));
-  C('contactList').innerHTML=sorted.map(c=>`<div class="contact-item" onclick="callContact('${c.id}','${(c.first_name+' '+c.last_name).replace(/'/g,"\\'")}','${c.role}')">
+  C('contactList').innerHTML=sorted.map(c=>`<div class="contact-item" onclick="callContact('${c.id}',${JSON.stringify(c.first_name+' '+c.last_name)},'${c.role}')">
     ${avHTML(c.first_name,c.last_name,32)}
-    <div><div style="font-weight:600;font-size:.9rem">${c.first_name} ${c.last_name}</div><div style="font-size:.75rem;color:var(--text3)">${t(ROLE_L[c.role]||c.role)}</div></div>
+    <div><div style="font-weight:600;font-size:.9rem">${_esc(c.first_name)} ${_esc(c.last_name)}</div><div style="font-size:.75rem;color:var(--text3)">${t(ROLE_L[c.role]||c.role)}</div></div>
   </div>`).join('')||'<div style="padding:16px;color:var(--text3);font-size:.85rem">Нет контактов</div>';
 }
 async function callContact(partnerId,partnerName,partnerRole){
@@ -3823,7 +3850,7 @@ async function callContact(partnerId,partnerName,partnerRole){
     // stu_<students.id> → look up profile by email
     const realId=partnerId.slice(4);
     try{
-      const{data:stu}=await sb.from('students').select('email').eq('id',realId).single();
+      const{data:stu}=await sb.from('students').select('email').eq('id',realId).eq('school_id',S.schoolId).single();
       if(stu?.email){
         const{data:prof}=await sb.from('profiles').select('id').eq('email',stu.email).eq('school_id',S.schoolId).single();
         if(prof?.id)ringId=prof.id;
@@ -4178,7 +4205,7 @@ function _hwpRenderEx(ex,i){
     body=`<div style="font-size:.82rem;color:var(--text3);margin-bottom:6px">Составь предложение — кликай слова:</div>
       <div class="hwp-wo-sentence" id="hwp_wo_s_${i}" onclick="hwpWoReset(${i})"><span style="color:var(--text3);font-size:.82rem">Кликай слова ниже... (нажми здесь чтобы сбросить)</span></div>
       <div id="hwp_wo_chips_${i}" style="margin-top:6px">
-        ${st.words.map((w,wi)=>`<span class="hwp-wo-chip" id="hwp_wc_${i}_${wi}" onclick="hwpWoPick(${i},${wi},'${w.replace(/\\/g,'\\\\').replace(/'/g,"\\'")}')">${_esc(w)}</span>`).join('')}
+        ${st.words.map((w,wi)=>`<span class="hwp-wo-chip" id="hwp_wc_${i}_${wi}" onclick="hwpWoPick(${i},${wi},'${w.replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;')}')">${_esc(w)}</span>`).join('')}
       </div>`;
   } else if(ex.type==='openq'){
     body=`<div style="font-weight:600;margin-bottom:8px">${_esc(ex.question||'')}</div>
@@ -4276,11 +4303,11 @@ async function renderTeacherStudents(){
     return q;
   });
   const rows=(sts||[]).map(s=>`<tr>
-    <td><div style="display:flex;align-items:center;gap:10px">${avHTML(s.first_name,s.last_name)}<div><div style="font-weight:600;cursor:pointer" onclick="openStudentCard('${s.id}')">${s.first_name} ${s.last_name}</div><div style="font-size:.75rem;color:var(--text3)">${s.email||'—'}</div></div></div></td>
+    <td><div style="display:flex;align-items:center;gap:10px">${avHTML(s.first_name,s.last_name)}<div><div style="font-weight:600;cursor:pointer" onclick="openStudentCard('${s.id}')">${_esc(s.first_name)} ${_esc(s.last_name)}</div><div style="font-size:.75rem;color:var(--text3)">${_esc(s.email||'—')}</div></div></div></td>
     <td>${s.language||'—'}</td><td><span class="badge badge-purple">${s.level||'—'}</span></td><td>${s.phone||'—'}</td>
     <td class="td-actions">
-      <button class="btn btn-sm btn-purple" style="font-size:.73rem;padding:4px 8px" onclick="prefillHwForStudent('${s.id}','${(s.first_name+' '+s.last_name).replace(/'/g,"\\'")}')">📋 ДЗ</button>
-      <button class="btn btn-sm btn-green" style="font-size:.73rem;padding:4px 8px" onclick="callContact('stu_${s.id}','${(s.first_name+' '+s.last_name).replace(/'/g,"\\'")}','student')">📞</button>
+      <button class="btn btn-sm btn-purple" style="font-size:.73rem;padding:4px 8px" onclick="prefillHwForStudent('${s.id}',${JSON.stringify(s.first_name+' '+s.last_name)})">📋 ДЗ</button>
+      <button class="btn btn-sm btn-green" style="font-size:.73rem;padding:4px 8px" onclick="callContact('stu_${s.id}',${JSON.stringify(s.first_name+' '+s.last_name)},'student')">📞</button>
     </td>
   </tr>`).join('')||'<tr><td colspan="5" style="text-align:center;color:var(--text3)">Нет учеников</td></tr>';
   setContent(`<div class="section-header"><h2>👥 Ученики</h2></div>
@@ -4437,12 +4464,12 @@ async function renderOwnerHome(){
 async function renderAdminStudents(){
   const{data:sts}=await sb.from('students').select('*').eq('school_id',S.schoolId).order('last_name');
   const rows=(sts||[]).map(s=>`<tr>
-    <td><div style="display:flex;align-items:center;gap:10px">${avHTML(s.first_name,s.last_name)}<div><div style="font-weight:600;cursor:pointer" onclick="openStudentCard('${s.id}')">${s.first_name} ${s.last_name}</div><div style="font-size:.75rem;color:var(--text3)">${s.email||'—'}</div></div></div></td>
+    <td><div style="display:flex;align-items:center;gap:10px">${avHTML(s.first_name,s.last_name)}<div><div style="font-weight:600;cursor:pointer" onclick="openStudentCard('${s.id}')">${_esc(s.first_name)} ${_esc(s.last_name)}</div><div style="font-size:.75rem;color:var(--text3)">${_esc(s.email||'—')}</div></div></div></td>
     <td>${s.language||'—'}</td>
     <td><span class="badge badge-purple">${s.level||'—'}</span></td>
     <td>${s.phone||'—'}</td>
     <td class="td-actions">
-      <button class="btn btn-sm btn-green" style="font-size:.73rem;padding:4px 8px" onclick="callContact('stu_${s.id}','${(s.first_name+' '+s.last_name).replace(/'/g,"\\'")}','student')">📞</button>
+      <button class="btn btn-sm btn-green" style="font-size:.73rem;padding:4px 8px" onclick="callContact('stu_${s.id}',${JSON.stringify(s.first_name+' '+s.last_name)},'student')">📞</button>
       <button class="btn-danger" onclick="confirmDeleteStudent('${s.id}','${(s.first_name+' '+s.last_name).replace(/'/g,"\\'")}')">🗑</button>
     </td></tr>`).join('')||`<tr><td colspan="5" style="text-align:center;color:var(--text3)">${t('Нет учеников')}</td></tr>`;
   setContent(`<div class="section-header"><h2>👥 ${t('Ученики')}</h2><button class="btn btn-purple" onclick="openAddStudent()">+ ${t('Добавить')}</button></div>
@@ -4450,11 +4477,11 @@ async function renderAdminStudents(){
 }
 async function renderAdminTeachers(){
   const{data:ts}=await sb.from('profiles').select('*').eq('school_id',S.schoolId).eq('role','teacher');
-  const rows=(ts||[]).map(tc=>`<tr><td><div style="display:flex;align-items:center;gap:10px">${avHTML(tc.first_name,tc.last_name)}<div><div style="font-weight:600">${tc.first_name} ${tc.last_name}</div><div style="font-size:.75rem;color:var(--text3)">${tc.email||'—'}</div></div></div></td>
+  const rows=(ts||[]).map(tc=>`<tr><td><div style="display:flex;align-items:center;gap:10px">${avHTML(tc.first_name,tc.last_name)}<div><div style="font-weight:600">${_esc(tc.first_name)} ${_esc(tc.last_name)}</div><div style="font-size:.75rem;color:var(--text3)">${_esc(tc.email||'—')}</div></div></div></td>
     <td><span class="badge badge-green">${t('Учитель')}</span></td>
     <td class="td-actions">
-      <button class="btn btn-sm btn-outline" style="font-size:.73rem;padding:4px 8px" onclick="openSetSalary('${tc.id}','${(tc.first_name+' '+tc.last_name).replace(/'/g,"\\'")}')">💰 ${t('Ставка')}</button>
-      <button class="btn btn-sm btn-green" style="font-size:.73rem;padding:4px 8px" onclick="callContact('${tc.id}','${(tc.first_name+' '+tc.last_name).replace(/'/g,"\\'")}','teacher')">📞</button>
+      <button class="btn btn-sm btn-outline" style="font-size:.73rem;padding:4px 8px" onclick="openSetSalary('${tc.id}',${JSON.stringify(tc.first_name+' '+tc.last_name)})">💰 ${t('Ставка')}</button>
+      <button class="btn btn-sm btn-green" style="font-size:.73rem;padding:4px 8px" onclick="callContact('${tc.id}',${JSON.stringify(tc.first_name+' '+tc.last_name)},'teacher')">📞</button>
       <button class="btn-danger" onclick="confirmDeleteUser('${tc.id}','${(tc.first_name+' '+tc.last_name).replace(/'/g,"\\'")}','teacher')">🗑</button>
     </td></tr>`).join('')||`<tr><td colspan="3" style="text-align:center;color:var(--text3)">${t('Нет учителей')}</td></tr>`;
   setContent(`<div class="section-header"><h2>👨‍🏫 ${t('Учителя')}</h2><button class="btn btn-purple" onclick="openM('mInviteStaff')">+ ${t('Пригласить')}</button></div>
@@ -4464,13 +4491,13 @@ async function renderOwnerUsers(){
   const{data:users}=await sb.from('profiles').select('*').eq('school_id',S.schoolId).order('role');
   const canDelete=S.role==='owner'||S.role==='admin';
   const rows=(users||[]).map(u=>`<tr>
-    <td><div style="display:flex;align-items:center;gap:10px">${avHTML(u.first_name,u.last_name)}<div><div style="font-weight:600">${u.first_name} ${u.last_name}</div><div style="font-size:.75rem;color:var(--text3)">${u.email||'—'}</div></div></div></td>
+    <td><div style="display:flex;align-items:center;gap:10px">${avHTML(u.first_name,u.last_name)}<div><div style="font-weight:600">${_esc(u.first_name)} ${_esc(u.last_name)}</div><div style="font-size:.75rem;color:var(--text3)">${_esc(u.email||'—')}</div></div></div></td>
     <td><span class="badge ${u.role==='owner'?'badge-pink':u.role==='admin'?'badge-yellow':u.role==='teacher'?'badge-green':'badge-purple'}">${ROLE_L[u.role]||u.role}</span></td>
     <td class="td-actions">
       ${u.id===S.profile.id
         ?`<span style="font-size:.75rem;color:var(--text3)">${t('Это вы')}</span>`
-        :`<button class="btn btn-sm btn-outline" style="font-size:.73rem;padding:4px 8px" onclick="openChangeRole('${u.id}','${(u.first_name+' '+u.last_name).replace(/'/g,"\\'")}','${u.role}')">✎ ${t('Роль')}</button>
-        <button class="btn btn-sm btn-green" style="font-size:.73rem;padding:4px 8px" onclick="callContact('${u.id}','${(u.first_name+' '+u.last_name).replace(/'/g,"\\'")}','${u.role}')">📞</button>
+        :`<button class="btn btn-sm btn-outline" style="font-size:.73rem;padding:4px 8px" onclick="openChangeRole('${u.id}',${JSON.stringify(u.first_name+' '+u.last_name)},'${u.role}')">✎ ${t('Роль')}</button>
+        <button class="btn btn-sm btn-green" style="font-size:.73rem;padding:4px 8px" onclick="callContact('${u.id}',${JSON.stringify(u.first_name+' '+u.last_name)},'${u.role}')">📞</button>
         ${canDelete&&!(S.role==='admin'&&u.role==='owner')?`<button class="btn-danger" onclick="confirmDeleteUser('${u.id}','${(u.first_name+' '+u.last_name).replace(/'/g,"\\'")}','${u.role}')">🗑</button>`:''}`}
     </td>
   </tr>`).join('');
@@ -4493,6 +4520,7 @@ async function doDeleteUser(){
   if(!_deleteUserId){closeM('mDeleteUser');return;}
   const uid=_deleteUserId;
   const name=_deleteUserName;
+  _deleteUserId='';_deleteUserName=''; // clear immediately before any await
   closeM('mDeleteUser');
   showToast('⏳ Удаляем...');
   const{data,error}=await sb.rpc('delete_school_user',{target_user_id:uid});
@@ -4505,7 +4533,6 @@ async function doDeleteUser(){
     return;
   }
   ['ty_av_color_','ty_av_emoji_','ty_av_photo_'].forEach(k=>localStorage.removeItem(k+uid));
-  _deleteUserId='';_deleteUserName='';
   showToast('✅ '+name+' удалён');
   if(S.role==='owner')renderOwnerUsers();
   else if(S.role==='admin'){if(S.screen==='a_teachers')renderAdminTeachers();else if(S.screen==='a_students')renderAdminStudents();}
@@ -4530,10 +4557,10 @@ async function confirmDeleteStudent(sid,name){
 async function renderOwnerStudents(){
   const{data:sts}=await sb.from('students').select('*').eq('school_id',S.schoolId).order('last_name');
   const rows=(sts||[]).map(s=>`<tr>
-    <td><div style="display:flex;align-items:center;gap:10px">${avHTML(s.first_name,s.last_name)}<div><div style="font-weight:600;cursor:pointer" onclick="openStudentCard('${s.id}')">${s.first_name} ${s.last_name}</div><div style="font-size:.75rem;color:var(--text3)">${s.email||'—'}</div></div></div></td>
+    <td><div style="display:flex;align-items:center;gap:10px">${avHTML(s.first_name,s.last_name)}<div><div style="font-weight:600;cursor:pointer" onclick="openStudentCard('${s.id}')">${_esc(s.first_name)} ${_esc(s.last_name)}</div><div style="font-size:.75rem;color:var(--text3)">${_esc(s.email||'—')}</div></div></div></td>
     <td>${s.language||'—'}</td><td><span class="badge badge-purple">${s.level||'—'}</span></td><td>${s.phone||'—'}</td>
     <td class="td-actions">
-      <button class="btn btn-sm btn-green" style="font-size:.73rem;padding:4px 8px" onclick="callContact('stu_${s.id}','${(s.first_name+' '+s.last_name).replace(/'/g,"\\'")}','student')">📞</button>
+      <button class="btn btn-sm btn-green" style="font-size:.73rem;padding:4px 8px" onclick="callContact('stu_${s.id}',${JSON.stringify(s.first_name+' '+s.last_name)},'student')">📞</button>
       <button class="btn-danger" onclick="confirmDeleteStudent('${s.id}','${(s.first_name+' '+s.last_name).replace(/'/g,"\\'")}')">🗑</button>
     </td></tr>`).join('')||`<tr><td colspan="5" style="text-align:center;color:var(--text3)">${t('Нет учеников')}</td></tr>`;
   setContent(`<div class="section-header"><h2>🎓 ${t('Ученики')}</h2><button class="btn btn-purple" onclick="openAddStudent()">+ ${t('Добавить')}</button></div>
@@ -4544,17 +4571,17 @@ async function renderOwnerStudents(){
 async function renderPayments(){
   const{data:pays}=await sb.from('payments').select('*,student:student_id(first_name,last_name)').eq('school_id',S.schoolId).order('created_at',{ascending:false});
   const{data:sts}=await sb.from('students').select('id,first_name,last_name').eq('school_id',S.schoolId);
-  C('pay_student').innerHTML=(sts||[]).map(s=>`<option value="${s.id}">${s.first_name} ${s.last_name}</option>`).join('');
+  C('pay_student').innerHTML=(sts||[]).map(s=>`<option value="${s.id}">${_esc(s.first_name)} ${_esc(s.last_name)}</option>`).join('');
   const paid=(pays||[]).filter(p=>p.status==='paid').reduce((a,b)=>a+Number(b.amount),0);
   const pend=(pays||[]).filter(p=>p.status==='pending').reduce((a,b)=>a+Number(b.amount),0);
   const ov=(pays||[]).filter(p=>p.status==='overdue').reduce((a,b)=>a+Number(b.amount),0);
   const rows=(pays||[]).map(p=>`<tr>
-    <td>${p.student?.first_name||'—'} ${p.student?.last_name||''}</td>
+    <td>${_esc(p.student?.first_name||'—')} ${_esc(p.student?.last_name||'')}</td>
     <td><b>${fmtCur(p.amount,p.currency)}</b></td>
     <td>${fmtDate(p.period_from)} – ${fmtDate(p.period_to)}</td>
     <td><span class="badge ${p.status==='paid'?'badge-green':p.status==='overdue'?'badge-pink':'badge-yellow'}">${{paid:'Оплачено',pending:'Ожидает',overdue:'Просрочено'}[p.status]||p.status}</span></td>
     <td style="font-size:.78rem;color:var(--text3)">${p.note||''}</td>
-    <td class="td-actions">${p.status!=='paid'?`<button class="btn btn-sm btn-green" style="font-size:.72rem;padding:3px 8px" onclick="markPaid('${p.id}')">✓</button>`:''}</td>
+    <td class="td-actions">${p.status!=='paid'?`<button class="btn btn-sm btn-green" style="font-size:.72rem;padding:3px 8px" onclick="markPaid('${p.id}',this)">✓</button>`:''}</td>
   </tr>`).join('');
   setContent(`<div class="section-header"><h2>${t('💳 Оплата')||'💳 Payments'}</h2><button class="btn btn-purple" onclick="openAddPayment()">+ ${t('Оплата')||'Payment'}</button></div>
     <div class="stats-row" style="margin-bottom:16px">
@@ -4571,17 +4598,32 @@ function openAddPayment(){
   C('pay_status').value='pending';
   openM('mAddPayment');
 }
-async function markPaid(id){const{error}=await sb.from('payments').update({status:'paid'}).eq('id',id).eq('school_id',S.schoolId);if(error){showToast('Ошибка: '+error.message,'error');return;}showToast('Отмечено оплаченным');renderPayments();}
+async function markPaid(id,btn){
+  if(btn){btn.disabled=true;}
+  try{
+    const{error}=await sb.from('payments').update({status:'paid'}).eq('id',id).eq('school_id',S.schoolId);
+    if(error){showToast('Ошибка: '+error.message,'error');return;}
+    showToast('Отмечено оплаченным');renderPayments();
+  }finally{
+    if(btn){btn.disabled=false;}
+  }
+}
 async function savePayment(){
-  const sid=C('pay_student').value,amt=parseFloat(C('pay_amount').value)||0,cur=C('pay_cur').value;
-  const pf=C('pay_from').value||null,pt=C('pay_to').value||null,st=C('pay_status').value,note=C('pay_note').value.trim();
-  if(!amt){showToast('Введи сумму!');return;}
-  const pd={student_id:sid,amount:amt,currency:cur,period_from:pf,period_to:pt,status:st,note};
-  let err;
-  if(S.editPayId){({error:err}=await sb.from('payments').update(pd).eq('id',S.editPayId).eq('school_id',S.schoolId));}
-  else{({error:err}=await sb.from('payments').insert({school_id:S.schoolId,...pd}));}
-  if(err){showToast('Ошибка: '+err.message,'error');return;}
-  closeM('mAddPayment');showToast('Платёж сохранён');renderPayments();
+  const btn=document.querySelector('#mAddPayment .btn.btn-purple');
+  if(btn){btn.disabled=true;btn.textContent='Сохранение...';}
+  try{
+    const sid=C('pay_student').value,amt=parseFloat(C('pay_amount').value)||0,cur=C('pay_cur').value;
+    const pf=C('pay_from').value||null,pt=C('pay_to').value||null,st=C('pay_status').value,note=C('pay_note').value.trim();
+    if(!amt){showToast('Введи сумму!');return;}
+    const pd={student_id:sid,amount:amt,currency:cur,period_from:pf,period_to:pt,status:st,note};
+    let err;
+    if(S.editPayId){({error:err}=await sb.from('payments').update(pd).eq('id',S.editPayId).eq('school_id',S.schoolId));}
+    else{({error:err}=await sb.from('payments').insert({school_id:S.schoolId,...pd}));}
+    if(err){showToast('Ошибка: '+err.message,'error');return;}
+    closeM('mAddPayment');showToast('Платёж сохранён');renderPayments();
+  }finally{
+    if(btn){btn.disabled=false;btn.textContent='Сохранить';}
+  }
 }
 
 // ─── SALARIES ─────────────────────────────────────────────────────────────────
@@ -4599,12 +4641,12 @@ async function renderSalaries(){
     const sal=(sals||[]).find(s=>s.teacher_id===tc.id);
     const rate=sal?.rate_per_lesson||0,cur=sal?.currency||'GEL';
     const cnt=(logs||[]).filter(l=>l.teacher_id===tc.id&&new Date(l.lesson_date)>=start).length;
-    const tname=(tc.first_name+' '+tc.last_name).replace(/'/g,"\\'");
+    const tname=tc.first_name+' '+tc.last_name;
     return`<tr>
-      <td><div style="display:flex;align-items:center;gap:10px">${avHTML(tc.first_name,tc.last_name)}<div style="font-weight:600">${tc.first_name} ${tc.last_name}</div></div></td>
+      <td><div style="display:flex;align-items:center;gap:10px">${avHTML(tc.first_name,tc.last_name)}<div style="font-weight:600">${_esc(tc.first_name)} ${_esc(tc.last_name)}</div></div></td>
       <td>${fmtCur(rate,cur)}</td><td>${cnt}</td><td><b style="color:var(--green)">${fmtCur(rate*cnt,cur)}</b></td>
-      <td class="td-actions"><button class="btn btn-sm btn-outline" style="font-size:.73rem;padding:4px 8px" onclick="openSetSalary('${tc.id}','${tname}')">✎ ${t('Ставка')}</button>
-      <button class="btn btn-sm btn-purple" style="font-size:.73rem;padding:4px 8px" onclick="logLessonFor('${tc.id}','${tname}')">+ ${t('Урок')}</button></td></tr>`;
+      <td class="td-actions"><button class="btn btn-sm btn-outline" style="font-size:.73rem;padding:4px 8px" onclick="openSetSalary('${tc.id}',${JSON.stringify(tname)})">✎ ${t('Ставка')}</button>
+      <button class="btn btn-sm btn-purple" style="font-size:.73rem;padding:4px 8px" onclick="logLessonFor('${tc.id}',${JSON.stringify(tname)})">+ ${t('Урок')}</button></td></tr>`;
   }).join('');
   setContent(`<div class="section-header"><h2>${t('💰 Зарплаты')||'💰 Salaries'}</h2></div>
     <div class="period-tabs">
@@ -4617,10 +4659,16 @@ async function renderSalaries(){
 function setSalPeriod(p){salPeriod=p;renderSalaries();}
 function openSetSalary(tid,tname){S.currentSalTId=tid;C('salaryTName').textContent=tname;C('sal_rate').value='';openM('mSetSalary');}
 async function saveSalary(){
-  const rate=C('sal_rate').value,cur=C('sal_cur').value;if(!rate){showToast('Введи ставку!');return;}
-  const{error}=await sb.from('teacher_salaries').upsert({school_id:S.schoolId,teacher_id:S.currentSalTId,rate_per_lesson:parseFloat(rate)||0,currency:cur,updated_at:new Date().toISOString()},{onConflict:'teacher_id'});
-  if(error){showToast('Ошибка: '+error.message,'error');return;}
-  closeM('mSetSalary');showToast('Ставка сохранена');if(S.screen==='o_salaries'||S.screen==='a_salaries')renderSalaries();
+  const btn=document.querySelector('#mSetSalary .btn.btn-purple');
+  if(btn){btn.disabled=true;btn.textContent='Сохранение...';}
+  try{
+    const rate=C('sal_rate').value,cur=C('sal_cur').value;if(!rate){showToast('Введи ставку!');return;}
+    const{error}=await sb.from('teacher_salaries').upsert({school_id:S.schoolId,teacher_id:S.currentSalTId,rate_per_lesson:parseFloat(rate)||0,currency:cur,updated_at:new Date().toISOString()},{onConflict:'teacher_id,school_id'});
+    if(error){showToast('Ошибка: '+error.message,'error');return;}
+    closeM('mSetSalary');showToast('Ставка сохранена');if(S.screen==='o_salaries'||S.screen==='a_salaries')renderSalaries();
+  }finally{
+    if(btn){btn.disabled=false;btn.textContent='Сохранить';}
+  }
 }
 async function logLessonFor(tid,tname){
   const topic=prompt(`Тема урока (${tname}):`);if(topic===null)return;
@@ -4776,40 +4824,52 @@ async function saveMaterial(){
 // ─── STUDENTS CRUD ────────────────────────────────────────────────────────────
 function openAddStudent(){['st_first','st_last','st_email','st_phone'].forEach(id=>C(id).value='');openM('mAddStudent');}
 async function saveStudent(){
-  const f=C('st_first').value.trim(),l=C('st_last').value.trim();
-  const email=C('st_email').value.trim();
-  if(!f||!l){showToast('Введи имя и фамилию!');return;}
-  if(!email){showToast('Введи email для приглашения!');return;}
-  // Insert student record
-  const{error:stuErr}=await sb.from('students').insert({school_id:S.schoolId,first_name:f,last_name:l,email,phone:C('st_phone').value.trim(),language:C('st_lang').value,level:C('st_level').value,teacher_id:S.profile.id});
-  if(stuErr){showToast('Ошибка добавления: '+stuErr.message,'error');return;}
-  dcInval('students_'+S.schoolId);dcInval('students_full_'+S.schoolId);dcInval('students_full_'+S.profile.id);
-  closeM('mAddStudent');
-  // Send invite email
+  const btn=document.querySelector('#mAddStudent .btn.btn-purple');
+  if(btn){btn.disabled=true;}
   try{
-    await callInviteFunction(email,'student',f,l,{language:C('st_lang').value,level:C('st_level').value,phone:C('st_phone').value.trim()});
-    showToast('Ученик добавлен — письмо отправлено! 💌');
-  }catch(e){
-    showToast(t('Ученик добавлен, но письмо не отправлено:')+' '+e.message);
+    const f=C('st_first').value.trim(),l=C('st_last').value.trim();
+    const email=C('st_email').value.trim();
+    if(!f||!l){showToast('Введи имя и фамилию!');return;}
+    if(!email){showToast('Введи email для приглашения!');return;}
+    // Insert student record
+    const{error:stuErr}=await sb.from('students').insert({school_id:S.schoolId,first_name:f,last_name:l,email,phone:C('st_phone').value.trim(),language:C('st_lang').value,level:C('st_level').value,teacher_id:S.profile.id});
+    if(stuErr){showToast('Ошибка добавления: '+stuErr.message,'error');return;}
+    dcInval('students_'+S.schoolId);dcInval('students_full_'+S.schoolId);dcInval('students_full_'+S.profile.id);
+    closeM('mAddStudent');
+    // Send invite email
+    try{
+      await callInviteFunction(email,'student',f,l,{language:C('st_lang').value,level:C('st_level').value,phone:C('st_phone').value.trim()});
+      showToast('Ученик добавлен — письмо отправлено! 💌');
+    }catch(e){
+      showToast(t('Ученик добавлен, но письмо не отправлено:')+' '+e.message);
+    }
+    if(S.screen==='a_students')renderAdminStudents();else if(S.screen==='o_students')renderOwnerStudents();
+  }finally{
+    if(btn){btn.disabled=false;}
   }
-  if(S.screen==='a_students')renderAdminStudents();else if(S.screen==='o_students')renderOwnerStudents();
 }
 
 async function saveInviteStaff(){
-  const f=C('inv_first').value.trim(),l=C('inv_last').value.trim();
-  const email=C('inv_email_inp').value.trim();
-  const role=C('inv_role').value;
-  if(!f||!l){showToast('Введи имя и фамилию!');return;}
-  if(!email){showToast('Введи email!');return;}
+  const btn=document.querySelector('#mInviteStaff .btn.btn-purple');
+  if(btn){btn.disabled=true;btn.textContent='Отправка...';}
   try{
-    await callInviteFunction(email,role,f,l);
-    closeM('mInviteStaff');
-    // Clear fields
-    ['inv_first','inv_last','inv_email_inp'].forEach(id=>C(id).value='');
-    showToast('Приглашение отправлено! 💌');
-    if(S.screen==='o_users')renderOwnerUsers();
-  }catch(e){
-    showToast(t('Ошибка')+': '+e.message);
+    const f=C('inv_first').value.trim(),l=C('inv_last').value.trim();
+    const email=C('inv_email_inp').value.trim();
+    const role=C('inv_role').value;
+    if(!f||!l){showToast('Введи имя и фамилию!');return;}
+    if(!email){showToast('Введи email!');return;}
+    try{
+      await callInviteFunction(email,role,f,l);
+      closeM('mInviteStaff');
+      // Clear fields
+      ['inv_first','inv_last','inv_email_inp'].forEach(id=>C(id).value='');
+      showToast('Приглашение отправлено! 💌');
+      if(S.screen==='o_users')renderOwnerUsers();
+    }catch(e){
+      showToast(t('Ошибка')+': '+e.message);
+    }
+  }finally{
+    if(btn){btn.disabled=false;btn.textContent='Отправить приглашение';}
   }
 }
 // ─── CLASSES ──────────────────────────────────────────────────────────────────
@@ -4883,7 +4943,7 @@ async function openNewClass(){
   openM('mAddClass');
 }
 async function editClass(id){
-  const{data:cl}=await sb.from('classes').select('*').eq('id',id).single();
+  const{data:cl}=await sb.from('classes').select('*').eq('id',id).eq('school_id',S.schoolId).single();
   if(!cl){showToast('Класс не найден','error');return;}
   S.editClassId=id;
   C('cl_name').value=cl.name||'';C('cl_desc').value=cl.description||'';C('cl_emoji').value=cl.emoji||'📚';
@@ -4892,34 +4952,46 @@ async function editClass(id){
   C('classModalTitle').textContent=t('Редактировать класс');openM('mAddClass');
 }
 async function saveClass(){
-  const name=C('cl_name').value.trim();if(!name){showToast('Введи название!');return;}
-  const data={school_id:S.schoolId,teacher_id:C('cl_teacher').value||S.profile.id,name,type:C('cl_type').value,language:C('cl_lang').value,level:C('cl_level').value,color:C('cl_color').value,emoji:C('cl_emoji').value||'📚',description:C('cl_desc').value.trim()};
-  let err;
-  if(S.editClassId){({error:err}=await sb.from('classes').update(data).eq('id',S.editClassId).eq('school_id',S.schoolId));}
-  else{({error:err}=await sb.from('classes').insert(data));}
-  if(err){showToast('Ошибка: '+err.message,'error');return;}
-  closeM('mAddClass');dcInval('classes_'+S.schoolId);dcInval('classes_light_'+S.schoolId);showToast('Класс сохранён!');renderClasses();
+  const btn=document.querySelector('#mAddClass .btn.btn-purple');
+  if(btn){btn.disabled=true;btn.textContent='Сохранение...';}
+  try{
+    const name=C('cl_name').value.trim();if(!name){showToast('Введи название!');return;}
+    const data={school_id:S.schoolId,teacher_id:C('cl_teacher').value||S.profile.id,name,type:C('cl_type').value,language:C('cl_lang').value,level:C('cl_level').value,color:C('cl_color').value,emoji:C('cl_emoji').value||'📚',description:C('cl_desc').value.trim()};
+    let err;
+    if(S.editClassId){({error:err}=await sb.from('classes').update(data).eq('id',S.editClassId).eq('school_id',S.schoolId));}
+    else{({error:err}=await sb.from('classes').insert(data));}
+    if(err){showToast('Ошибка: '+err.message,'error');return;}
+    closeM('mAddClass');dcInval('classes_'+S.schoolId);dcInval('classes_light_'+S.schoolId);showToast('Класс сохранён!');renderClasses();
+  }finally{
+    if(btn){btn.disabled=false;btn.textContent='Сохранить';}
+  }
 }
 
 async function cdpDeleteClass(){
-  const cl=S._currentClassData;
-  if(!cl)return;
-  if(!confirm(`Удалить класс «${cl.name}»?\nУченики останутся, но будут убраны из класса. Расписание класса тоже удалится.`))return;
-  showToast('⏳ Удаляем...');
-  const cid=cl.id;
-  await sb.from('class_students').delete().eq('class_id',cid).eq('school_id',S.schoolId);
-  await sb.from('schedule_events').delete().eq('class_id',cid).eq('school_id',S.schoolId);
-  await sb.from('lesson_assignments').delete().eq('class_id',cid).eq('school_id',S.schoolId);
-  const{error}=await sb.from('classes').delete().eq('id',cid).eq('school_id',S.schoolId);
-  if(error){showToast('❌ '+error.message);return;}
-  showToast('✅ Класс «'+cl.name+'» удалён');
-  dcInval('classes_'+S.schoolId);dcInval('classes_light_'+S.schoolId);
-  closeClassDetail();
-  renderClasses();
+  if(S._deletingClass)return;
+  S._deletingClass=true;
+  try{
+    const cl=S._currentClassData;
+    if(!cl)return;
+    if(!confirm(`Удалить класс «${cl.name}»?\nУченики останутся, но будут убраны из класса. Расписание класса тоже удалится.`))return;
+    showToast('⏳ Удаляем...');
+    const cid=cl.id;
+    await sb.from('class_students').delete().eq('class_id',cid).eq('school_id',S.schoolId);
+    await sb.from('schedule_events').delete().eq('class_id',cid).eq('school_id',S.schoolId);
+    await sb.from('lesson_assignments').delete().eq('class_id',cid).eq('school_id',S.schoolId);
+    const{error}=await sb.from('classes').delete().eq('id',cid).eq('school_id',S.schoolId);
+    if(error){showToast('❌ '+error.message);return;}
+    showToast('✅ Класс «'+cl.name+'» удалён');
+    dcInval('classes_'+S.schoolId);dcInval('classes_light_'+S.schoolId);
+    closeClassDetail();
+    renderClasses();
+  }finally{
+    S._deletingClass=false;
+  }
 }
 async function openClassDetail(classId){
   S.currentClassId=classId;
-  const{data:cl}=await sb.from('classes').select('*').eq('id',classId).single();
+  const{data:cl}=await sb.from('classes').select('*').eq('id',classId).eq('school_id',S.schoolId).single();
   if(!cl){showToast('Класс не найден','error');return;}
   const COLORS=['#F97316','#8B5CF6','#EC4899','#10B981','#3B82F6','#EF4444','#F59E0B','#06B6D4'];
   const bg=cl.color||COLORS[0];
@@ -4954,10 +5026,10 @@ async function cdpStartLesson(){
   lessons.forEach(l=>{window._lessonCache[l.id]=l;});
   const opts=lessons.map(l=>`<div onclick="cdpPickLesson('${l.id}')" style="padding:12px 16px;cursor:pointer;border-radius:10px;border:2px solid var(--gray-border);margin-bottom:8px;transition:.15s" onmouseover="this.style.borderColor='var(--purple)'" onmouseout="this.style.borderColor='var(--gray-border)'">
     <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-      <div style="font-weight:700;flex:1">${l.title}</div>
+      <div style="font-weight:700;flex:1">${_esc(l.title)}</div>
       ${l.published?'<span class="badge badge-green" style="font-size:.68rem">✓ Опубликован</span>':'<span class="badge badge-gray" style="font-size:.68rem">Черновик</span>'}
     </div>
-    <div style="font-size:.8rem;color:var(--text3);margin-top:2px">${l.language||'—'} · ${l.level||'—'}</div>
+    <div style="font-size:.8rem;color:var(--text3);margin-top:2px">${_esc(l.language||'—')} · ${_esc(l.level||'—')}</div>
   </div>`).join('');
   C('lessonPickerList').innerHTML=opts;
   openM('mLessonPicker');
@@ -4986,7 +5058,7 @@ async function loadClassTab(tab){
     const enrolled=(cs||[]).map(c=>c.student_id);
     const available=(allSts||[]).filter(s=>!enrolled.includes(s.id));
     const stRows=(cs||[]).map(c=>`<tr>
-      <td><div style="display:flex;align-items:center;gap:10px">${avHTML(c.student?.first_name,c.student?.last_name)}<div style="font-weight:600">${c.student?.first_name||'—'} ${c.student?.last_name||''}</div></div></td>
+      <td><div style="display:flex;align-items:center;gap:10px">${avHTML(c.student?.first_name,c.student?.last_name)}<div style="font-weight:600">${_esc(c.student?.first_name||'—')} ${_esc(c.student?.last_name||'')}</div></div></td>
       <td><span class="badge badge-purple">${c.student?.level||'—'}</span></td>
       <td>${fmtDate(c.joined_at)}</td>
       <td><button class="btn btn-sm btn-red" style="font-size:.7rem;padding:3px 8px" onclick="removeFromClass('${c.id}')">✕ Убрать</button></td>
@@ -5016,8 +5088,8 @@ async function loadClassTab(tab){
       return`<div class="card" style="margin-bottom:10px">
         <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
           <div>
-            <div style="font-weight:700">${l.title}</div>
-            <div style="font-size:.8rem;color:var(--text3)">${l.language} · ${l.level} · ${cnt} упражнений</div>
+            <div style="font-weight:700">${_esc(l.title)}</div>
+            <div style="font-size:.8rem;color:var(--text3)">${_esc(l.language)} · ${_esc(l.level)} · ${cnt} упражнений</div>
           </div>
           <div style="display:flex;gap:6px;flex-wrap:wrap">
             ${l.published?'<span class="badge badge-green">✓ Опубликован</span>':'<span class="badge badge-gray">Черновик</span>'}
@@ -5052,7 +5124,7 @@ async function loadClassTab(tab){
       const total=stuAssigns.length;
       const pct=total>0?Math.round(done/total*100):0;
       return`<tr>
-        <td><div style="display:flex;align-items:center;gap:10px">${avHTML(c.student?.first_name,c.student?.last_name)}<div style="font-weight:600">${c.student?.first_name||'—'} ${c.student?.last_name||''}</div></div></td>
+        <td><div style="display:flex;align-items:center;gap:10px">${avHTML(c.student?.first_name,c.student?.last_name)}<div style="font-weight:600">${_esc(c.student?.first_name||'—')} ${_esc(c.student?.last_name||'')}</div></div></td>
         <td>${done}/${total}</td>
         <td><div style="min-width:120px"><div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div><div style="font-size:.72rem;color:var(--text3);margin-top:2px">${pct}%</div></div></td>
       </tr>`;
@@ -5061,16 +5133,26 @@ async function loadClassTab(tab){
   }
 }
 async function addToClass(){
-  const sid=C('addStuSel').value;if(!sid)return;
-  const{error}=await sb.from('class_students').insert({school_id:S.schoolId,class_id:S.currentClassId,student_id:sid});
-  if(error){showToast('Ошибка: '+error.message,'error');return;}
-  showToast('Ученик добавлен в класс!');await loadClassTab('students');
+  const btn=document.querySelector('[onclick="addToClass()"]');
+  if(btn){btn.disabled=true;}
+  try{
+    const sid=C('addStuSel').value;if(!sid)return;
+    const{error}=await sb.from('class_students').insert({school_id:S.schoolId,class_id:S.currentClassId,student_id:sid});
+    if(error){showToast('Ошибка: '+error.message,'error');return;}
+    showToast('Ученик добавлен в класс!');await loadClassTab('students');
+  }finally{
+    if(btn){btn.disabled=false;}
+  }
 }
 async function removeFromClass(csId){
   if(!confirm('Убрать ученика из класса?'))return;
-  const{error}=await sb.from('class_students').delete().eq('id',csId).eq('school_id',S.schoolId);
-  if(error){showToast('Ошибка: '+error.message,'error');return;}
-  showToast('Ученик убран');await loadClassTab('students');
+  try{
+    const{error}=await sb.from('class_students').delete().eq('id',csId).eq('school_id',S.schoolId);
+    if(error){showToast('Ошибка: '+error.message,'error');return;}
+    showToast('Ученик убран');await loadClassTab('students');
+  }catch(e){
+    showToast('Ошибка: '+e.message,'error');
+  }
 }
 
 // ─── SCHEDULE ─────────────────────────────────────────────────────────────────
@@ -5141,7 +5223,7 @@ function openAddEventForClass(classId){
   setTimeout(()=>{if(C('ev_class'))C('ev_class').value=classId;},50);
 }
 async function viewEvent(id){
-  const{data:ev}=await sb.from('schedule_events').select('*,class:class_id(name)').eq('id',id).single();
+  const{data:ev}=await sb.from('schedule_events').select('*,class:class_id(name)').eq('id',id).eq('school_id',S.schoolId).single();
   if(!ev)return;
   S.editEventId=id;
   C('ev_title').value=ev.title||'';C('ev_date').value=ev.event_date||'';C('ev_time').value=ev.event_time?.slice(0,5)||'';
@@ -5150,20 +5232,30 @@ async function viewEvent(id){
   C('eventModalTitle').textContent=t('Занятие')+': '+ev.title;openM('mAddEvent');
 }
 async function saveEvent(){
-  const title=C('ev_title').value.trim();if(!title){showToast('Введи название!');return;}
-  const data={school_id:S.schoolId,class_id:C('ev_class').value||null,teacher_id:S.profile.id,title,event_date:C('ev_date').value,event_time:C('ev_time').value,duration_minutes:parseInt(C('ev_dur').value),status:C('ev_status').value,notes:C('ev_notes').value.trim()};
-  const{error}=S.editEventId?await sb.from('schedule_events').update(data).eq('id',S.editEventId):await sb.from('schedule_events').insert(data);
-  if(error){showToast('Ошибка: '+error.message,'error');return;}
-  closeM('mAddEvent');dcInval('schedule_'+S.schoolId);showToast('Занятие сохранено!');
-  if(S.screen==='t_schedule'||S.screen==='a_schedule'||S.screen==='o_schedule')renderSchedule();
-  if(S.currentClassId&&S.currentClassTab==='schedule')loadClassTab('schedule');
+  const btn=document.querySelector('#mAddEvent .btn.btn-purple');
+  if(btn){btn.disabled=true;btn.textContent='Сохранение...';}
+  try{
+    const title=C('ev_title').value.trim();if(!title){showToast('Введи название!');return;}
+    const data={school_id:S.schoolId,class_id:C('ev_class').value||null,teacher_id:S.profile.id,title,event_date:C('ev_date').value,event_time:C('ev_time').value,duration_minutes:parseInt(C('ev_dur').value),status:C('ev_status').value,notes:C('ev_notes').value.trim()};
+    const{error}=S.editEventId?await sb.from('schedule_events').update(data).eq('id',S.editEventId):await sb.from('schedule_events').insert(data);
+    if(error){showToast('Ошибка: '+error.message,'error');return;}
+    closeM('mAddEvent');dcInval('schedule_'+S.schoolId);showToast('Занятие сохранено!');
+    if(S.screen==='t_schedule'||S.screen==='a_schedule'||S.screen==='o_schedule')renderSchedule();
+    if(S.currentClassId&&S.currentClassTab==='schedule')loadClassTab('schedule');
+  }finally{
+    if(btn){btn.disabled=false;btn.textContent='Сохранить';}
+  }
 }
 async function deleteEvent(id){
   if(!confirm('Удалить занятие?'))return;
-  const{error}=await sb.from('schedule_events').delete().eq('id',id).eq('school_id',S.schoolId);
-  if(error){showToast('Ошибка: '+error.message,'error');return;}
-  showToast('Удалено');dcInval('schedule_'+S.schoolId);
-  if(S.currentClassId)loadClassTab('schedule');else renderSchedule();
+  try{
+    const{error}=await sb.from('schedule_events').delete().eq('id',id).eq('school_id',S.schoolId);
+    if(error){showToast('Ошибка: '+error.message,'error');return;}
+    showToast('Удалено');dcInval('schedule_'+S.schoolId);
+    if(S.currentClassId)loadClassTab('schedule');else renderSchedule();
+  }catch(e){
+    showToast('Ошибка удаления: '+e.message,'error');
+  }
 }
 
 // ─── LESSON BUILDER — EdVibe Style ────────────────────────────────────────────
@@ -5374,7 +5466,7 @@ function ceEditorHTML(b){
 
   if(b.type==='text')return`
     <div class="form-group" style="margin:0 0 8px"><label>Текст</label>
-    <textarea oninput="${P}.text=this.value" style="min-height:80px;width:100%;padding:8px 10px;border:2px solid var(--gray-border);border-radius:6px;font-family:var(--font)">${b.text||''}</textarea></div>
+    <textarea oninput="${P}.text=this.value" style="min-height:80px;width:100%;padding:8px 10px;border:2px solid var(--gray-border);border-radius:6px;font-family:var(--font)">${_escHtml(b.text||'')}</textarea></div>
     <div class="form-group" style="margin:0"><label>URL картинки (необяз.)</label>${ci(b.image,'image','https://...')}</div>`;
 
   if(b.type==='vocab')return`
@@ -5484,8 +5576,8 @@ async function renderTeacherLessons(){
     return`<div class="card" style="margin-bottom:12px">
       <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
         <div>
-          <div style="font-weight:700">${l.title}</div>
-          <div style="font-size:.8rem;color:var(--text3)">${l.language} · ${l.level} · ${cnt} упражнений</div>
+          <div style="font-weight:700">${_esc(l.title)}</div>
+          <div style="font-size:.8rem;color:var(--text3)">${_esc(l.language)} · ${_esc(l.level)} · ${cnt} упражнений</div>
         </div>
         <div style="display:flex;gap:6px;flex-wrap:wrap">
           ${l.published?'<span class="badge badge-green">✓ Опубликован</span>':'<span class="badge badge-gray">Черновик</span>'}
@@ -5597,7 +5689,7 @@ function _renderLibGrid(){
         <button class="lib-like-btn${liked?' liked':''}" onclick="toggleLibraryLike('${l.id}',this)">
           ${liked?'❤️':'🤍'} ${likes}
         </button>
-        ${!own?`<button class="btn btn-sm btn-purple" style="font-size:.75rem;padding:4px 10px" onclick="copyFromLibrary('${l.id}')">📋 ${t('Скопировать')}</button>`:''}
+        ${!own?`<button class="btn btn-sm btn-purple" style="font-size:.75rem;padding:4px 10px" onclick="copyFromLibrary('${l.id}',this)">📋 ${t('Скопировать')}</button>`:''}
         <button class="btn btn-sm btn-outline" style="font-size:.75rem;padding:4px 10px" onclick="previewLibLesson('${l.id}')">👁 ${t('Просмотр')}</button>
       </div>
     </div>`;
@@ -5635,24 +5727,32 @@ async function shareToLibrary(){
   btns.forEach(b=>{if(b){b.textContent='✅ '+t('В библиотеке');b.disabled=true;b.style.opacity='.6';}});
 }
 
-async function copyFromLibrary(lessonId){
-  const lesson=(window._libLessons||[]).find(l=>l.id===lessonId);
-  if(!lesson){showToast(t('Урок не найден'));return;}
-  const{error}=await sb.from('lessons').insert({
-    school_id:S.schoolId,
-    title:lesson.title+' (копия)',
-    language:lesson.language,
-    level:lesson.level,
-    content:lesson.content,
-    published:false,
-    is_shared:false
-  });
-  if(error){showToast('❌ '+error.message);return;}
-  dcInval('lessons_'+S.schoolId);
-  showToast('✅ '+t('Урок скопирован в твои уроки!'));
+async function copyFromLibrary(lessonId,btn){
+  if(btn){btn.disabled=true;btn.textContent='Копирование...';}
+  try{
+    const lesson=(window._libLessons||[]).find(l=>l.id===lessonId);
+    if(!lesson){showToast(t('Урок не найден'));return;}
+    const{error}=await sb.from('lessons').insert({
+      school_id:S.schoolId,
+      title:lesson.title+' (копия)',
+      language:lesson.language,
+      level:lesson.level,
+      content:lesson.content,
+      published:false,
+      is_shared:false
+    });
+    if(error){showToast('❌ '+error.message);return;}
+    dcInval('lessons_'+S.schoolId);
+    showToast('✅ '+t('Урок скопирован в твои уроки!'));
+  }finally{
+    if(btn){btn.disabled=false;btn.textContent='📋 Скопировать';}
+  }
 }
 
 async function toggleLibraryLike(lessonId,btn){
+  if(btn&&btn.disabled)return;
+  if(btn)btn.disabled=true;
+  try{
   const liked=_libLikes[lessonId]||false;
   if(liked){
     const{error}=await sb.from('lesson_library_likes').delete().eq('lesson_id',lessonId).eq('user_id',S.userId);
@@ -5668,6 +5768,9 @@ async function toggleLibraryLike(lessonId,btn){
   const cnt=window._libLikeMap[lessonId]||0;
   btn.classList.toggle('liked',!liked);
   btn.innerHTML=(!liked?'❤️':'🤍')+' '+cnt;
+  }finally{
+    if(btn)btn.disabled=false;
+  }
 }
 
 async function previewLibLesson(lessonId){
@@ -6180,7 +6283,7 @@ function openMaterialPreview(url,title,type,lang,level){
   C('mp_meta').textContent=[lang,level].filter(Boolean).join(' · ');
   C('mp_openBtn').dataset.url=url;
   if(embedUrl){
-    C('mp_body').innerHTML=`<div class="mp-iframe-wrap"><iframe src="${embedUrl}" allowfullscreen allow="autoplay" sandbox="allow-scripts allow-same-origin allow-popups allow-forms"></iframe></div>`;
+    C('mp_body').innerHTML=`<div class="mp-iframe-wrap"><iframe src="${_escHtml(embedUrl)}" allowfullscreen allow="autoplay" sandbox="allow-scripts allow-same-origin allow-popups allow-forms"></iframe></div>`;
   } else {
     C('mp_openBtn').onclick=()=>window.open(url,'_blank');
     C('mp_body').innerHTML=`<div class="mp-no-embed">
@@ -6251,7 +6354,7 @@ function showToastCard(title,text='',type='',icon='ℹ️',duration=4000){
   if(!stack)return showToast(title);
   const d=document.createElement('div');
   d.className='toast-card'+(type?' tc-'+type:'');
-  d.innerHTML=`<span class="tc-icon">${icon}</span><div class="tc-body"><div class="tc-title">${title}</div>${text?`<div class="tc-text">${text}</div>`:''}</div><button class="tc-close" onclick="this.closest('.toast-card').remove()">✕</button>`;
+  d.innerHTML=`<span class="tc-icon">${_escHtml(icon)}</span><div class="tc-body"><div class="tc-title">${_escHtml(title)}</div>${text?`<div class="tc-text">${_escHtml(text)}</div>`:''}</div><button class="tc-close" onclick="this.closest('.toast-card').remove()">✕</button>`;
   stack.appendChild(d);
   setTimeout(()=>{d.style.opacity='0';d.style.transform='translateX(30px)';d.style.transition='.3s';setTimeout(()=>d.remove(),300);},duration);
 }
@@ -6400,8 +6503,8 @@ function renderMsgs(){
     if(m.file_url){
       const isImg=/\.(jpg|jpeg|png|gif|webp)$/i.test(m.file_name||'');
       content+= isImg
-        ?`<a href="${m.file_url}" target="_blank" class="msg-file-card"><img src="${m.file_url}" style="max-width:200px;max-height:150px;border-radius:8px;display:block"></a>`
-        :`<a href="${m.file_url}" target="_blank" download="${m.file_name||'file'}" class="msg-file-card">📎 ${m.file_name||'Файл'} ${m.file_size?'('+fmtFileSize(m.file_size)+')':''}</a>`;
+        ?`<a href="${_escHtml(m.file_url)}" target="_blank" class="msg-file-card"><img src="${_escHtml(m.file_url)}" style="max-width:200px;max-height:150px;border-radius:8px;display:block"></a>`
+        :`<a href="${_escHtml(m.file_url)}" target="_blank" download="${_escHtml(m.file_name||'file')}" class="msg-file-card">📎 ${_escHtml(m.file_name||'Файл')} ${m.file_size?'('+fmtFileSize(m.file_size)+')':''}</a>`;
     }
     return`${dateSep}<div class="msg-row ${mine?'mine':'theirs'}">
       ${!mine&&MS.convs.find(c=>c.id===MS.convId)?.type==='group'?`<span class="msg-sender">${senderName}</span>`:''}
@@ -6522,11 +6625,11 @@ function renderNewConvForm(type){
   const others=MS.profiles.filter(p=>p.id!==S.profile.id);
   if(type==='direct'){
     extra.innerHTML=`<div class="form-group"><label>${t('Выбрать человека')}</label>
-      <select id="nc_user">${others.map(p=>`<option value="${p.id}">${p.first_name} ${p.last_name} (${t(p.role)||p.role})</option>`).join('')}</select></div>`;
+      <select id="nc_user">${others.map(p=>`<option value="${p.id}">${_esc(p.first_name)} ${_esc(p.last_name)} (${t(p.role)||p.role})</option>`).join('')}</select></div>`;
   } else {
     extra.innerHTML=`<div class="form-group"><label>${t('Название группы')}</label><input type="text" id="nc_name" placeholder="${t('Например: Команда учителей')}"></div>
       <div class="form-group"><label>${t('Участники (все по умолчанию)')}</label>
-      <div style="max-height:160px;overflow-y:auto;border:2px solid var(--gray-border);border-radius:8px;padding:8px">${others.map(p=>`<label style="display:flex;align-items:center;gap:8px;padding:4px 0;cursor:pointer"><input type="checkbox" value="${p.id}" checked> ${p.first_name} ${p.last_name} (${t(p.role)||p.role})</label>`).join('')}</div></div>`;
+      <div style="max-height:160px;overflow-y:auto;border:2px solid var(--gray-border);border-radius:8px;padding:8px">${others.map(p=>`<label style="display:flex;align-items:center;gap:8px;padding:4px 0;cursor:pointer"><input type="checkbox" value="${p.id}" checked> ${_esc(p.first_name)} ${_esc(p.last_name)} (${t(p.role)||p.role})</label>`).join('')}</div></div>`;
   }
 }
 
@@ -6685,7 +6788,7 @@ function populateTaskModal(tk){
       assignRow.style.display='';
       const sel=document.getElementById('task_assignee');
       if(sel){
-        sel.innerHTML=(TK.profiles||[]).map(p=>`<option value="${p.id}"${tk.user_id===p.id?' selected':''}>${p.first_name} ${p.last_name}</option>`).join('');
+        sel.innerHTML=(TK.profiles||[]).map(p=>`<option value="${p.id}"${tk.user_id===p.id?' selected':''}>${_esc(p.first_name)} ${_esc(p.last_name)}</option>`).join('');
         if(!tk.user_id)sel.value=S.profile.id;
       }
     } else {
@@ -6695,30 +6798,36 @@ function populateTaskModal(tk){
 }
 
 async function saveTask(){
-  const title=C('task_title').value.trim();
-  if(!title){showToastCard(t('Введи название задачи'),'','error','❌');return;}
-  const userId=['owner','admin'].includes(S.role)?C('task_assignee')?.value||S.profile.id:S.profile.id;
-  const payload={
-    school_id:S.schoolId,user_id:userId,
-    title,description:C('task_desc').value.trim()||null,
-    priority:C('task_priority').value,status:C('task_status').value,
-    due_date:C('task_due').value||null,
-    remind_at:C('task_remind').value?new Date(C('task_remind').value).toISOString():null,
-    reminded:false,updated_at:new Date().toISOString()
-  };
-  if(S.editTaskId){
-    const{error}=await sb.from('tasks').update(payload).eq('id',S.editTaskId).eq('school_id',S.schoolId);
-    if(error){showToastCard(t('Ошибка'),''+error.message,'error','❌');return;}
-    const idx=TK.tasks.findIndex(t=>t.id===S.editTaskId);
-    if(idx>=0)TK.tasks[idx]={...TK.tasks[idx],...payload,id:S.editTaskId};
-  } else {
-    const{data,error}=await sb.from('tasks').insert(payload).select().single();
-    if(error){showToastCard(t('Ошибка'),''+error.message,'error','❌');return;}
-    TK.tasks.unshift(data);
+  const btn=document.querySelector('#mAddTask .btn.btn-purple');
+  if(btn){btn.disabled=true;btn.textContent='Сохранение...';}
+  try{
+    const title=C('task_title').value.trim();
+    if(!title){showToastCard(t('Введи название задачи'),'','error','❌');return;}
+    const userId=['owner','admin'].includes(S.role)?C('task_assignee')?.value||S.profile.id:S.profile.id;
+    const payload={
+      school_id:S.schoolId,user_id:userId,
+      title,description:C('task_desc').value.trim()||null,
+      priority:C('task_priority').value,status:C('task_status').value,
+      due_date:C('task_due').value||null,
+      remind_at:C('task_remind').value?new Date(C('task_remind').value).toISOString():null,
+      reminded:false,updated_at:new Date().toISOString()
+    };
+    if(S.editTaskId){
+      const{error}=await sb.from('tasks').update(payload).eq('id',S.editTaskId).eq('school_id',S.schoolId);
+      if(error){showToastCard(t('Ошибка'),''+error.message,'error','❌');return;}
+      const idx=TK.tasks.findIndex(t=>t.id===S.editTaskId);
+      if(idx>=0)TK.tasks[idx]={...TK.tasks[idx],...payload,id:S.editTaskId};
+    } else {
+      const{data,error}=await sb.from('tasks').insert(payload).select().single();
+      if(error){showToastCard(t('Ошибка'),''+error.message,'error','❌');return;}
+      TK.tasks.unshift(data);
+    }
+    closeM('mAddTask');
+    refreshKanban();
+    showToastCard(t('Задача сохранена'),'','success','✅');
+  }finally{
+    if(btn){btn.disabled=false;btn.textContent='💾 Сохранить';}
   }
-  closeM('mAddTask');
-  refreshKanban();
-  showToastCard(t('Задача сохранена'),'','success','✅');
 }
 
 // ─── TASK REMINDERS ───────────────────────────────────────────────────────────
@@ -6779,7 +6888,7 @@ const PLACEMENT_Q=[
 // ─── FEATURE 1: STUDENT CARD ─────────────────────────────────────────────────
 async function openStudentCard(id){
   const[{data:s},{data:teachers}]=await Promise.all([
-    sb.from('students').select('*').eq('id',id).single(),
+    sb.from('students').select('*').eq('id',id).eq('school_id',S.schoolId).single(),
     sb.from('profiles').select('id,first_name,last_name').eq('school_id',S.schoolId).in('role',['teacher','admin','owner']).order('last_name')
   ]);
   if(!s){showToast('Ученик не найден');return;}
@@ -6887,7 +6996,19 @@ async function renderStudentVocab(){
   showSkel();
   _vocabWords=[];_vocabTraining=false;_vocabIdx=0;
   const isEn=S.lang==='en';
-  const{data:lessons}=await sb.from('lessons').select('title,content').eq('school_id',S.schoolId).eq('published',true);
+  // Only load vocab from lessons assigned to this student
+  if(!S.studentRowId){
+    // Try to get studentRowId
+    const{data:stuRow}=await sb.from('students').select('id').eq('email',S.profile.email).eq('school_id',S.schoolId).single();
+    if(stuRow?.id)S.studentRowId=stuRow.id;
+  }
+  const{data:assigns}=await sb.from('lesson_assignments').select('lesson_id').eq('student_id',S.studentRowId||'').eq('school_id',S.schoolId);
+  const lessonIds=(assigns||[]).map(a=>a.lesson_id).filter(Boolean);
+  if(!lessonIds.length){
+    setContent('<div class="empty-state"><div class="ei">📖</div><p>Нет назначенных уроков</p></div>');
+    return;
+  }
+  const{data:lessons}=await sb.from('lessons').select('title,content').in('id',lessonIds).eq('published',true);
   (lessons||[]).forEach(lesson=>{
     let cont;try{cont=typeof lesson.content==='string'?JSON.parse(lesson.content):lesson.content;}catch(e){return;}
     if(!cont||!cont.sections)return;
@@ -7000,7 +7121,7 @@ async function openPlacementTestPlayer(hwId){
   _ptpHwId=hwId;_ptpAnswers={};
   C('ptpQuestions').innerHTML='<div style="text-align:center;padding:20px;color:var(--text3)">'+(isEn?'Loading...':'Загрузка...')+'</div>';
   openM('mPlacementTestPlayer');
-  const{data:hw}=await sb.from('homeworks').select('*').eq('id',hwId).single();
+  const{data:hw}=await sb.from('homeworks').select('*').eq('id',hwId).eq('school_id',S.schoolId).single();
   if(!hw){showToast(isEn?'Test not found':'Тест не найден');return;}
   let questions=[];try{questions=JSON.parse(hw.description)||[];}catch(e){}
   C('ptpQuestions').innerHTML=questions.map((q,i)=>`
@@ -7015,7 +7136,7 @@ async function openPlacementTestPlayer(hwId){
 }
 async function submitPlacementTest(){
   const isEn=S.lang==='en';
-  const{data:hw,error:hwFetchErr}=await sb.from('homeworks').select('*').eq('id',_ptpHwId).single();
+  const{data:hw,error:hwFetchErr}=await sb.from('homeworks').select('*').eq('id',_ptpHwId).eq('school_id',S.schoolId).single();
   if(hwFetchErr||!hw){showToast(isEn?'Test not found':'Тест не найден','error');return;}
   // Guard: student can only submit their own test
   if(S.studentRowId&&hw.student_id&&hw.student_id!==S.studentRowId){showToast(isEn?'Access denied':'Ошибка доступа','error');return;}
