@@ -3954,7 +3954,7 @@ window.addEventListener('keydown',e=>{if(e.key==='Escape'){closeWb();C('contactP
 
 // ─── STUDENT SCREENS ──────────────────────────────────────────────────────────
 async function renderStudentHome(){
-  const{data:stu}=await sb.from('students').select('*').eq('email',S.profile.email).single();
+  const{data:stu}=await sb.from('students').select('*').eq('email',S.profile.email).eq('school_id',S.schoolId).single();
   const stuId=stu?.id||null;
   const[{data:hw},{data:assigns}]=await Promise.all([
     stuId?sb.from('homeworks').select('id').eq('student_id',stuId).eq('status','pending'):Promise.resolve({data:[]}),
@@ -4222,7 +4222,7 @@ async function submitHWAnswers(){
 }
 async function renderStudentLessons(){
   showSkel();
-  const{data:stu}=await dc('stu_me_'+S.profile.id,()=>sb.from('students').select('id').eq('email',S.profile.email).single());
+  const{data:stu}=await dc('stu_me_'+S.profile.id,()=>sb.from('students').select('id').eq('email',S.profile.email).eq('school_id',S.schoolId).single());
   if(!stu?.id){C('content').innerHTML='<div class="empty-state"><div class="ei">📭</div><p>Профиль ученика не найден. Обратитесь к учителю.</p></div>';return;}
   S.studentRowId=stu.id; // store for cache invalidation
   const{data:assigns}=await dc('stu_assigns_'+stu.id,()=>sb.from('lesson_assignments').select('*,lesson:lesson_id(id,title,language,level,content)').eq('student_id',stu.id).order('created_at',{ascending:false}));
@@ -4269,7 +4269,7 @@ async function renderTeacherStudents(){
 }
 async function renderTeacherHw(){
   showSkel();
-  const{data:hws,error:hwsErr}=await sb.from('homeworks').select('*,student:student_id(first_name,last_name)').eq('teacher_id',S.profile.id).order('created_at',{ascending:false});
+  const{data:hws,error:hwsErr}=await sb.from('homeworks').select('*,student:student_id(first_name,last_name)').eq('teacher_id',S.profile.id).eq('school_id',S.schoolId).order('created_at',{ascending:false});
   if(hwsErr){setContent('<div class="empty-state"><div class="ei">⚠️</div><p>Ошибка загрузки: '+_esc(hwsErr.message)+'</p></div>');return;}
   const cards=(hws||[]).map(hw=>{
     let exCount=0;try{exCount=(JSON.parse(hw.description)||[]).length;}catch(e){}
@@ -4548,11 +4548,14 @@ function openAddPayment(){
 }
 async function markPaid(id){const{error}=await sb.from('payments').update({status:'paid'}).eq('id',id);if(error){showToast('Ошибка: '+error.message,'error');return;}showToast('Отмечено оплаченным');renderPayments();}
 async function savePayment(){
-  const sid=C('pay_student').value,amt=C('pay_amount').value,cur=C('pay_cur').value;
+  const sid=C('pay_student').value,amt=parseFloat(C('pay_amount').value)||0,cur=C('pay_cur').value;
   const pf=C('pay_from').value||null,pt=C('pay_to').value||null,st=C('pay_status').value,note=C('pay_note').value.trim();
   if(!amt){showToast('Введи сумму!');return;}
-  if(S.editPayId)await sb.from('payments').update({student_id:sid,amount:amt,currency:cur,period_from:pf,period_to:pt,status:st,note}).eq('id',S.editPayId);
-  else await sb.from('payments').insert({school_id:S.schoolId,student_id:sid,amount:amt,currency:cur,period_from:pf,period_to:pt,status:st,note});
+  const pd={student_id:sid,amount:amt,currency:cur,period_from:pf,period_to:pt,status:st,note};
+  let err;
+  if(S.editPayId){({error:err}=await sb.from('payments').update(pd).eq('id',S.editPayId));}
+  else{({error:err}=await sb.from('payments').insert({school_id:S.schoolId,...pd}));}
+  if(err){showToast('Ошибка: '+err.message,'error');return;}
   closeM('mAddPayment');showToast('Платёж сохранён');renderPayments();
 }
 
@@ -4590,7 +4593,7 @@ function setSalPeriod(p){salPeriod=p;renderSalaries();}
 function openSetSalary(tid,tname){S.currentSalTId=tid;C('salaryTName').textContent=tname;C('sal_rate').value='';openM('mSetSalary');}
 async function saveSalary(){
   const rate=C('sal_rate').value,cur=C('sal_cur').value;if(!rate){showToast('Введи ставку!');return;}
-  const{error}=await sb.from('teacher_salaries').upsert({school_id:S.schoolId,teacher_id:S.currentSalTId,rate_per_lesson:rate,currency:cur,updated_at:new Date().toISOString()},{onConflict:'teacher_id'});
+  const{error}=await sb.from('teacher_salaries').upsert({school_id:S.schoolId,teacher_id:S.currentSalTId,rate_per_lesson:parseFloat(rate)||0,currency:cur,updated_at:new Date().toISOString()},{onConflict:'teacher_id'});
   if(error){showToast('Ошибка: '+error.message,'error');return;}
   closeM('mSetSalary');showToast('Ставка сохранена');if(S.screen==='o_salaries'||S.screen==='a_salaries')renderSalaries();
 }
@@ -4865,8 +4868,10 @@ async function editClass(id){
 async function saveClass(){
   const name=C('cl_name').value.trim();if(!name){showToast('Введи название!');return;}
   const data={school_id:S.schoolId,teacher_id:C('cl_teacher').value||S.profile.id,name,type:C('cl_type').value,language:C('cl_lang').value,level:C('cl_level').value,color:C('cl_color').value,emoji:C('cl_emoji').value||'📚',description:C('cl_desc').value.trim()};
-  if(S.editClassId)await sb.from('classes').update(data).eq('id',S.editClassId);
-  else await sb.from('classes').insert(data);
+  let err;
+  if(S.editClassId){({error:err}=await sb.from('classes').update(data).eq('id',S.editClassId));}
+  else{({error:err}=await sb.from('classes').insert(data));}
+  if(err){showToast('Ошибка: '+err.message,'error');return;}
   closeM('mAddClass');dcInval('classes_'+S.schoolId);dcInval('classes_light_'+S.schoolId);showToast('Класс сохранён!');renderClasses();
 }
 
@@ -4876,9 +4881,9 @@ async function cdpDeleteClass(){
   if(!confirm(`Удалить класс «${cl.name}»?\nУченики останутся, но будут убраны из класса. Расписание класса тоже удалится.`))return;
   showToast('⏳ Удаляем...');
   const cid=cl.id;
-  await sb.from('class_students').delete().eq('class_id',cid);
-  await sb.from('schedule_events').delete().eq('class_id',cid);
-  await sb.from('lesson_assignments').delete().eq('class_id',cid);
+  await sb.from('class_students').delete().eq('class_id',cid).eq('school_id',S.schoolId);
+  await sb.from('schedule_events').delete().eq('class_id',cid).eq('school_id',S.schoolId);
+  await sb.from('lesson_assignments').delete().eq('class_id',cid).eq('school_id',S.schoolId);
   const{error}=await sb.from('classes').delete().eq('id',cid).eq('school_id',S.schoolId);
   if(error){showToast('❌ '+error.message);return;}
   showToast('✅ Класс «'+cl.name+'» удалён');
@@ -5069,7 +5074,7 @@ async function renderSchedule(){
     let row=`<div class="sch-time">${timeLabel}</div>`;
     dayDates.forEach(d=>{
       const dateStr=d.toISOString().split('T')[0];
-      const cellEvs=(evs||[]).filter(ev=>ev.event_date===dateStr&&parseInt(ev.event_time)===h);
+      const cellEvs=(evs||[]).filter(ev=>ev.event_date===dateStr&&parseInt((ev.event_time||'').split(':')[0])===h);
       const evHtml=cellEvs.map(ev=>`<div class="sch-event ${ev.status}" style="background:${ev.class?.color||'#7C3AED'}" onclick="event.stopPropagation();viewEvent('${ev.id}')" title="${ev.title}">${ev.title}</div>`).join('');
       row+=`<div class="sch-cell" onclick="openAddEventOnDate('${dateStr}','${h}:00')">${evHtml}</div>`;
     });
@@ -5680,7 +5685,7 @@ function openLessonView(assignId){
       if(!c){showToast('Урок не найден','error');return;}
       const{sections:_s,materials:_m}=_parseLessonContent(c.lesson?.content||[]);
       openClassroomView(c.lesson?.title||'Урок',_s,assignId,null,_m);
-    });
+    }).catch(e=>showToast('Ошибка загрузки: '+(e?.message||e),'error'));
     return;
   }
   const{sections:_s,materials:_m}=_parseLessonContent(cached.lesson?.content||[]);
@@ -5966,7 +5971,7 @@ function renderBlockView(b,i){
       <div id="wo_sentence_${i}" style="min-height:40px;padding:8px;border:2px dashed var(--gray-border);border-radius:8px;margin-bottom:10px;font-size:1rem">
         <span style="color:var(--text3);font-size:.85rem">Кликай слова ниже...</span>
       </div>
-      <div id="wo_chips_${i}">${words.map((w,wi)=>`<span class="word-chip" id="wc_${i}_${wi}" onclick="woPickWord(${i},${wi},'${w.replace(/'/g,"\\'")}' )">${w}</span>`).join('')}</div>
+      <div id="wo_chips_${i}">${words.map((w,wi)=>`<span class="word-chip" id="wc_${i}_${wi}" data-word="${_escHtml(w)}" onclick="woPickWord(${i},${wi},this.dataset.word)">${_escHtml(w)}</span>`).join('')}</div>
       <div style="display:flex;gap:8px;margin-top:10px">
         <button class="btn btn-purple" onclick="checkWordOrder(${i})">Проверить</button>
         <button class="btn btn-outline" onclick="resetWordOrder(${i})">Сбросить</button>
@@ -6145,16 +6150,17 @@ async function renderCEMaterialsPanel(){
   if(!mats||!mats.length){body.innerHTML=`<div style="color:var(--text3);font-size:.83rem;text-align:center;padding:16px">${t('Нет материалов в библиотеке')}</div>`;return;}
   const selectedIds=new Set(CE.materials.map(m=>m.id));
   body.innerHTML=mats.map(m=>`
-    <div class="tp-mat-item${selectedIds.has(m.id)?' selected':''}" data-mid="${m.id}" onclick="toggleCEMaterial(this,'${m.id}','${(m.title||m.name||'').replace(/'/g,"\\'")}','${m.type||'link'}','${(m.url||'').replace(/'/g,"\\'")}','${(m.language||'').replace(/'/g,"\\'")}','${(m.level||'').replace(/'/g,"\\'")}')">
+    <div class="tp-mat-item${selectedIds.has(m.id)?' selected':''}" data-mid="${m.id}" data-mtitle="${_escHtml(m.title||m.name||'')}" data-mtype="${_escHtml(m.type||'link')}" data-murl="${_escHtml(m.url||'')}" data-mlang="${_escHtml(m.language||'')}" data-mlevel="${_escHtml(m.level||'')}" onclick="toggleCEMaterial(this)">
       <span class="tp-mat-icon">${MICONS[m.type]||'📎'}</span>
       <div class="tp-mat-info">
-        <div class="tp-mat-name">${m.title||m.name||'—'}</div>
-        <div class="tp-mat-meta">${m.language||''} · ${m.level||''}</div>
+        <div class="tp-mat-name">${_escHtml(m.title||m.name||'—')}</div>
+        <div class="tp-mat-meta">${_escHtml(m.language||'')} · ${_escHtml(m.level||'')}</div>
       </div>
       <span style="font-size:.75rem;color:var(--purple);font-weight:600">${selectedIds.has(m.id)?t('✓ Добавлен'):''}</span>
     </div>`).join('');
 }
-function toggleCEMaterial(el,id,title,type,url,lang,level){
+function toggleCEMaterial(el){
+  const id=el.dataset.mid,title=el.dataset.mtitle,type=el.dataset.mtype,url=el.dataset.murl,lang=el.dataset.mlang,level=el.dataset.mlevel;
   const idx=CE.materials.findIndex(m=>m.id===id);
   if(idx>=0){CE.materials.splice(idx,1);el.classList.remove('selected');el.querySelector('span:last-child').textContent='';}
   else{CE.materials.push({id,title,type,url,language:lang,level});el.classList.add('selected');el.querySelector('span:last-child').textContent=t('✓ Добавлен');}
@@ -6165,12 +6171,12 @@ function renderCVMaterialsPanel(){
   const body=document.getElementById('cvMatsBody');
   if(!body)return;
   if(!LV.materials.length){body.innerHTML=`<div style="color:var(--text3);font-size:.83rem;text-align:center;padding:16px">${t('В этом уроке нет прикреплённых материалов')}</div>`;return;}
-  body.innerHTML=LV.materials.map(m=>`
-    <div class="tp-mat-item" onclick="openMaterialPreview('${(m.url||'').replace(/'/g,"\\'")}','${(m.title||'').replace(/'/g,"\\'")}','${m.type||'link'}','${(m.language||'').replace(/'/g,"\\'")}','${(m.level||'').replace(/'/g,"\\'")}')">
+  body.innerHTML=LV.materials.map((m,_mi)=>`
+    <div class="tp-mat-item" data-murl="${_escHtml(m.url||'')}" data-mtitle="${_escHtml(m.title||'')}" data-mtype="${_escHtml(m.type||'link')}" data-mlang="${_escHtml(m.language||'')}" data-mlevel="${_escHtml(m.level||'')}" onclick="openMaterialPreview(this.dataset.murl,this.dataset.mtitle,this.dataset.mtype,this.dataset.mlang,this.dataset.mlevel)">
       <span class="tp-mat-icon">${MICONS[m.type]||'📎'}</span>
       <div class="tp-mat-info">
-        <div class="tp-mat-name">${m.title||'—'}</div>
-        <div class="tp-mat-meta">${m.language||''} · ${m.level||''}</div>
+        <div class="tp-mat-name">${_escHtml(m.title||'—')}</div>
+        <div class="tp-mat-meta">${_escHtml(m.language||'')} · ${_escHtml(m.level||'')}</div>
       </div>
       <span style="font-size:.85rem;color:var(--purple)">▶</span>
     </div>`).join('');
@@ -6786,11 +6792,11 @@ async function openStudentProgress(studentId,name){
   openM('mStudentProgress');
   // Fetch: homeworks for student + class_students to get their classes
   const[{data:hws},{data:cs}]=await Promise.all([
-    sb.from('homeworks').select('id,status,title,deadline').eq('student_id',studentId),
+    sb.from('homeworks').select('id,status,title,deadline').eq('student_id',studentId).eq('school_id',S.schoolId),
     sb.from('class_students').select('class_id').eq('student_id',studentId)
   ]);
   // Count completed lesson_assignments for this student
-  const{data:completedLessons}=await sb.from('lesson_assignments').select('id').eq('student_id',studentId).eq('completed',true);
+  const{data:completedLessons}=await sb.from('lesson_assignments').select('id').eq('student_id',studentId).eq('school_id',S.schoolId).eq('completed',true);
   const lessons_count=(completedLessons||[]).length;
   const total_hw=(hws||[]).length;
   const submitted_hw=(hws||[]).filter(h=>h.status==='submitted'||h.status==='reviewed').length;
@@ -6946,6 +6952,8 @@ async function submitPlacementTest(){
   const isEn=S.lang==='en';
   const{data:hw,error:hwFetchErr}=await sb.from('homeworks').select('*').eq('id',_ptpHwId).single();
   if(hwFetchErr||!hw){showToast(isEn?'Test not found':'Тест не найден','error');return;}
+  // Guard: student can only submit their own test
+  if(S.studentRowId&&hw.student_id&&hw.student_id!==S.studentRowId){showToast(isEn?'Access denied':'Ошибка доступа','error');return;}
   let questions=[];try{questions=JSON.parse(hw.description)||[];}catch(e){}
   let score=0;
   questions.forEach((q,i)=>{if(Number(_ptpAnswers[i])===q.correct)score++;});
@@ -6973,7 +6981,9 @@ async function submitPlacementTest(){
 function _icalEsc(s){return(s||'').replace(/\\/g,'\\\\').replace(/;/g,'\\;').replace(/,/g,'\\,').replace(/\n/g,'\\n');}
 function exportICal(){
   const isEn=S.lang==='en';
-  sb.from('schedule_events').select('*').eq('school_id',S.schoolId).then(({data:evs})=>{
+  let _icalQ=sb.from('schedule_events').select('*').eq('school_id',S.schoolId);
+  if(S.role==='teacher')_icalQ=_icalQ.eq('teacher_id',S.profile.id);
+  _icalQ.then(({data:evs})=>{
     const calName=_icalEsc('TeachyaED');
     const lines=['BEGIN:VCALENDAR','VERSION:2.0','CALSCALE:GREGORIAN',
       'PRODID:-//TeachyaED//TeachyaED//EN',`X-WR-CALNAME:${calName}`,'METHOD:PUBLISH'];
