@@ -4220,9 +4220,10 @@ async function renderStudentLessons(){
   showSkel();
   const{data:stu}=await dc('stu_me_'+S.profile.id,()=>sb.from('students').select('id').eq('email',S.profile.email).single());
   if(!stu?.id){C('mainContent').innerHTML='<div class="empty-state"><div class="ei">📭</div><p>Профиль ученика не найден. Обратитесь к учителю.</p></div>';return;}
-  const{data:assigns}=await dc('stu_assigns_'+stu.id,()=>sb.from('lesson_assignments').select('*,lesson:lesson_id(id,title,language,level,content)').eq('student_id',stu.id));
-  // Store in cache — never embed content in onclick attributes
-  window._assignCache=window._assignCache||{};
+  S.studentRowId=stu.id; // store for cache invalidation
+  const{data:assigns}=await dc('stu_assigns_'+stu.id,()=>sb.from('lesson_assignments').select('*,lesson:lesson_id(id,title,language,level,content)').eq('student_id',stu.id).order('created_at',{ascending:false}));
+  // Full replace — never merge stale entries
+  window._assignCache={};
   (assigns||[]).forEach(a=>{window._assignCache[a.id]=a;});
   const cards=(assigns||[]).map(a=>`<div class="card" style="margin-bottom:12px">
     <div style="display:flex;align-items:center;justify-content:space-between">
@@ -4908,7 +4909,7 @@ async function cdpStartLesson(){
   if(!lessons||lessons.length===0){showToast('Нет уроков. Сначала создай урок.');return;}
   // build quick picker
   // Store lessons in cache — never embed large content in onclick attributes
-  window._lessonCache=window._lessonCache||{};
+  window._lessonCache={};
   lessons.forEach(l=>{window._lessonCache[l.id]=l;});
   const opts=lessons.map(l=>`<div onclick="cdpPickLesson('${l.id}')" style="padding:12px 16px;cursor:pointer;border-radius:10px;border:2px solid var(--gray-border);margin-bottom:8px;transition:.15s" onmouseover="this.style.borderColor='var(--purple)'" onmouseout="this.style.borderColor='var(--gray-border)'">
     <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
@@ -4962,10 +4963,12 @@ async function loadClassTab(tab){
       </div>`;
   }
   else if(tab==='lessons'){
-    const{data:lessons}=await sb.from('lessons').select('*').eq('school_id',S.schoolId).order('created_at',{ascending:false});
-    const{data:sts}=await sb.from('students').select('id,first_name,last_name').eq('school_id',S.schoolId);
+    const[{data:lessons},{data:sts}]=await Promise.all([
+      sb.from('lessons').select('*').eq('school_id',S.schoolId).order('created_at',{ascending:false}),
+      sb.from('students').select('id,first_name,last_name').eq('school_id',S.schoolId).order('last_name')
+    ]);
     C('assign_student').innerHTML=(sts||[]).map(s=>`<option value="${s.id}">${s.first_name} ${s.last_name}</option>`).join('');
-    window._lessonCache=window._lessonCache||{};
+    window._lessonCache={};
     (lessons||[]).forEach(l=>{window._lessonCache[l.id]=l;});
     const cards=(lessons||[]).map(l=>{
       const cnt=lessonExCount(l);
@@ -5459,16 +5462,19 @@ function editLesson(id,title,lang,level,content){openLessonEditor(id,title,lang,
 
 async function openAssignLesson(lessonId){
   S.assignLessonId=lessonId;
-  // Always refresh student list before opening
-  const{data:sts}=await sb.from('students').select('id,first_name,last_name').eq('school_id',S.schoolId).order('last_name');
-  const sel=C('assign_student');
-  sel.innerHTML=(sts||[]).map(s=>`<option value="${s.id}">${s.first_name} ${s.last_name}</option>`).join('');
+  const{data:sts,error}=await sb.from('students').select('id,first_name,last_name').eq('school_id',S.schoolId).order('last_name');
+  if(error){showToast('Ошибка загрузки учеников: '+error.message,'error');return;}
   if(!sts||!sts.length){showToast('Нет учеников в школе');return;}
+  const sel=C('assign_student');
+  sel.innerHTML=sts.map(s=>`<option value="${s.id}">${s.first_name} ${s.last_name}</option>`).join('');
   openM('mAssignLesson');
 }
 async function assignLesson(){
   const sid=C('assign_student').value;if(!sid){showToast('Выбери ученика');return;}
   if(!S.assignLessonId){showToast('Ошибка: урок не выбран');return;}
+  // Duplicate guard
+  const{data:existing}=await sb.from('lesson_assignments').select('id').eq('lesson_id',S.assignLessonId).eq('student_id',sid).maybeSingle();
+  if(existing){showToast('Этот урок уже назначен этому ученику','error');return;}
   const{error}=await sb.from('lesson_assignments').insert({
     school_id:S.schoolId,
     lesson_id:S.assignLessonId,
@@ -5623,7 +5629,7 @@ const LV={sections:[],materials:[],curSec:0,curEx:0,assignId:null,viewAll:false}
 function _parseLessonContent(content){
   // Accepts: encoded string (legacy), plain object, or array — never breaks on large content
   let raw=content;
-  if(typeof content==='string'){try{raw=JSON.parse(decodeURIComponent(content));}catch(e){try{raw=JSON.parse(content);}catch(e2){raw=[];}}}
+  if(typeof content==='string'){try{raw=JSON.parse(decodeURIComponent(content));}catch(e){try{raw=JSON.parse(content);}catch(e2){console.warn('[TeachyaED] _parseLessonContent: не удалось разобрать контент:',String(content).slice(0,100));raw=[];}}}
   if(!raw)raw=[];
   const secs=(raw&&raw.sections&&Array.isArray(raw.sections))?raw.sections
     :(Array.isArray(raw)&&raw.length>0)?[{title:'Урок',exercises:raw}]:[{title:'Урок',exercises:[]}];
@@ -5651,22 +5657,39 @@ function openClassroomView(title,sections,assignId,studentName,materials){
   cvChatInit(_chatRoom);
 }
 
-function openLessonView(assignId,title,content){
-  // If called with only assignId (new cache-based call), read from _assignCache
+function openLessonView(assignId){
   const cached=(window._assignCache||{})[assignId];
-  const resolvedTitle=title||cached?.lesson?.title||'Урок';
-  const resolvedContent=content||cached?.lesson?.content||[];
-  const{sections:_s,materials:_m}=_parseLessonContent(resolvedContent);
-  openClassroomView(resolvedTitle,_s,assignId,null,_m);
+  if(!cached){
+    // Cache miss — re-fetch then open
+    showToast('Загрузка урока...');
+    renderStudentLessons().then(()=>{
+      const c=(window._assignCache||{})[assignId];
+      if(!c){showToast('Урок не найден','error');return;}
+      const{sections:_s,materials:_m}=_parseLessonContent(c.lesson?.content||[]);
+      openClassroomView(c.lesson?.title||'Урок',_s,assignId,null,_m);
+    });
+    return;
+  }
+  const{sections:_s,materials:_m}=_parseLessonContent(cached.lesson?.content||[]);
+  openClassroomView(cached.lesson?.title||'Урок',_s,assignId,null,_m);
 }
 
 function lvRender(){
   if(LV.viewAll){lvRenderAll();return;}
+  // Guard: no sections
+  if(!LV.sections||LV.sections.length===0){
+    C('cv_sectionTitle').textContent=t('Урок');
+    C('cv_counter').textContent='—';
+    C('cv_btnBack').style.visibility='hidden';C('cv_btnNext').style.visibility='hidden';C('cv_counter').style.visibility='hidden';
+    C('cv_btnFinishSec').style.display='none';
+    C('cv_exerciseContent').innerHTML=`<div class="empty-state" style="padding:60px 0"><div class="ei">📭</div><p>${t('В этом уроке нет разделов')}</p></div>`;
+    lvRenderSections();return;
+  }
   const sec=LV.sections[LV.curSec];
   const exs=Array.isArray(sec?.exercises)?sec.exercises:[];
   const ex=exs[LV.curEx];
   const total=exs.length;
-  const isLastEx=LV.curEx>=total-1;
+  const isLastEx=total===0||LV.curEx>=total-1;
   const isLastSec=LV.curSec>=LV.sections.length-1;
   // nav visibility
   C('cv_btnBack').style.visibility='';C('cv_btnNext').style.visibility='';C('cv_counter').style.visibility='';
@@ -5681,8 +5704,8 @@ function lvRender(){
   if(isLastEx&&isLastSec){nb.textContent=t('✓ Завершить урок');nb.className='btn btn-green';}
   else if(isLastEx){nb.textContent=t('Следующий раздел →');nb.className='btn btn-purple';}
   else{nb.textContent=t('Далее →');nb.className='btn btn-purple';}
-  // finish section btn
-  C('cv_btnFinishSec').style.display=(isLastEx&&!isLastSec)?'':'none';
+  // finish section btn — only show if there are exercises to finish
+  C('cv_btnFinishSec').style.display=(total>0&&isLastEx&&!isLastSec)?'':'none';
   // content
   if(!ex){C('cv_exerciseContent').innerHTML=`<div class="empty-state" style="padding:60px 0"><div class="ei">📭</div><p>${t('Нет упражнений в этом разделе')}</p></div>`;
   } else {C('cv_exerciseContent').innerHTML=renderBlockView(ex,LV.curSec*1000+LV.curEx);}
@@ -5738,6 +5761,8 @@ async function cvChatInit(roomId){
     .eq('room_id',roomId)
     .order('created_at',{ascending:true})
     .limit(60);
+  // Guard: if classroom was closed or room changed while fetching, abort
+  if(LV.chatRoomId!==roomId)return;
   msgs.innerHTML='';
   if(error){msgs.innerHTML='<div class="cv-chat-empty" style="color:var(--text3)">Чат временно недоступен</div>';return;}
   if(data&&data.length){data.forEach(m=>cvChatAddMsg(m));}
@@ -5895,18 +5920,18 @@ function renderBlockView(b,i){
   </div>`;
   if(b.type==='quiz') return`<div class="lesson-view-block">
     <div style="font-weight:700;margin-bottom:10px">🎯 ${b.question||'Вопрос'}</div>
-    ${(b.options||[]).map((opt,oi)=>`<div class="quiz-opt" id="qo_${i}_${oi}" onclick="checkQuiz(${i},${oi},${b.correct||0})">${opt}</div>`).join('')}
+    ${(b.options||[]).map((opt,oi)=>`<div class="quiz-opt" id="qo_${i}_${oi}" onclick="checkQuiz(${i},${oi},${b.correct!=null?b.correct:0})">${opt}</div>`).join('')}
   </div>`;
-  if(b.type==='truefalse') return`<div class="lesson-view-block">
+  if(b.type==='truefalse'){const _tfa=(b.answer===true||b.answer===false)?b.answer:true;return`<div class="lesson-view-block">
     <div style="font-weight:700;margin-bottom:12px">✅ Верно или Неверно?</div>
     <div style="font-size:1rem;margin-bottom:14px;padding:12px;background:var(--gray-light);border-radius:8px">"${b.statement||''}"</div>
     <div style="display:flex;gap:10px">
-      <button class="tf-btn" id="tf_${i}_t" onclick="checkTF(${i},true,${b.answer})">✅ Верно (True)</button>
-      <button class="tf-btn" id="tf_${i}_f" onclick="checkTF(${i},false,${b.answer})">❌ Неверно (False)</button>
+      <button class="tf-btn" id="tf_${i}_t" onclick="checkTF(${i},true,${_tfa})">✅ Верно (True)</button>
+      <button class="tf-btn" id="tf_${i}_f" onclick="checkTF(${i},false,${_tfa})">❌ Неверно (False)</button>
     </div>
     <div id="tf_res_${i}" style="margin-top:8px;font-size:.85rem"></div>
     ${b.explanation?`<div id="tf_exp_${i}" style="display:none;margin-top:8px;padding:10px;background:var(--blue-light);border-radius:8px;font-size:.85rem">💡 ${b.explanation}</div>`:''}
-  </div>`;
+  </div>`;}
   if(b.type==='matching'){
     const pairs=[...b.pairs||[]];
     const rights=[...pairs.map(p=>p.right)].sort(()=>Math.random()-.5);
@@ -6026,13 +6051,16 @@ function checkWordOrder(i){
 async function completeLessonView(){
   if(S.currentAssignId){
     await sb.from('lesson_assignments').update({completed:true}).eq('id',S.currentAssignId);
-    // Invalidate student assignment cache so re-render shows updated state
-    dcInval('stu_assigns_'+S.profile?.id);
+    // Invalidate student assignment cache — use studentRowId (students table PK, not auth user id)
+    dcInval('stu_assigns_'+(S.studentRowId||S.profile?.id));
     window._assignCache={};
     showToast('Урок завершён! 🎉');
-    if(S.role==='student')renderStudentLessons();
-  } else {showToast('Просмотр завершён ✓');}
-  closeClassroomView();
+    closeClassroomView();
+    if(S.role==='student')await renderStudentLessons();
+  } else {
+    showToast('Просмотр завершён ✓');
+    closeClassroomView();
+  }
 }
 // Teacher preview — no assignment needed
 function openLessonPreview(title,content){
