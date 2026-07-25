@@ -1326,13 +1326,13 @@ body[data-theme="dark"] .lib-filters select,body[data-theme="dark"] .lib-filters
     <div class="mp-header">
       <span id="mp_icon" style="font-size:1.5rem"></span>
       <span class="mp-title" id="mp_title">Материал</span>
-      <button class="btn btn-sm btn-outline" id="mp_openBtn" onclick="window.open(document.getElementById('mp_openBtn').dataset.url,'_blank')" style="flex-shrink:0">🔗 Открыть</button>
+      <button class="btn btn-sm btn-outline" id="mp_openBtn" onclick="(function(){var u=document.getElementById('mp_openBtn').dataset.url||'';if(/^https?:\/\//i.test(u))window.open(u,'_blank','noopener,noreferrer');else showToast('Некорректная ссылка','error');})()" style="flex-shrink:0">🔗 Открыть</button>
       <button class="modal-close" style="position:static;margin-left:8px" onclick="closeM('mMatPreview')">✕</button>
     </div>
     <div id="mp_body"></div>
     <div class="mp-footer">
       <span id="mp_meta" style="font-size:.8rem;color:var(--text3)"></span>
-      <button class="btn btn-purple" onclick="window.open(document.getElementById('mp_openBtn').dataset.url,'_blank')">Открыть в новой вкладке ↗</button>
+      <button class="btn btn-purple" onclick="(function(){var u=document.getElementById('mp_openBtn').dataset.url||'';if(/^https?:\/\//i.test(u))window.open(u,'_blank','noopener,noreferrer');else showToast('Некорректная ссылка','error');})()">Открыть в новой вкладке ↗</button>
     </div>
   </div>
 </div>
@@ -3040,6 +3040,7 @@ function removeAvPhoto(){
 }
 
 async function saveProfile(){
+  if(!S.profile)return;
   const btn=document.querySelector('#mProfile .btn.btn-purple');
   if(btn){btn.disabled=true;btn.textContent='Сохранение...';}
   try{
@@ -3080,7 +3081,7 @@ async function saveProfile(){
   dcInval('profile_'+uid);
 
   // Try to also update avatar columns (may not exist — ignore error)
-  sb.from('profiles').update({avatar_color:color,avatar_emoji:emoji}).eq('id',uid).eq('school_id',S.schoolId).then(()=>{});
+  sb.from('profiles').update({avatar_color:color,avatar_emoji:emoji}).eq('id',uid).eq('school_id',S.schoolId).then(()=>{dcInval('profile_'+uid);});
 
   S.profile.first_name=first;
   S.profile.last_name=last;
@@ -3089,7 +3090,7 @@ async function saveProfile(){
   updateTopBarAvatar();
   closeM('mProfile');
   }finally{
-    if(btn){btn.disabled=false;btn.textContent='Сохранить';}
+    if(btn){btn.disabled=false;btn.textContent=t('Сохранить');}
   }
 }
 
@@ -3120,7 +3121,7 @@ function updateTopBarAvatar(){
 
 async function changeEmail(){
   const btn=document.querySelector('#mProfile .btn-row .btn.btn-purple');
-  if(btn){btn.disabled=true;}
+  if(btn){if(btn.disabled)return;btn.disabled=true;}
   try{
     const newEmail=(C('sec_new_email')?.value||'').trim();
     if(!newEmail){showToast('Введи новый email');return;}
@@ -3135,7 +3136,7 @@ async function changeEmail(){
 function togglePassVis(id,btn){const el=C(id);if(!el)return;const show=el.type==='password';el.type=show?'text':'password';btn.textContent=show?'🙈':'👁';}
 async function changePassword(){
   const btn=document.querySelector('#mProfile [onclick="changePassword()"]');
-  if(btn){btn.disabled=true;}
+  if(btn){if(btn.disabled)return;btn.disabled=true;}
   try{
     const np=(C('sec_new_pass')?.value||'');
     const cp=(C('sec_conf_pass')?.value||'');
@@ -3285,7 +3286,7 @@ async function lookupWord(){
   const w=(document.getElementById('dictSearch')?.value||'').trim();
   if(!w)return;
   const res=document.getElementById('dictResult');
-  res.innerHTML=`<div style="color:var(--text3)">🔍 ${t('Ищем...')}</div>`;
+  res.innerHTML=`<div style="color:var(--text3)">🔍 ${_esc(t('Ищем...'))}</div>`;
 
   if(isRussian(w)){
     // Russian word → translate RU→EN via MyMemory, then look up EN definition
@@ -3312,8 +3313,8 @@ async function lookupWord(){
           <div style="font-weight:700;font-size:1.1rem;color:var(--purple)">🇬🇧 ${_escHtml(enWord)} <span style="font-size:.85rem;color:var(--text3);font-weight:400">${phonetic}</span></div>
         </div>
         ${meanings}
-        <button onclick="saveDictWord(${_escHtml(JSON.stringify(saveKey)).replace(/'/g,'&#39;')})" style="margin-top:8px;padding:5px 12px;background:var(--purple-light);color:var(--purple);border:none;border-radius:6px;font-size:.78rem;font-weight:600;cursor:pointer">+ ${t('Сохранить')}</button>`;
-    }catch(e){res.innerHTML=`<div style="color:var(--pink)">${t('Ошибка')}: ${_escHtml(e.message)}</div>`;}
+        <button onclick="saveDictWord(JSON.parse(decodeURIComponent('${encodeURIComponent(JSON.stringify(saveKey))}')))" style="margin-top:8px;padding:5px 12px;background:var(--purple-light);color:var(--purple);border:none;border-radius:6px;font-size:.78rem;font-weight:600;cursor:pointer">+ ${t('Сохранить')}</button>`;
+    }catch(e){res.innerHTML=`<div style="color:var(--pink)">${_esc(t('Ошибка'))}: ${_escHtml(e.message)}</div>`;}
   } else {
     // English word → direct lookup
     try{
@@ -3326,7 +3327,7 @@ async function lookupWord(){
         res.innerHTML=`<div style="background:var(--purple-light);border-radius:8px;padding:8px 12px;margin-bottom:10px">
           <div style="font-weight:700;font-size:1.1rem">🇬🇧 ${_escHtml(w)} → 🇷🇺 ${_escHtml(ruWord)}</div>
         </div>
-        <button onclick="saveDictWord(${_escHtml(JSON.stringify(saveKey)).replace(/'/g,'&#39;')})" style="margin-top:8px;padding:5px 12px;background:var(--purple-light);color:var(--purple);border:none;border-radius:6px;font-size:.78rem;font-weight:600;cursor:pointer">+ Сохранить</button>`;
+        <button onclick="saveDictWord(JSON.parse(decodeURIComponent('${encodeURIComponent(JSON.stringify(saveKey))}')))" style="margin-top:8px;padding:5px 12px;background:var(--purple-light);color:var(--purple);border:none;border-radius:6px;font-size:.78rem;font-weight:600;cursor:pointer">+ Сохранить</button>`;
         return;
       }
       const entry=data[0];
@@ -3346,8 +3347,8 @@ async function lookupWord(){
           ${ruWord?`<div style="font-size:.85rem;color:var(--purple);margin-top:2px">🇷🇺 ${_escHtml(ruWord)}</div>`:''}
         </div>
         ${meanings}
-        <button onclick="saveDictWord(${_escHtml(JSON.stringify(saveKey)).replace(/'/g,'&#39;')})" style="margin-top:8px;padding:5px 12px;background:var(--purple-light);color:var(--purple);border:none;border-radius:6px;font-size:.78rem;font-weight:600;cursor:pointer">+ ${t('Сохранить')}</button>`;
-    }catch(e){res.innerHTML=`<div style="color:var(--pink)">${t('Ошибка')}: ${_escHtml(e.message)}</div>`;}
+        <button onclick="saveDictWord(JSON.parse(decodeURIComponent('${encodeURIComponent(JSON.stringify(saveKey))}')))" style="margin-top:8px;padding:5px 12px;background:var(--purple-light);color:var(--purple);border:none;border-radius:6px;font-size:.78rem;font-weight:600;cursor:pointer">+ ${t('Сохранить')}</button>`;
+    }catch(e){res.innerHTML=`<div style="color:var(--pink)">${_esc(t('Ошибка'))}: ${_escHtml(e.message)}</div>`;}
   }
 }
 
@@ -3362,7 +3363,7 @@ function renderDictSaved(){
   const saved=JSON.parse(localStorage.getItem('teachya_dict')||'[]');
   const el=document.getElementById('dictSaved');
   if(!el)return;
-  el.innerHTML=saved.map(w=>`<span onclick="document.getElementById('dictSearch').value=${_escHtml(JSON.stringify(w)).replace(/'/g,'&#39;')};lookupWord()" style="padding:4px 10px;background:var(--purple-light);color:var(--purple);border-radius:20px;font-size:.78rem;cursor:pointer;font-weight:600">${_escHtml(w)}</span>`).join('');
+  el.innerHTML=saved.map(w=>`<span onclick="document.getElementById('dictSearch').value=decodeURIComponent('${encodeURIComponent(w)}');lookupWord()" style="padding:4px 10px;background:var(--purple-light);color:var(--purple);border-radius:20px;font-size:.78rem;cursor:pointer;font-weight:600">${_escHtml(w)}</span>`).join('');
 }
 
 // Template shortcut in editor
@@ -3442,19 +3443,20 @@ function toggleAIPanel(prefix){
 }
 
 async function sendAIMsg(prefix){
-  if(S._aiSending)return;S._aiSending=true;
-  try{
   const inp=document.getElementById(prefix+'_aiInp');
   const msgs=document.getElementById(prefix+'_aiMsgs');
-  if(!inp||!msgs){S._aiSending=false;return;}
+  if(!inp||!msgs)return;
   const text=inp.value.trim();
-  if(!text){S._aiSending=false;return;}
+  if(!text)return;
+  if(S._aiSending)return;
+  S._aiSending=true;
   inp.value='';
+  try{
 
   // Add user bubble
-  msgs.innerHTML+=`<div class="cv-ai-msg user">${_esc(text)}</div>`;
+  msgs.insertAdjacentHTML('beforeend',`<div class="cv-ai-msg user">${_esc(text)}</div>`);
   const loadId='load_'+Date.now();
-  msgs.innerHTML+=`<div class="cv-ai-msg ai loading" id="${loadId}">✨ ${t('Думаю...')}</div>`;
+  msgs.insertAdjacentHTML('beforeend',`<div class="cv-ai-msg ai loading" id="${loadId}">✨ ${t('Думаю...')}</div>`);
   msgs.scrollTop=msgs.scrollHeight;
 
   _aiHistory[prefix].push({role:'user',content:text});
@@ -3613,6 +3615,7 @@ async function doLogin(){
   }
 }
 async function afterLogin(user){
+  if(!user){showToast('Ошибка авторизации','error');return;}
   let{data:prof}=await sb.from('profiles').select('*').eq('id',user.id).single();
 
   // ── Fallback: profile not found — create from invite metadata ──────────────
@@ -3695,8 +3698,8 @@ function buildSidebar(){
 }
 // ─── МОБИЛЬНЫЙ SIDEBAR ───────────────────────────────────────────────────────
 function toggleSidebar(){
-  const sb=C('sidebar');const bd=C('sidebarBackdrop');
-  const isOpen=sb.classList.toggle('mobile-open');
+  const sidebarEl=C('sidebar');const bd=C('sidebarBackdrop');
+  const isOpen=sidebarEl.classList.toggle('mobile-open');
   bd.classList.toggle('open',isOpen);
   document.body.style.overflow=isOpen?'hidden':'';
 }
@@ -3803,7 +3806,7 @@ function playRingTone(){
     ring();_ringInterval=setInterval(ring,1200);
     // Показываем браузерное уведомление если вкладка не в фокусе
     if(document.hidden&&Notification?.permission==='granted'){
-      new Notification('📞 Входящий звонок',{body:C('icName').textContent||'Звонок',icon:'/favicon.ico'});
+      new Notification('📞 Входящий звонок',{body:(C('icName')&&C('icName').textContent)||'Звонок',icon:'/favicon.ico'});
     } else if(document.hidden&&Notification?.permission==='default'){
       Notification.requestPermission();
     }
@@ -3814,7 +3817,7 @@ function stopRingTone(){if(_ringInterval){clearInterval(_ringInterval);_ringInte
 function handleIncomingCall(payload){
   if(S.inCall||S.pendingRoom)return; // уже в звонке или уже показано
   S.pendingRoom=payload.room_id;S.pendingPartner=payload.from_name;
-  C('icName').textContent=payload.from_name||'Звонок';
+  if(C('icName'))C('icName').textContent=payload.from_name||'Звонок';
   C('icRole').textContent=ROLE_L[payload.from_role]||'';
   C('incomingCall').classList.add('show');
   playRingTone();
@@ -3849,10 +3852,10 @@ function toggleDialer(){if(S.inCall){hangUp();return;}const p=C('contactPicker')
 function renderContacts(){
   const order={owner:0,admin:1,teacher:2,student:3};
   const sorted=[...S.contacts].sort((a,b)=>(order[a.role]||9)-(order[b.role]||9));
-  C('contactList').innerHTML=sorted.map(c=>`<div class="contact-item" onclick="callContact('${_esc(c.id)}','${_esc(c.first_name||'')} ${_esc(c.last_name||'')}','${_esc(c.role)}')">
+  C('contactList').innerHTML=sorted.map(c=>{const _cId=_esc(c.id).replace(/'/g,"&#39;");const _cName=(_esc(c.first_name||'')+' '+_esc(c.last_name||'')).replace(/'/g,"&#39;");const _cRole=_esc(c.role||'').replace(/'/g,"&#39;");return`<div class="contact-item" onclick="callContact('${_cId}','${_cName}','${_cRole}')">
     ${avHTML(c.first_name,c.last_name,32)}
     <div><div style="font-weight:600;font-size:.9rem">${_esc(c.first_name)} ${_esc(c.last_name)}</div><div style="font-size:.75rem;color:var(--text3)">${t(ROLE_L[c.role]||c.role)}</div></div>
-  </div>`).join('')||'<div style="padding:16px;color:var(--text3);font-size:.85rem">Нет контактов</div>';
+  </div>`;}).join('')||'<div style="padding:16px;color:var(--text3);font-size:.85rem">Нет контактов</div>';
 }
 async function callContact(partnerId,partnerName,partnerRole){
   C('contactPicker').classList.remove('open');
@@ -3958,7 +3961,7 @@ function initWb(){
   c.ontouchstart=e=>{e.preventDefault();wbDrawing=true;const r=c.getBoundingClientRect();[wbLX,wbLY]=[e.touches[0].clientX-r.left,e.touches[0].clientY-r.top];};
   c.ontouchmove=e=>{e.preventDefault();draw(e);};c.ontouchend=()=>wbDrawing=false;
 }
-function setWbTool(t){wbTool=t;C('wbPen').classList.toggle('active',t==='pen');C('wbEr').classList.toggle('active',t==='eraser');}
+function setWbTool(tool){wbTool=tool;C('wbPen').classList.toggle('active',tool==='pen');C('wbEr').classList.toggle('active',tool==='eraser');}
 function clearWb(){if(wbCtx){const c=C('wbCanvas');wbCtx.fillStyle='#fff';wbCtx.fillRect(0,0,c.width,c.height);}}
 function saveWb(){const c=C('wbCanvas');const a=document.createElement('a');a.download='board.png';a.href=c.toDataURL();a.click();showToast('Сохранено');}
 
@@ -3985,6 +3988,8 @@ window.addEventListener('keydown',e=>{if(e.key==='Escape'){closeWb();C('contactP
 
 // ─── STUDENT SCREENS ──────────────────────────────────────────────────────────
 async function renderStudentHome(){
+  if(renderStudentHome._loading)return;renderStudentHome._loading=true;
+  try{
   const{data:stu}=await sb.from('students').select('*').eq('email',S.profile.email).eq('school_id',S.schoolId).single();
   const stuId=stu?.id||null;
   const[{data:hw},{data:assigns}]=await Promise.all([
@@ -3999,6 +4004,7 @@ async function renderStudentHome(){
     <p style="color:var(--text3);font-size:.88rem">Язык: <b>${_escHtml(stu?.language||'—')}</b> · Уровень: <b>${_escHtml(stu?.level||'—')}</b></p>
     <hr class="divider"><p style="font-size:.85rem;color:var(--text3)">Для звонка с учителем — кнопка 📞 справа внизу.</p>
   </div>`);
+  }finally{renderStudentHome._loading=false;}
 }
 // ─── HOMEWORK SYSTEM v2 ───────────────────────────────────────────────────────
 // Storage: exercises JSON → description field, answers JSON → student_answer field,
@@ -4175,7 +4181,7 @@ async function openHWPlayer(hwId){
   HWP.hwId=hwId;HWP.answers={};
   const{data:hw}=await sb.from('homeworks').select('*').eq('id',hwId).eq('school_id',S.schoolId).single();
   if(!hw){showToast('ДЗ не найдено');return;}
-  if(S.role==='student'&&S.studentRowId&&hw.student_id!==S.studentRowId){showToast('Доступ запрещён','error');return;}
+  if(S.role==='student'){if(!S.studentRowId||hw.student_id!==S.studentRowId){showToast('Доступ запрещён','error');return;}}
   HWP.hwData=hw;
   try{HWP.exercises=JSON.parse(hw.description)||[];}catch(e){HWP.exercises=[];}
   C('hwpTitle').textContent='📋 '+hw.title;
@@ -4271,7 +4277,7 @@ function _hwpCollectAnswers(){
 async function submitHWAnswers(){
   if(HWP._submitting)return;HWP._submitting=true;
   const hw=HWP.hwData;
-  if(S.role==='student'&&S.studentRowId&&hw&&hw.student_id!==S.studentRowId){showToast('Доступ запрещён','error');HWP._submitting=false;return;}
+  if(S.role==='student'){if(!S.studentRowId||!hw||hw.student_id!==S.studentRowId){showToast('Доступ запрещён','error');HWP._submitting=false;return;}}
   const btn=document.querySelector('#mHWPlayer .btn-green');
   if(btn){btn.disabled=true;btn.textContent='Отправка...';}
   try{
@@ -4281,13 +4287,15 @@ async function submitHWAnswers(){
       .eq('id',HWP.hwId)
       .eq('school_id',S.schoolId);
     if(error){showToast('Ошибка отправки ДЗ: '+error.message,'error');return;}
-    closeM('mHWPlayer');showToast('✅ ДЗ отправлено!');renderStudentHw();
+    dcInval('homeworks_'+S.schoolId);closeM('mHWPlayer');showToast('✅ ДЗ отправлено!');renderStudentHw();
   } finally {
     HWP._submitting=false;
     if(btn){btn.disabled=false;btn.textContent='✅ Отправить ответы';}
   }
 }
 async function renderStudentLessons(){
+  if(renderStudentLessons._loading)return;renderStudentLessons._loading=true;
+  try{
   showSkel();
   const{data:stu}=await dc('stu_me_'+S.profile.id,()=>sb.from('students').select('id').eq('email',S.profile.email).eq('school_id',S.schoolId).single());
   if(!stu?.id){C('content').innerHTML='<div class="empty-state"><div class="ei">📭</div><p>Профиль ученика не найден. Обратитесь к учителю.</p></div>';return;}
@@ -4296,7 +4304,7 @@ async function renderStudentLessons(){
   // Full replace — never merge stale entries
   window._assignCache={};
   (assigns||[]).forEach(a=>{window._assignCache[a.id]=a;});
-  const cards=(assigns||[]).map(a=>`<div class="card" style="margin-bottom:12px">
+  const cards=(assigns||[]).map(a=>{const _aId=_esc(a.id).replace(/'/g,"&#39;");return`<div class="card" style="margin-bottom:12px">
     <div style="display:flex;align-items:center;justify-content:space-between">
       <div>
         <div style="font-weight:700">${_escHtml(a.lesson?.title||'Урок')}</div>
@@ -4304,15 +4312,18 @@ async function renderStudentLessons(){
       </div>
       <div style="display:flex;align-items:center;gap:8px">
         ${a.completed?'<span class="badge badge-green">✓ Завершён</span>':'<span class="badge badge-purple">📖 Новый</span>'}
-        <button class="btn btn-purple" onclick="openLessonView('${a.id}')">Открыть</button>
+        <button class="btn btn-purple" onclick="openLessonView('${_aId}')">Открыть</button>
       </div>
     </div>
-  </div>`).join('')||'<div class="empty-state"><div class="ei">📖</div><p>Уроки не назначены</p></div>';
+  </div>`;}).join('')||'<div class="empty-state"><div class="ei">📖</div><p>Уроки не назначены</p></div>';
   setContent(`<div class="section-header"><h2>📖 Мои уроки</h2></div>${cards}`);
+  }finally{renderStudentLessons._loading=false;}
 }
 
 // ─── TEACHER SCREENS ──────────────────────────────────────────────────────────
 async function renderTeacherStudents(){
+  if(renderTeacherStudents._loading)return;renderTeacherStudents._loading=true;
+  try{
   showSkel();
   // Если учитель — показываем только его учеников (teacher_id = S.profile.id)
   // Если owner/admin — показываем всех (через t_students, как учитель)
@@ -4323,18 +4334,21 @@ async function renderTeacherStudents(){
     if(isTeacher)q=q.eq('teacher_id',S.profile.id);
     return q;
   });
-  const rows=(sts||[]).map(s=>{const sName=(_esc(s.first_name||'')+' '+_esc(s.last_name||'')).replace(/'/g,'&#39;');return`<tr>
-    <td><div style="display:flex;align-items:center;gap:10px">${avHTML(s.first_name,s.last_name)}<div><div style="font-weight:600;cursor:pointer" onclick="openStudentCard('${_esc(s.id)}')">${_esc(s.first_name)} ${_esc(s.last_name)}</div><div style="font-size:.75rem;color:var(--text3)">${_esc(s.email||'—')}</div></div></div></td>
+  const rows=(sts||[]).map(s=>{const sName=(_esc(s.first_name||'')+' '+_esc(s.last_name||'')).replace(/'/g,'&#39;');const sId=_esc(s.id).replace(/'/g,"&#39;");return`<tr>
+    <td><div style="display:flex;align-items:center;gap:10px">${avHTML(s.first_name,s.last_name)}<div><div style="font-weight:600;cursor:pointer" onclick="openStudentCard('${sId}')">${_esc(s.first_name)} ${_esc(s.last_name)}</div><div style="font-size:.75rem;color:var(--text3)">${_esc(s.email||'—')}</div></div></div></td>
     <td>${_escHtml(s.language||'—')}</td><td><span class="badge badge-purple">${_escHtml(s.level||'—')}</span></td><td>${_escHtml(s.phone||'—')}</td>
     <td class="td-actions">
-      <button class="btn btn-sm btn-purple" style="font-size:.73rem;padding:4px 8px" onclick="prefillHwForStudent('${_esc(s.id)}','${sName}')">📋 ДЗ</button>
-      <button class="btn btn-sm btn-green" style="font-size:.73rem;padding:4px 8px" onclick="callContact('stu_${_esc(s.id)}','${sName}','student')">📞</button>
+      <button class="btn btn-sm btn-purple" style="font-size:.73rem;padding:4px 8px" onclick="prefillHwForStudent('${sId}','${sName}')">📋 ДЗ</button>
+      <button class="btn btn-sm btn-green" style="font-size:.73rem;padding:4px 8px" onclick="callContact('stu_${sId}','${sName}','student')">📞</button>
     </td>
   </tr>`}).join('')||'<tr><td colspan="5" style="text-align:center;color:var(--text3)">Нет учеников</td></tr>';
   setContent(`<div class="section-header"><h2>👥 Ученики</h2></div>
     <div class="card" style="padding:0;overflow:hidden"><table><thead><tr><th>Ученик</th><th>Язык</th><th>Уровень</th><th>Телефон</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>`);
+  }finally{renderTeacherStudents._loading=false;}
 }
 async function renderTeacherHw(){
+  if(renderTeacherHw._loading)return;renderTeacherHw._loading=true;
+  try{
   showSkel();
   const{data:hws,error:hwsErr}=await sb.from('homeworks').select('*,student:student_id(first_name,last_name)').eq('teacher_id',S.profile.id).eq('school_id',S.schoolId).order('created_at',{ascending:false});
   if(hwsErr){setContent('<div class="empty-state"><div class="ei">⚠️</div><p>Ошибка загрузки: '+_esc(hwsErr.message)+'</p></div>');return;}
@@ -4342,21 +4356,25 @@ async function renderTeacherHw(){
     let exCount=0;try{exCount=(JSON.parse(hw.description)||[]).length;}catch(e){}
     const sMap={pending:'Ожидает',submitted:'Сдано',reviewed:'Проверено'};
     const bMap={pending:'badge-purple',submitted:'badge-yellow',reviewed:'badge-green'};
+    const _hwId=_esc(hw.id).replace(/'/g,"&#39;");
     return`<div class="hw-card ${['pending','submitted','reviewed'].includes(hw.status)?hw.status:'pending'}">
       <div class="hw-title">${_esc(hw.title)} <span class="badge ${bMap[hw.status]||'badge-purple'}">${_escHtml(sMap[hw.status]||hw.status)}</span></div>
       <div class="hw-meta">👤 ${_esc(hw.student?.first_name||'')} ${_esc(hw.student?.last_name||'')} · 📅 ${fmtDate(hw.deadline)} · 📝 ${exCount} упр.</div>
       <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
-        <button class="btn btn-sm btn-outline" style="font-size:.78rem" onclick="openHWEditor('${hw.id}')">✏️ Редактировать</button>
-        ${hw.status==='submitted'?`<button class="btn btn-sm btn-yellow" style="font-size:.78rem" onclick="openHWReview('${hw.id}')">🔍 Проверить</button>`:''}
-        ${hw.status==='reviewed'?`<button class="btn btn-sm btn-green" style="font-size:.78rem" onclick="openHWReview('${hw.id}')">✅ Посмотреть</button>`:''}
+        <button class="btn btn-sm btn-outline" style="font-size:.78rem" onclick="openHWEditor('${_hwId}')">✏️ Редактировать</button>
+        ${hw.status==='submitted'?`<button class="btn btn-sm btn-yellow" style="font-size:.78rem" onclick="openHWReview('${_hwId}')">🔍 Проверить</button>`:''}
+        ${hw.status==='reviewed'?`<button class="btn btn-sm btn-green" style="font-size:.78rem" onclick="openHWReview('${_hwId}')">✅ Посмотреть</button>`:''}
       </div>
     </div>`;
   }).join('')||'<div class="empty-state"><div class="ei">📋</div><p>Нет заданий</p></div>';
   setContent(`<div class="section-header"><h2>📋 Задания</h2><button class="btn btn-purple" onclick="openHWEditor()">+ Новое ДЗ</button></div>${cards}`);
+  }finally{renderTeacherHw._loading=false;}
 }
 
 // ── TEACHER: HW REVIEW ──────────────────────────────────────────────────────
 async function openHWReview(hwId){
+  if(openHWReview._busy)return;openHWReview._busy=true;
+  try{
   HWR.hwId=hwId;HWR.grade=null;
   const{data:hw,error:hwErr}=await sb.from('homeworks').select('*,student:student_id(first_name,last_name)').eq('id',hwId).eq('school_id',S.schoolId).single();
   if(hwErr||!hw){showToast('ДЗ не найдено'+(hwErr?': '+hwErr.message:''),'error');return;}
@@ -4372,6 +4390,7 @@ async function openHWReview(hwId){
     ?exercises.map((ex,i)=>_hwrRenderEx(ex,i,answers[i])).join('')
     :'<div style="color:var(--text3);padding:12px;text-align:center">Упражнений нет</div>';
   openM('mHWReview');
+  }finally{openHWReview._busy=false;}
 }
 
 function _hwrRenderEx(ex,i,ans){
@@ -4430,7 +4449,10 @@ async function saveHWReview(){
 
 // ── STUDENT: HW LIST ────────────────────────────────────────────────────────
 async function renderStudentHw(){
+  if(renderStudentHw._loading)return;renderStudentHw._loading=true;
+  try{
   showSkel();
+  if(!S.profile?.email){setContent('<p>Ошибка: профиль не загружен</p>');return;}
   const{data:stu}=await sb.from('students').select('id').eq('email',S.profile.email).eq('school_id',S.schoolId).single();
   if(!stu?.id){C('content').innerHTML='<div class="empty-state"><div class="ei">📭</div><p>Профиль ученика не найден.</p></div>';return;}
   if(!S.studentRowId)S.studentRowId=stu.id;
@@ -4440,15 +4462,17 @@ async function renderStudentHw(){
     const comment=hw.teacher_comment||'';
     const sMap={pending:'Новое',submitted:'Сдано',reviewed:'Проверено'};
     const bMap={pending:'badge-purple',submitted:'badge-yellow',reviewed:'badge-green'};
+    const _hId=_esc(hw.id).replace(/'/g,"&#39;");
     return`<div class="hw-card ${['pending','submitted','reviewed'].includes(hw.status)?hw.status:'pending'}">
       <div class="hw-title">${_esc(hw.title)} <span class="badge ${bMap[hw.status]||'badge-purple'}">${_escHtml(sMap[hw.status]||hw.status)}</span></div>
       <div class="hw-meta">👨‍🏫 ${_esc(hw.teacher?.first_name||'')} ${_esc(hw.teacher?.last_name||'')} · 📅 ${fmtDate(hw.deadline)} · 📝 ${exCount} упр.</div>
       ${comment?`<div class="hw-comment">💬 ${_esc(comment)}</div>`:''}
-      ${hw.status==='pending'?((hw.title||'').startsWith('🎯 Тест на уровень')?`<button class="btn btn-purple" style="margin-top:10px" onclick="openPlacementTestPlayer('${hw.id}')">▶️ Пройти тест</button>`:`<button class="btn btn-green" style="margin-top:10px" onclick="openHWPlayer('${hw.id}')">▶️ Начать задание</button>`):''}
+      ${hw.status==='pending'?((hw.title||'').startsWith('🎯 Тест на уровень')?`<button class="btn btn-purple" style="margin-top:10px" onclick="openPlacementTestPlayer('${_hId}')">▶️ Пройти тест</button>`:`<button class="btn btn-green" style="margin-top:10px" onclick="openHWPlayer('${_hId}')">▶️ Начать задание</button>`):''}
       ${hw.status==='submitted'?`<div style="margin-top:8px;font-size:.84rem;color:var(--text3)">⏳ Ожидает проверки учителя</div>`:''}
     </div>`;
   }).join('')||'<div class="empty-state"><div class="ei">✅</div><p>Нет заданий</p></div>';
   setContent(`<div class="section-header"><h2>📋 Задания</h2></div>${cards}`);
+  }finally{renderStudentHw._loading=false;}
 }
 
 // ─── ADMIN / OWNER ────────────────────────────────────────────────────────────
@@ -4488,26 +4512,26 @@ async function renderOwnerHome(){
 }
 async function renderAdminStudents(){
   const{data:sts}=await sb.from('students').select('*').eq('school_id',S.schoolId).order('last_name');
-  const rows=(sts||[]).map(s=>{const sName=(_esc(s.first_name||'')+' '+_esc(s.last_name||'')).replace(/'/g,'&#39;');return`<tr>
-    <td><div style="display:flex;align-items:center;gap:10px">${avHTML(s.first_name,s.last_name)}<div><div style="font-weight:600;cursor:pointer" onclick="openStudentCard('${_esc(s.id)}')">${_esc(s.first_name)} ${_esc(s.last_name)}</div><div style="font-size:.75rem;color:var(--text3)">${_esc(s.email||'—')}</div></div></div></td>
+  const rows=(sts||[]).map(s=>{const sName=(_esc(s.first_name||'')+' '+_esc(s.last_name||'')).replace(/'/g,'&#39;');const sId=_esc(s.id).replace(/'/g,"&#39;");return`<tr>
+    <td><div style="display:flex;align-items:center;gap:10px">${avHTML(s.first_name,s.last_name)}<div><div style="font-weight:600;cursor:pointer" onclick="openStudentCard('${sId}')">${_esc(s.first_name)} ${_esc(s.last_name)}</div><div style="font-size:.75rem;color:var(--text3)">${_esc(s.email||'—')}</div></div></div></td>
     <td>${_escHtml(s.language||'—')}</td>
     <td><span class="badge badge-purple">${_escHtml(s.level||'—')}</span></td>
     <td>${_escHtml(s.phone||'—')}</td>
     <td class="td-actions">
-      <button class="btn btn-sm btn-green" style="font-size:.73rem;padding:4px 8px" onclick="callContact('stu_${_esc(s.id)}','${sName}','student')">📞</button>
-      <button class="btn-danger" onclick="confirmDeleteStudent('${_esc(s.id)}','${sName}')">🗑</button>
+      <button class="btn btn-sm btn-green" style="font-size:.73rem;padding:4px 8px" onclick="callContact('stu_${sId}','${sName}','student')">📞</button>
+      <button class="btn-danger" onclick="confirmDeleteStudent('${sId}','${sName}')">🗑</button>
     </td></tr>`}).join('')||`<tr><td colspan="5" style="text-align:center;color:var(--text3)">${t('Нет учеников')}</td></tr>`;
   setContent(`<div class="section-header"><h2>👥 ${t('Ученики')}</h2><button class="btn btn-purple" onclick="openAddStudent()">+ ${t('Добавить')}</button></div>
     <div class="card" style="padding:0;overflow:hidden"><table><thead><tr><th>${t('Ученик')}</th><th>${t('Язык')}</th><th>${t('Уровень')}</th><th>${t('Телефон')}</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>`);
 }
 async function renderAdminTeachers(){
   const{data:ts}=await sb.from('profiles').select('*').eq('school_id',S.schoolId).eq('role','teacher');
-  const rows=(ts||[]).map(tc=>{const tcName=(_esc(tc.first_name||'')+' '+_esc(tc.last_name||'')).replace(/'/g,'&#39;');return`<tr><td><div style="display:flex;align-items:center;gap:10px">${avHTML(tc.first_name,tc.last_name)}<div><div style="font-weight:600">${_esc(tc.first_name)} ${_esc(tc.last_name)}</div><div style="font-size:.75rem;color:var(--text3)">${_esc(tc.email||'—')}</div></div></div></td>
+  const rows=(ts||[]).map(tc=>{const tcName=(_esc(tc.first_name||'')+' '+_esc(tc.last_name||'')).replace(/'/g,'&#39;');const tcId=_esc(tc.id).replace(/'/g,"&#39;");return`<tr><td><div style="display:flex;align-items:center;gap:10px">${avHTML(tc.first_name,tc.last_name)}<div><div style="font-weight:600">${_esc(tc.first_name)} ${_esc(tc.last_name)}</div><div style="font-size:.75rem;color:var(--text3)">${_esc(tc.email||'—')}</div></div></div></td>
     <td><span class="badge badge-green">${t('Учитель')}</span></td>
     <td class="td-actions">
-      <button class="btn btn-sm btn-outline" style="font-size:.73rem;padding:4px 8px" onclick="openSetSalary('${_esc(tc.id)}','${tcName}')">💰 ${t('Ставка')}</button>
-      <button class="btn btn-sm btn-green" style="font-size:.73rem;padding:4px 8px" onclick="callContact('${_esc(tc.id)}','${tcName}','teacher')">📞</button>
-      <button class="btn-danger" onclick="confirmDeleteUser('${_esc(tc.id)}','${tcName}','teacher')">🗑</button>
+      <button class="btn btn-sm btn-outline" style="font-size:.73rem;padding:4px 8px" onclick="openSetSalary('${tcId}','${tcName}')">💰 ${t('Ставка')}</button>
+      <button class="btn btn-sm btn-green" style="font-size:.73rem;padding:4px 8px" onclick="callContact('${tcId}','${tcName}','teacher')">📞</button>
+      <button class="btn-danger" onclick="confirmDeleteUser('${tcId}','${tcName}','teacher')">🗑</button>
     </td></tr>`}).join('')||`<tr><td colspan="3" style="text-align:center;color:var(--text3)">${t('Нет учителей')}</td></tr>`;
   setContent(`<div class="section-header"><h2>👨‍🏫 ${t('Учителя')}</h2><button class="btn btn-purple" onclick="openM('mInviteStaff')">+ ${t('Пригласить')}</button></div>
     <div class="card" style="padding:0;overflow:hidden"><table><thead><tr><th>${t('Учитель')}</th><th>${t('Роль')}</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>`);
@@ -4515,15 +4539,15 @@ async function renderAdminTeachers(){
 async function renderOwnerUsers(){
   const{data:users}=await sb.from('profiles').select('*').eq('school_id',S.schoolId).order('role');
   const canDelete=S.role==='owner'||S.role==='admin';
-  const rows=(users||[]).map(u=>{const uName=(_esc(u.first_name||'')+' '+_esc(u.last_name||'')).replace(/'/g,'&#39;');return`<tr>
+  const rows=(users||[]).map(u=>{const uName=(_esc(u.first_name||'')+' '+_esc(u.last_name||'')).replace(/'/g,'&#39;');const uId=_esc(u.id).replace(/'/g,"&#39;");const uRole=_esc(u.role||'').replace(/'/g,"&#39;");return`<tr>
     <td><div style="display:flex;align-items:center;gap:10px">${avHTML(u.first_name,u.last_name)}<div><div style="font-weight:600">${_esc(u.first_name)} ${_esc(u.last_name)}</div><div style="font-size:.75rem;color:var(--text3)">${_esc(u.email||'—')}</div></div></div></td>
     <td><span class="badge ${u.role==='owner'?'badge-pink':u.role==='admin'?'badge-yellow':u.role==='teacher'?'badge-green':'badge-purple'}">${_esc(ROLE_L[u.role]||u.role)}</span></td>
     <td class="td-actions">
       ${u.id===S.profile.id
         ?`<span style="font-size:.75rem;color:var(--text3)">${t('Это вы')}</span>`
-        :`<button class="btn btn-sm btn-outline" style="font-size:.73rem;padding:4px 8px" onclick="openChangeRole('${_esc(u.id)}','${uName}','${_esc(u.role)}')">✎ ${t('Роль')}</button>
-        <button class="btn btn-sm btn-green" style="font-size:.73rem;padding:4px 8px" onclick="callContact('${_esc(u.id)}','${uName}','${_esc(u.role)}')">📞</button>
-        ${canDelete&&!(S.role==='admin'&&u.role==='owner')?`<button class="btn-danger" onclick="confirmDeleteUser('${_esc(u.id)}','${uName}','${_esc(u.role)}')">🗑</button>`:''}`}
+        :`<button class="btn btn-sm btn-outline" style="font-size:.73rem;padding:4px 8px" onclick="openChangeRole('${uId}','${uName}','${uRole}')">✎ ${t('Роль')}</button>
+        <button class="btn btn-sm btn-green" style="font-size:.73rem;padding:4px 8px" onclick="callContact('${uId}','${uName}','${uRole}')">📞</button>
+        ${canDelete&&!(S.role==='admin'&&u.role==='owner')?`<button class="btn-danger" onclick="confirmDeleteUser('${uId}','${uName}','${uRole}')">🗑</button>`:''}`}
     </td>
   </tr>`}).join('');
   setContent(`<div class="section-header"><h2>👥 Все пользователи</h2><button class="btn btn-purple" onclick="openM('mInviteStaff')">+ Пригласить сотрудника</button></div>
@@ -4534,6 +4558,7 @@ function openChangeRole(uid,name,currentRole){_changeRoleId=uid;C('changeRoleUse
 async function applyRoleChange(){
   if(!['owner','admin'].includes(S.role))return;
   const newRole=C('newRole').value;
+  if(!['teacher','admin','owner'].includes(newRole)){showToast('Недопустимая роль','error');return;}
   if(S.role==='admin'&&newRole==='owner'){showToast('Нельзя назначить роль владельца','error');return;}
   const _arcBtn=document.querySelector('#mChangeRole .btn-purple');
   if(_arcBtn){_arcBtn.disabled=true;}
@@ -4564,7 +4589,7 @@ async function doDeleteUser(){
   closeM('mDeleteUser');
   showToast('⏳ Удаляем...');
   try{
-    const{data,error}=await sb.rpc('delete_school_user',{target_user_id:uid});
+    const{data,error}=await sb.rpc('delete_school_user',{target_user_id:uid,school_id:S.schoolId});
     console.log('[deleteUser] uid=',uid,'data=',data,'error=',error);
     if(error||data?.error){
       const msg=data?.error||error?.message||'Неизвестная ошибка';
@@ -4586,10 +4611,14 @@ async function confirmDeleteStudent(sid,name){
   try{
   showToast('⏳ Удаляем...');
   // Каскадное удаление зависимых записей
-  await sb.from('class_students').delete().eq('student_id',sid).eq('school_id',S.schoolId);
-  await sb.from('homeworks').delete().eq('student_id',sid).eq('school_id',S.schoolId);
-  await sb.from('lesson_assignments').delete().eq('student_id',sid).eq('school_id',S.schoolId);
-  await sb.from('payments').delete().eq('student_id',sid).eq('school_id',S.schoolId);
+  const{error:e1}=await sb.from('class_students').delete().eq('student_id',sid).eq('school_id',S.schoolId);
+  if(e1){showToast('Ошибка удаления: '+e1.message,'error');return;}
+  const{error:e2}=await sb.from('homeworks').delete().eq('student_id',sid).eq('school_id',S.schoolId);
+  if(e2){showToast('Ошибка удаления: '+e2.message,'error');return;}
+  const{error:e3}=await sb.from('lesson_assignments').delete().eq('student_id',sid).eq('school_id',S.schoolId);
+  if(e3){showToast('Ошибка удаления: '+e3.message,'error');return;}
+  const{error:e4}=await sb.from('payments').delete().eq('student_id',sid).eq('school_id',S.schoolId);
+  if(e4){showToast('Ошибка удаления: '+e4.message,'error');return;}
   // Финальное удаление ученика
   const{error}=await sb.from('students').delete().eq('id',sid).eq('school_id',S.schoolId);
   if(error){showToast('❌ '+error.message);console.error('[deleteStudent]',error);return;}
@@ -4602,13 +4631,13 @@ async function confirmDeleteStudent(sid,name){
 }
 async function renderOwnerStudents(){
   const{data:sts}=await sb.from('students').select('*').eq('school_id',S.schoolId).order('last_name');
-  const rows=(sts||[]).map(s=>`<tr>
-    <td><div style="display:flex;align-items:center;gap:10px">${avHTML(s.first_name,s.last_name)}<div><div style="font-weight:600;cursor:pointer" onclick="openStudentCard('${s.id}')">${_esc(s.first_name)} ${_esc(s.last_name)}</div><div style="font-size:.75rem;color:var(--text3)">${_esc(s.email||'—')}</div></div></div></td>
+  const rows=(sts||[]).map(s=>{const _sId=_esc(s.id).replace(/'/g,"&#39;");return`<tr>
+    <td><div style="display:flex;align-items:center;gap:10px">${avHTML(s.first_name,s.last_name)}<div><div style="font-weight:600;cursor:pointer" onclick="openStudentCard('${_sId}')">${_esc(s.first_name)} ${_esc(s.last_name)}</div><div style="font-size:.75rem;color:var(--text3)">${_esc(s.email||'—')}</div></div></div></td>
     <td>${_escHtml(s.language||'—')}</td><td><span class="badge badge-purple">${_escHtml(s.level||'—')}</span></td><td>${_escHtml(s.phone||'—')}</td>
     <td class="td-actions">
-      <button class="btn btn-sm btn-green" style="font-size:.73rem;padding:4px 8px" onclick="callContact('stu_${s.id}',${JSON.stringify(s.first_name+' '+s.last_name)},'student')">📞</button>
-      <button class="btn-danger" onclick="confirmDeleteStudent('${s.id}',${JSON.stringify(s.first_name+' '+s.last_name)})">🗑</button>
-    </td></tr>`).join('')||`<tr><td colspan="5" style="text-align:center;color:var(--text3)">${t('Нет учеников')}</td></tr>`;
+      <button class="btn btn-sm btn-green" style="font-size:.73rem;padding:4px 8px" onclick="callContact('stu_${_sId}',${JSON.stringify(s.first_name+' '+s.last_name)},'student')">📞</button>
+      <button class="btn-danger" onclick="confirmDeleteStudent('${_sId}',${JSON.stringify(s.first_name+' '+s.last_name)})">🗑</button>
+    </td></tr>`}).join('')||`<tr><td colspan="5" style="text-align:center;color:var(--text3)">${t('Нет учеников')}</td></tr>`;
   setContent(`<div class="section-header"><h2>🎓 ${t('Ученики')}</h2><button class="btn btn-purple" onclick="openAddStudent()">+ ${t('Добавить')}</button></div>
     <div class="card" style="padding:0;overflow:hidden"><table><thead><tr><th>${t('Ученик')}</th><th>${t('Язык')}</th><th>${t('Уровень')}</th><th>${t('Телефон')}</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>`);
 }
@@ -4627,7 +4656,7 @@ async function renderPayments(){
     <td>${fmtDate(p.period_from)} – ${fmtDate(p.period_to)}</td>
     <td><span class="badge ${p.status==='paid'?'badge-green':p.status==='overdue'?'badge-pink':'badge-yellow'}">${_esc({paid:'Оплачено',pending:'Ожидает',overdue:'Просрочено'}[p.status]||p.status)}</span></td>
     <td style="font-size:.78rem;color:var(--text3)">${_escHtml(p.note||'')}</td>
-    <td class="td-actions">${p.status!=='paid'?`<button class="btn btn-sm btn-green" style="font-size:.72rem;padding:3px 8px" onclick="markPaid('${p.id}',this)">✓</button>`:''}</td>
+    <td class="td-actions">${p.status!=='paid'?(()=>{const _pId=_esc(p.id).replace(/'/g,"&#39;");return`<button class="btn btn-sm btn-green" style="font-size:.72rem;padding:3px 8px" onclick="markPaid('${_pId}',this)">✓</button>`})():''}</td>
   </tr>`).join('');
   setContent(`<div class="section-header"><h2>${t('💳 Оплата')||'💳 Payments'}</h2><button class="btn btn-purple" onclick="openAddPayment()">+ ${t('Оплата')||'Payment'}</button></div>
     <div class="stats-row" style="margin-bottom:16px">
@@ -4649,7 +4678,7 @@ async function markPaid(id,btn){
   try{
     const{error}=await sb.from('payments').update({status:'paid'}).eq('id',id).eq('school_id',S.schoolId);
     if(error){showToast('Ошибка: '+error.message,'error');return;}
-    showToast('Отмечено оплаченным');renderPayments();
+    dcInval('payments_'+S.schoolId);showToast('Отмечено оплаченным');renderPayments();
   }finally{
     if(btn){btn.disabled=false;}
   }
@@ -4666,7 +4695,7 @@ async function savePayment(){
     if(S.editPayId){({error:err}=await sb.from('payments').update(pd).eq('id',S.editPayId).eq('school_id',S.schoolId));}
     else{({error:err}=await sb.from('payments').insert({school_id:S.schoolId,...pd}));}
     if(err){showToast('Ошибка: '+err.message,'error');return;}
-    closeM('mAddPayment');showToast('Платёж сохранён');renderPayments();
+    dcInval('payments_'+S.schoolId);closeM('mAddPayment');showToast('Платёж сохранён');renderPayments();
   }finally{
     if(btn){btn.disabled=false;btn.textContent='Сохранить';}
   }
@@ -4688,11 +4717,12 @@ async function renderSalaries(){
     const rate=sal?.rate_per_lesson||0,cur=sal?.currency||'GEL';
     const cnt=(logs||[]).filter(l=>l.teacher_id===tc.id&&l.lesson_date&&new Date(l.lesson_date)>=start).length;
     const safeTname=(_esc(tc.first_name||'')+' '+_esc(tc.last_name||'')).replace(/'/g,'&#39;');
+    const safeTcId=_esc(tc.id).replace(/'/g,"&#39;");
     return`<tr>
       <td><div style="display:flex;align-items:center;gap:10px">${avHTML(tc.first_name,tc.last_name)}<div style="font-weight:600">${_esc(tc.first_name)} ${_esc(tc.last_name)}</div></div></td>
       <td>${fmtCur(rate,cur)}</td><td>${cnt}</td><td><b style="color:var(--green)">${fmtCur(rate*cnt,cur)}</b></td>
-      <td class="td-actions"><button class="btn btn-sm btn-outline" style="font-size:.73rem;padding:4px 8px" onclick="openSetSalary('${_esc(tc.id)}','${safeTname}')">✎ ${t('Ставка')}</button>
-      <button class="btn btn-sm btn-purple" style="font-size:.73rem;padding:4px 8px" onclick="logLessonFor('${_esc(tc.id)}','${safeTname}')">+ ${t('Урок')}</button></td></tr>`;
+      <td class="td-actions"><button class="btn btn-sm btn-outline" style="font-size:.73rem;padding:4px 8px" onclick="openSetSalary('${safeTcId}','${safeTname}')">✎ ${t('Ставка')}</button>
+      <button class="btn btn-sm btn-purple" style="font-size:.73rem;padding:4px 8px" onclick="logLessonFor('${safeTcId}','${safeTname}')">+ ${t('Урок')}</button></td></tr>`;
   }).join('');
   setContent(`<div class="section-header"><h2>${t('💰 Зарплаты')||'💰 Salaries'}</h2></div>
     <div class="period-tabs">
@@ -4712,7 +4742,7 @@ async function saveSalary(){
     const rate=C('sal_rate').value,cur=C('sal_cur').value;if(!rate){showToast('Введи ставку!');return;}
     const{error}=await sb.from('teacher_salaries').upsert({school_id:S.schoolId,teacher_id:S.currentSalTId,rate_per_lesson:parseFloat(rate)||0,currency:cur,updated_at:new Date().toISOString()},{onConflict:'teacher_id,school_id'});
     if(error){showToast('Ошибка: '+error.message,'error');return;}
-    closeM('mSetSalary');showToast('Ставка сохранена');if(S.screen==='o_salaries'||S.screen==='a_salaries')renderSalaries();
+    dcInval('salaries_'+S.schoolId);closeM('mSetSalary');showToast('Ставка сохранена');if(S.screen==='o_salaries'||S.screen==='a_salaries')renderSalaries();
   }finally{
     if(btn){btn.disabled=false;btn.textContent='Сохранить';}
   }
@@ -4723,7 +4753,7 @@ async function logLessonFor(tid,tname){
     const topic=prompt(`Тема урока (${tname}):`);if(topic===null)return;
     const{error}=await sb.from('lessons_log').insert({school_id:S.schoolId,teacher_id:tid,lesson_date:new Date().toISOString().split('T')[0],topic,status:'completed'});
     if(error){showToast('Ошибка: '+error.message,'error');return;}
-    showToast('Урок записан');if(S.screen==='o_salaries'||S.screen==='a_salaries')renderSalaries();
+    dcInval('salaries_'+S.schoolId);showToast('Урок записан');if(S.screen==='o_salaries'||S.screen==='a_salaries')renderSalaries();
   }finally{S._logLessonSaving=false;}
 }
 
@@ -4736,7 +4766,7 @@ async function renderMaterials(){
     const url=m.url||m.data_url||'';
     const hasUrl=!!url;
     return `<div class="material-card${!hasUrl?' mat-no-link':''}" data-murl="${encodeURIComponent(url)}" data-mtype="${_escHtml(m.type||'link')}" data-mlang="${_escHtml(m.language||'')}" data-mlevel="${_escHtml(m.level||'')}" onclick="openMatCard(this)">
-      ${canManage?`<button class="mat-del-btn" onclick="event.stopPropagation();deleteMaterial('${m.id}')" title="Удалить">✕</button>`:''}
+      ${canManage?`<button class="mat-del-btn" onclick="event.stopPropagation();deleteMaterial('${_esc(m.id).replace(/'/g,"&#39;")}')" title="Удалить">✕</button>`:''}
       <div class="material-icon">${MICONS[m.type]||'📎'}</div>
       <div style="font-weight:600;font-size:.88rem;margin-bottom:4px">${_escHtml(m.title||m.name||'—')}</div>
       <div style="font-size:.75rem;color:var(--text3)">${_escHtml(m.language||'')} · ${_escHtml(m.level||'')}</div>
@@ -4759,6 +4789,7 @@ async function deleteMaterial(id){
 function openMatCard(el){
   const url=decodeURIComponent(el.dataset.murl||'');
   if(!url){showToast('У этого материала нет ссылки ⚠️');return;}
+  if(url&&!/^https?:\/\//i.test(url)){showToast('Некорректная ссылка','error');return;}
   const title=el.querySelector('[style*="font-weight:600"]')?.textContent||'Материал';
   const type=el.dataset.mtype||'link';
   const lang=el.dataset.mlang||'';
@@ -4855,6 +4886,7 @@ async function saveMaterial(){
   if(file&&file.size>50*1024*1024){if(btn){btn.disabled=false;btn.textContent=t('Добавить');}showToastCard(t('Файл слишком большой'),'Максимум 50MB','error','❌');return;}
 
   if(file){
+    try{
     const ext=file.name.split('.').pop();
     const path=`${S.schoolId}/${Date.now()}_${name.replace(/[^a-zA-Z0-9_-]/g,'_')}.${ext}`;
     const{data:upData,error:upErr}=await sb.storage.from('materials').upload(path,file,{upsert:true});
@@ -4865,6 +4897,11 @@ async function saveMaterial(){
     }
     const{data:urlData}=sb.storage.from('materials').getPublicUrl(path);
     url=urlData?.publicUrl||'';
+    }catch(upEx){
+      showToastCard(t('Ошибка загрузки'),''+upEx.message,'error','❌');
+      if(btn){btn.disabled=false;btn.textContent=t('Добавить');}
+      return;
+    }
   }
 
   try{
@@ -4980,7 +5017,7 @@ function renderClassCards(list,canCreate){
     const safeColor=/^#[0-9a-fA-F]{3,8}$/.test(cl.color)?cl.color:(COLORS[Math.abs(cl.name?.charCodeAt(0)||0)%COLORS.length]||'#7C3AED');
     const initial=((cl.name||'?').replace(/[^a-zA-Zа-яА-ЯёЁ0-9]/g,'')[0]||(cl.name||'?')[0]).toUpperCase();
     const typeLabel=t(cl.type==='group'?'Групповой':'Индивидуальный');
-    return`<div class="ev-class-card" style="background:${safeColor}" onclick="openClassDetail('${cl.id}')">
+    return`<div class="ev-class-card" style="background:${safeColor}" onclick="openClassDetail('${_esc(cl.id).replace(/'/g,"&#39;")}')">
       <div class="ev-class-count">👤</div>
       <div class="ev-class-initial">${initial}</div>
       <div class="ev-class-name">${_esc(cl.name)}</div>
@@ -5051,6 +5088,8 @@ async function cdpDeleteClass(){
   }
 }
 async function openClassDetail(classId){
+  if(openClassDetail._busy)return;openClassDetail._busy=true;
+  try{
   S.currentClassId=classId;
   const{data:cl}=await sb.from('classes').select('*').eq('id',classId).eq('school_id',S.schoolId).single();
   if(!cl){showToast('Класс не найден','error');return;}
@@ -5070,6 +5109,7 @@ async function openClassDetail(classId){
   document.querySelectorAll('.cdp-tab').forEach((t,i)=>t.classList.toggle('active',i===0));
   await loadClassTab('students');
   C('classDetailPage').classList.add('open');
+  }finally{openClassDetail._busy=false;}
 }
 function closeClassDetail(){
   C('classDetailPage').classList.remove('open');
@@ -5078,6 +5118,9 @@ function cdpEditClass(){
   if(S._currentClassData)editClass(S._currentClassData.id);
 }
 async function cdpStartLesson(){
+  if(!['teacher','admin','owner'].includes(S.role)){showToast('Доступ запрещён','error');return;}
+  if(cdpStartLesson._busy)return;cdpStartLesson._busy=true;
+  try{
   // show modal to pick lesson then open CE in classroom mode
   const{data:lessons}=await sb.from('lessons').select('*').eq('school_id',S.schoolId).order('created_at',{ascending:false});
   if(!lessons||lessons.length===0){showToast('Нет уроков. Сначала создай урок.');return;}
@@ -5094,6 +5137,7 @@ async function cdpStartLesson(){
   </div>`).join('');
   C('lessonPickerList').innerHTML=opts;
   openM('mLessonPicker');
+  }finally{cdpStartLesson._busy=false;}
 }
 function cdpPickLesson(id){
   closeM('mLessonPicker');
@@ -5110,7 +5154,9 @@ async function switchCDPTab(tab,el){
   await loadClassTab(tab);
 }
 async function loadClassTab(tab){
+  if(loadClassTab._busy)return;loadClassTab._busy=true;
   const classId=S.currentClassId;
+  try{
   if(tab==='students'){
     const[{data:cs},{data:allSts}]=await Promise.all([
       sb.from('class_students').select('*,student:student_id(id,first_name,last_name,level,language)').eq('class_id',classId).eq('school_id',S.schoolId),
@@ -5155,8 +5201,8 @@ async function loadClassTab(tab){
           <div style="display:flex;gap:6px;flex-wrap:wrap">
             ${l.published?'<span class="badge badge-green">✓ Опубликован</span>':'<span class="badge badge-gray">Черновик</span>'}
             <button class="btn btn-sm btn-outline" style="font-size:.73rem;padding:4px 8px" onclick="previewLessonById('${_esc(l.id)}')">👁 Просмотр</button>
-            <button class="btn btn-sm btn-outline" style="font-size:.73rem;padding:4px 8px" onclick="editLessonById('${l.id}')">✎ Редактор</button>
-            <button class="btn btn-sm btn-purple" style="font-size:.73rem;padding:4px 8px" onclick="openAssignLesson('${l.id}')">👤 Назначить</button>
+            <button class="btn btn-sm btn-outline" style="font-size:.73rem;padding:4px 8px" onclick="editLessonById('${_esc(l.id).replace(/'/g,"&#39;")}')">✎ Редактор</button>
+            <button class="btn btn-sm btn-purple" style="font-size:.73rem;padding:4px 8px" onclick="openAssignLesson('${_esc(l.id).replace(/'/g,"&#39;")}')">👤 Назначить</button>
           </div>
         </div>
       </div>`;}).join('');
@@ -5166,8 +5212,8 @@ async function loadClassTab(tab){
     const{data:evs}=await sb.from('schedule_events').select('*').eq('class_id',classId).eq('school_id',S.schoolId).order('event_date').order('event_time');
     const rows=(evs||[]).map(ev=>`<tr>
       <td>${fmtDate(ev.event_date)}</td><td>${ev.event_time?.slice(0,5)||'—'}</td>
-      <td>${ev.duration_minutes} ${t('мин')}</td>
-      <td><span class="badge ${ev.status==='completed'?'badge-green':ev.status==='cancelled'?'badge-gray':'badge-purple'}">${{scheduled:t('Запланировано'),completed:t('Проведено'),cancelled:t('Отменено')}[ev.status]||ev.status}</span></td>
+      <td>${Number.isFinite(Number(ev.duration_minutes))?Number(ev.duration_minutes):0} ${t('мин')}</td>
+      <td><span class="badge ${ev.status==='completed'?'badge-green':ev.status==='cancelled'?'badge-gray':'badge-purple'}">${{scheduled:t('Запланировано'),completed:t('Проведено'),cancelled:t('Отменено')}[ev.status]||_esc(ev.status)}</span></td>
       <td style="font-size:.78rem;color:var(--text3)">${_escHtml(ev.notes||'')}</td>
       <td><button class="btn btn-sm btn-red" style="font-size:.7rem;padding:3px 8px" onclick="deleteEvent('${_esc(ev.id)}')">✕</button></td>
     </tr>`).join('');
@@ -5192,6 +5238,7 @@ async function loadClassTab(tab){
     }).join('');
     C('classDetailContent').innerHTML=`<div class="card" style="padding:0;overflow:hidden"><table><thead><tr><th>${t('Ученик')}</th><th>${t('Уроков пройдено')}</th><th>${t('Прогресс')}</th></tr></thead><tbody>${rows||`<tr><td colspan="3" style="text-align:center;color:var(--text3)">${t('Нет учеников')}</td></tr>`}</tbody></table></div>`;
   }
+  }finally{loadClassTab._busy=false;}
 }
 async function addToClass(){
   if(S._addingToClass)return;S._addingToClass=true;
@@ -5228,6 +5275,8 @@ async function removeFromClass(csId,btn){
 // ─── SCHEDULE ─────────────────────────────────────────────────────────────────
 let scheduleWeekOffset=0;
 async function renderSchedule(){
+  if(renderSchedule._loading)return;renderSchedule._loading=true;
+  try{
   showSkel();
   const[{data:evs},{data:classes}]=await Promise.all([
     dc('schedule_'+S.schoolId,()=>sb.from('schedule_events').select('*,class:class_id(name,color)').eq('school_id',S.schoolId)),
@@ -5280,6 +5329,7 @@ async function renderSchedule(){
         ${headRow}${bodyRows}
       </div>
     </div>`);
+  }finally{renderSchedule._loading=false;}
 }
 function openAddEventOnDate(date,time){
   S.editEventId=null;
@@ -5503,8 +5553,8 @@ function ceExercise(){
 function ceAddPanelHTML(){
   return`<div class="ce-add-panel">
     <div class="ce-add-head">+ Добавить упражнение</div>
-    <div class="ce-type-grid">${Object.entries(BLOCK_META).map(([t,m])=>`
-      <div class="ce-type-card" onclick="ceAddEx('${t}')">
+    <div class="ce-type-grid">${Object.entries(BLOCK_META).map(([blockType,m])=>`
+      <div class="ce-type-card" onclick="ceAddEx('${blockType}')">
         <span class="ce-type-icon">${m.icon}</span>${m.name}
       </div>`).join('')}
     </div>
@@ -5550,8 +5600,8 @@ function ceEditorHTML(b){
 
   if(b.type==='vocab')return`
     <div>${(b.words||[]).map((w,wi)=>`<div style="display:flex;gap:6px;margin-bottom:6px">
-      <input value="${(w.word||'').replace(/"/g,'&quot;')}" oninput="${P}.words[${wi}].word=this.value" placeholder="Слово" style="flex:1;padding:8px 10px;border:2px solid var(--gray-border);border-radius:6px;font-family:var(--font)">
-      <input value="${(w.trans||'').replace(/"/g,'&quot;')}" oninput="${P}.words[${wi}].trans=this.value" placeholder="Перевод" style="flex:1;padding:8px 10px;border:2px solid var(--gray-border);border-radius:6px;font-family:var(--font)">
+      <input value="${(w.word||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#39;')}" oninput="${P}.words[${wi}].word=this.value" placeholder="Слово" style="flex:1;padding:8px 10px;border:2px solid var(--gray-border);border-radius:6px;font-family:var(--font)">
+      <input value="${(w.trans||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#39;')}" oninput="${P}.words[${wi}].trans=this.value" placeholder="Перевод" style="flex:1;padding:8px 10px;border:2px solid var(--gray-border);border-radius:6px;font-family:var(--font)">
       <button onclick="${P}.words.splice(${wi},1);ceExercise()" style="border:none;background:none;color:var(--red);cursor:pointer;font-size:1.1rem">✕</button>
     </div>`).join('')}
     <button class="btn btn-outline" style="font-size:.8rem;margin-top:6px" onclick="${P}.words.push({word:'',trans:''});ceExercise()">+ Слово</button></div>`;
@@ -5570,9 +5620,9 @@ function ceEditorHTML(b){
 
   if(b.type==='matching')return`
     <div>${(b.pairs||[]).map((p,pi)=>`<div style="display:grid;grid-template-columns:1fr auto 1fr auto;gap:6px;align-items:center;margin-bottom:6px">
-      <input value="${(p.left||'').replace(/"/g,'&quot;')}" oninput="${P}.pairs[${pi}].left=this.value" placeholder="Слово" style="padding:8px 10px;border:2px solid var(--gray-border);border-radius:6px;font-family:var(--font)">
+      <input value="${(p.left||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#39;')}" oninput="${P}.pairs[${pi}].left=this.value" placeholder="Слово" style="padding:8px 10px;border:2px solid var(--gray-border);border-radius:6px;font-family:var(--font)">
       <span style="color:var(--text3);font-weight:700">→</span>
-      <input value="${(p.right||'').replace(/"/g,'&quot;')}" oninput="${P}.pairs[${pi}].right=this.value" placeholder="Перевод" style="padding:8px 10px;border:2px solid var(--gray-border);border-radius:6px;font-family:var(--font)">
+      <input value="${(p.right||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#39;')}" oninput="${P}.pairs[${pi}].right=this.value" placeholder="Перевод" style="padding:8px 10px;border:2px solid var(--gray-border);border-radius:6px;font-family:var(--font)">
       <button onclick="${P}.pairs.splice(${pi},1);ceExercise()" style="border:none;background:none;color:var(--red);cursor:pointer;font-size:1.1rem">✕</button>
     </div>`).join('')}
     <button class="btn btn-outline" style="font-size:.8rem;margin-top:6px" onclick="${P}.pairs.push({left:'',right:''});ceExercise()">+ Пара</button></div>`;
@@ -5615,6 +5665,7 @@ function ceEditorHTML(b){
 }
 
 async function saveFromCE(publish){
+  if(!S.profile?.id){showToast('Ошибка: профиль не загружен','error');return;}
   if(CE._saving)return;
   CE._saving=true;
   try{
@@ -5660,9 +5711,9 @@ async function renderTeacherLessons(){
         </div>
         <div style="display:flex;gap:6px;flex-wrap:wrap">
           ${l.published?'<span class="badge badge-green">✓ Опубликован</span>':'<span class="badge badge-gray">Черновик</span>'}
-          <button class="btn btn-sm btn-outline" style="font-size:.73rem;padding:4px 8px" onclick="previewLessonById('${_esc(l.id)}')">👁 Просмотр</button>
-          <button class="btn btn-sm btn-outline" style="font-size:.73rem;padding:4px 8px" onclick="editLessonById('${l.id}')">✎ Редактор</button>
-          <button class="btn btn-sm btn-purple" style="font-size:.73rem;padding:4px 8px" onclick="openAssignLesson('${l.id}')">👤 Назначить</button>
+          ${(()=>{const _lId=_esc(l.id).replace(/'/g,"&#39;");return`<button class="btn btn-sm btn-outline" style="font-size:.73rem;padding:4px 8px" onclick="previewLessonById('${_lId}')">👁 Просмотр</button>
+          <button class="btn btn-sm btn-outline" style="font-size:.73rem;padding:4px 8px" onclick="editLessonById('${_lId}')">✎ Редактор</button>
+          <button class="btn btn-sm btn-purple" style="font-size:.73rem;padding:4px 8px" onclick="openAssignLesson('${_lId}')">👤 Назначить</button>`;})()}
         </div>
       </div>
     </div>`;}).join('');
@@ -5682,6 +5733,8 @@ function openLessonEditor(id,title,lang,level,content){
 function editLesson(id,title,lang,level,content){openLessonEditor(id,title,lang,level,content);}
 
 async function openAssignLesson(lessonId){
+  if(openAssignLesson._busy)return;openAssignLesson._busy=true;
+  try{
   S.assignLessonId=lessonId;
   const{data:sts,error}=await sb.from('students').select('id,first_name,last_name').eq('school_id',S.schoolId).order('last_name');
   if(error){showToast('Ошибка загрузки учеников: '+error.message,'error');return;}
@@ -5689,6 +5742,7 @@ async function openAssignLesson(lessonId){
   const sel=C('assign_student');
   sel.innerHTML=sts.map(s=>`<option value="${_esc(s.id)}">${_esc(s.first_name)} ${_esc(s.last_name)}</option>`).join('');
   openM('mAssignLesson');
+  }finally{openAssignLesson._busy=false;}
 }
 async function assignLesson(){
   if(assignLesson._busy)return;assignLesson._busy=true;
@@ -5697,6 +5751,9 @@ async function assignLesson(){
   const btn=document.querySelector('#mAssignLesson .btn-purple');
   if(btn){btn.disabled=true;btn.textContent='Назначаем...';}
   try{
+    // Ownership check
+    const{data:_lcheck}=await sb.from('lessons').select('id').eq('id',S.assignLessonId).eq('school_id',S.schoolId).maybeSingle();
+    if(!_lcheck){showToast('Урок не найден','error');return;}
     // Duplicate guard
     const{data:existing}=await sb.from('lesson_assignments').select('id').eq('lesson_id',S.assignLessonId).eq('student_id',sid).eq('school_id',S.schoolId).maybeSingle();
     if(existing){showToast('Этот урок уже назначен этому ученику','error');return;}
@@ -5816,6 +5873,7 @@ async function shareToLibrary(){
 }
 
 async function copyFromLibrary(lessonId,btn){
+  if(!['teacher','admin','owner'].includes(S.role)){showToast('Доступ запрещён','error');return;}
   if(copyFromLibrary._busy===lessonId)return;copyFromLibrary._busy=lessonId;
   if(btn){btn.disabled=true;btn.textContent='Копирование...';}
   try{
@@ -5842,6 +5900,9 @@ async function copyFromLibrary(lessonId,btn){
 async function toggleLibraryLike(lessonId,btn){
   if(btn&&btn.disabled)return;
   if(btn)btn.disabled=true;
+  if(!toggleLibraryLike._busy)toggleLibraryLike._busy={};
+  if(toggleLibraryLike._busy[lessonId])return;
+  toggleLibraryLike._busy[lessonId]=true;
   try{
   const liked=_libLikes[lessonId]||false;
   if(liked){
@@ -5860,6 +5921,7 @@ async function toggleLibraryLike(lessonId,btn){
   btn.innerHTML=(!liked?'❤️':'🤍')+' '+cnt;
   }finally{
     if(btn)btn.disabled=false;
+    delete toggleLibraryLike._busy[lessonId];
   }
 }
 
@@ -6142,7 +6204,7 @@ function lvRenderAll(){
           const m=BLOCK_META[ex.type]||{icon:'?',name:_escHtml(ex.type||'unknown'),color:'#eee'};
           return`<div style="margin-bottom:20px">
             <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
-              <span style="padding:2px 10px;border-radius:20px;font-size:.72rem;font-weight:700;background:${m.color}">${_escHtml(m.icon||'?')} ${_escHtml(m.name||'')}</span>
+              <span style="padding:2px 10px;border-radius:20px;font-size:.72rem;font-weight:700;background:${_escHtml(m.color||'#eee')}">${_escHtml(m.icon||'?')} ${_escHtml(m.name||'')}</span>
               <span style="font-size:.75rem;color:var(--text3)">${ei+1} из ${exs.length}</span>
             </div>
             ${renderBlockView(ex,si*1000+ei)}
@@ -6172,7 +6234,7 @@ function renderBlockView(b,i){
   if(b.type==='fill_blank'){window[`_fbAns_${i}`]=b.answer||'';return`<div class="lesson-view-block">
     <div style="font-weight:700;margin-bottom:10px">✏️ Заполни пропуск</div>
     <div style="font-size:1rem;line-height:2.2">
-      ${(b.sentence||'').split('{{blank}}').map(p=>_escHtml(p)).join(`<input class="fill-blank-input" id="fb_${i}" placeholder="...">`)}
+      ${(()=>{const parts=(b.sentence||'').split('{{blank}}').map(p=>_escHtml(p));return parts.map((p,bi)=>bi<parts.length-1?p+`<input class="fill-blank-input" id="fb_${i}_${bi}" placeholder="${t('Ответ...')}" style="min-width:80px">`:`${p}`).join('');})()}
       <button class="btn btn-purple btn-sm" onclick="checkFillBlankByRef(${i})">Проверить</button>
     </div>
     <div id="fb_res_${i}" style="margin-top:6px;font-size:.85rem"></div>
@@ -6245,10 +6307,15 @@ function renderBlockView(b,i){
 
 // exercise check functions
 function checkFillBlank(i,answer){
-  const inp=C(`fb_${i}`),res=C(`fb_res_${i}`);
-  const val=(inp.value||'').trim().toLowerCase(),ans=answer.trim().toLowerCase();
-  if(val===ans){inp.classList.add('correct');inp.classList.remove('wrong');res.innerHTML=`<span style="color:var(--green)">✅ ${t('Правильно!')}</span>`;}
-  else{inp.classList.add('wrong');inp.classList.remove('correct');res.innerHTML=`<span style="color:var(--red)">❌ ${t('Неверно.')} ${t('Правильный ответ')}: <b>${_escHtml(answer)}</b></span>`;}
+  const inputs=document.querySelectorAll(`[id^="fb_${i}_"]`);
+  const res=C(`fb_res_${i}`);
+  if(!inputs.length)return;
+  const val=Array.from(inputs).map(inp=>inp.value.trim()).join(' ').toLowerCase();
+  const ans=answer.trim().toLowerCase();
+  const correct=val===ans;
+  inputs.forEach(inp=>{inp.classList.toggle('correct',correct);inp.classList.toggle('wrong',!correct);});
+  if(correct){res.innerHTML=`<span style="color:var(--green)">✅ ${t('Правильно!')}</span>`;}
+  else{res.innerHTML=`<span style="color:var(--red)">❌ ${t('Неверно.')} ${t('Правильный ответ')}: <b>${_escHtml(answer)}</b></span>`;}
 }
 function checkFillBlankByRef(i){
   const answer=window[`_fbAns_${i}`]||'';
@@ -6326,12 +6393,7 @@ async function completeLessonView(){
         .eq('school_id',S.schoolId)
         .eq('student_id',S.studentRowId);
       if(_lvErr){showToast('Ошибка завершения урока: '+_lvErr.message,'error');return;}
-      // Ensure studentRowId is set before cache invalidation
-      if(!S.studentRowId&&S.profile?.email){
-        const{data:_stu}=await sb.from('students').select('id').eq('email',S.profile.email).eq('school_id',S.schoolId).single();
-        if(_stu?.id)S.studentRowId=_stu.id;
-      }
-      if(S.studentRowId)dcInval('stu_assigns_'+S.studentRowId);
+      dcInval('stu_assigns_'+S.studentRowId);
       window._assignCache={};
       showToast('Урок завершён! 🎉');
       closeClassroomView();
@@ -6480,6 +6542,8 @@ async function renderMessenger(){
 
 async function loadConvs(){
   if(!S.profile?.id)return;
+  if(MS._loadingConvs)return;MS._loadingConvs=true;
+  try{
   // Get all conversations user is a member of
   const{data:members}=await sb.from('conversation_members').select('conversation_id,last_read_at').eq('user_id',S.profile.id).eq('school_id',S.schoolId);
   if(!members||!members.length){renderConvList([]);return;}
@@ -6498,6 +6562,7 @@ async function loadConvs(){
     return{...c,lastMsg:last,unread};
   }).sort((a,b)=>(b.lastMsg?.created_at||b.created_at)>(a.lastMsg?.created_at||a.created_at)?1:-1);
   renderConvList(MS.convs);
+  }finally{MS._loadingConvs=false;}
 }
 
 function convDisplayName(c){
@@ -6521,7 +6586,7 @@ function renderConvList(convs){
     const{bg,icon}=convAvatar(c);
     const lastName=c.lastMsg?_escHtml(c.lastMsg.body||'📎 Файл'):'';
     const lastTime=c.lastMsg?fmtMsgTime(c.lastMsg.created_at):'';
-    return`<div class="conv-item${MS.convId===c.id?' active':''}" onclick="openConv('${_esc(c.id)}')">
+    return`<div class="conv-item${MS.convId===c.id?' active':''}" onclick="openConv('${_esc(c.id).replace(/'/g,"&#39;")}')">
       <div class="ci-av" style="background:${bg}">${icon}</div>
       <div class="ci-info">
         <div class="ci-name">${_esc(convDisplayName(c))}</div>
@@ -6553,6 +6618,8 @@ function fmtMsgTime(iso){
 
 async function openConv(convId){
   if(!S.profile?.id)return;
+  if(MS._openingConv===convId)return;MS._openingConv=convId;
+  try{
   MS.convId=convId;
   // Mark as read
   await sb.from('conversation_members').update({last_read_at:new Date().toISOString()}).eq('conversation_id',convId).eq('user_id',S.profile.id).eq('school_id',S.schoolId);
@@ -6564,6 +6631,7 @@ async function openConv(convId){
   const{data:msgs}=await sb.from('messages').select('*').eq('conversation_id',convId).eq('school_id',S.schoolId).order('created_at',{ascending:true});
   MS.msgs=msgs||[];
   renderMsgMain(c);
+  }finally{MS._openingConv=null;}
 }
 
 function renderMsgMain(conv){
@@ -6596,7 +6664,7 @@ function renderMsgs(){
     const senderName=mine?'Вы':(prof?_esc(prof.first_name||'')+' '+_esc(prof.last_name||''):'');
     const d=new Date(m.created_at);
     const dateStr=d.toLocaleDateString('ru',{day:'numeric',month:'long'});
-    const dateSep=dateStr!==lastDate?`<div style="text-align:center;margin:8px 0;font-size:.72rem;color:var(--text3)">${dateStr}</div>`:'';
+    const dateSep=dateStr!==lastDate?`<div style="text-align:center;margin:8px 0;font-size:.72rem;color:var(--text3)">${_esc(dateStr)}</div>`:'';
     lastDate=dateStr;
     const timeStr=d.getHours()+':'+String(d.getMinutes()).padStart(2,'0');
     let content=m.body?`<span>${_escHtml(m.body).replace(/\n/g,'<br>')}</span>`:'';
@@ -6850,7 +6918,8 @@ function renderTaskCard(tk){
   const nextStatus={todo:'in_progress',in_progress:'done',done:'todo'};
   const nextLabel={todo:t('▶ Начать'),in_progress:t('✓ Завершить'),done:t('↩ Вернуть')};
   const safePrio=['high','medium','low'].includes(tk.priority)?tk.priority:'medium';
-  return`<div class="task-card p-${safePrio}" onclick="openTaskDetail('${_esc(tk.id)}')">
+  const _tkId=_esc(tk.id).replace(/'/g,"&#39;");
+  return`<div class="task-card p-${safePrio}" onclick="openTaskDetail('${_tkId}')">
     <div class="tc-title">${_esc(tk.title)}</div>
     ${tk.description?`<div style="font-size:.78rem;color:var(--text3);margin-top:3px;line-height:1.3">${_esc((tk.description||'').substring(0,80))}${tk.description.length>80?'...':''}</div>`:''}
     <div class="tc-tags">
@@ -6859,9 +6928,9 @@ function renderTaskCard(tk){
     ${due?`<div class="tc-due${overdue?' overdue':''}">📅 ${due.toLocaleDateString('ru',{day:'numeric',month:'short'})}${overdue?` ⚠️ ${t('Просрочено')}`:''}</div>`:''}
     ${assignee&&['owner','admin'].includes(S.role)?`<div class="tc-assignee">👤 ${assignee}</div>`:''}
     <div style="display:flex;gap:6px;margin-top:8px" onclick="event.stopPropagation()">
-      <button class="btn-sm" style="font-size:.72rem;padding:3px 8px;background:var(--gray-light);border:none;border-radius:6px;cursor:pointer" onclick="moveTask('${_esc(tk.id)}','${nextStatus[tk.status||'todo']}')">${nextLabel[tk.status||'todo']}</button>
-      <button class="btn-sm" style="font-size:.72rem;padding:3px 8px;background:var(--gray-light);border:none;border-radius:6px;cursor:pointer" onclick="openEditTask('${_esc(tk.id)}')">✎</button>
-      <button class="btn-sm btn-danger" style="font-size:.72rem;padding:3px 8px" onclick="deleteTask('${_esc(tk.id)}')">🗑</button>
+      <button class="btn-sm" style="font-size:.72rem;padding:3px 8px;background:var(--gray-light);border:none;border-radius:6px;cursor:pointer" onclick="moveTask('${_tkId}','${nextStatus[tk.status||'todo']}')">${nextLabel[tk.status||'todo']}</button>
+      <button class="btn-sm" style="font-size:.72rem;padding:3px 8px;background:var(--gray-light);border:none;border-radius:6px;cursor:pointer" onclick="openEditTask('${_tkId}')">✎</button>
+      <button class="btn-sm btn-danger" style="font-size:.72rem;padding:3px 8px" onclick="deleteTask('${_tkId}')">🗑</button>
     </div>
   </div>`;
 }
@@ -6872,7 +6941,7 @@ async function moveTask(id,newStatus){
   if(TK._movingTask===id)return;TK._movingTask=id;
   try{
     const{error:mvErr}=await sb.from('tasks').update({status:newStatus,updated_at:new Date().toISOString()}).eq('id',id).eq('school_id',S.schoolId);
-    if(mvErr)console.error('moveTask error:',mvErr);
+    if(mvErr){showToast(t('Ошибка')+(': '+mvErr.message||''),'error');return;}
     const tk=TK.tasks.find(t=>t.id===id);
     if(tk)tk.status=newStatus;
     refreshKanban();
@@ -6918,7 +6987,7 @@ function populateTaskModal(tk){
       assignRow.style.display='';
       const sel=document.getElementById('task_assignee');
       if(sel){
-        sel.innerHTML=(TK.profiles||[]).map(p=>`<option value="${p.id}"${tk.user_id===p.id?' selected':''}>${_esc(p.first_name)} ${_esc(p.last_name)}</option>`).join('');
+        sel.innerHTML=(TK.profiles||[]).map(p=>`<option value="${_esc(p.id)}"${tk.user_id===p.id?' selected':''}>${_esc(p.first_name)} ${_esc(p.last_name)}</option>`).join('');
         if(!tk.user_id)sel.value=S.profile?.id||'';
       }
     } else {
@@ -6974,6 +7043,8 @@ function initTaskReminders(){
 
 async function checkTaskReminders(){
   if(!S.profile?.id)return;
+  if(checkTaskReminders._busy)return;checkTaskReminders._busy=true;
+  try{
   // Fetch due reminders from DB
   const now=new Date();
   const from=new Date(now.getTime()-70000).toISOString();
@@ -6988,6 +7059,7 @@ async function checkTaskReminders(){
     const local=TK.tasks.find(t=>t.id===tk.id);
     if(local)local.reminded=true;
   }
+  }finally{checkTaskReminders._busy=false;}
 }
 
 function showTaskNotification(tk){
@@ -7019,6 +7091,8 @@ const PLACEMENT_Q=[
 
 // ─── FEATURE 1: STUDENT CARD ─────────────────────────────────────────────────
 async function openStudentCard(id){
+  if(openStudentCard._busy)return;openStudentCard._busy=true;
+  try{
   const[{data:s},{data:teachers}]=await Promise.all([
     sb.from('students').select('*').eq('id',id).eq('school_id',S.schoolId).single(),
     sb.from('profiles').select('id,first_name,last_name').eq('school_id',S.schoolId).in('role',['teacher','admin','owner']).order('last_name')
@@ -7044,6 +7118,7 @@ async function openStudentCard(id){
     }
   }
   openM('mStudentCard');
+  }finally{openStudentCard._busy=false;}
 }
 async function saveStudentCard(){
   if(S._savingStudentCard)return;S._savingStudentCard=true;
@@ -7096,7 +7171,7 @@ async function saveStudentCard(){
 
 // ─── FEATURE 2: STUDENT PROGRESS ─────────────────────────────────────────────
 async function openStudentProgress(studentId,name){
-  if(openStudentProgress._busy===studentId)return;openStudentProgress._busy=studentId;
+  if(openStudentProgress._busy)return;openStudentProgress._busy=true;
   try{
   const isEn=S.lang==='en';
   C('sp_name').textContent=(isEn?'📊 Progress: ':'📊 Прогресс: ')+(name||'');
@@ -7132,7 +7207,7 @@ async function openStudentProgress(studentId,name){
     </div>
     <h4 style="margin-bottom:10px;font-size:.9rem;color:var(--text2)">${isEn?'Recent assignments':'Последние задания'}</h4>
     ${recentHw}`;
-  }finally{openStudentProgress._busy=null;}
+  }finally{openStudentProgress._busy=false;}
 }
 
 // ─── FEATURE 3: STUDENT VOCABULARY TRAINER ───────────────────────────────────
@@ -7273,6 +7348,7 @@ async function openPlacementTestPlayer(hwId){
   const{data:hw}=await sb.from('homeworks').select('*').eq('id',hwId).eq('school_id',S.schoolId).single();
   if(!hw){showToast(isEn?'Test not found':'Тест не найден');return;}
   if(S.role==='student'&&(!S.studentRowId||hw.student_id!==S.studentRowId)){showToast('Доступ запрещён','error');return;}
+  if(S.role==='teacher'&&hw.teacher_id!==S.profile?.id){showToast('Доступ запрещён','error');return;}
   let questions=[];try{questions=JSON.parse(hw.description)||[];}catch(e){}
   C('ptpQuestions').innerHTML=questions.map((q,i)=>`
     <div style="margin-bottom:20px;padding:14px;background:var(--gray-light);border-radius:10px">
@@ -7323,7 +7399,8 @@ function exportICal(){
   const isEn=S.lang==='en';
   let _icalQ=sb.from('schedule_events').select('*').eq('school_id',S.schoolId);
   if(S.role==='teacher')_icalQ=_icalQ.eq('teacher_id',S.profile.id);
-  else if(S.role==='student'&&S.studentRowId)_icalQ=_icalQ.eq('student_id',S.studentRowId);
+  else if(S.role==='student'){if(!S.studentRowId){showToast('Ошибка: ID ученика не найден','error');return;}
+  _icalQ=_icalQ.eq('student_id',S.studentRowId);}
   _icalQ.then(({data:evs})=>{
     const calName=_icalEsc('TeachyaED');
     const lines=['BEGIN:VCALENDAR','VERSION:2.0','CALSCALE:GREGORIAN',
@@ -7353,7 +7430,7 @@ function exportICal(){
     const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='teachyaed-schedule.ics';
     document.body.appendChild(a);a.click();document.body.removeChild(a);
     showToast(isEn?'📥 Schedule exported!':'📥 Расписание экспортировано!');
-  });
+  }).catch(e=>showToast('Ошибка экспорта: '+(e.message||e),'error'));
 }
 
 </script>
