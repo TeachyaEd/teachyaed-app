@@ -5655,7 +5655,7 @@ function openLessonView(assignId,title,content){
 function lvRender(){
   if(LV.viewAll){lvRenderAll();return;}
   const sec=LV.sections[LV.curSec];
-  const exs=sec?sec.exercises:[];
+  const exs=Array.isArray(sec?.exercises)?sec.exercises:[];
   const ex=exs[LV.curEx];
   const total=exs.length;
   const isLastEx=LV.curEx>=total-1;
@@ -5787,8 +5787,8 @@ function cvChatClose(){
 
 function lvNav(dir){
   const sec=LV.sections[LV.curSec];
-  const exs=sec?sec.exercises:[];
-  const isLastEx=LV.curEx>=exs.length-1;
+  const exs=Array.isArray(sec?.exercises)?sec.exercises:[];
+  const isLastEx=exs.length===0||LV.curEx>=exs.length-1;
   const isLastSec=LV.curSec>=LV.sections.length-1;
   if(dir>0){
     if(isLastEx&&isLastSec){completeLessonView();return;}
@@ -5796,7 +5796,7 @@ function lvNav(dir){
     else{LV.curEx++;}
   } else {
     if(LV.curEx>0)LV.curEx--;
-    else if(LV.curSec>0){LV.curSec--;LV.curEx=LV.sections[LV.curSec].exercises.length-1;}
+    else if(LV.curSec>0){LV.curSec--;const _prevExs=Array.isArray(LV.sections[LV.curSec]?.exercises)?LV.sections[LV.curSec].exercises:[];LV.curEx=Math.max(0,_prevExs.length-1);}
   }
   window._matchState={};lvRender();
 }
