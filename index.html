@@ -4104,10 +4104,12 @@ async function saveHWEditor(){
   if(!HWE.exercises.length){showToast('Добавь хотя бы одно упражнение');return;}
   const payload={school_id:S.schoolId,teacher_id:S.profile.id,student_id:sid,title,description:JSON.stringify(HWE.exercises),deadline:dl||null};
   if(HWE.hwId){
-    await sb.from('homeworks').update(payload).eq('id',HWE.hwId);
+    const{error}=await sb.from('homeworks').update(payload).eq('id',HWE.hwId);
+    if(error){showToast('Ошибка сохранения: '+error.message,'error');return;}
     showToast('✅ ДЗ обновлено!');
   } else {
-    await sb.from('homeworks').insert({...payload,status:'pending'});
+    const{error}=await sb.from('homeworks').insert({...payload,status:'pending'});
+    if(error){showToast('Ошибка создания ДЗ: '+error.message,'error');return;}
     showToast('✅ ДЗ отправлено!');
   }
   closeM('mHWEditor');
@@ -4217,7 +4219,8 @@ async function submitHWAnswers(){
 async function renderStudentLessons(){
   showSkel();
   const{data:stu}=await dc('stu_me_'+S.profile.id,()=>sb.from('students').select('id').eq('email',S.profile.email).single());
-  const{data:assigns}=await dc('stu_assigns_'+stu?.id,()=>sb.from('lesson_assignments').select('*,lesson:lesson_id(id,title,language,level,content)').eq('student_id',stu?.id||''));
+  if(!stu?.id){C('mainContent').innerHTML='<div class="empty-state"><div class="ei">📭</div><p>Профиль ученика не найден. Обратитесь к учителю.</p></div>';return;}
+  const{data:assigns}=await dc('stu_assigns_'+stu.id,()=>sb.from('lesson_assignments').select('*,lesson:lesson_id(id,title,language,level,content)').eq('student_id',stu.id));
   // Store in cache — never embed content in onclick attributes
   window._assignCache=window._assignCache||{};
   (assigns||[]).forEach(a=>{window._assignCache[a.id]=a;});
@@ -4337,7 +4340,8 @@ function _hwrRenderEx(ex,i,ans){
 
 async function saveHWReview(){
   const comment=C('hwr_comment').value.trim();
-  await sb.from('homeworks').update({status:'reviewed',teacher_comment:comment}).eq('id',HWR.hwId);
+  const{error}=await sb.from('homeworks').update({status:'reviewed',teacher_comment:comment}).eq('id',HWR.hwId);
+  if(error){showToast('Ошибка сохранения проверки: '+error.message,'error');return;}
   closeM('mHWReview');showToast('✅ ДЗ проверено!');
   if(S.screen==='t_homework')renderTeacherHw();
 }
@@ -4346,7 +4350,8 @@ async function saveHWReview(){
 async function renderStudentHw(){
   showSkel();
   const{data:stu}=await sb.from('students').select('id').eq('email',S.profile.email).single();
-  const{data:hws}=await sb.from('homeworks').select('*,teacher:teacher_id(first_name,last_name)').eq('student_id',stu?.id||'').order('created_at',{ascending:false});
+  if(!stu?.id){C('mainContent').innerHTML='<div class="empty-state"><div class="ei">📭</div><p>Профиль ученика не найден.</p></div>';return;}
+  const{data:hws}=await sb.from('homeworks').select('*,teacher:teacher_id(first_name,last_name)').eq('student_id',stu.id).order('created_at',{ascending:false});
   const cards=(hws||[]).map(hw=>{
     let exCount=0;try{exCount=(JSON.parse(hw.description)||[]).length;}catch(e){}
     const comment=hw.teacher_comment||'';
@@ -5013,7 +5018,8 @@ async function loadClassTab(tab){
 }
 async function addToClass(){
   const sid=C('addStuSel').value;if(!sid)return;
-  await sb.from('class_students').insert({school_id:S.schoolId,class_id:S.currentClassId,student_id:sid});
+  const{error}=await sb.from('class_students').insert({school_id:S.schoolId,class_id:S.currentClassId,student_id:sid});
+  if(error){showToast('Ошибка: '+error.message,'error');return;}
   showToast('Ученик добавлен в класс!');await loadClassTab('students');
 }
 async function removeFromClass(csId){
@@ -5471,6 +5477,8 @@ async function assignLesson(){
     completed:false
   });
   if(error){showToast('Ошибка назначения: '+error.message,'error');console.error('assignLesson error',error);return;}
+  // Invalidate student's assignment cache so they see the new lesson immediately
+  dcInval('stu_assigns_'+sid);
   closeM('mAssignLesson');showToast('✅ Урок назначен ученику!');
 }
 
@@ -5731,6 +5739,7 @@ async function cvChatInit(roomId){
     .order('created_at',{ascending:true})
     .limit(60);
   msgs.innerHTML='';
+  if(error){msgs.innerHTML='<div class="cv-chat-empty" style="color:var(--text3)">Чат временно недоступен</div>';return;}
   if(data&&data.length){data.forEach(m=>cvChatAddMsg(m));}
   else{msgs.innerHTML='<div class="cv-chat-empty">Пока нет сообщений. Напишите первым! 👋</div>';}
   cvChatScrollBottom();
@@ -5862,7 +5871,7 @@ function lvRenderAll(){
   </div>`;
   C('cv_exerciseContent').innerHTML=html;
   lvRenderSections();
-  if(S.lang==='en')applyEN(C('classroomViewer')||C('cv_exerciseContent'));else if(S.lang==='ge')applyGE(C('classroomViewer')||C('cv_exerciseContent'));
+  if(S.lang==='en')applyEN(C('classroomView'));else if(S.lang==='ge')applyGE(C('classroomView'));
 }
 
 function renderBlockView(b,i){
@@ -6017,7 +6026,11 @@ function checkWordOrder(i){
 async function completeLessonView(){
   if(S.currentAssignId){
     await sb.from('lesson_assignments').update({completed:true}).eq('id',S.currentAssignId);
-    showToast('Урок завершён! 🎉');renderStudentLessons();
+    // Invalidate student assignment cache so re-render shows updated state
+    dcInval('stu_assigns_'+S.profile?.id);
+    window._assignCache={};
+    showToast('Урок завершён! 🎉');
+    if(S.role==='student')renderStudentLessons();
   } else {showToast('Просмотр завершён ✓');}
   closeClassroomView();
 }
@@ -6726,13 +6739,9 @@ async function openStudentProgress(studentId,name){
     sb.from('homeworks').select('id,status,title,deadline').eq('student_id',studentId),
     sb.from('class_students').select('class_id').eq('student_id',studentId)
   ]);
-  // Count completed schedule events only for this student's classes
-  let lessons_count=0;
-  if(cs&&cs.length>0){
-    const classIds=cs.map(c=>c.class_id);
-    const{data:evs}=await sb.from('schedule_events').select('id').eq('status','completed').in('class_id',classIds);
-    lessons_count=(evs||[]).length;
-  }
+  // Count completed lesson_assignments for this student
+  const{data:completedLessons}=await sb.from('lesson_assignments').select('id').eq('student_id',studentId).eq('completed',true);
+  const lessons_count=(completedLessons||[]).length;
   const total_hw=(hws||[]).length;
   const submitted_hw=(hws||[]).filter(h=>h.status==='submitted'||h.status==='reviewed').length;
   const reviewed_hw=(hws||[]).filter(h=>h.status==='reviewed').length;
@@ -6768,8 +6777,8 @@ async function renderStudentVocab(){
     let cont;try{cont=typeof lesson.content==='string'?JSON.parse(lesson.content):lesson.content;}catch(e){return;}
     if(!cont||!cont.sections)return;
     cont.sections.forEach(sec=>{
-      if(!sec.blocks)return;
-      sec.blocks.forEach(blk=>{
+      if(!sec.exercises)return;
+      sec.exercises.forEach(blk=>{
         if(blk.type==='vocab'&&Array.isArray(blk.words)){
           blk.words.forEach(w=>{
             if(w.word&&w.trans&&!_vocabWords.find(x=>x.word===w.word&&x.trans===w.trans)){
