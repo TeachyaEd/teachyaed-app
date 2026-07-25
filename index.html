@@ -3890,7 +3890,7 @@ function declineCall(){
   if(S.pendingRoom){const ch=sb.channel(S.pendingRoom);ch.subscribe(st=>{if(st==='SUBSCRIBED'){ch.send({type:'broadcast',event:'decline',payload:{}});setTimeout(()=>sb.removeChannel(ch),1000);}});}
   S.pendingRoom=null;
 }
-const DAILY_KEY='db5b22eee2805b3a3f27a5e86870049eba81b56e0fcbfdc3cff9ded4a54c8efc';
+// DAILY_KEY removed from frontend — proxied via Supabase Edge Function 'daily-room'
 async function initCall(roomId,partnerName,isCallee){
   if(!roomId){showToast('Ошибка: ID комнаты не задан');return;}
   S.inCall=true;
@@ -3899,23 +3899,10 @@ async function initCall(roomId,partnerName,isCallee){
   C('dialBtn').classList.add('incall');C('dialBtn').textContent='📵';
   C('callStatus').textContent=t('⏳ Создаю комнату...');C('callStatus').classList.remove('hidden');
   try{
-    // Шаг 1: создать комнату (или получить существующую)
-    // Daily.co возвращает 400 «already exists» — НЕ 409
-    let resp=await fetch('https://api.daily.co/v1/rooms',{
-      method:'POST',
-      headers:{'Authorization':'Bearer '+DAILY_KEY,'Content-Type':'application/json'},
-      body:JSON.stringify({name:roomId,properties:{enable_prejoin_ui:false,start_video_off:false,start_audio_off:false,exp:Math.floor(Date.now()/1000)+7200}})
-    });
-    let data=await resp.json();
-    // Если URL нет — комната уже существует, получаем GET
-    if(!data.url){
-      const gr=await fetch('https://api.daily.co/v1/rooms/'+encodeURIComponent(roomId),{
-        headers:{'Authorization':'Bearer '+DAILY_KEY}
-      });
-      data=await gr.json();
-    }
-    if(!data.url){
-      showToast(t('Ошибка')+' Daily.co ['+(resp.status)+']: '+(data.error||data.info||JSON.stringify(data).slice(0,120)));
+    // Получаем URL комнаты через Edge Function (ключ Daily.co хранится в секретах Supabase)
+    const{data,error}=await sb.functions.invoke('daily-room',{body:{roomId}});
+    if(error||!data?.url){
+      showToast(t('Ошибка создания комнаты: ')+(error?.message||'нет URL'));
       hangUp();return;
     }
     C('callStatus').textContent=t('⏳ Соединяю...');
@@ -4140,7 +4127,7 @@ async function saveHWEditor(){
   const payload={school_id:S.schoolId,teacher_id:S.profile.id,student_id:sid,title,description:JSON.stringify(HWE.exercises),deadline:dl||null};
   try{
     if(HWE.hwId){
-      const{error}=await sb.from('homeworks').update(payload).eq('id',HWE.hwId);
+      const{error}=await sb.from('homeworks').update(payload).eq('id',HWE.hwId).eq('school_id',S.schoolId);
       if(error){showToast('Ошибка сохранения: '+error.message,'error');return;}
       showToast('✅ ДЗ обновлено!');
     } else {
