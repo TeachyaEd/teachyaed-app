@@ -3772,7 +3772,11 @@ async function loadContacts(){
   let stuContacts=[];
   if(['teacher','admin','owner'].includes(S.role)){
     const{data:sts}=await sb.from('students').select('id,first_name,last_name').eq('school_id',S.schoolId);
-    stuContacts=(sts||[]).map(s=>({id:'stu_'+s.id,first_name:s.first_name,last_name:s.last_name,role:'student'}));
+    // Исключаем студентов, у которых уже есть аккаунт в profiles (чтобы не дублировать)
+    const profNames=new Set((profs||[]).map(p=>(p.first_name||'').trim().toLowerCase()+'|'+(p.last_name||'').trim().toLowerCase()));
+    stuContacts=(sts||[])
+      .filter(s=>!profNames.has((s.first_name||'').trim().toLowerCase()+'|'+(s.last_name||'').trim().toLowerCase()))
+      .map(s=>({id:'stu_'+s.id,first_name:s.first_name,last_name:s.last_name,role:'student'}));
   }
   S.contacts=[...filtered,...stuContacts];
 }
