@@ -2932,7 +2932,7 @@ function _renderProfileModal(){
         <img class="av-photo-img" src="${photo}" alt="avatar">
         <div class="av-photo-overlay">📷</div>
       </div>`
-    :`<div class="av-initials-big" id="profAvPreview" style="background:${color}">${emoji||initials}</div>`;
+    :`<div class="av-initials-big" id="profAvPreview" style="background:${color}">${_escHtml(emoji||initials)}</div>`;
 
   const swatches=AVCOLORS_PROFILE.map(c=>`<div class="av-color-swatch${c===color?' selected':''}" style="background:${c}" onclick="selectAvColor('${c}')" title="${c}">&nbsp;</div>`).join('');
 
@@ -2952,15 +2952,15 @@ function _renderProfileModal(){
       <input id="prof_emoji" value="${emoji||''}" placeholder="😊" maxlength="2" style="font-size:1.4rem;text-align:center;width:80px" oninput="updateAvPreview()">
     </div>`:''}
     <div class="form-row">
-      <div class="form-group"><label>Имя</label><input id="prof_first" value="${prof.first_name||''}"></div>
-      <div class="form-group"><label>Фамилия</label><input id="prof_last" value="${prof.last_name||''}"></div>
+      <div class="form-group"><label>Имя</label><input id="prof_first" value="${_escHtml(prof.first_name||'')}"></div>
+      <div class="form-group"><label>Фамилия</label><input id="prof_last" value="${_escHtml(prof.last_name||'')}"></div>
     </div>
     <div class="btn-row"><button class="btn btn-purple" onclick="saveProfile()">Сохранить</button></div>`;
 
   const secTabHTML=`
     <div class="form-group">
       <label>Текущий email</label>
-      <input value="${prof.email||''}" disabled style="background:var(--gray-light);color:var(--text3)">
+      <input value="${_escHtml(prof.email||'')}" disabled style="background:var(--gray-light);color:var(--text3)">
     </div>
     <div class="form-group"><label>Новый email</label><input id="sec_new_email" type="email" placeholder="новый@email.com"></div>
     <div class="btn-row" style="margin-bottom:20px"><button class="btn btn-purple" onclick="changeEmail()">Изменить email</button></div>
@@ -3063,6 +3063,7 @@ async function saveProfile(){
   const{data,error}=await sb.from('profiles')
     .update({first_name:first, last_name:last})
     .eq('id',uid)
+    .eq('school_id',S.schoolId)
     .select();
 
   if(error){
@@ -3077,7 +3078,7 @@ async function saveProfile(){
   }
 
   // Try to also update avatar columns (may not exist — ignore error)
-  sb.from('profiles').update({avatar_color:color,avatar_emoji:emoji}).eq('id',uid).then(()=>{});
+  sb.from('profiles').update({avatar_color:color,avatar_emoji:emoji}).eq('id',uid).eq('school_id',S.schoolId).then(()=>{});
 
   S.profile.first_name=first;
   S.profile.last_name=last;
@@ -3309,7 +3310,7 @@ async function lookupWord(){
           <div style="font-weight:700;font-size:1.1rem;color:var(--purple)">🇬🇧 ${_escHtml(enWord)} <span style="font-size:.85rem;color:var(--text3);font-weight:400">${phonetic}</span></div>
         </div>
         ${meanings}
-        <button onclick="saveDictWord(${JSON.stringify(saveKey)})" style="margin-top:8px;padding:5px 12px;background:var(--purple-light);color:var(--purple);border:none;border-radius:6px;font-size:.78rem;font-weight:600;cursor:pointer">+ ${t('Сохранить')}</button>`;
+        <button onclick="saveDictWord(${_escHtml(JSON.stringify(saveKey))})" style="margin-top:8px;padding:5px 12px;background:var(--purple-light);color:var(--purple);border:none;border-radius:6px;font-size:.78rem;font-weight:600;cursor:pointer">+ ${t('Сохранить')}</button>`;
     }catch(e){res.innerHTML=`<div style="color:var(--pink)">${t('Ошибка')}: ${_escHtml(e.message)}</div>`;}
   } else {
     // English word → direct lookup
@@ -3323,7 +3324,7 @@ async function lookupWord(){
         res.innerHTML=`<div style="background:var(--purple-light);border-radius:8px;padding:8px 12px;margin-bottom:10px">
           <div style="font-weight:700;font-size:1.1rem">🇬🇧 ${_escHtml(w)} → 🇷🇺 ${_escHtml(ruWord)}</div>
         </div>
-        <button onclick="saveDictWord(${JSON.stringify(saveKey)})" style="margin-top:8px;padding:5px 12px;background:var(--purple-light);color:var(--purple);border:none;border-radius:6px;font-size:.78rem;font-weight:600;cursor:pointer">+ Сохранить</button>`;
+        <button onclick="saveDictWord(${_escHtml(JSON.stringify(saveKey))})" style="margin-top:8px;padding:5px 12px;background:var(--purple-light);color:var(--purple);border:none;border-radius:6px;font-size:.78rem;font-weight:600;cursor:pointer">+ Сохранить</button>`;
         return;
       }
       const entry=data[0];
@@ -3343,7 +3344,7 @@ async function lookupWord(){
           ${ruWord?`<div style="font-size:.85rem;color:var(--purple);margin-top:2px">🇷🇺 ${_escHtml(ruWord)}</div>`:''}
         </div>
         ${meanings}
-        <button onclick="saveDictWord(${JSON.stringify(saveKey)})" style="margin-top:8px;padding:5px 12px;background:var(--purple-light);color:var(--purple);border:none;border-radius:6px;font-size:.78rem;font-weight:600;cursor:pointer">+ ${t('Сохранить')}</button>`;
+        <button onclick="saveDictWord(${_escHtml(JSON.stringify(saveKey))})" style="margin-top:8px;padding:5px 12px;background:var(--purple-light);color:var(--purple);border:none;border-radius:6px;font-size:.78rem;font-weight:600;cursor:pointer">+ ${t('Сохранить')}</button>`;
     }catch(e){res.innerHTML=`<div style="color:var(--pink)">${t('Ошибка')}: ${_escHtml(e.message)}</div>`;}
   }
 }
@@ -3359,7 +3360,7 @@ function renderDictSaved(){
   const saved=JSON.parse(localStorage.getItem('teachya_dict')||'[]');
   const el=document.getElementById('dictSaved');
   if(!el)return;
-  el.innerHTML=saved.map(w=>`<span onclick="document.getElementById('dictSearch').value=${JSON.stringify(w)};lookupWord()" style="padding:4px 10px;background:var(--purple-light);color:var(--purple);border-radius:20px;font-size:.78rem;cursor:pointer;font-weight:600">${_escHtml(w)}</span>`).join('');
+  el.innerHTML=saved.map(w=>`<span onclick="document.getElementById('dictSearch').value=${_escHtml(JSON.stringify(w))};lookupWord()" style="padding:4px 10px;background:var(--purple-light);color:var(--purple);border-radius:20px;font-size:.78rem;cursor:pointer;font-weight:600">${_escHtml(w)}</span>`).join('');
 }
 
 // Template shortcut in editor
@@ -3439,11 +3440,13 @@ function toggleAIPanel(prefix){
 }
 
 async function sendAIMsg(prefix){
+  if(S._aiSending)return;S._aiSending=true;
+  try{
   const inp=document.getElementById(prefix+'_aiInp');
   const msgs=document.getElementById(prefix+'_aiMsgs');
-  if(!inp||!msgs)return;
+  if(!inp||!msgs){S._aiSending=false;return;}
   const text=inp.value.trim();
-  if(!text)return;
+  if(!text){S._aiSending=false;return;}
   inp.value='';
 
   // Add user bubble
@@ -3471,6 +3474,7 @@ async function sendAIMsg(prefix){
     if(el){el.classList.remove('loading');el.style.color='var(--pink)';el.textContent=t('Ошибка')+': '+e.message;}
   }
   msgs.scrollTop=msgs.scrollHeight;
+  }finally{S._aiSending=false;}
 }
 
 // Call student from lesson view
@@ -3654,7 +3658,8 @@ async function afterLogin(user){
 async function doLogout(){
   closeSidebar();
   await sb.auth.signOut();hangUp();
-  if(S.notifyChannel)sb.removeChannel(S.notifyChannel);
+  if(typeof _taskReminderInterval!=='undefined'&&_taskReminderInterval){clearInterval(_taskReminderInterval);_taskReminderInterval=null;}
+  if(S.notifyChannel){try{sb.removeChannel(S.notifyChannel);}catch(e){}S.notifyChannel=null;}
   if(MS.rtSub){try{sb.removeChannel(MS.rtSub);}catch(e){}MS.rtSub=null;}
   C('app').style.display='none';C('loginScreen').style.display='flex';
   C('loginErr').style.display='none';C('dialBtn').style.display='none';
@@ -3818,12 +3823,12 @@ function subscribeNotifications(){
       filter:`to_profile_id=eq.${S.profile.id}`},
       ({new:sig})=>{
         handleIncomingCall({from_name:sig.from_name,from_role:sig.from_role,room_id:sig.room_id});
-        sb.from('call_signals').delete().eq('id',sig.id).then(()=>{});
+        sb.from('call_signals').delete().eq('id',sig.id).eq('school_id',S.schoolId).then(()=>{});
       })
     .subscribe();
   // Проверяем pending сигналы (если пришли пока был офлайн)
   setTimeout(async()=>{
-    const{data:sigs}=await sb.from('call_signals').select('*').eq('to_profile_id',S.profile.id).order('created_at',{ascending:false}).limit(1);
+    const{data:sigs}=await sb.from('call_signals').select('*').eq('to_profile_id',S.profile.id).eq('school_id',S.schoolId).order('created_at',{ascending:false}).limit(1);
     if(sigs?.length){
       const sig=sigs[0];
       if(Date.now()-new Date(sig.created_at).getTime()<30000)handleIncomingCall({from_name:sig.from_name,from_role:sig.from_role,room_id:sig.room_id});
@@ -3835,7 +3840,7 @@ function toggleDialer(){if(S.inCall){hangUp();return;}const p=C('contactPicker')
 function renderContacts(){
   const order={owner:0,admin:1,teacher:2,student:3};
   const sorted=[...S.contacts].sort((a,b)=>(order[a.role]||9)-(order[b.role]||9));
-  C('contactList').innerHTML=sorted.map(c=>`<div class="contact-item" onclick="callContact('${c.id}',${JSON.stringify(c.first_name+' '+c.last_name)},'${c.role}')">
+  C('contactList').innerHTML=sorted.map(c=>`<div class="contact-item" onclick="callContact('${c.id}',${JSON.stringify(c.first_name+' '+c.last_name)},'${_esc(c.role)}')">
     ${avHTML(c.first_name,c.last_name,32)}
     <div><div style="font-weight:600;font-size:.9rem">${_esc(c.first_name)} ${_esc(c.last_name)}</div><div style="font-size:.75rem;color:var(--text3)">${t(ROLE_L[c.role]||c.role)}</div></div>
   </div>`).join('')||'<div style="padding:16px;color:var(--text3);font-size:.85rem">Нет контактов</div>';
@@ -3982,7 +3987,7 @@ async function renderStudentHome(){
     <div class="stat-card pink"><div class="stat-val">${assigns?.length||0}</div><div class="stat-lbl">Уроков не пройдено</div></div>
   </div>
   <div class="card"><div class="card-title">👋 ${S.profile.first_name}, добро пожаловать!</div>
-    <p style="color:var(--text3);font-size:.88rem">Язык: <b>${stu?.language||'—'}</b> · Уровень: <b>${stu?.level||'—'}</b></p>
+    <p style="color:var(--text3);font-size:.88rem">Язык: <b>${_escHtml(stu?.language||'—')}</b> · Уровень: <b>${_escHtml(stu?.level||'—')}</b></p>
     <hr class="divider"><p style="font-size:.85rem;color:var(--text3)">Для звонка с учителем — кнопка 📞 справа внизу.</p>
   </div>`);
 }
@@ -3991,7 +3996,7 @@ async function renderStudentHome(){
 //          {grade, comment} JSON → teacher_comment field (no DB schema changes needed)
 const HWE={hwId:null,exercises:[],studentId:null};
 const HWP={hwId:null,exercises:[],answers:{},hwData:null};
-const HWR={hwId:null,grade:null};
+const HWR={hwId:null,grade:null,_saving:false};
 
 function _esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 
@@ -4098,7 +4103,7 @@ async function hwImportLesson(){
       <h3 style="margin:0 0 14px;font-size:1.05rem">📥 Выбери урок</h3>
       ${lessons.map(l=>`<div class="hw-import-item" onclick="_hwImportApply(${JSON.stringify(JSON.stringify(l.content||[]))});document.getElementById('_hwImportOvr').remove()">
         <div style="font-weight:700">${_esc(l.title)}</div>
-        <div style="font-size:.78rem;color:var(--text3)">${l.language||''} · ${l.level||''}</div>
+        <div style="font-size:.78rem;color:var(--text3)">${_escHtml(l.language||'')} · ${_escHtml(l.level||'')}</div>
       </div>`).join('')}
       <button class="btn btn-outline" style="width:100%;margin-top:6px" onclick="document.getElementById('_hwImportOvr').remove()">Отмена</button>
     </div>
@@ -4147,6 +4152,7 @@ async function openHWPlayer(hwId){
   HWP.hwId=hwId;HWP.answers={};
   const{data:hw}=await sb.from('homeworks').select('*').eq('id',hwId).eq('school_id',S.schoolId).single();
   if(!hw){showToast('ДЗ не найдено');return;}
+  if(S.role==='student'&&S.studentRowId&&hw.student_id!==S.studentRowId){showToast('Доступ запрещён','error');return;}
   HWP.hwData=hw;
   try{HWP.exercises=JSON.parse(hw.description)||[];}catch(e){HWP.exercises=[];}
   C('hwpTitle').textContent='📋 '+hw.title;
@@ -4239,6 +4245,8 @@ function _hwpCollectAnswers(){
 }
 
 async function submitHWAnswers(){
+  const hw=HWP.hwData;
+  if(S.role==='student'&&S.studentRowId&&hw&&hw.student_id!==S.studentRowId){showToast('Доступ запрещён','error');return;}
   const btn=document.querySelector('#mHWPlayer .btn-green');
   if(btn){btn.disabled=true;btn.textContent='Отправка...';}
   try{
@@ -4265,8 +4273,8 @@ async function renderStudentLessons(){
   const cards=(assigns||[]).map(a=>`<div class="card" style="margin-bottom:12px">
     <div style="display:flex;align-items:center;justify-content:space-between">
       <div>
-        <div style="font-weight:700">${a.lesson?.title||'Урок'}</div>
-        <div style="font-size:.8rem;color:var(--text3)">${a.lesson?.language||''} · ${a.lesson?.level||''}</div>
+        <div style="font-weight:700">${_escHtml(a.lesson?.title||'Урок')}</div>
+        <div style="font-size:.8rem;color:var(--text3)">${_escHtml(a.lesson?.language||'')} · ${_escHtml(a.lesson?.level||'')}</div>
       </div>
       <div style="display:flex;align-items:center;gap:8px">
         ${a.completed?'<span class="badge badge-green">✓ Завершён</span>':'<span class="badge badge-purple">📖 Новый</span>'}
@@ -4291,7 +4299,7 @@ async function renderTeacherStudents(){
   });
   const rows=(sts||[]).map(s=>`<tr>
     <td><div style="display:flex;align-items:center;gap:10px">${avHTML(s.first_name,s.last_name)}<div><div style="font-weight:600;cursor:pointer" onclick="openStudentCard('${s.id}')">${_esc(s.first_name)} ${_esc(s.last_name)}</div><div style="font-size:.75rem;color:var(--text3)">${_esc(s.email||'—')}</div></div></div></td>
-    <td>${s.language||'—'}</td><td><span class="badge badge-purple">${s.level||'—'}</span></td><td>${s.phone||'—'}</td>
+    <td>${_escHtml(s.language||'—')}</td><td><span class="badge badge-purple">${_escHtml(s.level||'—')}</span></td><td>${_escHtml(s.phone||'—')}</td>
     <td class="td-actions">
       <button class="btn btn-sm btn-purple" style="font-size:.73rem;padding:4px 8px" onclick="prefillHwForStudent('${s.id}',${JSON.stringify(s.first_name+' '+s.last_name)})">📋 ДЗ</button>
       <button class="btn btn-sm btn-green" style="font-size:.73rem;padding:4px 8px" onclick="callContact('stu_${s.id}',${JSON.stringify(s.first_name+' '+s.last_name)},'student')">📞</button>
@@ -4308,8 +4316,8 @@ async function renderTeacherHw(){
     let exCount=0;try{exCount=(JSON.parse(hw.description)||[]).length;}catch(e){}
     const sMap={pending:'Ожидает',submitted:'Сдано',reviewed:'Проверено'};
     const bMap={pending:'badge-purple',submitted:'badge-yellow',reviewed:'badge-green'};
-    return`<div class="hw-card ${hw.status}">
-      <div class="hw-title">${_esc(hw.title)} <span class="badge ${bMap[hw.status]||'badge-purple'}">${sMap[hw.status]||hw.status}</span></div>
+    return`<div class="hw-card ${_escHtml(hw.status)}">
+      <div class="hw-title">${_esc(hw.title)} <span class="badge ${bMap[hw.status]||'badge-purple'}">${_escHtml(sMap[hw.status]||hw.status)}</span></div>
       <div class="hw-meta">👤 ${_esc(hw.student?.first_name||'')} ${_esc(hw.student?.last_name||'')} · 📅 ${fmtDate(hw.deadline)} · 📝 ${exCount} упр.</div>
       <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
         <button class="btn btn-sm btn-outline" style="font-size:.78rem" onclick="openHWEditor('${hw.id}')">✏️ Редактировать</button>
@@ -4378,6 +4386,7 @@ function _hwrRenderEx(ex,i,ans){
 }
 
 async function saveHWReview(){
+  if(HWR._saving)return;HWR._saving=true;
   const btn=document.querySelector('#mHWReview .btn-green');if(btn)btn.disabled=true;
   try{
   const comment=C('hwr_comment').value.trim();
@@ -4387,6 +4396,7 @@ async function saveHWReview(){
   if(S.screen==='t_homework')renderTeacherHw();
   } finally {
     if(btn)btn.disabled=false;
+    HWR._saving=false;
   }
 }
 
@@ -4402,8 +4412,8 @@ async function renderStudentHw(){
     const comment=hw.teacher_comment||'';
     const sMap={pending:'Новое',submitted:'Сдано',reviewed:'Проверено'};
     const bMap={pending:'badge-purple',submitted:'badge-yellow',reviewed:'badge-green'};
-    return`<div class="hw-card ${hw.status}">
-      <div class="hw-title">${_esc(hw.title)} <span class="badge ${bMap[hw.status]||'badge-purple'}">${sMap[hw.status]||hw.status}</span></div>
+    return`<div class="hw-card ${_escHtml(hw.status)}">
+      <div class="hw-title">${_esc(hw.title)} <span class="badge ${bMap[hw.status]||'badge-purple'}">${_escHtml(sMap[hw.status]||hw.status)}</span></div>
       <div class="hw-meta">👨‍🏫 ${_esc(hw.teacher?.first_name||'')} ${_esc(hw.teacher?.last_name||'')} · 📅 ${fmtDate(hw.deadline)} · 📝 ${exCount} упр.</div>
       ${comment?`<div class="hw-comment">💬 ${_esc(comment)}</div>`:''}
       ${hw.status==='pending'?(hw.title.startsWith('🎯 Тест на уровень')?`<button class="btn btn-purple" style="margin-top:10px" onclick="openPlacementTestPlayer('${hw.id}')">▶️ Пройти тест</button>`:`<button class="btn btn-green" style="margin-top:10px" onclick="openHWPlayer('${hw.id}')">▶️ Начать задание</button>`):''}
@@ -4452,12 +4462,12 @@ async function renderAdminStudents(){
   const{data:sts}=await sb.from('students').select('*').eq('school_id',S.schoolId).order('last_name');
   const rows=(sts||[]).map(s=>`<tr>
     <td><div style="display:flex;align-items:center;gap:10px">${avHTML(s.first_name,s.last_name)}<div><div style="font-weight:600;cursor:pointer" onclick="openStudentCard('${s.id}')">${_esc(s.first_name)} ${_esc(s.last_name)}</div><div style="font-size:.75rem;color:var(--text3)">${_esc(s.email||'—')}</div></div></div></td>
-    <td>${s.language||'—'}</td>
-    <td><span class="badge badge-purple">${s.level||'—'}</span></td>
-    <td>${s.phone||'—'}</td>
+    <td>${_escHtml(s.language||'—')}</td>
+    <td><span class="badge badge-purple">${_escHtml(s.level||'—')}</span></td>
+    <td>${_escHtml(s.phone||'—')}</td>
     <td class="td-actions">
       <button class="btn btn-sm btn-green" style="font-size:.73rem;padding:4px 8px" onclick="callContact('stu_${s.id}',${JSON.stringify(s.first_name+' '+s.last_name)},'student')">📞</button>
-      <button class="btn-danger" onclick="confirmDeleteStudent('${s.id}','${(s.first_name+' '+s.last_name).replace(/'/g,"\\'")}')">🗑</button>
+      <button class="btn-danger" onclick="confirmDeleteStudent('${s.id}',${JSON.stringify(s.first_name+' '+s.last_name)})">🗑</button>
     </td></tr>`).join('')||`<tr><td colspan="5" style="text-align:center;color:var(--text3)">${t('Нет учеников')}</td></tr>`;
   setContent(`<div class="section-header"><h2>👥 ${t('Ученики')}</h2><button class="btn btn-purple" onclick="openAddStudent()">+ ${t('Добавить')}</button></div>
     <div class="card" style="padding:0;overflow:hidden"><table><thead><tr><th>${t('Ученик')}</th><th>${t('Язык')}</th><th>${t('Уровень')}</th><th>${t('Телефон')}</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>`);
@@ -4483,9 +4493,9 @@ async function renderOwnerUsers(){
     <td class="td-actions">
       ${u.id===S.profile.id
         ?`<span style="font-size:.75rem;color:var(--text3)">${t('Это вы')}</span>`
-        :`<button class="btn btn-sm btn-outline" style="font-size:.73rem;padding:4px 8px" onclick="openChangeRole('${u.id}',${JSON.stringify(u.first_name+' '+u.last_name)},'${u.role}')">✎ ${t('Роль')}</button>
-        <button class="btn btn-sm btn-green" style="font-size:.73rem;padding:4px 8px" onclick="callContact('${u.id}',${JSON.stringify(u.first_name+' '+u.last_name)},'${u.role}')">📞</button>
-        ${canDelete&&!(S.role==='admin'&&u.role==='owner')?`<button class="btn-danger" onclick="confirmDeleteUser('${u.id}','${(u.first_name+' '+u.last_name).replace(/'/g,"\\'")}','${u.role}')">🗑</button>`:''}`}
+        :`<button class="btn btn-sm btn-outline" style="font-size:.73rem;padding:4px 8px" onclick="openChangeRole('${u.id}',${JSON.stringify(u.first_name+' '+u.last_name)},'${_esc(u.role)}')">✎ ${t('Роль')}</button>
+        <button class="btn btn-sm btn-green" style="font-size:.73rem;padding:4px 8px" onclick="callContact('${u.id}',${JSON.stringify(u.first_name+' '+u.last_name)},'${_esc(u.role)}')">📞</button>
+        ${canDelete&&!(S.role==='admin'&&u.role==='owner')?`<button class="btn-danger" onclick="confirmDeleteUser('${u.id}',${JSON.stringify(u.first_name+' '+u.last_name)},'${_esc(u.role)}')">🗑</button>`:''}`}
     </td>
   </tr>`).join('');
   setContent(`<div class="section-header"><h2>👥 Все пользователи</h2><button class="btn btn-purple" onclick="openM('mInviteStaff')">+ Пригласить сотрудника</button></div>
@@ -4493,7 +4503,16 @@ async function renderOwnerUsers(){
 }
 let _changeRoleId='';
 function openChangeRole(uid,name,currentRole){_changeRoleId=uid;C('changeRoleUserInfo').textContent=name;C('newRole').value=currentRole;openM('mChangeRole');}
-async function applyRoleChange(){const{error}=await sb.from('profiles').update({role:C('newRole').value}).eq('id',_changeRoleId).eq('school_id',S.schoolId);if(error){showToast('Ошибка: '+error.message,'error');return;}closeM('mChangeRole');showToast('Роль изменена!');renderOwnerUsers();}
+async function applyRoleChange(){
+  if(!['owner','admin'].includes(S.role))return;
+  const _arcBtn=document.querySelector('#mChangeRole .btn-purple');
+  if(_arcBtn){_arcBtn.disabled=true;}
+  try{
+    const{error}=await sb.from('profiles').update({role:C('newRole').value}).eq('id',_changeRoleId).eq('school_id',S.schoolId);
+    if(error){showToast('Ошибка: '+error.message,'error');return;}
+    closeM('mChangeRole');showToast('Роль изменена!');renderOwnerUsers();
+  }finally{if(_arcBtn){_arcBtn.disabled=false;}}
+}
 
 let _deleteUserId='',_deleteUserName='';
 function confirmDeleteUser(uid,name,role){
@@ -4525,7 +4544,10 @@ async function doDeleteUser(){
   else if(S.role==='admin'){if(S.screen==='a_teachers')renderAdminTeachers();else if(S.screen==='a_students')renderAdminStudents();}
 }
 async function confirmDeleteStudent(sid,name){
+  if(S._deletingStudent)return;
   if(!confirm(`Удалить ученика ${name}?\nЭто удалит все его задания, оплаты и записи в классах. Действие нельзя отменить.`))return;
+  S._deletingStudent=true;
+  try{
   showToast('⏳ Удаляем...');
   // Каскадное удаление зависимых записей
   await sb.from('class_students').delete().eq('student_id',sid).eq('school_id',S.schoolId);
@@ -4540,15 +4562,16 @@ async function confirmDeleteStudent(sid,name){
   if(S.screen==='a_students')renderAdminStudents();
   else if(S.screen==='o_students')renderOwnerStudents();
   else if(S.screen==='t_students')renderTeacherStudents();
+  }finally{S._deletingStudent=false;}
 }
 async function renderOwnerStudents(){
   const{data:sts}=await sb.from('students').select('*').eq('school_id',S.schoolId).order('last_name');
   const rows=(sts||[]).map(s=>`<tr>
     <td><div style="display:flex;align-items:center;gap:10px">${avHTML(s.first_name,s.last_name)}<div><div style="font-weight:600;cursor:pointer" onclick="openStudentCard('${s.id}')">${_esc(s.first_name)} ${_esc(s.last_name)}</div><div style="font-size:.75rem;color:var(--text3)">${_esc(s.email||'—')}</div></div></div></td>
-    <td>${s.language||'—'}</td><td><span class="badge badge-purple">${s.level||'—'}</span></td><td>${s.phone||'—'}</td>
+    <td>${_escHtml(s.language||'—')}</td><td><span class="badge badge-purple">${_escHtml(s.level||'—')}</span></td><td>${_escHtml(s.phone||'—')}</td>
     <td class="td-actions">
       <button class="btn btn-sm btn-green" style="font-size:.73rem;padding:4px 8px" onclick="callContact('stu_${s.id}',${JSON.stringify(s.first_name+' '+s.last_name)},'student')">📞</button>
-      <button class="btn-danger" onclick="confirmDeleteStudent('${s.id}','${(s.first_name+' '+s.last_name).replace(/'/g,"\\'")}')">🗑</button>
+      <button class="btn-danger" onclick="confirmDeleteStudent('${s.id}',${JSON.stringify(s.first_name+' '+s.last_name)})">🗑</button>
     </td></tr>`).join('')||`<tr><td colspan="5" style="text-align:center;color:var(--text3)">${t('Нет учеников')}</td></tr>`;
   setContent(`<div class="section-header"><h2>🎓 ${t('Ученики')}</h2><button class="btn btn-purple" onclick="openAddStudent()">+ ${t('Добавить')}</button></div>
     <div class="card" style="padding:0;overflow:hidden"><table><thead><tr><th>${t('Ученик')}</th><th>${t('Язык')}</th><th>${t('Уровень')}</th><th>${t('Телефон')}</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>`);
@@ -4567,7 +4590,7 @@ async function renderPayments(){
     <td><b>${fmtCur(p.amount,p.currency)}</b></td>
     <td>${fmtDate(p.period_from)} – ${fmtDate(p.period_to)}</td>
     <td><span class="badge ${p.status==='paid'?'badge-green':p.status==='overdue'?'badge-pink':'badge-yellow'}">${{paid:'Оплачено',pending:'Ожидает',overdue:'Просрочено'}[p.status]||p.status}</span></td>
-    <td style="font-size:.78rem;color:var(--text3)">${p.note||''}</td>
+    <td style="font-size:.78rem;color:var(--text3)">${_escHtml(p.note||'')}</td>
     <td class="td-actions">${p.status!=='paid'?`<button class="btn btn-sm btn-green" style="font-size:.72rem;padding:3px 8px" onclick="markPaid('${p.id}',this)">✓</button>`:''}</td>
   </tr>`).join('');
   setContent(`<div class="section-header"><h2>${t('💳 Оплата')||'💳 Payments'}</h2><button class="btn btn-purple" onclick="openAddPayment()">+ ${t('Оплата')||'Payment'}</button></div>
@@ -4675,8 +4698,8 @@ async function renderMaterials(){
     return `<div class="material-card${!hasUrl?' mat-no-link':''}" data-murl="${encodeURIComponent(url)}" data-mtype="${m.type||'link'}" data-mlang="${m.language||''}" data-mlevel="${m.level||''}" onclick="openMatCard(this)">
       ${canManage?`<button class="mat-del-btn" onclick="event.stopPropagation();deleteMaterial('${m.id}')" title="Удалить">✕</button>`:''}
       <div class="material-icon">${MICONS[m.type]||'📎'}</div>
-      <div style="font-weight:600;font-size:.88rem;margin-bottom:4px">${m.title||m.name||'—'}</div>
-      <div style="font-size:.75rem;color:var(--text3)">${m.language||''} · ${m.level||''}</div>
+      <div style="font-weight:600;font-size:.88rem;margin-bottom:4px">${_escHtml(m.title||m.name||'—')}</div>
+      <div style="font-size:.75rem;color:var(--text3)">${_escHtml(m.language||'')} · ${_escHtml(m.level||'')}</div>
       ${!hasUrl?'<div style="font-size:.7rem;color:var(--red);margin-top:4px">⚠️ Нет ссылки</div>':'<div style="font-size:.7rem;color:var(--text3);margin-top:4px">🔗 Открыть</div>'}
     </div>`;
   }).join('')||`<div style="grid-column:1/-1" class="empty-state"><div class="ei">📁</div><p>${t('Нет материалов')}</p></div>`;
@@ -4773,6 +4796,8 @@ function matDropFile(e){
 }
 
 async function saveMaterial(){
+  const btn=C('mat_save_btn');
+  if(btn){btn.disabled=true;btn.textContent=t('Загрузка...');}
   const name=C('mat_name').value.trim();
   const type=C('mat_type').value;
   const language=C('mat_lang').value;
@@ -4781,12 +4806,9 @@ async function saveMaterial(){
   const file=fileInput?.files?.[0];
   let url=C('mat_url').value.trim();
 
-  if(!name){showToast(t('Введи название!'));return;}
-  if(!file&&!url){showToast(t('Добавь файл или URL!'));return;}
-  if(file&&file.size>50*1024*1024){showToastCard(t('Файл слишком большой'),'Максимум 50MB','error','❌');return;}
-
-  const btn=C('mat_save_btn');
-  btn.disabled=true;btn.textContent=t('Загрузка...');
+  if(!name){if(btn){btn.disabled=false;btn.textContent=t('Добавить');}showToast(t('Введи название!'));return;}
+  if(!file&&!url){if(btn){btn.disabled=false;btn.textContent=t('Добавить');}showToast(t('Добавь файл или URL!'));return;}
+  if(file&&file.size>50*1024*1024){if(btn){btn.disabled=false;btn.textContent=t('Добавить');}showToastCard(t('Файл слишком большой'),'Максимум 50MB','error','❌');return;}
 
   if(file){
     const ext=file.name.split('.').pop();
@@ -4905,14 +4927,14 @@ function renderClassCards(list,canCreate){
   const grid=C('evClassesGrid');if(!grid)return;
   const COLORS=['#F97316','#8B5CF6','#EC4899','#10B981','#3B82F6','#EF4444','#F59E0B','#06B6D4'];
   const cards=list.map((cl,i)=>{
-    const bg=cl.color||COLORS[i%COLORS.length];
+    const safeColor=/^#[0-9a-fA-F]{3,8}$/.test(cl.color)?cl.color:(COLORS[Math.abs(cl.name?.charCodeAt(0)||0)%COLORS.length]||'#7C3AED');
     const initial=((cl.name||'?').replace(/[^a-zA-Zа-яА-ЯёЁ0-9]/g,'')[0]||(cl.name||'?')[0]).toUpperCase();
     const typeLabel=t(cl.type==='group'?'Групповой':'Индивидуальный');
-    return`<div class="ev-class-card" style="background:${bg}" onclick="openClassDetail('${cl.id}')">
+    return`<div class="ev-class-card" style="background:${safeColor}" onclick="openClassDetail('${cl.id}')">
       <div class="ev-class-count">👤</div>
       <div class="ev-class-initial">${initial}</div>
       <div class="ev-class-name">${_esc(cl.name)}</div>
-      <div class="ev-class-type">${cl.language} · ${cl.level} · ${typeLabel}</div>
+      <div class="ev-class-type">${_escHtml(cl.language||'')} · ${_escHtml(cl.level||'')} · ${typeLabel}</div>
     </div>`;
   }).join('');
   const createCard=canCreate?`<div class="ev-class-card ev-class-create" onclick="openNewClass()">
@@ -5039,7 +5061,7 @@ async function loadClassTab(tab){
   const classId=S.currentClassId;
   if(tab==='students'){
     const[{data:cs},{data:allSts}]=await Promise.all([
-      sb.from('class_students').select('*,student:student_id(id,first_name,last_name,level,language)').eq('class_id',classId),
+      sb.from('class_students').select('*,student:student_id(id,first_name,last_name,level,language)').eq('class_id',classId).eq('school_id',S.schoolId),
       sb.from('students').select('id,first_name,last_name').eq('school_id',S.schoolId)
     ]);
     const enrolled=(cs||[]).map(c=>c.student_id);
@@ -5094,7 +5116,7 @@ async function loadClassTab(tab){
       <td>${fmtDate(ev.event_date)}</td><td>${ev.event_time?.slice(0,5)||'—'}</td>
       <td>${ev.duration_minutes} ${t('мин')}</td>
       <td><span class="badge ${ev.status==='completed'?'badge-green':ev.status==='cancelled'?'badge-gray':'badge-purple'}">${{scheduled:t('Запланировано'),completed:t('Проведено'),cancelled:t('Отменено')}[ev.status]||ev.status}</span></td>
-      <td style="font-size:.78rem;color:var(--text3)">${ev.notes||''}</td>
+      <td style="font-size:.78rem;color:var(--text3)">${_escHtml(ev.notes||'')}</td>
       <td><button class="btn btn-sm btn-red" style="font-size:.7rem;padding:3px 8px" onclick="deleteEvent('${ev.id}')">✕</button></td>
     </tr>`).join('');
     C('classDetailContent').innerHTML=`<div class="section-header" style="margin-bottom:12px"><span style="font-weight:700">${t('Занятия класса')}</span><button class="btn btn-purple" onclick="openAddEventForClass('${classId}')">+ ${t('Занятие')}</button></div>
@@ -5102,7 +5124,7 @@ async function loadClassTab(tab){
   }
   else if(tab==='progress'){
     const[{data:cs},{data:assigns}]=await Promise.all([
-      sb.from('class_students').select('*,student:student_id(id,first_name,last_name)').eq('class_id',classId),
+      sb.from('class_students').select('*,student:student_id(id,first_name,last_name)').eq('class_id',classId).eq('school_id',S.schoolId),
       sb.from('lesson_assignments').select('*').eq('school_id',S.schoolId).eq('class_id',classId)
     ]);
     const rows=(cs||[]).map(c=>{
@@ -5133,12 +5155,18 @@ async function addToClass(){
 }
 async function removeFromClass(csId){
   if(!confirm('Убрать ученика из класса?'))return;
+  const btn=event?.target;
+  if(btn){btn.disabled=true;}
   try{
     const{error}=await sb.from('class_students').delete().eq('id',csId).eq('school_id',S.schoolId);
     if(error){showToast('Ошибка: '+error.message,'error');return;}
+    dcInval('classes_light_'+S.schoolId);
+    dcInval('classes_'+S.schoolId);
     showToast('Ученик убран');await loadClassTab('students');
   }catch(e){
     showToast('Ошибка: '+e.message,'error');
+  }finally{
+    if(btn){btn.disabled=false;}
   }
 }
 
@@ -5171,7 +5199,7 @@ async function renderSchedule(){
     dayDates.forEach(d=>{
       const dateStr=d.toISOString().split('T')[0];
       const cellEvs=(evs||[]).filter(ev=>ev.event_date===dateStr&&parseInt((ev.event_time||'').split(':')[0])===h);
-      const evHtml=cellEvs.map(ev=>`<div class="sch-event ${ev.status}" style="background:${ev.class?.color||'#7C3AED'}" onclick="event.stopPropagation();viewEvent('${ev.id}')" title="${_esc(ev.title)}">${_esc(ev.title)}</div>`).join('');
+      const evHtml=cellEvs.map(ev=>{const _evColor=/^#[0-9a-fA-F]{3,8}$/.test(ev.class?.color)?ev.class.color:'#7C3AED';return`<div class="sch-event ${ev.status}" style="background:${_evColor}" onclick="event.stopPropagation();viewEvent('${ev.id}')" title="${_esc(ev.title)}">${_esc(ev.title)}</div>`;}).join('');
       row+=`<div class="sch-cell" onclick="openAddEventOnDate('${dateStr}','${h}:00')">${evHtml}</div>`;
     });
     return row;
@@ -5511,12 +5539,12 @@ function ceEditorHTML(b){
       <label>Или загрузи файл (JPG, PNG, GIF, WebP, SVG)</label>
       <input type="file" accept="image/jpeg,image/png,image/gif,image/webp,image/svg+xml" style="width:100%;padding:8px;border:2px dashed var(--gray-border);border-radius:8px;font-family:var(--font);font-size:.82rem;cursor:pointer;background:#fafafa" onchange="ceUploadImage(this)">
     </div>
-    ${b.url?`<div style="margin-bottom:10px;text-align:center"><img src="${b.url}" style="max-width:100%;max-height:180px;object-fit:contain;border-radius:8px;border:1px solid var(--gray-border)"></div>`:''}
+    ${b.url?`<div style="margin-bottom:10px;text-align:center"><img src="${_escHtml(b.url||'')}" style="max-width:100%;max-height:180px;object-fit:contain;border-radius:8px;border:1px solid var(--gray-border)"></div>`:''}
     <div class="form-group" style="margin:0"><label>Подпись (необяз.)</label>${ci(b.caption,'caption','Подпись к картинке...')}</div>`;
 
   if(b.type==='openq')return`
     <div class="form-group" style="margin:0 0 8px"><label>Вопрос</label>
-    <textarea oninput="${P}.question=this.value" style="min-height:70px;width:100%;padding:8px 10px;border:2px solid var(--gray-border);border-radius:6px;font-family:var(--font)">${b.question||''}</textarea></div>
+    <textarea oninput="${P}.question=this.value" style="min-height:70px;width:100%;padding:8px 10px;border:2px solid var(--gray-border);border-radius:6px;font-family:var(--font)">${_escHtml(b.question||'')}</textarea></div>
     <div style="font-size:.78rem;color:var(--text3)">Ученик напишет ответ в свободной форме</div>`;
 
   return'';
@@ -5637,7 +5665,7 @@ async function renderLibrary(){
       .order('shared_at',{ascending:false}),
     sb.from('lesson_library_likes').select('lesson_id').eq('user_id',S.userId)
   ]);
-  const{data:likeCounts}=await sb.from('lesson_library_likes').select('lesson_id');
+  const{data:likeCounts}=await sb.from('lesson_library_likes').select('lesson_id').in('lesson_id',(lessons||[]).map(l=>l.id));
   const likeMap={};
   (likeCounts||[]).forEach(r=>{likeMap[r.lesson_id]=(likeMap[r.lesson_id]||0)+1;});
   _libLikes={};
@@ -5907,6 +5935,7 @@ async function cvChatInit(roomId){
   const{data,error}=await sb.from('lesson_chat')
     .select('id,user_id,user_name,user_role,message,created_at')
     .eq('room_id',roomId)
+    .eq('school_id',S.schoolId)
     .order('created_at',{ascending:true})
     .limit(60);
   // Guard: if classroom was closed or room changed while fetching, abort
@@ -5945,6 +5974,7 @@ function cvChatAddMsg(m){
 function cvChatScrollBottom(){const el=C('cv_chatMsgs');if(el)el.scrollTop=el.scrollHeight;}
 
 async function cvChatSend(){
+  if(!S.schoolId){showToast('Ошибка: школа не определена','error');return;}
   const inp=C('cv_chatInp');
   const msg=(inp?inp.value:'').trim();
   if(!msg||!LV.chatRoomId)return;
@@ -5952,7 +5982,7 @@ async function cvChatSend(){
   const name=S.profile?((S.profile.first_name||'')+(S.profile.last_name?' '+S.profile.last_name:'')).trim()||'Аноним':'Аноним';
   const{error}=await sb.from('lesson_chat').insert({
     room_id:LV.chatRoomId,
-    school_id:S.schoolId||null,
+    school_id:S.schoolId,
     user_id:S.profile?S.profile.id:null,
     user_name:name,
     user_role:S.role||'student',
@@ -6369,12 +6399,12 @@ async function renderMessenger(){
 async function loadConvs(){
   if(!S.profile?.id)return;
   // Get all conversations user is a member of
-  const{data:members}=await sb.from('conversation_members').select('conversation_id,last_read_at').eq('user_id',S.profile.id);
+  const{data:members}=await sb.from('conversation_members').select('conversation_id,last_read_at').eq('user_id',S.profile.id).eq('school_id',S.schoolId);
   if(!members||!members.length){renderConvList([]);return;}
   const convIds=members.map(m=>m.conversation_id);
   const[{data:convs},{data:lastMsgs},{data:profs}]=await Promise.all([
     sb.from('conversations').select('*').in('id',convIds).eq('school_id',S.schoolId),
-    sb.from('messages').select('*').in('conversation_id',convIds).order('created_at',{ascending:false}),
+    sb.from('messages').select('*').in('conversation_id',convIds).eq('school_id',S.schoolId).order('created_at',{ascending:false}),
     sb.from('profiles').select('id,first_name,last_name,role').eq('school_id',S.schoolId)
   ]);
   MS.profiles=profs||[];
@@ -6442,13 +6472,13 @@ function fmtMsgTime(iso){
 async function openConv(convId){
   MS.convId=convId;
   // Mark as read
-  await sb.from('conversation_members').update({last_read_at:new Date().toISOString()}).eq('conversation_id',convId).eq('user_id',S.profile.id);
+  await sb.from('conversation_members').update({last_read_at:new Date().toISOString()}).eq('conversation_id',convId).eq('user_id',S.profile.id).eq('school_id',S.schoolId);
   // Update unread badge
   const c=MS.convs.find(cv=>cv.id===convId);
   if(c)c.unread=0;
   renderConvList(MS.convs);
   // Load messages
-  const{data:msgs}=await sb.from('messages').select('*').eq('conversation_id',convId).order('created_at',{ascending:true});
+  const{data:msgs}=await sb.from('messages').select('*').eq('conversation_id',convId).eq('school_id',S.schoolId).order('created_at',{ascending:true});
   MS.msgs=msgs||[];
   renderMsgMain(c);
 }
@@ -6480,7 +6510,7 @@ function renderMsgs(){
   return MS.msgs.map(m=>{
     const mine=m.sender_id===S.profile.id;
     const prof=MS.profiles.find(p=>p.id===m.sender_id);
-    const senderName=mine?'Вы':(prof?prof.first_name+' '+prof.last_name:'');
+    const senderName=mine?'Вы':(prof?_esc(prof.first_name||'')+' '+_esc(prof.last_name||''):'');
     const d=new Date(m.created_at);
     const dateStr=d.toLocaleDateString('ru',{day:'numeric',month:'long'});
     const dateSep=dateStr!==lastDate?`<div style="text-align:center;margin:8px 0;font-size:.72rem;color:var(--text3)">${dateStr}</div>`:'';
@@ -6512,6 +6542,8 @@ function fmtFileSize(b){
 }
 
 async function sendMsg(){
+  if(MS._sending)return;MS._sending=true;
+  try{
   const inp=document.getElementById('msgInput');
   if(!inp||!MS.convId)return;
   const body=inp.value.trim();
@@ -6522,9 +6554,12 @@ async function sendMsg(){
   // Optimistic
   MS.msgs.push({id:'tmp_'+Date.now(),conversation_id:MS.convId,sender_id:S.profile.id,body,created_at:new Date().toISOString()});
   refreshMsgThread();
+  }finally{MS._sending=false;}
 }
 
 async function uploadMsgFile(input){
+  if(MS.uploading)return;MS.uploading=true;
+  try{
   if(!input.files||!input.files[0]||!MS.convId)return;
   const file=input.files[0];
   input.value='';
@@ -6538,6 +6573,7 @@ async function uploadMsgFile(input){
   // Clear loading toast (it auto-removes)
   await sb.from('messages').insert({conversation_id:MS.convId,sender_id:S.profile.id,body:'',file_url:fileUrl,file_name:file.name,file_size:file.size,file_type:file.type});
   showToastCard(t('Файл отправлен'),'','success','✅');
+  }finally{MS.uploading=false;}
 }
 
 function refreshMsgThread(){
@@ -6641,7 +6677,7 @@ async function createConv(){
   const{data:conv,error}=await sb.from('conversations').insert({school_id:S.schoolId,type,name}).select().single();
   if(error){showToastCard(t('Ошибка'),''+error.message,'error','❌');return;}
   // Add members
-  const{error:membErr}=await sb.from('conversation_members').insert(members.map(uid=>({conversation_id:conv.id,user_id:uid})));
+  const{error:membErr}=await sb.from('conversation_members').insert(members.map(uid=>({conversation_id:conv.id,user_id:uid,school_id:S.schoolId})));
   if(membErr){showToastCard(t('Ошибка'),''+membErr.message,'error','❌');return;}
   closeM('mNewConv');
   await loadConvs();
@@ -6651,7 +6687,7 @@ async function createConv(){
 // ═══════════════════════════════════════════════════════════════════════════════
 // ─── TASKS / KANBAN ───────────────────────────────────────────────────────────
 // ═══════════════════════════════════════════════════════════════════════════════
-const TK={tasks:[],filterUser:'all',rtSub:null};
+const TK={tasks:[],filterUser:'all',rtSub:null,_movingTask:null,_deletingTask:false};
 let _taskReminderInterval=null;
 
 async function renderTasks(){
@@ -6734,20 +6770,26 @@ function renderTaskCard(tk){
 }
 
 async function moveTask(id,newStatus){
-  const{error:mvErr}=await sb.from('tasks').update({status:newStatus,updated_at:new Date().toISOString()}).eq('id',id).eq('school_id',S.schoolId);
-  if(mvErr)console.error('moveTask error:',mvErr);
-  const tk=TK.tasks.find(t=>t.id===id);
-  if(tk)tk.status=newStatus;
-  refreshKanban();
-  showToastCard(t('Статус обновлён'),'','success','✅',2000);
+  if(TK._movingTask===id)return;TK._movingTask=id;
+  try{
+    const{error:mvErr}=await sb.from('tasks').update({status:newStatus,updated_at:new Date().toISOString()}).eq('id',id).eq('school_id',S.schoolId);
+    if(mvErr)console.error('moveTask error:',mvErr);
+    const tk=TK.tasks.find(t=>t.id===id);
+    if(tk)tk.status=newStatus;
+    refreshKanban();
+    showToastCard(t('Статус обновлён'),'','success','✅',2000);
+  } finally{TK._movingTask=null;}
 }
 
 async function deleteTask(id){
-  if(!confirm('Удалить задачу?'))return;
-  const{error:dtErr}=await sb.from('tasks').delete().eq('id',id).eq('school_id',S.schoolId);
-  if(dtErr){showToast('Ошибка удаления задачи: '+dtErr.message,'error');return;}
-  TK.tasks=TK.tasks.filter(t=>t.id!==id);
-  refreshKanban();
+  if(TK._deletingTask)return;TK._deletingTask=true;
+  try{
+    if(!confirm('Удалить задачу?'))return;
+    const{error:dtErr}=await sb.from('tasks').delete().eq('id',id).eq('school_id',S.schoolId);
+    if(dtErr){showToast('Ошибка удаления задачи: '+dtErr.message,'error');return;}
+    TK.tasks=TK.tasks.filter(t=>t.id!==id);
+    refreshKanban();
+  } finally{TK._deletingTask=false;}
 }
 
 function openAddTask(){S.editTaskId=null;populateTaskModal({});openM('mAddTask');}
@@ -6995,7 +7037,7 @@ async function renderStudentVocab(){
     setContent('<div class="empty-state"><div class="ei">📖</div><p>Нет назначенных уроков</p></div>');
     return;
   }
-  const{data:lessons}=await sb.from('lessons').select('title,content').in('id',lessonIds).eq('published',true);
+  const{data:lessons}=await sb.from('lessons').select('title,content').in('id',lessonIds).eq('school_id',S.schoolId).eq('published',true);
   (lessons||[]).forEach(lesson=>{
     let cont;try{cont=typeof lesson.content==='string'?JSON.parse(lesson.content):lesson.content;}catch(e){return;}
     if(!cont||!cont.sections)return;
@@ -7110,6 +7152,7 @@ async function openPlacementTestPlayer(hwId){
   openM('mPlacementTestPlayer');
   const{data:hw}=await sb.from('homeworks').select('*').eq('id',hwId).eq('school_id',S.schoolId).single();
   if(!hw){showToast(isEn?'Test not found':'Тест не найден');return;}
+  if(S.role==='student'&&S.studentRowId&&hw.student_id!==S.studentRowId){showToast('Доступ запрещён','error');return;}
   let questions=[];try{questions=JSON.parse(hw.description)||[];}catch(e){}
   C('ptpQuestions').innerHTML=questions.map((q,i)=>`
     <div style="margin-bottom:20px;padding:14px;background:var(--gray-light);border-radius:10px">
@@ -7122,32 +7165,35 @@ async function openPlacementTestPlayer(hwId){
     </div>`).join('');
 }
 async function submitPlacementTest(){
-  const isEn=S.lang==='en';
-  const{data:hw,error:hwFetchErr}=await sb.from('homeworks').select('*').eq('id',_ptpHwId).eq('school_id',S.schoolId).single();
-  if(hwFetchErr||!hw){showToast(isEn?'Test not found':'Тест не найден','error');return;}
-  // Guard: student can only submit their own test
-  if(S.studentRowId&&hw.student_id&&hw.student_id!==S.studentRowId){showToast(isEn?'Access denied':'Ошибка доступа','error');return;}
-  let questions=[];try{questions=JSON.parse(hw.description)||[];}catch(e){}
-  let score=0;
-  questions.forEach((q,i)=>{if(Number(_ptpAnswers[i])===q.correct)score++;});
-  const cefrLevel=score<=3?'A1':score<=6?'A2':score<=9?'B1':score<=12?'B2':score<=14?'C1':'C2';
-  // Update student level
-  const{error:stuLvlErr}=await sb.from('students').update({level:cefrLevel}).eq('id',hw.student_id).eq('school_id',S.schoolId);
-  if(stuLvlErr)console.error('[submitPlacementTest] update level:',stuLvlErr);
-  // Mark homework as reviewed
-  const{error:hwUpdErr}=await sb.from('homeworks').update({
-    status:'reviewed',
-    student_answer:JSON.stringify(_ptpAnswers),
-    teacher_comment:isEn
-      ?`🎉 Test result: ${score}/15 correct. Level determined: ${cefrLevel}`
-      :`🎉 Результат теста: ${score}/15 правильных. Определён уровень: ${cefrLevel}`
-  }).eq('id',_ptpHwId).eq('school_id',S.schoolId);
-  if(hwUpdErr){showToast('Ошибка: '+hwUpdErr.message,'error');return;}
-  closeM('mPlacementTestPlayer');
-  dcInval('students_full_'+S.schoolId);dcInval('students_full_'+S.profile.id);
-  const msg=isEn?`🎉 Your level: ${cefrLevel}! (${score}/15 correct)`:`🎉 Ваш уровень: ${cefrLevel}! (${score}/15 правильных)`;
-  showToast(msg);
-  renderStudentHw();
+  if(S._ptpSubmitting)return;S._ptpSubmitting=true;
+  try{
+    const isEn=S.lang==='en';
+    const{data:hw,error:hwFetchErr}=await sb.from('homeworks').select('*').eq('id',_ptpHwId).eq('school_id',S.schoolId).single();
+    if(hwFetchErr||!hw){showToast(isEn?'Test not found':'Тест не найден','error');return;}
+    // Guard: student can only submit their own test
+    if(!S.studentRowId||hw.student_id!==S.studentRowId){showToast(isEn?'Access denied':'Доступ запрещён','error');return;}
+    let questions=[];try{questions=JSON.parse(hw.description)||[];}catch(e){}
+    let score=0;
+    questions.forEach((q,i)=>{if(Number(_ptpAnswers[i])===q.correct)score++;});
+    const cefrLevel=score<=3?'A1':score<=6?'A2':score<=9?'B1':score<=12?'B2':score<=14?'C1':'C2';
+    // Update student level
+    const{error:stuLvlErr}=await sb.from('students').update({level:cefrLevel}).eq('id',hw.student_id).eq('school_id',S.schoolId);
+    if(stuLvlErr)console.error('[submitPlacementTest] update level:',stuLvlErr);
+    // Mark homework as reviewed
+    const{error:hwUpdErr}=await sb.from('homeworks').update({
+      status:'reviewed',
+      student_answer:JSON.stringify(_ptpAnswers),
+      teacher_comment:isEn
+        ?`🎉 Test result: ${score}/15 correct. Level determined: ${cefrLevel}`
+        :`🎉 Результат теста: ${score}/15 правильных. Определён уровень: ${cefrLevel}`
+    }).eq('id',_ptpHwId).eq('school_id',S.schoolId);
+    if(hwUpdErr){showToast('Ошибка: '+hwUpdErr.message,'error');return;}
+    closeM('mPlacementTestPlayer');
+    dcInval('students_full_'+S.schoolId);dcInval('students_full_'+S.profile.id);
+    const msg=isEn?`🎉 Your level: ${cefrLevel}! (${score}/15 correct)`:`🎉 Ваш уровень: ${cefrLevel}! (${score}/15 правильных)`;
+    showToast(msg);
+    renderStudentHw();
+  } finally{S._ptpSubmitting=false;}
 }
 
 // ─── FEATURE 5: iCAL EXPORT ───────────────────────────────────────────────────
