@@ -2866,7 +2866,7 @@ function toggleLang(){
 
 function _applyLang(prevLang){
   // Update role chip text
-  if(S.role)C('roleChip').textContent=t(S.role==='owner'?'Владелец':S.role==='admin'?'Администратор':S.role==='teacher'?'Учитель':'Ученик');
+  if(S.role){const rc=C('roleChip');if(rc)rc.textContent=t(S.role==='owner'?'Владелец':S.role==='admin'?'Администратор':S.role==='teacher'?'Учитель':'Ученик');}
   buildSidebar();
   // Re-render current screen
   const fn={
@@ -3986,7 +3986,7 @@ async function openHWEditor(hwId,preStudentId,preStudentName){
   const{data:sts}=await sb.from('students').select('id,first_name,last_name').eq('school_id',S.schoolId).order('last_name');
   C('hwe_student').innerHTML=(sts||[]).map(s=>`<option value="${s.id}"${s.id===preStudentId?' selected':''}>${_esc(s.first_name)} ${_esc(s.last_name)}</option>`).join('');
   if(hwId){
-    const{data:hw}=await sb.from('homeworks').select('*').eq('id',hwId).single();
+    const{data:hw}=await sb.from('homeworks').select('*').eq('id',hwId).eq('school_id',S.schoolId).single();
     if(hw){
       C('hwe_title').value=hw.title||'';
       C('hwe_deadline').value=hw.deadline||'';
@@ -4105,24 +4105,30 @@ async function saveHWEditor(){
   if(!title){showToast('Введи название ДЗ');return;}
   if(!sid){showToast('Выбери ученика');return;}
   if(!HWE.exercises.length){showToast('Добавь хотя бы одно упражнение');return;}
+  const btn=document.querySelector('#mHWEditor .btn-purple');
+  if(btn){btn.disabled=true;btn.textContent='Сохранение...';}
   const payload={school_id:S.schoolId,teacher_id:S.profile.id,student_id:sid,title,description:JSON.stringify(HWE.exercises),deadline:dl||null};
-  if(HWE.hwId){
-    const{error}=await sb.from('homeworks').update(payload).eq('id',HWE.hwId);
-    if(error){showToast('Ошибка сохранения: '+error.message,'error');return;}
-    showToast('✅ ДЗ обновлено!');
-  } else {
-    const{error}=await sb.from('homeworks').insert({...payload,status:'pending'});
-    if(error){showToast('Ошибка создания ДЗ: '+error.message,'error');return;}
-    showToast('✅ ДЗ отправлено!');
+  try{
+    if(HWE.hwId){
+      const{error}=await sb.from('homeworks').update(payload).eq('id',HWE.hwId);
+      if(error){showToast('Ошибка сохранения: '+error.message,'error');return;}
+      showToast('✅ ДЗ обновлено!');
+    } else {
+      const{error}=await sb.from('homeworks').insert({...payload,status:'pending'});
+      if(error){showToast('Ошибка создания ДЗ: '+error.message,'error');return;}
+      showToast('✅ ДЗ отправлено!');
+    }
+    closeM('mHWEditor');
+    if(S.screen==='t_homework')renderTeacherHw();
+  } finally {
+    if(btn){btn.disabled=false;btn.textContent='Сохранить';}
   }
-  closeM('mHWEditor');
-  if(S.screen==='t_homework')renderTeacherHw();
 }
 
 // ── STUDENT: HW PLAYER ──────────────────────────────────────────────────────
 async function openHWPlayer(hwId){
   HWP.hwId=hwId;HWP.answers={};
-  const{data:hw}=await sb.from('homeworks').select('*').eq('id',hwId).single();
+  const{data:hw}=await sb.from('homeworks').select('*').eq('id',hwId).eq('school_id',S.schoolId).single();
   if(!hw){showToast('ДЗ не найдено');return;}
   HWP.hwData=hw;
   try{HWP.exercises=JSON.parse(hw.description)||[];}catch(e){HWP.exercises=[];}
@@ -4145,7 +4151,8 @@ function _hwpRenderEx(ex,i){
     body=`<div style="font-size:.92rem;line-height:1.8;white-space:pre-wrap;margin-bottom:${ex.question?'12':'0'}px">${_esc(ex.text||'')}</div>
       ${ex.question?`<div style="font-weight:700;margin-bottom:6px">❓ ${_esc(ex.question)}</div><textarea class="hwp-ans-area" id="hwp_inp_${i}" placeholder="Твой ответ..."></textarea>`:''}`;
   } else if(ex.type==='fill_blank'){
-    const sent=(ex.sentence||'').replace('{{blank}}',`<input type="text" id="hwp_inp_${i}" class="hwp-fb-inp" placeholder="...">`);
+    const sentParts=(ex.sentence||'').split('{{blank}}');
+    const sent=sentParts.map(p=>_esc(p)).join(`<input type="text" id="hwp_inp_${i}" class="hwp-fb-inp" placeholder="...">`);
     body=`<div style="font-size:1rem;line-height:2.4">${sent}</div>`;
   } else if(ex.type==='quiz'){
     body=`<div style="font-weight:600;margin-bottom:10px">${_esc(ex.question||'')}</div>
@@ -4215,17 +4222,26 @@ function _hwpCollectAnswers(){
 }
 
 async function submitHWAnswers(){
-  const answers=_hwpCollectAnswers();
-  const{error}=await sb.from('homeworks').update({status:'submitted',student_answer:JSON.stringify(answers)}).eq('id',HWP.hwId);
-  if(error){showToast('Ошибка отправки ДЗ: '+error.message,'error');return;}
-  closeM('mHWPlayer');showToast('✅ ДЗ отправлено!');renderStudentHw();
+  const btn=document.querySelector('#mHWPlayer .btn-green');
+  if(btn){btn.disabled=true;btn.textContent='Отправка...';}
+  try{
+    const answers=_hwpCollectAnswers();
+    const{error}=await sb.from('homeworks')
+      .update({status:'submitted',student_answer:JSON.stringify(answers)})
+      .eq('id',HWP.hwId)
+      .eq('school_id',S.schoolId);
+    if(error){showToast('Ошибка отправки ДЗ: '+error.message,'error');return;}
+    closeM('mHWPlayer');showToast('✅ ДЗ отправлено!');renderStudentHw();
+  } finally {
+    if(btn){btn.disabled=false;btn.textContent='✅ Отправить ответы';}
+  }
 }
 async function renderStudentLessons(){
   showSkel();
   const{data:stu}=await dc('stu_me_'+S.profile.id,()=>sb.from('students').select('id').eq('email',S.profile.email).eq('school_id',S.schoolId).single());
   if(!stu?.id){C('content').innerHTML='<div class="empty-state"><div class="ei">📭</div><p>Профиль ученика не найден. Обратитесь к учителю.</p></div>';return;}
   S.studentRowId=stu.id; // store for cache invalidation
-  const{data:assigns}=await dc('stu_assigns_'+stu.id,()=>sb.from('lesson_assignments').select('*,lesson:lesson_id(id,title,language,level,content)').eq('student_id',stu.id).order('created_at',{ascending:false}));
+  const{data:assigns}=await dc('stu_assigns_'+stu.id,()=>sb.from('lesson_assignments').select('*,lesson:lesson_id(id,title,language,level,content)').eq('student_id',stu.id).eq('school_id',S.schoolId).order('created_at',{ascending:false}));
   // Full replace — never merge stale entries
   window._assignCache={};
   (assigns||[]).forEach(a=>{window._assignCache[a.id]=a;});
@@ -4291,7 +4307,7 @@ async function renderTeacherHw(){
 // ── TEACHER: HW REVIEW ──────────────────────────────────────────────────────
 async function openHWReview(hwId){
   HWR.hwId=hwId;HWR.grade=null;
-  const{data:hw,error:hwErr}=await sb.from('homeworks').select('*,student:student_id(first_name,last_name)').eq('id',hwId).single();
+  const{data:hw,error:hwErr}=await sb.from('homeworks').select('*,student:student_id(first_name,last_name)').eq('id',hwId).eq('school_id',S.schoolId).single();
   if(hwErr||!hw){showToast('ДЗ не найдено'+(hwErr?': '+hwErr.message:''),'error');return;}
   let exercises=[],answers={};
   try{exercises=JSON.parse(hw.description)||[];}catch(e){}
@@ -4355,9 +4371,10 @@ async function saveHWReview(){
 // ── STUDENT: HW LIST ────────────────────────────────────────────────────────
 async function renderStudentHw(){
   showSkel();
-  const{data:stu}=await sb.from('students').select('id').eq('email',S.profile.email).single();
+  const{data:stu}=await sb.from('students').select('id').eq('email',S.profile.email).eq('school_id',S.schoolId).single();
   if(!stu?.id){C('content').innerHTML='<div class="empty-state"><div class="ei">📭</div><p>Профиль ученика не найден.</p></div>';return;}
-  const{data:hws}=await sb.from('homeworks').select('*,teacher:teacher_id(first_name,last_name)').eq('student_id',stu.id).order('created_at',{ascending:false});
+  if(!S.studentRowId)S.studentRowId=stu.id;
+  const{data:hws}=await sb.from('homeworks').select('*,teacher:teacher_id(first_name,last_name)').eq('student_id',stu.id).eq('school_id',S.schoolId).order('created_at',{ascending:false});
   const cards=(hws||[]).map(hw=>{
     let exCount=0;try{exCount=(JSON.parse(hw.description)||[]).length;}catch(e){}
     const comment=hw.teacher_comment||'';
@@ -5003,7 +5020,7 @@ async function loadClassTab(tab){
     C('classDetailContent').innerHTML=`<div class="section-header" style="margin-bottom:12px"><span style="font-weight:700">${t('Уроки')}</span><button class="btn btn-purple" onclick="newLesson()">+ ${t('Создать урок')}</button></div>${cards||`<div class="empty-state"><div class="ei">📖</div><p>${t('Уроков пока нет')}</p></div>`}`;
   }
   else if(tab==='schedule'){
-    const{data:evs}=await sb.from('schedule_events').select('*').eq('class_id',classId).order('event_date').order('event_time');
+    const{data:evs}=await sb.from('schedule_events').select('*').eq('class_id',classId).eq('school_id',S.schoolId).order('event_date').order('event_time');
     const rows=(evs||[]).map(ev=>`<tr>
       <td>${fmtDate(ev.event_date)}</td><td>${ev.event_time?.slice(0,5)||'—'}</td>
       <td>${ev.duration_minutes} ${t('мин')}</td>
@@ -5133,7 +5150,7 @@ async function saveEvent(){
 }
 async function deleteEvent(id){
   if(!confirm('Удалить занятие?'))return;
-  const{error}=await sb.from('schedule_events').delete().eq('id',id);
+  const{error}=await sb.from('schedule_events').delete().eq('id',id).eq('school_id',S.schoolId);
   if(error){showToast('Ошибка: '+error.message,'error');return;}
   showToast('Удалено');dcInval('schedule_'+S.schoolId);
   if(S.currentClassId)loadClassTab('schedule');else renderSchedule();
@@ -5430,6 +5447,7 @@ async function saveFromCE(publish){
     const{data:ins,error:insErr}=await sb.from('lessons').insert(data).select().single();
     err=insErr;
     if(ins){CE.lessonId=ins.id;window._lessonCache=window._lessonCache||{};window._lessonCache[ins.id]=ins;}
+    else if(!insErr){showToast('❌ Нет прав на создание урока');return;}
   }
   if(err){showToast('❌ Ошибка: '+err.message);console.error('saveFromCE error:',err);return;}
   dcInval('lessons_'+S.schoolId);
@@ -5488,20 +5506,26 @@ async function openAssignLesson(lessonId){
 async function assignLesson(){
   const sid=C('assign_student').value;if(!sid){showToast('Выбери ученика');return;}
   if(!S.assignLessonId){showToast('Ошибка: урок не выбран');return;}
-  // Duplicate guard
-  const{data:existing}=await sb.from('lesson_assignments').select('id').eq('lesson_id',S.assignLessonId).eq('student_id',sid).maybeSingle();
-  if(existing){showToast('Этот урок уже назначен этому ученику','error');return;}
-  const{error}=await sb.from('lesson_assignments').insert({
-    school_id:S.schoolId,
-    lesson_id:S.assignLessonId,
-    student_id:sid,
-    teacher_id:S.profile?.id||null,
-    completed:false
-  });
-  if(error){showToast('Ошибка назначения: '+error.message,'error');console.error('assignLesson error',error);return;}
-  // Invalidate student's assignment cache so they see the new lesson immediately
-  dcInval('stu_assigns_'+sid);
-  closeM('mAssignLesson');showToast('✅ Урок назначен ученику!');
+  const btn=document.querySelector('#mAssignLesson .btn-purple');
+  if(btn){btn.disabled=true;btn.textContent='Назначаем...';}
+  try{
+    // Duplicate guard
+    const{data:existing}=await sb.from('lesson_assignments').select('id').eq('lesson_id',S.assignLessonId).eq('student_id',sid).maybeSingle();
+    if(existing){showToast('Этот урок уже назначен этому ученику','error');return;}
+    const{error}=await sb.from('lesson_assignments').insert({
+      school_id:S.schoolId,
+      lesson_id:S.assignLessonId,
+      student_id:sid,
+      teacher_id:S.profile?.id||null,
+      completed:false
+    });
+    if(error){showToast('Ошибка назначения: '+error.message,'error');console.error('assignLesson error',error);return;}
+    // Invalidate student's assignment cache so they see the new lesson immediately
+    dcInval('stu_assigns_'+sid);
+    closeM('mAssignLesson');showToast('✅ Урок назначен ученику!');
+  } finally {
+    if(btn){btn.disabled=false;btn.textContent='Назначить';}
+  }
 }
 
 // ─── LIBRARY ──────────────────────────────────────────────────────────────────
@@ -5642,7 +5666,7 @@ async function previewLibLesson(lessonId){
 function _escHtml(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 
 // ─── CLASSROOM VIEW (EdVibe-style lesson viewer) ──────────────────────────────
-const LV={sections:[],materials:[],curSec:0,curEx:0,assignId:null,viewAll:false};
+const LV={sections:[],materials:[],curSec:0,curEx:0,assignId:null,viewAll:false,_completing:false};
 
 function _parseLessonContent(content){
   // Accepts: encoded string (legacy), plain object, or array — never breaks on large content
@@ -5919,13 +5943,13 @@ function lvRenderAll(){
 
 function renderBlockView(b,i){
   if(b.type==='text') return`<div class="lesson-view-block">
-    ${b.image?`<img src="${b.image}" style="max-width:100%;border-radius:8px;margin-bottom:10px">`:''}
-    <div style="font-size:.95rem;line-height:1.8">${(b.text||'').replace(/\n/g,'<br>')}</div>
+    ${b.image?`<img src="${_escHtml(b.image)}" style="max-width:100%;border-radius:8px;margin-bottom:10px">`:''}
+    <div style="font-size:.95rem;line-height:1.8">${_escHtml(b.text||'').replace(/\n/g,'<br>')}</div>
   </div>`;
   if(b.type==='vocab') return`<div class="lesson-view-block">
     <div style="font-weight:700;margin-bottom:10px">🃏 Карточки <small style="color:var(--text3)">(кликни чтобы перевернуть)</small></div>
     ${(b.words||[]).map((w)=>`<div class="vocab-card" onclick="this.classList.toggle('flipped')">
-      <div class="vocab-inner"><div class="vocab-front">${w.word}</div><div class="vocab-back">${w.trans}</div></div>
+      <div class="vocab-inner"><div class="vocab-front">${_escHtml(w.word)}</div><div class="vocab-back">${_escHtml(w.trans)}</div></div>
     </div>`).join('')}
   </div>`;
   if(b.type==='fill_blank'){window[`_fbAns_${i}`]=b.answer||'';return`<div class="lesson-view-block">
@@ -5937,18 +5961,18 @@ function renderBlockView(b,i){
     <div id="fb_res_${i}" style="margin-top:6px;font-size:.85rem"></div>
   </div>`;}
   if(b.type==='quiz') return`<div class="lesson-view-block">
-    <div style="font-weight:700;margin-bottom:10px">🎯 ${b.question||'Вопрос'}</div>
-    ${(b.options||[]).map((opt,oi)=>`<div class="quiz-opt" id="qo_${i}_${oi}" onclick="checkQuiz(${i},${oi},${b.correct!=null?b.correct:0})">${opt}</div>`).join('')}
+    <div style="font-weight:700;margin-bottom:10px">🎯 ${_escHtml(b.question||'Вопрос')}</div>
+    ${(b.options||[]).map((opt,oi)=>`<div class="quiz-opt" id="qo_${i}_${oi}" onclick="checkQuiz(${i},${oi},${b.correct!=null?b.correct:0})">${_escHtml(opt)}</div>`).join('')}
   </div>`;
   if(b.type==='truefalse'){const _tfa=(b.answer===true||b.answer===false)?b.answer:true;return`<div class="lesson-view-block">
     <div style="font-weight:700;margin-bottom:12px">✅ Верно или Неверно?</div>
-    <div style="font-size:1rem;margin-bottom:14px;padding:12px;background:var(--gray-light);border-radius:8px">"${b.statement||''}"</div>
+    <div style="font-size:1rem;margin-bottom:14px;padding:12px;background:var(--gray-light);border-radius:8px">"${_escHtml(b.statement||'')}"</div>
     <div style="display:flex;gap:10px">
       <button class="tf-btn" id="tf_${i}_t" onclick="checkTF(${i},true,${_tfa})">✅ Верно (True)</button>
       <button class="tf-btn" id="tf_${i}_f" onclick="checkTF(${i},false,${_tfa})">❌ Неверно (False)</button>
     </div>
     <div id="tf_res_${i}" style="margin-top:8px;font-size:.85rem"></div>
-    ${b.explanation?`<div id="tf_exp_${i}" style="display:none;margin-top:8px;padding:10px;background:var(--blue-light);border-radius:8px;font-size:.85rem">💡 ${b.explanation}</div>`:''}
+    ${b.explanation?`<div id="tf_exp_${i}" style="display:none;margin-top:8px;padding:10px;background:var(--blue-light);border-radius:8px;font-size:.85rem">💡 ${_escHtml(b.explanation)}</div>`:''}
   </div>`;}
   if(b.type==='matching'){
     const pairs=[...b.pairs||[]];
@@ -5957,8 +5981,8 @@ function renderBlockView(b,i){
     return`<div class="lesson-view-block">
       <div style="font-weight:700;margin-bottom:10px">🔗 Соотнеси слова</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-        <div>${pairs.map((p,pi)=>`<div class="match-item" id="ml_${i}_${pi}" onclick="matchLeft(${i},${pi})">${p.left}</div>`).join('')}</div>
-        <div id="mr_${i}">${rights.map((r,ri)=>`<div class="match-item" id="mr_${i}_${ri}" onclick="matchRight(${i},${ri})">${r}</div>`).join('')}</div>
+        <div>${pairs.map((p,pi)=>`<div class="match-item" id="ml_${i}_${pi}" onclick="matchLeft(${i},${pi})">${_escHtml(p.left)}</div>`).join('')}</div>
+        <div id="mr_${i}">${rights.map((r,ri)=>`<div class="match-item" id="mr_${i}_${ri}" onclick="matchRight(${i},${ri})">${_escHtml(r)}</div>`).join('')}</div>
       </div>
       <div id="match_res_${i}" style="margin-top:8px;font-size:.85rem"></div>
     </div>`;
@@ -5996,7 +6020,7 @@ function renderBlockView(b,i){
     ${b.caption?`<p style="font-size:.85rem;color:var(--text3);text-align:center;margin:0">${_escHtml(b.caption)}</p>`:''}
   </div>`;}
   if(b.type==='openq') return`<div class="lesson-view-block">
-    <div style="font-weight:700;margin-bottom:10px">💬 ${b.question||'Вопрос'}</div>
+    <div style="font-weight:700;margin-bottom:10px">💬 ${_escHtml(b.question||'Вопрос')}</div>
     <textarea style="width:100%;padding:10px 12px;border:2px solid var(--gray-border);border-radius:8px;font-family:var(--font);min-height:80px;font-size:.92rem" placeholder="Напиши свой ответ..."></textarea>
   </div>`;
   return'';
@@ -6020,9 +6044,10 @@ function checkQuiz(blockI,chosen,correct){
 }
 function checkTF(i,chosen,correct){
   const isCorrect=chosen===correct;
-  C(`tf_${i}_t`).classList.add(correct===true?'correct':chosen===true?'wrong':'');
-  C(`tf_${i}_f`).classList.add(correct===false?'correct':chosen===false?'wrong':'');
-  [C(`tf_${i}_t`),C(`tf_${i}_f`)].forEach(b=>{if(b)b.onclick=null;});
+  const bt=C(`tf_${i}_t`),bf=C(`tf_${i}_f`);
+  if(correct===true)bt?.classList.add('correct');else if(chosen===true)bt?.classList.add('wrong');
+  if(correct===false)bf?.classList.add('correct');else if(chosen===false)bf?.classList.add('wrong');
+  [bt,bf].forEach(b=>{if(b)b.onclick=null;});
   C(`tf_res_${i}`).innerHTML=isCorrect?`<span style="color:var(--green)">✅ ${t('Правильно!')}</span>`:`<span style="color:var(--red)">❌ ${t('Неверно!')}</span>`;
   const exp=C(`tf_exp_${i}`);if(exp)exp.style.display='block';
 }
@@ -6073,18 +6098,30 @@ function checkWordOrder(i){
     `<span style="color:var(--red)">❌ ${t('Неверно.')} ${t('Правильно')}: <b>${correct}</b></span>`;
 }
 async function completeLessonView(){
-  if(S.currentAssignId){
-    await sb.from('lesson_assignments').update({completed:true}).eq('id',S.currentAssignId);
-    // Invalidate student assignment cache — use studentRowId (students table PK, not auth user id)
-    dcInval('stu_assigns_'+(S.studentRowId||S.profile?.id));
-    window._assignCache={};
-    showToast('Урок завершён! 🎉');
-    closeClassroomView();
-    if(S.role==='student')await renderStudentLessons();
-  } else {
-    showToast('Просмотр завершён ✓');
-    closeClassroomView();
-  }
+  if(LV._completing)return;
+  LV._completing=true;
+  try{
+    if(S.currentAssignId){
+      const{error:_lvErr}=await sb.from('lesson_assignments')
+        .update({completed:true})
+        .eq('id',S.currentAssignId)
+        .eq('school_id',S.schoolId);
+      if(_lvErr){showToast('Ошибка завершения урока: '+_lvErr.message,'error');return;}
+      // Ensure studentRowId is set before cache invalidation
+      if(!S.studentRowId&&S.profile?.email){
+        const{data:_stu}=await sb.from('students').select('id').eq('email',S.profile.email).eq('school_id',S.schoolId).single();
+        if(_stu?.id)S.studentRowId=_stu.id;
+      }
+      dcInval('stu_assigns_'+(S.studentRowId||''));
+      window._assignCache={};
+      showToast('Урок завершён! 🎉');
+      closeClassroomView();
+      if(S.role==='student')await renderStudentLessons();
+    } else {
+      showToast('Просмотр завершён ✓');
+      closeClassroomView();
+    }
+  } finally { LV._completing=false; }
 }
 // Teacher preview — no assignment needed
 function openLessonPreview(title,content){
@@ -6405,7 +6442,7 @@ function refreshMsgThread(){
 function initMsgrRealtime(){
   if(MS.rtSub)MS.rtSub.unsubscribe();
   MS.rtSub=sb.channel('ms_'+S.schoolId)
-    .on('postgres_changes',{event:'INSERT',schema:'public',table:'messages'},payload=>{
+    .on('postgres_changes',{event:'INSERT',schema:'public',table:'messages',filter:'school_id=eq.'+S.schoolId},payload=>{
       const m=payload.new;
       // If in active conv — append
       if(m.conversation_id===MS.convId){
@@ -6496,7 +6533,8 @@ async function createConv(){
   const{data:conv,error}=await sb.from('conversations').insert({school_id:S.schoolId,type,name}).select().single();
   if(error){showToastCard(t('Ошибка'),''+error.message,'error','❌');return;}
   // Add members
-  await sb.from('conversation_members').insert(members.map(uid=>({conversation_id:conv.id,user_id:uid})));
+  const{error:membErr}=await sb.from('conversation_members').insert(members.map(uid=>({conversation_id:conv.id,user_id:uid})));
+  if(membErr){showToastCard(t('Ошибка'),''+membErr.message,'error','❌');return;}
   closeM('mNewConv');
   await loadConvs();
   openConv(conv.id);
@@ -6777,6 +6815,7 @@ async function saveStudentCard(){
   const{error}=await sb.from('students').update(updates).eq('id',id);
   if(error){showToast('Ошибка: '+error.message);return;}
   dcInval('students_full_'+S.schoolId);
+  if(S.role==='teacher')dcInval('students_full_'+S.profile.id);
   closeM('mStudentCard');
   showToast('✅ Данные ученика сохранены!');
   if(S.screen==='t_students')renderTeacherStudents();
@@ -6912,20 +6951,26 @@ function openPlacementTest(studentId,name){
 async function sendPlacementTest(){
   const isEn=S.lang==='en';
   if(!_ptStudentId){closeM('mPlacementTest');return;}
+  const btn=document.querySelector('#mPlacementTest .btn-purple');
+  if(btn){btn.disabled=true;btn.textContent=isEn?'Sending...':'Отправка...';}
   const exercises=PLACEMENT_Q.map((q)=>({type:'quiz',question:q.q,options:q.opts,correct:q.correct,_lvl:q.lvl}));
   const deadline=new Date(Date.now()+7*86400000).toISOString().split('T')[0];
-  const{error}=await sb.from('homeworks').insert({
-    school_id:S.schoolId,
-    teacher_id:S.profile.id,
-    student_id:_ptStudentId,
-    title:'🎯 Тест на уровень',
-    description:JSON.stringify(exercises),
-    status:'pending',
-    deadline
-  });
-  if(error){showToast((isEn?'Error: ':'Ошибка: ')+error.message);return;}
-  closeM('mPlacementTest');
-  showToast(isEn?'🎯 Placement test sent!':'🎯 Тест на уровень отправлен!');
+  try{
+    const{error}=await sb.from('homeworks').insert({
+      school_id:S.schoolId,
+      teacher_id:S.profile.id,
+      student_id:_ptStudentId,
+      title:'🎯 Тест на уровень',
+      description:JSON.stringify(exercises),
+      status:'pending',
+      deadline
+    });
+    if(error){showToast((isEn?'Error: ':'Ошибка: ')+error.message);return;}
+    closeM('mPlacementTest');
+    showToast(isEn?'🎯 Placement test sent!':'🎯 Тест на уровень отправлен!');
+  } finally {
+    if(btn){btn.disabled=false;btn.textContent=isEn?'Send test':'Отправить тест';}
+  }
 }
 
 // Placement test player for students
