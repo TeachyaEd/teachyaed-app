@@ -2922,6 +2922,7 @@ function _profileAvatarColor(){
 
 function _renderProfileModal(){
   const prof=S.profile;
+  if(!prof)return;
   const color=_profileAvatarColor();
   const emoji=prof.avatar_emoji||null;
   const photo=_pendingPhotoDataUrl||prof._photoUrl||null;
@@ -2980,7 +2981,7 @@ function _renderProfileModal(){
 
 function switchProfileTab(tab,el){
   _profileTab=tab;
-  document.querySelectorAll('.profile-tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.profile-tab').forEach(tab=>tab.classList.remove('active'));
   el.classList.add('active');
   _renderProfileModal();
 }
@@ -3213,8 +3214,8 @@ const TOOL_CONTENT={
   templates:{
     title:'▦ Шаблоны упражнений',
     html:`<div style="display:flex;flex-direction:column;gap:8px">
-      ${[['Множественный выбор','quiz'],['Заполни пропуск','fillblank'],['Верно/Неверно','truefalse'],['Порядок слов','wordorder'],['Соответствие','match'],['Открытый вопрос','openq'],['Текст','text'],['Изображение','image']].map(([l,t])=>`
-      <button onclick="ceAddExType('${t}')" style="text-align:left;padding:10px 14px;border:1.5px solid var(--gray-border);border-radius:10px;background:#fff;cursor:pointer;font-size:.85rem;font-family:var(--font);color:var(--text2);transition:.15s" onmouseover="this.style.borderColor='var(--purple)';this.style.color='var(--purple)'" onmouseout="this.style.borderColor='var(--gray-border)';this.style.color='var(--text2)'">${l}</button>`).join('')}
+      ${[['Множественный выбор','quiz'],['Заполни пропуск','fillblank'],['Верно/Неверно','truefalse'],['Порядок слов','wordorder'],['Соответствие','match'],['Открытый вопрос','openq'],['Текст','text'],['Изображение','image']].map(([l,exType])=>`
+      <button onclick="ceAddExType('${exType}')" style="text-align:left;padding:10px 14px;border:1.5px solid var(--gray-border);border-radius:10px;background:#fff;cursor:pointer;font-size:.85rem;font-family:var(--font);color:var(--text2);transition:.15s" onmouseover="this.style.borderColor='var(--purple)';this.style.color='var(--purple)'" onmouseout="this.style.borderColor='var(--gray-border)';this.style.color='var(--text2)'">${l}</button>`).join('')}
     </div>`
   },
   ce_materials:{title:'📎 Материалы урока',html:'<div id="ceMatsBody"><div style="color:var(--text3);font-size:.85rem;text-align:center;padding:20px">Загрузка...</div></div>'},
@@ -3353,14 +3354,14 @@ async function lookupWord(){
 }
 
 function saveDictWord(w){
-  const saved=JSON.parse(localStorage.getItem('teachya_dict')||'[]');
+  let saved;try{saved=JSON.parse(localStorage.getItem('teachya_dict')||'[]');}catch(e){saved=[];}
   if(!saved.includes(w))saved.push(w);
   localStorage.setItem('teachya_dict',JSON.stringify(saved));
   renderDictSaved();showToast('Слово сохранено!');
 }
 
 function renderDictSaved(){
-  const saved=JSON.parse(localStorage.getItem('teachya_dict')||'[]');
+  let saved;try{saved=JSON.parse(localStorage.getItem('teachya_dict')||'[]');}catch(e){saved=[];}
   const el=document.getElementById('dictSaved');
   if(!el)return;
   el.innerHTML=saved.map(w=>`<span onclick="document.getElementById('dictSearch').value=decodeURIComponent('${encodeURIComponent(w)}');lookupWord()" style="padding:4px 10px;background:var(--purple-light);color:var(--purple);border-radius:20px;font-size:.78rem;cursor:pointer;font-weight:600">${_escHtml(w)}</span>`).join('');
@@ -3621,7 +3622,9 @@ async function afterLogin(user){
   // ── Fallback: profile not found — create from invite metadata ──────────────
   if(!prof){
     const meta=user.user_metadata||{};
-    const role=meta.role||null;
+    const _rawRole=meta.role||null;
+    const INVITE_ALLOWED_ROLES=['teacher','student','admin'];
+    const role=INVITE_ALLOWED_ROLES.includes(_rawRole)?_rawRole:'student';
     const schoolId=meta.school_id||null;
     if(role&&schoolId){
       // Create profile from invite data (DB trigger may have failed)
@@ -4159,7 +4162,7 @@ async function saveHWEditor(){
   const payload={school_id:S.schoolId,teacher_id:S.profile.id,student_id:sid,title,description:JSON.stringify(HWE.exercises),deadline:dl||null};
   try{
     if(HWE.hwId){
-      const{error}=await sb.from('homeworks').update(payload).eq('id',HWE.hwId).eq('school_id',S.schoolId);
+      const{error}=await sb.from('homeworks').update(payload).eq('id',HWE.hwId).eq('school_id',S.schoolId).eq('teacher_id',S.profile?.id);
       if(error){showToast('Ошибка сохранения: '+error.message,'error');return;}
       showToast('✅ ДЗ обновлено!');
     } else {
@@ -4276,6 +4279,7 @@ function _hwpCollectAnswers(){
 
 async function submitHWAnswers(){
   if(HWP._submitting)return;HWP._submitting=true;
+  if(S.role!=='student'){showToast('Доступ запрещён','error');HWP._submitting=false;return;}
   const hw=HWP.hwData;
   if(S.role==='student'){if(!S.studentRowId||!hw||hw.student_id!==S.studentRowId){showToast('Доступ запрещён','error');HWP._submitting=false;return;}}
   const btn=document.querySelector('#mHWPlayer .btn-green');
@@ -4477,6 +4481,8 @@ async function renderStudentHw(){
 
 // ─── ADMIN / OWNER ────────────────────────────────────────────────────────────
 async function renderAdminHome(){
+  if(renderAdminHome._loading)return;renderAdminHome._loading=true;
+  try{
   const[{data:sts},{data:ts},{data:pays}]=await Promise.all([
     sb.from('students').select('id').eq('school_id',S.schoolId),
     sb.from('profiles').select('id').eq('school_id',S.schoolId).eq('role','teacher'),
@@ -4490,8 +4496,11 @@ async function renderAdminHome(){
     <div class="stat-card green"><div class="stat-val">${fmtCur(paid)}</div><div class="stat-lbl">${t('Получено')}</div></div>
     <div class="stat-card yellow"><div class="stat-val">${fmtCur(pend)}</div><div class="stat-lbl">${t('Ожидает')}</div></div>
   </div>`);
+  }finally{renderAdminHome._loading=false;}
 }
 async function renderOwnerHome(){
+  if(renderOwnerHome._loading)return;renderOwnerHome._loading=true;
+  try{
   const[{data:sts},{data:ts},{data:pays},{data:adm},{data:cls}]=await Promise.all([
     sb.from('students').select('id').eq('school_id',S.schoolId),
     sb.from('profiles').select('id').eq('school_id',S.schoolId).eq('role','teacher'),
@@ -4509,8 +4518,11 @@ async function renderOwnerHome(){
     <div class="stat-card"><div class="stat-val">${adm?.length||0}</div><div class="stat-lbl">${t('Администраторов')}</div></div>
     <div class="stat-card" style="border-left-color:var(--blue)"><div class="stat-val">${cls?.length||0}</div><div class="stat-lbl">${t('Классов')}</div></div>
   </div>`);
+  }finally{renderOwnerHome._loading=false;}
 }
 async function renderAdminStudents(){
+  if(renderAdminStudents._loading)return;renderAdminStudents._loading=true;
+  try{
   const{data:sts}=await sb.from('students').select('*').eq('school_id',S.schoolId).order('last_name');
   const rows=(sts||[]).map(s=>{const sName=(_esc(s.first_name||'')+' '+_esc(s.last_name||'')).replace(/'/g,'&#39;');const sId=_esc(s.id).replace(/'/g,"&#39;");return`<tr>
     <td><div style="display:flex;align-items:center;gap:10px">${avHTML(s.first_name,s.last_name)}<div><div style="font-weight:600;cursor:pointer" onclick="openStudentCard('${sId}')">${_esc(s.first_name)} ${_esc(s.last_name)}</div><div style="font-size:.75rem;color:var(--text3)">${_esc(s.email||'—')}</div></div></div></td>
@@ -4523,8 +4535,11 @@ async function renderAdminStudents(){
     </td></tr>`}).join('')||`<tr><td colspan="5" style="text-align:center;color:var(--text3)">${t('Нет учеников')}</td></tr>`;
   setContent(`<div class="section-header"><h2>👥 ${t('Ученики')}</h2><button class="btn btn-purple" onclick="openAddStudent()">+ ${t('Добавить')}</button></div>
     <div class="card" style="padding:0;overflow:hidden"><table><thead><tr><th>${t('Ученик')}</th><th>${t('Язык')}</th><th>${t('Уровень')}</th><th>${t('Телефон')}</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>`);
+  }finally{renderAdminStudents._loading=false;}
 }
 async function renderAdminTeachers(){
+  if(renderAdminTeachers._loading)return;renderAdminTeachers._loading=true;
+  try{
   const{data:ts}=await sb.from('profiles').select('*').eq('school_id',S.schoolId).eq('role','teacher');
   const rows=(ts||[]).map(tc=>{const tcName=(_esc(tc.first_name||'')+' '+_esc(tc.last_name||'')).replace(/'/g,'&#39;');const tcId=_esc(tc.id).replace(/'/g,"&#39;");return`<tr><td><div style="display:flex;align-items:center;gap:10px">${avHTML(tc.first_name,tc.last_name)}<div><div style="font-weight:600">${_esc(tc.first_name)} ${_esc(tc.last_name)}</div><div style="font-size:.75rem;color:var(--text3)">${_esc(tc.email||'—')}</div></div></div></td>
     <td><span class="badge badge-green">${t('Учитель')}</span></td>
@@ -4535,8 +4550,11 @@ async function renderAdminTeachers(){
     </td></tr>`}).join('')||`<tr><td colspan="3" style="text-align:center;color:var(--text3)">${t('Нет учителей')}</td></tr>`;
   setContent(`<div class="section-header"><h2>👨‍🏫 ${t('Учителя')}</h2><button class="btn btn-purple" onclick="openM('mInviteStaff')">+ ${t('Пригласить')}</button></div>
     <div class="card" style="padding:0;overflow:hidden"><table><thead><tr><th>${t('Учитель')}</th><th>${t('Роль')}</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>`);
+  }finally{renderAdminTeachers._loading=false;}
 }
 async function renderOwnerUsers(){
+  if(renderOwnerUsers._loading)return;renderOwnerUsers._loading=true;
+  try{
   const{data:users}=await sb.from('profiles').select('*').eq('school_id',S.schoolId).order('role');
   const canDelete=S.role==='owner'||S.role==='admin';
   const rows=(users||[]).map(u=>{const uName=(_esc(u.first_name||'')+' '+_esc(u.last_name||'')).replace(/'/g,'&#39;');const uId=_esc(u.id).replace(/'/g,"&#39;");const uRole=_esc(u.role||'').replace(/'/g,"&#39;");return`<tr>
@@ -4552,6 +4570,7 @@ async function renderOwnerUsers(){
   </tr>`}).join('');
   setContent(`<div class="section-header"><h2>👥 Все пользователи</h2><button class="btn btn-purple" onclick="openM('mInviteStaff')">+ Пригласить сотрудника</button></div>
     <div class="card" style="padding:0;overflow:hidden"><table><thead><tr><th>${t('Пользователь')}</th><th>${t('Роль')}</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>`);
+  }finally{renderOwnerUsers._loading=false;}
 }
 let _changeRoleId='';
 function openChangeRole(uid,name,currentRole){_changeRoleId=uid;C('changeRoleUserInfo').textContent=name;C('newRole').value=currentRole;openM('mChangeRole');}
@@ -4606,8 +4625,8 @@ async function doDeleteUser(){
 }
 async function confirmDeleteStudent(sid,name){
   if(S._deletingStudent)return;
-  if(!confirm(`Удалить ученика ${name}?\nЭто удалит все его задания, оплаты и записи в классах. Действие нельзя отменить.`))return;
   S._deletingStudent=true;
+  if(!confirm(`Удалить ученика ${name}?\nЭто удалит все его задания, оплаты и записи в классах. Действие нельзя отменить.`)){S._deletingStudent=false;return;}
   try{
   showToast('⏳ Удаляем...');
   // Каскадное удаление зависимых записей
@@ -4646,7 +4665,7 @@ async function renderOwnerStudents(){
 async function renderPayments(){
   const{data:pays}=await sb.from('payments').select('*,student:student_id(first_name,last_name)').eq('school_id',S.schoolId).order('created_at',{ascending:false});
   const{data:sts}=await sb.from('students').select('id,first_name,last_name').eq('school_id',S.schoolId);
-  C('pay_student').innerHTML=(sts||[]).map(s=>`<option value="${s.id}">${_esc(s.first_name)} ${_esc(s.last_name)}</option>`).join('');
+  C('pay_student').innerHTML=(sts||[]).map(s=>`<option value="${_esc(s.id)}">${_esc(s.first_name)} ${_esc(s.last_name)}</option>`).join('');
   const paid=(pays||[]).filter(p=>p.status==='paid').reduce((a,b)=>a+Number(b.amount),0);
   const pend=(pays||[]).filter(p=>p.status==='pending').reduce((a,b)=>a+Number(b.amount),0);
   const ov=(pays||[]).filter(p=>p.status==='overdue').reduce((a,b)=>a+Number(b.amount),0);
@@ -4739,8 +4758,8 @@ async function saveSalary(){
   const btn=document.querySelector('#mSetSalary .btn.btn-purple');
   if(btn){btn.disabled=true;btn.textContent='Сохранение...';}
   try{
-    const rate=C('sal_rate').value,cur=C('sal_cur').value;if(!rate){showToast('Введи ставку!');return;}
-    const{error}=await sb.from('teacher_salaries').upsert({school_id:S.schoolId,teacher_id:S.currentSalTId,rate_per_lesson:parseFloat(rate)||0,currency:cur,updated_at:new Date().toISOString()},{onConflict:'teacher_id,school_id'});
+    const rate=C('sal_rate').value,cur=C('sal_cur').value;const rateNum=parseFloat(rate);if(!rate||isNaN(rateNum)){showToast(t?t('Введи корректную ставку!'):'Введи корректную ставку!');return;}
+    const{error}=await sb.from('teacher_salaries').upsert({school_id:S.schoolId,teacher_id:S.currentSalTId,rate_per_lesson:rateNum,currency:cur,updated_at:new Date().toISOString()},{onConflict:'teacher_id,school_id'});
     if(error){showToast('Ошибка: '+error.message,'error');return;}
     dcInval('salaries_'+S.schoolId);closeM('mSetSalary');showToast('Ставка сохранена');if(S.screen==='o_salaries'||S.screen==='a_salaries')renderSalaries();
   }finally{
@@ -4777,8 +4796,8 @@ async function renderMaterials(){
     <div class="materials-grid">${grid}</div>`);
 }
 async function deleteMaterial(id){
-  if(!confirm('Удалить этот материал?'))return;
   if(S._deletingMaterial)return;S._deletingMaterial=true;
+  if(!confirm('Удалить этот материал?')){S._deletingMaterial=false;return;}
   try{
     const{error}=await sb.from('materials').delete().eq('id',id).eq('school_id',S.schoolId);
     if(error){showToast(t('Ошибка')+': '+error.message);return;}
@@ -4919,6 +4938,7 @@ async function saveMaterial(){
 // ─── STUDENTS CRUD ────────────────────────────────────────────────────────────
 function openAddStudent(){['st_first','st_last','st_email','st_phone'].forEach(id=>C(id).value='');openM('mAddStudent');}
 async function saveStudent(){
+  if(!['teacher','admin','owner'].includes(S.role)){showToast('Нет прав','error');return;}
   const btn=document.querySelector('#mAddStudent .btn.btn-purple');
   if(btn){btn.disabled=true;}
   try{
@@ -5074,9 +5094,12 @@ async function cdpDeleteClass(){
     if(!confirm(`Удалить класс «${cl.name}»?\nУченики останутся, но будут убраны из класса. Расписание класса тоже удалится.`))return;
     showToast('⏳ Удаляем...');
     const cid=cl.id;
-    await sb.from('class_students').delete().eq('class_id',cid).eq('school_id',S.schoolId);
-    await sb.from('schedule_events').delete().eq('class_id',cid).eq('school_id',S.schoolId);
-    await sb.from('lesson_assignments').delete().eq('class_id',cid).eq('school_id',S.schoolId);
+    const{error:_cde1}=await sb.from('class_students').delete().eq('class_id',cid).eq('school_id',S.schoolId);
+    if(_cde1){showToast('Ошибка удаления учеников: '+_cde1.message,'error');return;}
+    const{error:_cde2}=await sb.from('schedule_events').delete().eq('class_id',cid).eq('school_id',S.schoolId);
+    if(_cde2){showToast('Ошибка удаления расписания: '+_cde2.message,'error');return;}
+    const{error:_cde3}=await sb.from('lesson_assignments').delete().eq('class_id',cid).eq('school_id',S.schoolId);
+    if(_cde3){showToast('Ошибка удаления назначений: '+_cde3.message,'error');return;}
     const{error}=await sb.from('classes').delete().eq('id',cid).eq('school_id',S.schoolId);
     if(error){showToast('❌ '+error.message);return;}
     showToast('✅ Класс «'+cl.name+'» удалён');
@@ -5200,7 +5223,7 @@ async function loadClassTab(tab){
           </div>
           <div style="display:flex;gap:6px;flex-wrap:wrap">
             ${l.published?'<span class="badge badge-green">✓ Опубликован</span>':'<span class="badge badge-gray">Черновик</span>'}
-            <button class="btn btn-sm btn-outline" style="font-size:.73rem;padding:4px 8px" onclick="previewLessonById('${_esc(l.id)}')">👁 Просмотр</button>
+            <button class="btn btn-sm btn-outline" style="font-size:.73rem;padding:4px 8px" onclick="previewLessonById('${_esc(l.id).replace(/'/g,"&#39;")}')">👁 Просмотр</button>
             <button class="btn btn-sm btn-outline" style="font-size:.73rem;padding:4px 8px" onclick="editLessonById('${_esc(l.id).replace(/'/g,"&#39;")}')">✎ Редактор</button>
             <button class="btn btn-sm btn-purple" style="font-size:.73rem;padding:4px 8px" onclick="openAssignLesson('${_esc(l.id).replace(/'/g,"&#39;")}')">👤 Назначить</button>
           </div>
@@ -5215,9 +5238,9 @@ async function loadClassTab(tab){
       <td>${Number.isFinite(Number(ev.duration_minutes))?Number(ev.duration_minutes):0} ${t('мин')}</td>
       <td><span class="badge ${ev.status==='completed'?'badge-green':ev.status==='cancelled'?'badge-gray':'badge-purple'}">${{scheduled:t('Запланировано'),completed:t('Проведено'),cancelled:t('Отменено')}[ev.status]||_esc(ev.status)}</span></td>
       <td style="font-size:.78rem;color:var(--text3)">${_escHtml(ev.notes||'')}</td>
-      <td><button class="btn btn-sm btn-red" style="font-size:.7rem;padding:3px 8px" onclick="deleteEvent('${_esc(ev.id)}')">✕</button></td>
+      <td><button class="btn btn-sm btn-red" style="font-size:.7rem;padding:3px 8px" onclick="deleteEvent('${_esc(ev.id).replace(/'/g,"&#39;")}')">✕</button></td>
     </tr>`).join('');
-    C('classDetailContent').innerHTML=`<div class="section-header" style="margin-bottom:12px"><span style="font-weight:700">${t('Занятия класса')}</span><button class="btn btn-purple" onclick="openAddEventForClass('${_esc(classId)}')">+ ${t('Занятие')}</button></div>
+    C('classDetailContent').innerHTML=`<div class="section-header" style="margin-bottom:12px"><span style="font-weight:700">${t('Занятия класса')}</span><button class="btn btn-purple" onclick="openAddEventForClass('${_esc(classId).replace(/'/g,"&#39;")}')">+ ${t('Занятие')}</button></div>
       <div class="card" style="padding:0;overflow:hidden"><table><thead><tr><th>${t('Дата')}</th><th>${t('Время')}</th><th>${t('Длит.')}</th><th>${t('Статус')}</th><th>${t('Заметки')}</th><th></th></tr></thead><tbody>${rows||`<tr><td colspan="6" style="text-align:center;color:var(--text3)">${t('Нет занятий')}</td></tr>`}</tbody></table></div>`;
   }
   else if(tab==='progress'){
@@ -5303,7 +5326,7 @@ async function renderSchedule(){
     dayDates.forEach(d=>{
       const dateStr=d.toISOString().split('T')[0];
       const cellEvs=(evs||[]).filter(ev=>ev.event_date===dateStr&&parseInt((ev.event_time||'').split(':')[0])===h);
-      const evHtml=cellEvs.map(ev=>{const _evColor=/^#[0-9a-fA-F]{3,8}$/.test(ev.class?.color)?ev.class.color:'#7C3AED';return`<div class="sch-event ${ev.status}" style="background:${_evColor}" onclick="event.stopPropagation();viewEvent('${ev.id}')" title="${_esc(ev.title)}">${_esc(ev.title)}</div>`;}).join('');
+      const evHtml=cellEvs.map(ev=>{const _evColor=/^#[0-9a-fA-F]{3,8}$/.test(ev.class?.color)?ev.class.color:'#7C3AED';const _evStatus=['scheduled','completed','cancelled'].includes(ev.status)?ev.status:'scheduled';return`<div class="sch-event ${_evStatus}" style="background:${_evColor}" onclick="event.stopPropagation();viewEvent('${ev.id}')" title="${_esc(ev.title)}">${_esc(ev.title)}</div>`;}).join('');
       row+=`<div class="sch-cell" onclick="openAddEventOnDate('${dateStr}','${h}:00')">${evHtml}</div>`;
     });
     return row;
@@ -5454,7 +5477,7 @@ function ceAddSection(){
 
 function ceProgress(){
   const total=CE.sections.reduce((a,s)=>a+(s.exercises?.length||0),0);
-  const done=CE.sections.slice(0,CE.curSec).reduce((a,s)=>a+s.exercises.length,0)+CE.curEx;
+  const done=CE.sections.slice(0,CE.curSec).reduce((a,s)=>a+(s.exercises?.length||0),0)+CE.curEx;
   C('ce_progress').style.width=(total>0?Math.round((done+1)/total*100):0)+'%';
 }
 
@@ -5499,7 +5522,7 @@ function ceExercise(){
     C('ce_btnNext').style.visibility='hidden';
     C('ce_counter').style.visibility='hidden';
     const items=sec.exercises.map((ex,ei)=>{
-      const m=BLOCK_META[ex.type]||{icon:'❓',name:ex.type,color:'#eee'};
+      const m=BLOCK_META[ex.type]||{icon:'❓',name:_esc(ex.type||''),color:'#eee'};
       const prev=ceExPreview(ex);
       return`<div class="ce-all-item" onclick="setCEViewAll(false);CE.curEx=${ei};ceRenderAll()">
         <div class="ce-all-num">${ei+1}</div>
@@ -5530,7 +5553,7 @@ function ceExercise(){
 
   let exHTML='';
   if(CE.mode==='edit'){
-    const m=BLOCK_META[ex.type]||{icon:'❓',name:ex.type,color:'#eee'};
+    const m=BLOCK_META[ex.type]||{icon:'❓',name:_esc(ex.type||''),color:'#eee'};
     exHTML=`${secTitle}
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap">
         <span style="padding:4px 12px;border-radius:20px;font-size:.78rem;font-weight:700;background:${m.color}">${m.icon} ${m.name}</span>
@@ -5544,7 +5567,7 @@ function ceExercise(){
       <div class="ce-ex-card">${ceEditorHTML(ex)}</div>
       ${ceAddPanelHTML()}`;
   } else {
-    exHTML=`${secTitle}<div style="margin-bottom:12px"><span style="padding:4px 12px;border-radius:20px;font-size:.78rem;font-weight:700;background:${BLOCK_META[ex.type]?.color||'#eee'}">${BLOCK_META[ex.type]?.icon||'?'} ${BLOCK_META[ex.type]?.name||ex.type}</span></div>
+    exHTML=`${secTitle}<div style="margin-bottom:12px"><span style="padding:4px 12px;border-radius:20px;font-size:.78rem;font-weight:700;background:${BLOCK_META[ex.type]?.color||'#eee'}">${BLOCK_META[ex.type]?.icon||'?'} ${BLOCK_META[ex.type]?.name||_esc(ex.type||'')}</span></div>
     ${renderBlockView(ex,CE.curEx)}`;
   }
   wrap.innerHTML=exHTML;
@@ -5583,6 +5606,7 @@ function ceNav(dir){
   const _ceSec=CE.sections[CE.curSec];
   if(!_ceSec)return;
   const exs=_ceSec.exercises||[];
+  if(exs.length===0)return;
   CE.curEx=Math.max(0,Math.min(exs.length-1,CE.curEx+dir));
   if(CE.mode==='preview')window._matchState={};
   ceRenderAll();
@@ -5614,7 +5638,7 @@ function ceEditorHTML(b){
     <div class="form-group" style="margin:0 0 8px"><label>Вопрос</label>${ci(b.question,'question','Вопрос...')}</div>
     ${(b.options||['','','','']).map((o,oi)=>`<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
       <input type="radio" name="ceq" ${b.correct===oi?'checked':''} onchange="${P}.correct=${oi}" style="accent-color:var(--green);width:16px;height:16px">
-      <input value="${(o||'').replace(/"/g,'&quot;')}" oninput="${P}.options[${oi}]=this.value" placeholder="Вариант ${oi+1}" style="flex:1;padding:8px 10px;border:2px solid var(--gray-border);border-radius:6px;font-family:var(--font)">
+      <input value="${(o||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;')}" oninput="${P}.options[${oi}]=this.value" placeholder="Вариант ${oi+1}" style="flex:1;padding:8px 10px;border:2px solid var(--gray-border);border-radius:6px;font-family:var(--font)">
     </div>`).join('')}
     <div style="font-size:.75rem;color:var(--text3)">● = правильный ответ</div>`;
 
@@ -5745,6 +5769,7 @@ async function openAssignLesson(lessonId){
   }finally{openAssignLesson._busy=false;}
 }
 async function assignLesson(){
+  if(!['teacher','admin','owner'].includes(S.role)){showToast('Доступ запрещён','error');return;}
   if(assignLesson._busy)return;assignLesson._busy=true;
   const sid=C('assign_student').value;if(!sid){showToast('Выбери ученика');assignLesson._busy=false;return;}
   if(!S.assignLessonId){showToast('Ошибка: урок не выбран');assignLesson._busy=false;return;}
@@ -5827,11 +5852,11 @@ function _renderLibGrid(){
         ${own?`<span class="lib-badge-shared">✓ ${t('Мой урок')}</span>`:''}
       </div>
       <div class="lib-card-footer">
-        <button class="lib-like-btn${liked?' liked':''}" onclick="toggleLibraryLike('${l.id}',this)">
+        <button class="lib-like-btn${liked?' liked':''}" onclick="toggleLibraryLike('${_esc(l.id).replace(/'/g,"&#39;")}',this)">
           ${liked?'❤️':'🤍'} ${likes}
         </button>
-        ${!own?`<button class="btn btn-sm btn-purple" style="font-size:.75rem;padding:4px 10px" onclick="copyFromLibrary('${_esc(l.id)}',this)">📋 ${t('Скопировать')}</button>`:''}
-        <button class="btn btn-sm btn-outline" style="font-size:.75rem;padding:4px 10px" onclick="previewLibLesson('${_esc(l.id)}')">👁 ${t('Просмотр')}</button>
+        ${!own?`<button class="btn btn-sm btn-purple" style="font-size:.75rem;padding:4px 10px" onclick="copyFromLibrary('${_esc(l.id).replace(/'/g,"&#39;")}',this)">📋 ${t('Скопировать')}</button>`:''}
+        <button class="btn btn-sm btn-outline" style="font-size:.75rem;padding:4px 10px" onclick="previewLibLesson('${_esc(l.id).replace(/'/g,"&#39;")}')">👁 ${t('Просмотр')}</button>
       </div>
     </div>`;
   }).join('');
@@ -6241,7 +6266,7 @@ function renderBlockView(b,i){
   </div>`;}
   if(b.type==='quiz') return`<div class="lesson-view-block">
     <div style="font-weight:700;margin-bottom:10px">🎯 ${_escHtml(b.question||'Вопрос')}</div>
-    ${(b.options||[]).map((opt,oi)=>`<div class="quiz-opt" id="qo_${i}_${oi}" onclick="checkQuiz(${i},${oi},${b.correct!=null?b.correct:0})">${_escHtml(opt)}</div>`).join('')}
+    ${(b.options||[]).map((opt,oi)=>`<div class="quiz-opt" id="qo_${i}_${oi}" onclick="checkQuiz(${i},${oi},${Number.isInteger(b.correct)?b.correct:parseInt(b.correct)||0})">${_escHtml(opt)}</div>`).join('')}
   </div>`;
   if(b.type==='truefalse'){const _tfa=(b.answer===true||b.answer===false)?b.answer:true;return`<div class="lesson-view-block">
     <div style="font-weight:700;margin-bottom:12px">✅ Верно или Неверно?</div>
@@ -6424,6 +6449,7 @@ function editLessonById(id){
 // ─── MATERIAL PREVIEW ─────────────────────────────────────────────────────────
 function _matEmbedUrl(url,type){
   if(!url)return null;
+  if(!/^https?:\/\//i.test(url))return null;
   // YouTube
   const yt1=/(?:youtube\.com\/watch\?v=|youtu\.be\/)([A-Za-z0-9_-]{11})/.exec(url);
   if(yt1)return`https://www.youtube.com/embed/${yt1[1]}?rel=0&autoplay=0`;
@@ -6444,6 +6470,7 @@ function openMaterialPreview(url,title,type,lang,level){
   C('mp_meta').textContent=[lang,level].filter(Boolean).join(' · ');
   C('mp_openBtn').dataset.url=url;
   if(embedUrl){
+    if(!embedUrl||!/^https?:\/\//i.test(embedUrl)){C('mp_body').innerHTML='<p style="color:var(--pink)">Некорректная ссылка</p>';return;}
     C('mp_body').innerHTML=`<div class="mp-iframe-wrap"><iframe src="${_escHtml(embedUrl)}" allowfullscreen allow="autoplay" sandbox="allow-scripts allow-same-origin allow-popups allow-forms"></iframe></div>`;
   } else {
     C('mp_openBtn').onclick=()=>{if(/^https?:\/\//i.test(url))window.open(url,'_blank','noopener,noreferrer');else showToast('Небезопасный URL','error');};
@@ -6803,11 +6830,11 @@ function renderNewConvForm(type){
   const others=MS.profiles.filter(p=>p.id!==S.profile?.id);
   if(type==='direct'){
     extra.innerHTML=`<div class="form-group"><label>${t('Выбрать человека')}</label>
-      <select id="nc_user">${others.map(p=>`<option value="${p.id}">${_esc(p.first_name)} ${_esc(p.last_name)} (${t(p.role)||p.role})</option>`).join('')}</select></div>`;
+      <select id="nc_user">${others.map(p=>`<option value="${p.id}">${_esc(p.first_name)} ${_esc(p.last_name)} (${_esc(t(p.role)||p.role)})</option>`).join('')}</select></div>`;
   } else {
     extra.innerHTML=`<div class="form-group"><label>${t('Название группы')}</label><input type="text" id="nc_name" placeholder="${t('Например: Команда учителей')}"></div>
       <div class="form-group"><label>${t('Участники (все по умолчанию)')}</label>
-      <div style="max-height:160px;overflow-y:auto;border:2px solid var(--gray-border);border-radius:8px;padding:8px">${others.map(p=>`<label style="display:flex;align-items:center;gap:8px;padding:4px 0;cursor:pointer"><input type="checkbox" value="${p.id}" checked> ${_esc(p.first_name)} ${_esc(p.last_name)} (${t(p.role)||p.role})</label>`).join('')}</div></div>`;
+      <div style="max-height:160px;overflow-y:auto;border:2px solid var(--gray-border);border-radius:8px;padding:8px">${others.map(p=>`<label style="display:flex;align-items:center;gap:8px;padding:4px 0;cursor:pointer"><input type="checkbox" value="${p.id}" checked> ${_esc(p.first_name)} ${_esc(p.last_name)} (${_esc(t(p.role)||p.role)})</label>`).join('')}</div></div>`;
   }
 }
 
@@ -6940,7 +6967,9 @@ async function moveTask(id,newStatus){
   if(!validStatuses.includes(newStatus)){showToast('Неверный статус','error');return;}
   if(TK._movingTask===id)return;TK._movingTask=id;
   try{
-    const{error:mvErr}=await sb.from('tasks').update({status:newStatus,updated_at:new Date().toISOString()}).eq('id',id).eq('school_id',S.schoolId);
+    let _mtQ=sb.from('tasks').update({status:newStatus,updated_at:new Date().toISOString()}).eq('id',id).eq('school_id',S.schoolId);
+    if(!['owner','admin'].includes(S.role))_mtQ=_mtQ.eq('user_id',S.profile?.id);
+    const{error:mvErr}=await _mtQ;
     if(mvErr){showToast(t('Ошибка')+(': '+mvErr.message||''),'error');return;}
     const tk=TK.tasks.find(t=>t.id===id);
     if(tk)tk.status=newStatus;
@@ -6955,7 +6984,9 @@ async function deleteTask(id){
   TK._deletingTasks.add(id);
   try{
     if(!confirm('Удалить задачу?'))return;
-    const{error:dtErr}=await sb.from('tasks').delete().eq('id',id).eq('school_id',S.schoolId);
+    let _dtQ=sb.from('tasks').delete().eq('id',id).eq('school_id',S.schoolId);
+    if(!['owner','admin'].includes(S.role))_dtQ=_dtQ.eq('user_id',S.profile?.id);
+    const{error:dtErr}=await _dtQ;
     if(dtErr){showToast('Ошибка удаления задачи: '+dtErr.message,'error');return;}
     TK.tasks=TK.tasks.filter(t=>t.id!==id);
     refreshKanban();
@@ -7013,7 +7044,9 @@ async function saveTask(){
       reminded:false,updated_at:new Date().toISOString()
     };
     if(S.editTaskId){
-      const{error}=await sb.from('tasks').update(payload).eq('id',S.editTaskId).eq('school_id',S.schoolId);
+      let _stQ=sb.from('tasks').update(payload).eq('id',S.editTaskId).eq('school_id',S.schoolId);
+      if(!['owner','admin'].includes(S.role))_stQ=_stQ.eq('user_id',S.profile?.id);
+      const{error}=await _stQ;
       if(error){showToastCard(t('Ошибка'),''+error.message,'error','❌');return;}
       const idx=TK.tasks.findIndex(t=>t.id===S.editTaskId);
       if(idx>=0)TK.tasks[idx]={...TK.tasks[idx],...payload,id:S.editTaskId};
@@ -7114,7 +7147,7 @@ async function openStudentCard(id){
     tcRow.style.display=canChange?'':'none';
     if(canChange){
       const tcSel=C('sc_teacher_id');
-      tcSel.innerHTML='<option value="">— Не назначен —</option>'+(teachers||[]).map(t=>`<option value="${_esc(t.id)}"${t.id===s.teacher_id?' selected':''}>${_esc(t.first_name)} ${_esc(t.last_name)}</option>`).join('');
+      if(tcSel){tcSel.innerHTML='<option value="">— Не назначен —</option>'+(teachers||[]).map(t=>`<option value="${_esc(t.id)}"${t.id===s.teacher_id?' selected':''}>${_esc(t.first_name)} ${_esc(t.last_name)}</option>`).join('');}
     }
   }
   openM('mStudentCard');
@@ -7126,10 +7159,13 @@ async function saveStudentCard(){
   if(_scBtn)_scBtn.disabled=true;
   try{
     const id=C('sc_student_id').value;
+    const _scLevel=C('sc_level')?.value||'';
+    const _validLevels=['A1','A2','B1','B2','C1','C2'];
+    if(!_validLevels.includes(_scLevel)){showToast('Неверный уровень','error');return;}
     const updates={
       phone:C('sc_phone').value.trim(),
       language:C('sc_language').value,
-      level:C('sc_level').value
+      level:_scLevel
     };
     // Смена учителя (только admin/owner)
     const tcSel=C('sc_teacher_id');
@@ -7196,7 +7232,7 @@ async function openStudentProgress(studentId,name){
   const recentHw=(hws||[]).sort((a,b)=>new Date(b.deadline||0)-new Date(a.deadline||0)).slice(0,5).map(h=>`
     <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--gray-border)">
       <div style="font-size:.88rem">${_esc(h.title)}</div>
-      <span class="badge ${sMap[h.status]||'badge-purple'}">${_esc(sLbl[h.status]||h.status)}</span>
+      <span class="badge ${_esc(sMap[h.status]||'badge-purple')}">${_esc(sLbl[h.status]||h.status)}</span>
     </div>`).join('')||`<div style="color:var(--text3);font-size:.85rem">${isEn?'No assignments':'Нет заданий'}</div>`;
   C('sp_content').innerHTML=`
     <div class="stats-row" style="grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:16px">
@@ -7313,8 +7349,10 @@ function openPlacementTest(studentId,name){
   openM('mPlacementTest');
 }
 async function sendPlacementTest(){
+  if(S._sendingPlacementTest)return;S._sendingPlacementTest=true;
+  if(!['teacher','admin','owner'].includes(S.role)){S._sendingPlacementTest=false;showToast('Доступ запрещён','error');return;}
   const isEn=S.lang==='en';
-  if(!_ptStudentId){closeM('mPlacementTest');return;}
+  if(!_ptStudentId){S._sendingPlacementTest=false;closeM('mPlacementTest');return;}
   const btn=document.querySelector('#mPlacementTest .btn-purple');
   if(btn){btn.disabled=true;btn.textContent=isEn?'Sending...':'Отправка...';}
   const exercises=PLACEMENT_Q.map((q)=>({type:'quiz',question:q.q,options:q.opts,correct:q.correct,_lvl:q.lvl}));
@@ -7334,6 +7372,7 @@ async function sendPlacementTest(){
     closeM('mPlacementTest');
     showToast(isEn?'🎯 Placement test sent!':'🎯 Тест на уровень отправлен!');
   } finally {
+    S._sendingPlacementTest=false;
     if(btn){btn.disabled=false;btn.textContent=isEn?'Send test':'Отправить тест';}
   }
 }
@@ -7362,6 +7401,7 @@ async function openPlacementTestPlayer(hwId){
 }
 async function submitPlacementTest(){
   if(S._ptpSubmitting)return;S._ptpSubmitting=true;
+  if(S.role!=='student'){showToast('Доступ запрещён','error');S._ptpSubmitting=false;return;}
   try{
     const isEn=S.lang==='en';
     const{data:hw,error:hwFetchErr}=await sb.from('homeworks').select('*').eq('id',_ptpHwId).eq('school_id',S.schoolId).single();
@@ -7374,7 +7414,7 @@ async function submitPlacementTest(){
     const cefrLevel=score<=3?'A1':score<=6?'A2':score<=9?'B1':score<=12?'B2':score<=14?'C1':'C2';
     // Update student level
     const{error:stuLvlErr}=await sb.from('students').update({level:cefrLevel}).eq('id',hw.student_id).eq('school_id',S.schoolId);
-    if(stuLvlErr)console.error('[submitPlacementTest] update level:',stuLvlErr);
+    if(stuLvlErr){showToast('Ошибка обновления уровня: '+stuLvlErr.message,'error');return;}
     // Mark homework as reviewed
     const{error:hwUpdErr}=await sb.from('homeworks').update({
       status:'reviewed',
@@ -7411,11 +7451,11 @@ function exportICal(){
       const hh=String(parts[0]||9).padStart(2,'0');
       const mm=String(parts[1]||0).padStart(2,'0');
       const dt=ev.event_date.replace(/-/g,'');
-      const dtStart=`${dt}T${hh}${mm}00`;
-      const startMs=new Date(`${ev.event_date}T${hh}:${mm}:00`).getTime();
+      const dtStart=`${dt}T${hh}${mm}00Z`;
+      const startMs=new Date(`${ev.event_date}T${hh}:${mm}:00Z`).getTime();
       const endMs=startMs+(Number(ev.duration_minutes)||60)*60000;
       const endD=new Date(endMs);
-      const dtEnd=`${endD.getFullYear()}${String(endD.getMonth()+1).padStart(2,'0')}${String(endD.getDate()).padStart(2,'0')}T${String(endD.getHours()).padStart(2,'0')}${String(endD.getMinutes()).padStart(2,'0')}00`;
+      const dtEnd=`${endD.getUTCFullYear()}${String(endD.getUTCMonth()+1).padStart(2,'0')}${String(endD.getUTCDate()).padStart(2,'0')}T${String(endD.getUTCHours()).padStart(2,'0')}${String(endD.getUTCMinutes()).padStart(2,'0')}00Z`;
       lines.push('BEGIN:VEVENT',
         `UID:${ev.id}@teachyaed`,
         `DTSTART:${dtStart}`,
