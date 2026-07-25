@@ -4880,7 +4880,7 @@ async function renderClasses(){
     dc('classes_'+S.schoolId,()=>sb.from('classes').select('*').eq('school_id',S.schoolId).order('created_at',{ascending:false})),
     dc('teachers_'+S.schoolId,()=>sb.from('profiles').select('id,first_name,last_name').eq('school_id',S.schoolId).in('role',['teacher','admin','owner']))
   ]);
-  C('cl_teacher').innerHTML=(teachers||[]).map(tc=>`<option value="${tc.id}">${tc.first_name} ${tc.last_name}</option>`).join('');
+  C('cl_teacher').innerHTML=(teachers||[]).map(tc=>`<option value="${_esc(tc.id)}">${_esc(tc.first_name)} ${_esc(tc.last_name)}</option>`).join('');
   _allClasses=classes||[];
   const canCreate=['teacher','admin','owner'].includes(S.role);
   setContent(`<div class="section-header"><h2>🎓 Классы</h2>${canCreate?'<button class="btn btn-purple" onclick="openNewClass()">+ Новый класс</button>':''}</div>
@@ -5066,7 +5066,7 @@ async function loadClassTab(tab){
     C('classDetailContent').innerHTML=`
       <div style="display:flex;gap:10px;margin-bottom:16px;align-items:center">
         <select id="addStuSel" style="flex:1;padding:8px 12px;border:2px solid var(--gray-border);border-radius:8px;font-family:var(--font)">
-          ${available.map(s=>`<option value="${s.id}">${s.first_name} ${s.last_name}</option>`).join('')||'<option disabled>Все ученики уже в классе</option>'}
+          ${available.map(s=>`<option value="${_esc(s.id)}">${_esc(s.first_name)} ${_esc(s.last_name)}</option>`).join('')||'<option disabled>Все ученики уже в классе</option>'}
         </select>
         <button class="btn btn-purple" onclick="addToClass()">+ Добавить ученика</button>
       </div>
@@ -5080,7 +5080,7 @@ async function loadClassTab(tab){
       sb.from('lessons').select('*').eq('school_id',S.schoolId).order('created_at',{ascending:false}),
       sb.from('students').select('id,first_name,last_name').eq('school_id',S.schoolId).order('last_name')
     ]);
-    C('assign_student').innerHTML=(sts||[]).map(s=>`<option value="${s.id}">${s.first_name} ${s.last_name}</option>`).join('');
+    C('assign_student').innerHTML=(sts||[]).map(s=>`<option value="${_esc(s.id)}">${_esc(s.first_name)} ${_esc(s.last_name)}</option>`).join('');
     window._lessonCache={};
     (lessons||[]).forEach(l=>{window._lessonCache[l.id]=l;});
     const cards=(lessons||[]).map(l=>{
@@ -5237,7 +5237,7 @@ async function saveEvent(){
   try{
     const title=C('ev_title').value.trim();if(!title){showToast('Введи название!');return;}
     const data={school_id:S.schoolId,class_id:C('ev_class').value||null,teacher_id:S.profile.id,title,event_date:C('ev_date').value,event_time:C('ev_time').value,duration_minutes:parseInt(C('ev_dur').value),status:C('ev_status').value,notes:C('ev_notes').value.trim()};
-    const{error}=S.editEventId?await sb.from('schedule_events').update(data).eq('id',S.editEventId):await sb.from('schedule_events').insert(data);
+    const{error}=S.editEventId?await sb.from('schedule_events').update(data).eq('id',S.editEventId).eq('school_id',S.schoolId):await sb.from('schedule_events').insert(data);
     if(error){showToast('Ошибка: '+error.message,'error');return;}
     closeM('mAddEvent');dcInval('schedule_'+S.schoolId);showToast('Занятие сохранено!');
     if(S.screen==='t_schedule'||S.screen==='a_schedule'||S.screen==='o_schedule')renderSchedule();
@@ -5568,7 +5568,7 @@ async function renderTeacherLessons(){
     dc('lessons_'+S.schoolId,()=>sb.from('lessons').select('*').eq('school_id',S.schoolId).order('created_at',{ascending:false}).then(r=>r)),
     dc('students_'+S.schoolId,()=>sb.from('students').select('id,first_name,last_name').eq('school_id',S.schoolId).then(r=>r))
   ]);
-  C('assign_student').innerHTML=(sts||[]).map(s=>`<option value="${s.id}">${s.first_name} ${s.last_name}</option>`).join('');
+  C('assign_student').innerHTML=(sts||[]).map(s=>`<option value="${_esc(s.id)}">${_esc(s.first_name)} ${_esc(s.last_name)}</option>`).join('');
   window._lessonCache=window._lessonCache||{};
   (lessons||[]).forEach(l=>{window._lessonCache[l.id]=l;});
   const cards=(lessons||[]).map(l=>{
@@ -6499,7 +6499,7 @@ function renderMsgs(){
     const dateSep=dateStr!==lastDate?`<div style="text-align:center;margin:8px 0;font-size:.72rem;color:var(--text3)">${dateStr}</div>`:'';
     lastDate=dateStr;
     const timeStr=d.getHours()+':'+String(d.getMinutes()).padStart(2,'0');
-    let content=m.body?`<span>${m.body.replace(/</g,'&lt;').replace(/\n/g,'<br>')}</span>`:'';
+    let content=m.body?`<span>${_escHtml(m.body).replace(/\n/g,'<br>')}</span>`:'';
     if(m.file_url){
       const isImg=/\.(jpg|jpeg|png|gif|webp)$/i.test(m.file_name||'');
       content+= isImg
@@ -6908,7 +6908,7 @@ async function openStudentCard(id){
     tcRow.style.display=canChange?'':'none';
     if(canChange){
       const tcSel=C('sc_teacher_id');
-      tcSel.innerHTML='<option value="">— Не назначен —</option>'+(teachers||[]).map(t=>`<option value="${t.id}"${t.id===s.teacher_id?' selected':''}>${t.first_name} ${t.last_name}</option>`).join('');
+      tcSel.innerHTML='<option value="">— Не назначен —</option>'+(teachers||[]).map(t=>`<option value="${_esc(t.id)}"${t.id===s.teacher_id?' selected':''}>${_esc(t.first_name)} ${_esc(t.last_name)}</option>`).join('');
     }
   }
   openM('mStudentCard');
