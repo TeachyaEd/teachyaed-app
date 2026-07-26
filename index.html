@@ -1922,7 +1922,7 @@ const TRANSLATIONS={
   'Материал':'Material',
   'Материал добавлен':'Material added',
   'Добавь файл или URL!':'Add a file or URL!',
-  'Загрузка...':'Uploading...',
+  'Загрузка файла...':'Uploading...',
   '📁 Нажми или перетащи файл сюда':'📁 Click or drag file here',
   'PDF до 50MB':'PDF up to 50MB',
   'MP3, WAV, OGG, M4A, AAC — до 50MB':'MP3, WAV, OGG, M4A, AAC — up to 50MB',
@@ -2077,7 +2077,7 @@ const TRANSLATIONS={
   '⏳ Создаю комнату...':'⏳ Creating room...','⏳ Соединяю...':'⏳ Connecting...',
   'Ответ':'Answer','(пусто)':'(empty)','Кол-во классов':'Total classes',
   'Новое занятие':'New event','Раздел':'Section','Весь урок':'Full lesson',
-  'Правильно!':'Correct!','Неверно!':'Wrong!','Неверно.':'Wrong.',
+  'Правильно!':'Correct!','Неверно.':'Wrong.',
   'Правильный ответ':'Correct answer','Правильно':'Correct',
   'Все совпадения верны!':'All matches correct!',
   'Кликай слова ниже...':'Click words below...',
@@ -2150,7 +2150,6 @@ const TRANSLATIONS={
   'Время':'Time',
   '🚀 Опубликовать':'🚀 Publish',
   'Нет занятий':'No events',
-  'Длит.':'Dur.',
   'Предпросмотр':'Preview',
   '✎ Редактор':'✎ Editor',
   'Заметки к уроку...':'Lesson notes...',
@@ -2485,7 +2484,7 @@ const TRANSLATIONS_GE={
   'упр.':'სავ.','упражнений':'სავარჯიშო','мин':'წთ','Длит.':'ხანგ.','Аудио':'აუდიო',
   // Materials
   'Материал':'მასალა','Материал добавлен':'მასალა დამატებულია',
-  'Добавь файл или URL!':'დაამატე ფაილი ან URL!','Загрузка...':'ატვირთვა...',
+  'Добавь файл или URL!':'დაამატე ფაილი ან URL!','Загрузка файла...':'ატვირთვა...',
   '📁 Нажми или перетащи файл сюда':'📁 დააჭირე ან გადმოაგდე ფაილი აქ',
   'PDF до 50MB':'PDF 50MB-მდე',
   'Или URL файла (необязательно)':'ან ფაილის URL (სურვილისამებრ)',
@@ -3011,6 +3010,8 @@ function updateAvPreview(){
 function handlePhotoUpload(input){
   const file=input.files[0];
   if(!file)return;
+  const _AVATAR_TYPES=['image/jpeg','image/png','image/gif','image/webp'];
+  if(!_AVATAR_TYPES.includes(file.type)){showToast('Недопустимый формат. Разрешены: JPG, PNG, GIF, WEBP','error');return;}
   if(file.size>10*1024*1024){showToast('Файл слишком большой (макс 10MB)');return;}
   const reader=new FileReader();
   reader.onload=e=>{
@@ -3648,6 +3649,12 @@ async function afterLogin(user){
     C('loginScreen').style.display='flex';
     return;
   }
+  if(!prof.school_id){
+    showToast('Аккаунт не привязан к школе. Обратитесь к администратору.','error');
+    await sb.auth.signOut();
+    C('loginScreen').style.display='flex';
+    return;
+  }
   S.profile=prof;S.role=prof.role;S.schoolId=prof.school_id;S.userId=prof.id;
   _mergeLocalAvatar(); // merge avatar prefs from localStorage
   C('loginScreen').style.display='none';
@@ -3673,6 +3680,10 @@ async function afterLogin(user){
 }
 async function doLogout(){
   closeSidebar();
+  // Очистка кэша и интервалов
+  if(typeof _DC!=='undefined')Object.keys(_DC).forEach(k=>delete _DC[k]);
+  if(typeof _taskReminderInterval!=='undefined'&&_taskReminderInterval){clearInterval(_taskReminderInterval);_taskReminderInterval=null;}
+  if(typeof _ringInterval!=='undefined'&&_ringInterval){clearInterval(_ringInterval);_ringInterval=null;}
   await sb.auth.signOut();hangUp();
   if(typeof _taskReminderInterval!=='undefined'&&_taskReminderInterval){clearInterval(_taskReminderInterval);_taskReminderInterval=null;}
   if(S.notifyChannel){try{sb.removeChannel(S.notifyChannel);}catch(e){}S.notifyChannel=null;}
@@ -3765,7 +3776,7 @@ const fmtCur=(n,c='GEL')=>`${Number(n||0).toFixed(0)} ${c}`;
 var AVCOLORS=['#7C3AED','#EC4899','#10B981','#F59E0B','#3B82F6','#EF4444','#8B5CF6'];
 function avColor(s){let h=0;for(const c of(s||''))h=(h+c.charCodeAt(0))%AVCOLORS.length;return AVCOLORS[h];}
 function initials(f,l){return((f||'')[0]||'').toUpperCase()+((l||'')[0]||'').toUpperCase();}
-function avHTML(f,l,size=36){const bg=avColor(f);return`<div class="avatar-circle" style="background:${bg};width:${size}px;height:${size}px;font-size:${size*.36}px">${initials(f,l)}</div>`;}
+function avHTML(f,l,size=36){const bg=avColor(f);return`<div class="avatar-circle" style="background:${bg};width:${size}px;height:${size}px;font-size:${size*.36}px">${_esc(initials(f,l))}</div>`;}
 
 // ─── CONTACTS ─────────────────────────────────────────────────────────────────
 async function loadContacts(){
@@ -3843,6 +3854,7 @@ function subscribeNotifications(){
     .on('postgres_changes',{event:'INSERT',schema:'public',table:'call_signals',
       filter:`to_profile_id=eq.${S.profile.id}`},
       ({new:sig})=>{
+        if(!sig||sig.school_id!==S.schoolId)return;
         handleIncomingCall({from_name:sig.from_name,from_role:sig.from_role,room_id:sig.room_id});
         sb.from('call_signals').delete().eq('id',sig.id).eq('school_id',S.schoolId).then(()=>{});
       })
@@ -3869,6 +3881,7 @@ function renderContacts(){
 async function callContact(partnerId,partnerName,partnerRole){
   C('contactPicker').classList.remove('open');
   if(S.inCall){showToast('Уже идёт звонок');return;}
+  S.inCall=true;
   const roomId=getRoomId(S.profile.id,partnerId);
   // Resolve real profile UUID for students stored with 'stu_' prefix or raw students-table IDs
   let ringId=partnerId;
@@ -4582,7 +4595,7 @@ async function renderOwnerUsers(){
   }finally{renderOwnerUsers._loading=false;}
 }
 let _changeRoleId='';
-function openChangeRole(uid,name,currentRole){_changeRoleId=uid;C('changeRoleUserInfo').textContent=name;C('newRole').value=currentRole;openM('mChangeRole');}
+function openChangeRole(uid,name,currentRole){_changeRoleId=uid;C('mChangeRole').dataset.uid=uid;C('changeRoleUserInfo').textContent=name;C('newRole').value=currentRole;openM('mChangeRole');}
 async function applyRoleChange(){
   if(!['owner','admin'].includes(S.role))return;
   const newRole=C('newRole').value;
@@ -4591,7 +4604,9 @@ async function applyRoleChange(){
   const _arcBtn=document.querySelector('#mChangeRole .btn-purple');
   if(_arcBtn){_arcBtn.disabled=true;}
   try{
-    const{error}=await sb.from('profiles').update({role:newRole}).eq('id',_changeRoleId).eq('school_id',S.schoolId);
+    const uid=C('mChangeRole').dataset.uid||'';
+    if(!uid)return;
+    const{error}=await sb.from('profiles').update({role:newRole}).eq('id',uid).eq('school_id',S.schoolId);
     if(error){showToast('Ошибка: '+error.message,'error');return;}
     closeM('mChangeRole');showToast('Роль изменена!');renderOwnerUsers();
   }finally{if(_arcBtn){_arcBtn.disabled=false;}}
@@ -4633,6 +4648,7 @@ async function doDeleteUser(){
   }finally{S._deletingUser=false;if(_duBtn)_duBtn.disabled=false;}
 }
 async function confirmDeleteStudent(sid,name){
+  if(!['admin','owner'].includes(S.role)){showToast('Нет прав','error');return;}
   if(S._deletingStudent)return;
   S._deletingStudent=true;
   if(!confirm(`Удалить ученика ${name}?\nЭто удалит все его задания, оплаты и записи в классах. Действие нельзя отменить.`)){S._deletingStudent=false;return;}
@@ -4708,6 +4724,7 @@ function openAddPayment(){
   openM('mAddPayment');
 }
 async function markPaid(id,btn){
+  if(!['admin','owner'].includes(S.role)){showToast('Нет прав','error');return;}
   if(btn){btn.disabled=true;}
   try{
     const{error}=await sb.from('payments').update({status:'paid'}).eq('id',id).eq('school_id',S.schoolId);
@@ -4718,6 +4735,7 @@ async function markPaid(id,btn){
   }
 }
 async function savePayment(){
+  if(!['admin','owner'].includes(S.role)){showToast('Нет прав','error');return;}
   const btn=document.querySelector('#mAddPayment .btn.btn-purple');
   if(btn){btn.disabled=true;btn.textContent='Сохранение...';}
   try{
@@ -4788,7 +4806,8 @@ async function saveSalary(){
 async function logLessonFor(tid,tname){
   if(S._logLessonSaving)return;S._logLessonSaving=true;
   try{
-    const topic=prompt(`Тема урока (${tname}):`);if(topic===null)return;
+    const topic=(prompt(`Тема урока (${tname}):`)??'').trim();if(topic===null||topic==='')return;
+    if(topic.length>500){showToast('Тема слишком длинная (макс 500 символов)','error');return;}
     const{error}=await sb.from('lessons_log').insert({school_id:S.schoolId,teacher_id:tid,lesson_date:new Date().toISOString().split('T')[0],topic,status:'completed'});
     if(error){showToast('Ошибка: '+error.message,'error');return;}
     dcInval('salaries_'+S.schoolId);showToast('Урок записан');if(S.screen==='o_salaries'||S.screen==='a_salaries')renderSalaries();
@@ -5138,7 +5157,7 @@ async function cdpDeleteClass(){
     if(_cde3){showToast('Ошибка удаления назначений: '+_cde3.message,'error');return;}
     const{error}=await sb.from('classes').delete().eq('id',cid).eq('school_id',S.schoolId);
     if(error){showToast('❌ '+error.message);return;}
-    showToast('✅ Класс «'+cl.name+'» удалён');
+    showToast('✅ Класс «'+_esc(cl.name)+'» удалён');
     dcInval('classes_'+S.schoolId);dcInval('classes_light_'+S.schoolId);
     closeClassDetail();
     renderClasses();
@@ -5338,7 +5357,15 @@ async function renderSchedule(){
   try{
   showSkel();
   const[{data:evs},{data:classes}]=await Promise.all([
-    dc('schedule_'+S.schoolId,()=>sb.from('schedule_events').select('*,class:class_id(name,color)').eq('school_id',S.schoolId)),
+    (()=>{
+  const _schKey='schedule_'+S.schoolId+'_'+(S.role==='teacher'?S.profile?.id:S.role==='student'&&S.studentRowId?S.studentRowId:'all');
+  return dc(_schKey,()=>{
+    let _q=sb.from('schedule_events').select('*,class:class_id(name,color)').eq('school_id',S.schoolId);
+    if(S.role==='teacher'&&S.profile?.id)_q=_q.eq('teacher_id',S.profile.id);
+    else if(S.role==='student'&&S.studentRowId)_q=_q.eq('student_id',S.studentRowId);
+    return _q;
+  });
+})(),
     dc('classes_light_'+S.schoolId,()=>sb.from('classes').select('id,name,color').eq('school_id',S.schoolId))
   ]);
   C('ev_class').innerHTML=(classes||[]).map(c=>`<option value="${_esc(c.id)}">${_esc(c.name)}</option>`).join('');
@@ -5393,6 +5420,7 @@ async function renderSchedule(){
 function openAddEventOnDate(date,time){
   S.editEventId=null;
   C('ev_title').value='';C('ev_notes').value='';C('ev_status').value='scheduled';
+  const _evClassEl=C('ev_class');if(_evClassEl&&_evClassEl.options.length)_evClassEl.selectedIndex=0;
   C('ev_date').value=date||new Date().toISOString().split('T')[0];
   C('ev_time').value=time||'09:00';C('ev_dur').value='60';
   C('eventModalTitle').textContent=t('Новое занятие');openM('mAddEvent');
@@ -5417,6 +5445,8 @@ async function saveEvent(){
   if(btn){btn.disabled=true;btn.textContent='Сохранение...';}
   try{
     const title=C('ev_title').value.trim();if(!title){showToast('Введи название!');return;}
+    const _evDate=C('ev_date').value;if(!_evDate){showToast('Укажи дату!');return;}
+    const _evTime=C('ev_time').value;if(!_evTime){showToast('Укажи время!');return;}
     const data={school_id:S.schoolId,class_id:C('ev_class').value||null,teacher_id:S.profile.id,title,event_date:C('ev_date').value,event_time:C('ev_time').value,duration_minutes:(()=>{const _v=parseInt(C('ev_dur').value);return Number.isFinite(_v)&&_v>0?_v:60;})(),status:(()=>{const _s=C('ev_status').value;return['scheduled','completed','cancelled'].includes(_s)?_s:'scheduled';})(),notes:C('ev_notes').value.trim()};
     let _seResult;if(S.editEventId){let _seQ=sb.from('schedule_events').update(data).eq('id',S.editEventId).eq('school_id',S.schoolId);if(!['admin','owner'].includes(S.role))_seQ=_seQ.eq('teacher_id',S.profile?.id);_seResult=await _seQ;}else{_seResult=await sb.from('schedule_events').insert(data);}
     const{error}=_seResult;
@@ -6128,6 +6158,8 @@ let cvChatChannel=null;
 
 async function cvChatInit(roomId){
   if(!roomId||!sb)return;
+  if(cvChatInit._pending===roomId)return;
+  cvChatInit._pending=roomId;
   const _prevCh=cvChatChannel;
   cvChatChannel=null;
   if(_prevCh){try{sb.removeChannel(_prevCh);}catch(e){}}
@@ -6161,6 +6193,7 @@ async function cvChatInit(roomId){
         cvChatScrollBottom();
       }
     }).subscribe();
+  if(cvChatInit._pending===roomId)cvChatInit._pending=null;
 }
 
 function cvChatAddMsg(m){
@@ -6350,7 +6383,12 @@ function renderBlockView(b,i){
     const rawUrl=b.url||'';
     const ytMatch=rawUrl.match(/(?:v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
     if(ytMatch)embedUrl=`https://www.youtube.com/embed/${ytMatch[1]}`;
-    else if(/^https:\/\//.test(rawUrl))embedUrl=_escHtml(rawUrl);
+    else if(/^https:\/\//.test(rawUrl)){
+  const _iframeHosts=['youtube.com','youtu.be','drive.google.com','docs.google.com','vimeo.com','loom.com'];
+  try{const _h=new URL(rawUrl).hostname.replace(/^www\./,'');
+    if(_iframeHosts.some(d=>_h===d||_h.endsWith('.'+d)))embedUrl=rawUrl;
+  }catch(_){}
+}
     return`<div class="lesson-view-block">
       ${b.note?`<div style="padding:10px;background:var(--yellow-light);border-radius:8px;font-size:.85rem;margin-bottom:12px">📌 ${_escHtml(b.note)}</div>`:''}
       ${embedUrl?`<div style="position:relative;padding-bottom:56.25%;height:0;overflow:hidden;border-radius:10px;margin-bottom:12px"><iframe src="${embedUrl}" style="position:absolute;top:0;left:0;width:100%;height:100%;border:none;border-radius:10px" allowfullscreen></iframe></div>`:'<div style="color:var(--text3);padding:20px;text-align:center">🎬 Видео не указано</div>'}
@@ -6694,8 +6732,9 @@ async function openConv(convId){
   if(c)c.unread=0;
   renderConvList(MS.convs);
   // Load messages
-  const{data:msgs}=await sb.from('messages').select('*').eq('conversation_id',convId).eq('school_id',S.schoolId).order('created_at',{ascending:true});
-  MS.msgs=msgs||[];
+  const{data:msgs}=await sb.from('messages').select('*').eq('conversation_id',convId).eq('school_id',S.schoolId).order('created_at',{ascending:false}).limit(100);
+  const _sortedMsgs=msgs?[...msgs].reverse():[];
+  MS.msgs=_sortedMsgs;
   renderMsgMain(c);
   }finally{MS._openingConv=null;}
 }
@@ -6766,6 +6805,7 @@ async function sendMsg(){
   if(!inp||!MS.convId)return;
   const body=inp.value.trim();
   if(!body)return;
+  if(body.length>4000){showToast('Сообщение слишком длинное (макс 4000 символов)','error');return;}
   inp.value='';inp.style.height='auto';
   const{error}=await sb.from('messages').insert({conversation_id:MS.convId,sender_id:S.profile.id,body,school_id:S.schoolId});
   if(error){showToastCard(t('Ошибка'),''+error.message,'error','❌');return;}
@@ -7008,7 +7048,9 @@ function renderTaskCard(tk){
 async function moveTask(id,newStatus){
   const validStatuses=['todo','in_progress','done'];
   if(!validStatuses.includes(newStatus)){showToast('Неверный статус','error');return;}
-  if(TK._movingTask===id)return;TK._movingTask=id;
+  if(!TK._movingTasks)TK._movingTasks=new Set();
+  if(TK._movingTasks.has(id))return;
+  TK._movingTasks.add(id);
   try{
     let _mtQ=sb.from('tasks').update({status:newStatus,updated_at:new Date().toISOString()}).eq('id',id).eq('school_id',S.schoolId);
     if(!['owner','admin'].includes(S.role))_mtQ=_mtQ.eq('user_id',S.profile?.id);
@@ -7018,7 +7060,7 @@ async function moveTask(id,newStatus){
     if(tk)tk.status=newStatus;
     refreshKanban();
     showToastCard(t('Статус обновлён'),'','success','✅',2000);
-  } finally{TK._movingTask=null;}
+  } finally{TK._movingTasks&&TK._movingTasks.delete(id);}
 }
 
 async function deleteTask(id){
@@ -7088,6 +7130,9 @@ async function saveTask(){
     };
     if(S.editTaskId){
       const{reminded:_rem,..._updatePayload}=payload;
+      // Если remind_at изменился — сбросить reminded чтобы напоминание сработало
+      const _oldTask=TK.tasks.find(t=>t.id===S.editTaskId);
+      if(_oldTask&&payload.remind_at&&_oldTask.remind_at!==payload.remind_at){_updatePayload.reminded=false;}
       let _stQ=sb.from('tasks').update(_updatePayload).eq('id',S.editTaskId).eq('school_id',S.schoolId);
       if(!['owner','admin'].includes(S.role))_stQ=_stQ.eq('user_id',S.profile?.id);
       const{error}=await _stQ;
@@ -7456,12 +7501,13 @@ async function submitPlacementTest(){
     if(hwFetchErr||!hw){showToast(isEn?'Test not found':'Тест не найден','error');return;}
     // Guard: student can only submit their own test
     if(!S.studentRowId||hw.student_id!==S.studentRowId){showToast(isEn?'Access denied':'Доступ запрещён','error');return;}
+    if(hw.status!=='pending'){showToast('Тест уже был пройден','error');return;}
     let questions=[];try{questions=JSON.parse(hw.description)||[];}catch(e){}
     let score=0;
     questions.forEach((q,i)=>{if(Number(_ptpAnswers[i])===q.correct)score++;});
     const cefrLevel=score<=3?'A1':score<=6?'A2':score<=9?'B1':score<=12?'B2':score<=14?'C1':'C2';
     // Update student level
-    const{error:stuLvlErr}=await sb.from('students').update({level:cefrLevel}).eq('id',hw.student_id).eq('school_id',S.schoolId);
+    const{error:stuLvlErr}=await sb.from('students').update({level:cefrLevel}).eq('id',S.studentRowId).eq('school_id',S.schoolId);
     if(stuLvlErr){showToast('Ошибка обновления уровня: '+stuLvlErr.message,'error');return;}
     // Mark homework as reviewed
     const{error:hwUpdErr}=await sb.from('homeworks').update({
