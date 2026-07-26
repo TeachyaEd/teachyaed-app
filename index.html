@@ -70,6 +70,7 @@ body[data-theme="dark"] .tf-btn{background:var(--gray-light)!important;border-co
 body[data-theme="dark"] .classes-search{background-color:var(--gray-light)!important;border-color:var(--gray-border)!important;color:var(--text)!important;}
 body[data-theme="dark"] .btn-outline{border-color:var(--gray-border)!important;color:var(--text2)!important;}
 body[data-theme="dark"] .btn-logout{background:var(--gray-light)!important;color:var(--text3)!important;}
+body[data-theme="dark"] .btn-logout:hover{background:var(--gray-border)!important;}
 body[data-theme="dark"] #langDropdown{background:var(--white)!important;border-color:var(--gray-border)!important;}
 body[data-theme="dark"] .lang-opt:hover{background:var(--gray-light)!important;}
 /* ── Dark: Messenger ── */
@@ -106,6 +107,7 @@ body[data-theme="dark"] .ce-ex-card,body[data-theme="dark"] .ce-add-panel,body[d
 body[data-theme="dark"] .ce-type-card:hover,body[data-theme="dark"] .ce-all-item:hover{background:var(--purple-light)!important;border-color:var(--purple)!important;color:var(--purple)!important;}
 body[data-theme="dark"] .ce-sec-item{color:var(--text2)!important;}
 body[data-theme="dark"] .ce-sec-item.active{background:var(--purple-light)!important;color:var(--purple)!important;}
+body[data-theme="dark"] .ce-tbtn-save:hover{background:var(--gray-border)!important;}
 /* ── Dark: misc hardcoded #fff ── */
 body[data-theme="dark"] .match-item,body[data-theme="dark"] .word-chip,body[data-theme="dark"] .tf-btn{background:var(--gray-light)!important;border-color:var(--gray-border)!important;color:var(--text)!important;}
 body[data-theme="dark"] .task-col{background:var(--gray-light)!important;}
@@ -154,6 +156,7 @@ body[data-theme="dark"] .fill-blank-input.correct,
 body[data-theme="dark"] .match-item.matched{background:#064e3b!important;border-color:#22c55e!important;color:#6ee7b7!important}
 body[data-theme="dark"] .btn-danger{background:#450a0a!important;color:#fca5a5!important}
 body[data-theme="dark"] .btn-danger:hover{background:#7f1d1d!important}
+body[data-theme="dark"] .av-color-swatch.selected{box-shadow:0 0 0 2px var(--white),0 0 0 4px var(--text)!important;}
 body[data-theme="dark"] .hwe-pair-del,
 body[data-theme="dark"] .mc-opt-row button{background:#450a0a!important;color:#fca5a5!important}
 body[data-theme="dark"] .cv-exit-btn:hover{background:#450a0a!important}
@@ -161,6 +164,7 @@ body[data-theme="dark"] .grade-btn{background:var(--gray-light)!important;color:
 body[data-theme="dark"] .hw-ex-card input,
 body[data-theme="dark"] .hw-ex-card textarea,
 body[data-theme="dark"] .hw-ex-card select{background:var(--gray-light)!important;color:var(--text)!important}
+body[data-theme="dark"] .hw-ex-card .ex-del:hover{background:#450a0a!important;}
 body[data-theme="dark"] .hwp-mc-opt{background:var(--gray-light)!important;color:var(--text)!important;border-color:var(--gray-border)!important}
 body[data-theme="dark"] .hwp-ans-area{background:var(--gray-light)!important;color:var(--text)!important;border-color:var(--gray-border)!important}
 /* ── Dark: Messenger ── */
@@ -880,7 +884,7 @@ body[data-theme="dark"] .lib-card{background:var(--white)!important;border-color
 body[data-theme="dark"] .lib-filters select,body[data-theme="dark"] .lib-filters input{background:var(--white)!important;color:var(--text)!important;border-color:var(--gray-border)!important}
 body[data-theme="dark"] .lib-badge-shared{background:#064e3b!important;color:#6ee7b7!important;border-color:#065f46!important}
 body[data-theme="dark"] #toolPanel{background:var(--white)!important;border-color:var(--gray-border)!important}
-body[data-theme="dark"] #timerPopup{background:var(--white)!important}
+body[data-theme="dark"] #timerPopup{background:var(--white)!important;box-shadow:0 8px 32px rgba(0,0,0,.45)!important;}
 body[data-theme="dark"] .vocab-back{color:#6ee7b7!important;background:rgba(16,185,129,.25)!important}
 </style>
 </head>
@@ -1060,7 +1064,7 @@ body[data-theme="dark"] .vocab-back{color:#6ee7b7!important;background:rgba(16,1
     <button class="modal-close" onclick="closeM('mChangeRole')">✕</button>
     <h3>Изменить роль</h3>
     <div id="changeRoleUserInfo" style="font-weight:600;margin-bottom:14px;color:var(--purple)"></div>
-    <div class="form-group"><label>Новая роль</label><select id="newRole"><option value="student">Ученик</option><option value="teacher">Учитель</option><option value="admin">Администратор</option><option value="owner">Владелец</option></select></div>
+    <div class="form-group"><label>Новая роль</label><select id="newRole"><option value="teacher">Учитель</option><option value="admin">Администратор</option><option value="owner">Владелец</option></select></div>
     <div class="btn-row"><button class="btn btn-purple" onclick="applyRoleChange()">Сохранить</button><button class="btn btn-outline" onclick="closeM('mChangeRole')">Отмена</button></div>
   </div>
 </div>
@@ -2626,6 +2630,21 @@ const TRANSLATIONS_GE={
   'Сначала сохрани урок':'ჯერ გაკვეთილი შეინახე',
   'В библиотеке':'ბიბლიოთეკაში',
   'Поиск по названию':'სახელით ძიება',
+  'В этом уроке нет разделов':'ამ გაკვეთილში განყოფილებები არ არის',
+  'Введи корректную ставку!':'შეიყვანეთ სწორი განაკვეთი!',
+  'Введи тему урока':'შეიყვანეთ გაკვეთილის თემა',
+  'Заполните поле':'შეავსეთ ველი',
+  'Не авторизован':'არ ხართ ავტორიზებული',
+  'Неверное значение':'არასწორი მნიშვნელობა',
+  'Неверный тип файла':'ფაილის არასწორი ტიპი',
+  'Некорректный email':'არასწორი email',
+  'Нет прав':'უფლება არ გაქვთ',
+  'Ответ...':'პასუხი...',
+  'Ошибка соединения':'კავშირის შეცდომა',
+  'Профиль не загружен':'პროფილი არ ჩაიტვირთა',
+  'Слишком длинное название':'სახელი ძალიან გრძელია',
+  'Слишком длинное описание':'აღწერა ძალიან გრძელია',
+  'Установить пароль':'პაროლის დაყენება',
 };
 
 function t(str){
@@ -2731,6 +2750,8 @@ function applyRU(root){
   root.querySelectorAll('[aria-label],[value]').forEach(el=>{
     const al=el.getAttribute('aria-label');
     if(al&&map[al])el.setAttribute('aria-label',map[al]);
+    const vl=el.getAttribute('value');
+    if(vl&&map[vl])el.setAttribute('value',map[vl]);
   });
   root.querySelectorAll('button,a,label,th,td,span,div,p,h1,h2,h3,h4,li').forEach(el=>{
     if(el.children.length===0){
@@ -3035,7 +3056,7 @@ function removeAvPhoto(){
 async function saveProfile(){
   if(!S.profile||saveProfile._saving)return;
   saveProfile._saving=true;
-  const btn=document.querySelector('#mProfile .btn.btn-purple');
+  const btn=document.querySelector('[onclick="saveProfile()"]')||document.querySelector('#mProfile .btn-purple:not([onclick="changePassword()"]):not([onclick="changeEmail()"])');
   if(btn){btn.disabled=true;btn.textContent='Сохранение...';}
   try{
   const first=(C('prof_first')?.value||'').trim();
@@ -3085,7 +3106,7 @@ async function saveProfile(){
   closeM('mProfile');
   }finally{
     saveProfile._saving=false;
-    const _profileBtn=document.querySelector('#mProfile .btn.btn-purple');
+    const _profileBtn=document.querySelector('[onclick="saveProfile()"]')||document.querySelector('#mProfile .btn-purple:not([onclick="changePassword()"]):not([onclick="changeEmail()"])');
     if(_profileBtn){_profileBtn.disabled=false;_profileBtn.textContent=t('Сохранить');}
   }
 }
@@ -3490,15 +3511,12 @@ async function sendAIMsg(prefix){
 }
 
 // Call student from lesson view
-function cvCallStudent(){
-  if(S._currentClassData?.teacher_id){
-    const partnerId=S._cvStudentId||null;
-    if(partnerId)callContact(partnerId);
-    else showToast('Позвони ученику через Диалер');
-  } else {
-    showToast('Позвони ученику через Диалер');
-    toggleDialer();
-  }
+async function cvCallStudent(){
+  const _ac=(window._assignCache||{})[S.currentAssignId];
+  const partnerId=S._cvStudentId||_ac?.student_profile_id;
+  if(!partnerId){showToast('Ученик не определён','error');return;}
+  const partnerName=_ac?(_ac.student_first||'')+' '+(_ac.student_last||''):'Ученик';
+  callContact(partnerId,partnerName.trim()||'Ученик','student');
 }
 
 // ─── INVITE SYSTEM ────────────────────────────────────────────────────────────
@@ -3593,6 +3611,7 @@ async function setInvitePassword(){
   const{data:{session}}=await sb.auth.getSession();
   if(session)await afterLogin(session.user);
   }finally{if(inv_btn){inv_btn.disabled=false;inv_btn.textContent=_invSuccess?t('Войти в систему →'):t('Установить пароль');}}
+}
 
 async function callInviteFunction(email,role,firstName,lastName,opts={}){
   const{data:{session}}=await sb.auth.getSession();
@@ -3615,9 +3634,8 @@ async function callInviteFunction(email,role,firstName,lastName,opts={}){
     clearTimeout(_invTo);
   }catch(e){
     clearTimeout(_invTo);
-    if(e.name==='AbortError'){showToast('Превышено время ожидания','error');}
+    if(e.name==='AbortError'){throw new Error(t('Превышено время ожидания'));}
     else throw e;
-    return;
   }
   const data=await res.json();
   if(!res.ok)throw new Error(data.error||'Ошибка отправки приглашения');
@@ -3720,14 +3738,15 @@ async function doLogout(){
   if(typeof cvChatChannel!=='undefined'&&cvChatChannel){try{sb.removeChannel(cvChatChannel);}catch(e){}cvChatChannel=null;}
   if(typeof TK!=='undefined'){
     if(TK.rtSub){try{sb.removeChannel(TK.rtSub);}catch(e){}TK.rtSub=null;}
-    Object.assign(TK,{tasks:[],filterUser:'all',rtSub:null,_movingTasks:new Set(),_deletingTasks:new Set()});
+    if(TK._pollInterval){clearInterval(TK._pollInterval);TK._pollInterval=null;}
+    Object.assign(TK,{tasks:[],filterUser:'all',rtSub:null,_movingTasks:new Set(),_deletingTasks:new Set(),_pollInterval:null});
   }
   // 4. Sign out
   await sb.auth.signOut();
   // 5. Reset state
   C('app').style.display='none';C('loginScreen').style.display='flex';
   C('loginErr').style.display='none';C('dialBtn').style.display='none';
-  Object.assign(S,{role:null,profile:null,contacts:[],inCall:false,schoolId:null,userId:null,_currentClassData:null,_cvStudentId:null,_aiSending:false,pendingRoom:null,pendingPartner:null,currentAssignId:null,studentRowId:null,_loadingVocab:false,_savingMaterial:false,_deletingMaterial:false,_savingEvent:false,_deletingEvent:false,_deletingStudent:false,_deletingUser:false,_savingStudentCard:false,_logLessonSaving:false,_sendingPlacementTest:false,_ptpSubmitting:false,_exportingICal:false,_addingToClass:false,_savingSalary:false,_ringTimeout:null,_savingClass:false,_deletingClass:false});
+  Object.assign(S,{role:null,profile:null,contacts:[],inCall:false,schoolId:null,userId:null,_currentClassData:null,_cvStudentId:null,_aiSending:false,pendingRoom:null,pendingPartner:null,currentAssignId:null,studentRowId:null,_loadingVocab:false,_savingMaterial:false,_deletingMaterial:false,_savingEvent:false,_deletingEvent:false,_deletingStudent:false,_deletingUser:false,_savingStudentCard:false,_logLessonSaving:false,_sendingPlacementTest:false,_ptpSubmitting:false,_exportingICal:false,_addingToClass:false,_savingSalary:false,_ringTimeout:null,_savingClass:false,_deletingClass:false,screen:'',callChannel:null,pc:null,localStream:null,screenTrack:null,micOn:true,camOn:true,screenOn:false,editPayId:null,currentHwId:null,editLessonId:null,assignLessonId:null,editClassId:null,currentClassId:null,editEventId:null,currentClassTab:'schedule',currentSalTId:null});
   if(typeof LV!=='undefined')Object.assign(LV,{sections:[],materials:[],curSec:0,curEx:0,assignId:null,viewAll:false,_completing:false,_chatSending:false,chatRoomId:null});
   // clear cached data
   try{
@@ -3738,6 +3757,19 @@ async function doLogout(){
     if(window._assignCache)Object.keys(window._assignCache).forEach(k=>delete window._assignCache[k]);
     if(typeof _vocabWords!=='undefined'){_vocabWords=[];_vocabIdx=0;_vocabTraining=false;_vocabMissed=[];}
   }catch(e){}
+  // Reset CE state
+  Object.assign(CE,{lessonId:null,sections:[],materials:[],curSec:0,curEx:0,mode:'edit',viewAll:false,_saving:false});
+  // Reset homework state
+  if(typeof HWE!=='undefined')Object.assign(HWE,{hwId:null,exercises:[],studentId:null,_saving:false});
+  if(typeof HWP!=='undefined')Object.assign(HWP,{hwId:null,exercises:[],answers:{},hwData:null,_submitting:false});
+  if(typeof HWR!=='undefined')Object.assign(HWR,{hwId:null,grade:null,_saving:false});
+  // Reset _allClasses and _aiHistory
+  if(typeof _allClasses!=='undefined')_allClasses.length=0;
+  if(typeof _aiHistory!=='undefined'){_aiHistory.cv=[];_aiHistory.ce=[];}
+  // Reset all render loading flags
+  ['renderSchedule','renderLibrary','renderStudentVocab','renderTeacherHw','renderStudentHw','renderClasses','renderOwnerStudents','renderTeacherStudents','renderMessenger','renderTasks','renderOwnerUsers','renderAdminHome','renderOwnerHome','renderAdminStudents','renderAdminTeachers','renderSalaries','renderPayments'].forEach(fn=>{if(typeof window[fn]==='function')window[fn]._loading=false;});
+  // Clear localStorage
+  try{Object.keys(localStorage).filter(k=>k.startsWith('teachya_notes_')).forEach(k=>localStorage.removeItem(k));localStorage.removeItem('teachya_dict');}catch(_){}
 }
 sb.auth.onAuthStateChange((event,session)=>{if(((event==='SIGNED_OUT'||event==='TOKEN_REFRESHED')&&!session)&&S.userId){
   // cleanup channels on external logout
@@ -3747,6 +3779,10 @@ sb.auth.onAuthStateChange((event,session)=>{if(((event==='SIGNED_OUT'||event==='
     if(typeof cvChatChannel!=='undefined'&&cvChatChannel){sb.removeChannel(cvChatChannel);cvChatChannel=null;}
     if(typeof TK!=='undefined'&&TK.rtSub){sb.removeChannel(TK.rtSub);TK.rtSub=null;}
   }catch(e){}
+  // Clear data cache on external logout
+  Object.keys(_DC).forEach(k=>delete _DC[k]);
+  // Clear localStorage session data
+  try{Object.keys(localStorage).filter(k=>k.startsWith('teachya_notes_')).forEach(k=>localStorage.removeItem(k));localStorage.removeItem('teachya_dict');}catch(_){}
   S.userId=null;S.profile=null;S.role=null;S.schoolId=null;if(C('loginScreen'))C('loginScreen').style.display='flex';}});
 (async()=>{
   // First check if this is an invite/password-reset redirect
@@ -3851,7 +3887,7 @@ function openInviteStaff(){
   if(_ownerOpt)_ownerOpt.style.display=S.role==='owner'?'':'none';
 }
 function closeM(id){C(id).classList.remove('open');}
-const fmtDate=d=>d?new Date(d).toLocaleDateString('ru-RU'):'—';
+const fmtDate=d=>{if(!d)return'—';const[y,m,day]=(d+'').split('-');return new Date(+y,+m-1,+day).toLocaleDateString('ru-RU');};
 const fmtCur=(n,c='GEL')=>`${Number(n||0).toFixed(0)} ${c}`;
 var AVCOLORS=['#7C3AED','#EC4899','#10B981','#F59E0B','#3B82F6','#EF4444','#8B5CF6'];
 function avColor(s){let h=0;for(const c of(s||''))h=(h+c.charCodeAt(0))%AVCOLORS.length;return AVCOLORS[h];}
@@ -4047,6 +4083,8 @@ async function hangUp(){
   C('jitsiFrame').src='about:blank';
   C('callWindow').classList.remove('visible');C('dialBtn').classList.remove('incall');C('dialBtn').textContent='📞';
   S.inCall=false;closeWb();
+  S.pendingRoom=null;
+  S.pendingPartner=null;
 }
 function minimizeCall(){const b=C('callBody');b.style.display=b.style.display==='none'?'block':'none';}
 
@@ -4259,11 +4297,11 @@ function _hwImportApply(idx){
 }
 
 async function saveHWEditor(){
-  if(HWE._saving)return;HWE._saving=true;
   const sid=C('hwe_student').value,title=C('hwe_title').value.trim(),dl=C('hwe_deadline').value;
-  if(!title){HWE._saving=false;showToast('Введи название ДЗ');return;}
-  if(!sid){HWE._saving=false;showToast('Выбери ученика');return;}
-  if(!HWE.exercises.length){HWE._saving=false;showToast('Добавь хотя бы одно упражнение');return;}
+  if(!sid){showToast(t('Выбери ученика'),'error');return;}
+  if(!title){showToast(t('Введи тему урока'),'error');return;}
+  if(!HWE.exercises.length){showToast(t('Добавь хотя бы одно упражнение'),'error');return;}
+  if(HWE._saving)return;HWE._saving=true;
   const btn=document.querySelector('#mHWEditor .btn-purple');
   if(btn){btn.disabled=true;btn.textContent='Сохранение...';}
   const payload={school_id:S.schoolId,teacher_id:S.profile.id,student_id:sid,title,description:JSON.stringify(HWE.exercises),deadline:dl||null};
@@ -4288,6 +4326,8 @@ async function saveHWEditor(){
 
 // ── STUDENT: HW PLAYER ──────────────────────────────────────────────────────
 async function openHWPlayer(hwId){
+  if(openHWPlayer._busy)return;openHWPlayer._busy=true;
+  try{
   HWP.hwId=hwId;HWP.answers={};
   const{data:hw}=await sb.from('homeworks').select('*').eq('id',hwId).eq('school_id',S.schoolId).single();
   if(!hw){showToast('ДЗ не найдено');return;}
@@ -4309,6 +4349,7 @@ async function openHWPlayer(hwId){
     if(ex.type==='word_order')window[`_hwp_wo_${i}`]={words:[...(ex.words||[])].sort(()=>Math.random()-.5),chosen:[]};
   });
   openM('mHWPlayer');
+  }finally{openHWPlayer._busy=false;}
 }
 
 function _hwpRenderEx(ex,i){
@@ -4609,7 +4650,7 @@ async function renderStudentHw(){
 async function renderAdminHome(){
   if(renderAdminHome._loading)return;renderAdminHome._loading=true;
   try{
-  const _ahSnap=S.screen;
+  const _ahSnap=S.screen;showSkel();
   const[{data:sts},{data:ts},{data:pays}]=await Promise.all([
     sb.from('students').select('id').eq('school_id',S.schoolId),
     sb.from('profiles').select('id').eq('school_id',S.schoolId).eq('role','teacher'),
@@ -4630,7 +4671,7 @@ async function renderAdminHome(){
 async function renderOwnerHome(){
   if(renderOwnerHome._loading)return;renderOwnerHome._loading=true;
   try{
-  const _ohSnap=S.screen;
+  const _ohSnap=S.screen;showSkel();
   const[{data:sts},{data:ts},{data:pays},{data:adm},{data:cls}]=await Promise.all([
     sb.from('students').select('id').eq('school_id',S.schoolId),
     sb.from('profiles').select('id').eq('school_id',S.schoolId).eq('role','teacher'),
@@ -4655,7 +4696,7 @@ async function renderOwnerHome(){
 async function renderAdminStudents(){
   if(renderAdminStudents._loading)return;renderAdminStudents._loading=true;
   try{
-  const _adsSnap=S.screen;
+  const _adsSnap=S.screen;showSkel();
   const{data:sts}=await sb.from('students').select('*').eq('school_id',S.schoolId).order('last_name');
   if(S.screen!==_adsSnap)return;
   const rows=(sts||[]).map(s=>{const sName=(_esc(s.first_name||'')+' '+_esc(s.last_name||'')).replace(/'/g,'&#39;');const sId=_esc(s.id).replace(/'/g,"&#39;");return`<tr>
@@ -4792,7 +4833,7 @@ async function confirmDeleteStudent(sid,name){
   const{error:e4}=await sb.from('payments').delete().eq('student_id',sid).eq('school_id',S.schoolId);
   if(e4){showToast('Ошибка удаления: '+e4.message,'error');return;}
   const{error:_seErr}=await sb.from('schedule_events').delete().eq('student_id',sid).eq('school_id',S.schoolId);
-  if(_seErr)console.error('schedule_events delete:',_seErr);
+  if(_seErr){showToast(t('Ошибка')+': '+_seErr.message,'error');return;}
   // Финальное удаление ученика
   const{error}=await sb.from('students').delete().eq('id',sid).eq('school_id',S.schoolId);
   if(error){showToast('❌ '+error.message);console.error('[deleteStudent]',error);return;}
@@ -4806,7 +4847,7 @@ async function confirmDeleteStudent(sid,name){
 async function renderOwnerStudents(){
   if(renderOwnerStudents._loading)return;renderOwnerStudents._loading=true;
   try{
-  const _osSnap=S.screen;
+  const _osSnap=S.screen;showSkel();
   const{data:sts}=await sb.from('students').select('*').eq('school_id',S.schoolId).order('last_name');
   if(S.screen!==_osSnap)return;
   const rows=(sts||[]).map(s=>{const _sId=_esc(s.id).replace(/'/g,"&#39;");return`<tr>
@@ -4896,7 +4937,7 @@ async function renderSalaries(){
   if(renderSalaries._loading)return;renderSalaries._loading=true;
   try{
   if(!['owner','admin'].includes(S.role)){showToast(t('Нет прав'),'error');return;}
-  const _salSnap=S.screen;
+  const _salSnap=S.screen;showSkel();
   const[{data:ts},{data:sals},{data:logs}]=await Promise.all([
     sb.from('profiles').select('*').eq('school_id',S.schoolId).eq('role','teacher'),
     sb.from('teacher_salaries').select('*').eq('school_id',S.schoolId),
@@ -4908,7 +4949,7 @@ async function renderSalaries(){
   const rows=(ts||[]).map(tc=>{
     const sal=(sals||[]).find(s=>s.teacher_id===tc.id);
     const rate=sal?.rate_per_lesson||0,cur=sal?.currency||'GEL';
-    const cnt=(logs||[]).filter(l=>l.teacher_id===tc.id&&l.lesson_date&&l.lesson_date>=(start.toISOString().split('T')[0])).length;
+    const cnt=(logs||[]).filter(l=>l.teacher_id===tc.id&&l.lesson_date&&l.lesson_date>=`${start.getFullYear()}-${String(start.getMonth()+1).padStart(2,'0')}-${String(start.getDate()).padStart(2,'0')}`).length;
     const safeTname=(_esc(tc.first_name||'')+' '+_esc(tc.last_name||'')).replace(/'/g,'&#39;');
     const safeTcId=_esc(tc.id).replace(/'/g,"&#39;");
     return`<tr>
@@ -4966,7 +5007,7 @@ async function renderMaterials(){
   if(renderMaterials._loading)return;renderMaterials._loading=true;
   const _matScreen=S.screen;
   try{
-  const{data:mats}=await sb.from('materials').select('*').eq('school_id',S.schoolId).order('created_at',{ascending:false});
+  const{data:mats}=await sb.from('materials').select('*').eq('school_id',S.schoolId).order('created_at',{ascending:false}).limit(500);
   const canManage=['teacher','admin','owner'].includes(S.role);
   const grid=(mats||[]).map(m=>{
     const url=m.url||m.data_url||'';
@@ -4988,6 +5029,14 @@ async function deleteMaterial(id){
   if(S._deletingMaterial)return;S._deletingMaterial=true;
   if(!confirm('Удалить этот материал?')){S._deletingMaterial=false;return;}
   try{
+    const{data:mat}=await sb.from('materials').select('file_url,url').eq('id',id).eq('school_id',S.schoolId).single();
+    const _fileUrl=mat?.file_url||mat?.url||'';
+    if(_fileUrl){
+      try{
+        const _urlPath=_fileUrl.split('/object/public/materials/')[1];
+        if(_urlPath)await sb.storage.from('materials').remove([decodeURIComponent(_urlPath)]);
+      }catch(_){}
+    }
     const{error}=await sb.from('materials').delete().eq('id',id).eq('school_id',S.schoolId);
     if(error){showToast(t('Ошибка')+': '+error.message);return;}
     dcInval('materials_'+S.schoolId);
@@ -5186,9 +5235,10 @@ async function saveInviteStaff(){
       await callInviteFunction(email,role,f,l);
       closeM('mInviteStaff');
       // Clear fields
-      ['inv_first','inv_last','inv_email_inp'].forEach(id=>C(id).value='');
+      ['inv_first','inv_last','inv_email_inp'].forEach(id=>C(id).value='');C('inv_role').value='teacher';
       showToast('Приглашение отправлено! 💌');
       if(S.screen==='o_users')renderOwnerUsers();
+      else if(S.screen==='a_teachers'){if(typeof renderOwnerUsers==='function')renderOwnerUsers();}
     }catch(e){
       showToast(t('Ошибка')+': '+e.message);
     }
@@ -6234,6 +6284,7 @@ function openClassroomView(title,sections,assignId,studentName,materials){
   LV.sections=sections;LV.materials=Array.isArray(materials)?materials:[];LV.curSec=0;LV.curEx=0;LV.assignId=assignId;LV.viewAll=false;
   const matBtn=C('cv_matBtn');if(matBtn)matBtn.style.display=LV.materials.length?'':'none';
   S.currentAssignId=assignId||null;
+  S._cvStudentId=(window._assignCache||{})[assignId]?.student_profile_id||null;
   window._matchState={};
   C('cv_view1btn').classList.add('active');C('cv_viewAllBtn').classList.remove('active');
   C('cv_lessonName').textContent=title;
@@ -6372,7 +6423,7 @@ async function cvChatInit(roomId){
   if(cvChatChannel){try{sb.removeChannel(cvChatChannel);}catch(e){}cvChatChannel=null;}
   const dot=C('cv_chatDot');if(dot)dot.style.display='';
   cvChatChannel=sb.channel('lc_'+roomId)
-    .on('postgres_changes',{event:'INSERT',schema:'public',table:'lesson_chat',filter:'room_id=eq.'+roomId+',school_id=eq.'+S.schoolId},(payload)=>{
+    .on('postgres_changes',{event:'INSERT',schema:'public',table:'lesson_chat',filter:'room_id=eq.'+roomId},(payload)=>{
       const m=payload.new; if(!m||m.school_id!==S.schoolId)return;
       if(!document.getElementById('cvm_'+m.id)){
         const empty=C('cv_chatMsgs').querySelector('.cv-chat-empty');
@@ -6577,9 +6628,11 @@ function renderBlockView(b,i){
     if(_iframeHosts.some(d=>_h===d||_h.endsWith('.'+d)))embedUrl=rawUrl;
   }catch(_){}
 }
+    const _isSafe=embedUrl&&(embedUrl.includes('youtube.com')||embedUrl.includes('youtu.be')||embedUrl.includes('vimeo.com'));
+    const _sbx=_isSafe?'allow-scripts allow-forms allow-popups allow-presentation allow-same-origin':'allow-scripts allow-forms allow-popups allow-presentation';
     return`<div class="lesson-view-block">
       ${b.note?`<div style="padding:10px;background:var(--yellow-light);border-radius:8px;font-size:.85rem;margin-bottom:12px">📌 ${_escHtml(b.note)}</div>`:''}
-      ${embedUrl?`<div style="position:relative;padding-bottom:56.25%;height:0;overflow:hidden;border-radius:10px;margin-bottom:12px"><iframe src="${embedUrl}" style="position:absolute;top:0;left:0;width:100%;height:100%;border:none;border-radius:10px" allowfullscreen sandbox="allow-scripts allow-forms allow-popups allow-presentation"></iframe></div>`:'<div style="color:var(--text3);padding:20px;text-align:center">🎬 Видео не указано</div>'}
+      ${embedUrl?`<div style="position:relative;padding-bottom:56.25%;height:0;overflow:hidden;border-radius:10px;margin-bottom:12px"><iframe src="${_escHtml(embedUrl)}" style="position:absolute;top:0;left:0;width:100%;height:100%;border:none;border-radius:10px" allowfullscreen sandbox="${_sbx}"></iframe></div>`:'<div style="color:var(--text3);padding:20px;text-align:center">🎬 Видео не указано</div>'}
       ${b.question?`<div style="font-weight:700;margin-top:8px">❓ ${_escHtml(b.question)}</div><textarea style="width:100%;margin-top:8px;padding:8px 10px;border:2px solid var(--gray-border);border-radius:8px;font-family:var(--font);min-height:60px" placeholder="Напиши свой ответ..."></textarea>`:''}
     </div>`;
   }
@@ -6596,7 +6649,7 @@ function renderBlockView(b,i){
 
 // exercise check functions
 function checkFillBlank(i,answer){
-  const inputs=document.querySelectorAll(`[id^="fb_${i}_"]`);
+  const inputs=Array.from(document.querySelectorAll(`[id^="fb_${i}_"]`)).filter(el=>el.id.match(new RegExp(`^fb_${String(i).replace(/[-_]/g,'\\$&')}_\\d+$`)));
   const res=C(`fb_res_${i}`);
   if(!inputs.length)return;
   const val=Array.from(inputs).map(inp=>inp.value.trim()).join(' ').toLowerCase();
@@ -6747,7 +6800,9 @@ function openMaterialPreview(url,title,type,lang,level){
   C('mp_openBtn').dataset.url=url;
   if(embedUrl){
     if(!embedUrl||!/^https?:\/\//i.test(embedUrl)){C('mp_body').innerHTML='<p style="color:var(--pink)">Некорректная ссылка</p>';return;}
-    C('mp_body').innerHTML=`<div class="mp-iframe-wrap"><iframe src="${_escHtml(embedUrl)}" allowfullscreen allow="autoplay" sandbox="allow-scripts allow-forms allow-popups allow-presentation"></iframe></div>`;
+    const _mpIsSafe=embedUrl.includes('youtube.com')||embedUrl.includes('youtu.be')||embedUrl.includes('vimeo.com');
+    const _mpSbx=_mpIsSafe?'allow-scripts allow-forms allow-popups allow-presentation allow-same-origin':'allow-scripts allow-forms allow-popups allow-presentation';
+    C('mp_body').innerHTML=`<div class="mp-iframe-wrap"><iframe src="${_escHtml(embedUrl)}" allowfullscreen allow="autoplay" sandbox="${_mpSbx}"></iframe></div>`;
   } else {
     C('mp_openBtn').onclick=()=>{if(/^https?:\/\//i.test(url))window.open(url,'_blank','noopener,noreferrer');else showToast('Небезопасный URL','error');};
     C('mp_body').innerHTML=`<div class="mp-no-embed">
@@ -6764,6 +6819,8 @@ function openMaterialPreview(url,title,type,lang,level){
 
 // CE materials panel — pick from school library
 async function renderCEMaterialsPanel(){
+  if(renderCEMaterialsPanel._busy)return;renderCEMaterialsPanel._busy=true;
+  try{
   const body=document.getElementById('ceMatsBody');
   if(!body)return;
   body.innerHTML=`<div style="color:var(--text3);font-size:.83rem;text-align:center;padding:16px">${t('Загрузка материалов...')}</div>`;
@@ -6779,6 +6836,7 @@ async function renderCEMaterialsPanel(){
       </div>
       <span style="font-size:.75rem;color:var(--purple);font-weight:600">${selectedIds.has(m.id)?t('✓ Добавлен'):''}</span>
     </div>`).join('');
+  }catch(e){console.error('renderCEMaterialsPanel:',e);}finally{renderCEMaterialsPanel._busy=false;}
 }
 function toggleCEMaterial(el){
   const id=el.dataset.mid,title=el.dataset.mtitle,type=el.dataset.mtype,url=el.dataset.murl,lang=el.dataset.mlang,level=el.dataset.mlevel;
@@ -6928,6 +6986,7 @@ function fmtMsgTime(iso){
 }
 
 async function openConv(convId){
+  if(MS._loadingConvs)return;
   if(!S.profile?.id)return;
   if(MS.convs&&MS.convs.length>0&&!MS.convs.find(cv=>cv.id===convId)){showToast(t('Нет прав'),'error');return;}
   if(MS._openingConv===convId)return;MS._openingConv=convId;
@@ -7147,7 +7206,9 @@ async function createConv(){
           const _myConvIds=_myMems.map(m=>m.conversation_id);
           const{data:_theirMems}=await sb.from('conversation_members').select('conversation_id').eq('user_id',uid).eq('school_id',S.schoolId).in('conversation_id',_myConvIds);
           if(_theirMems&&_theirMems.length){
-            closeM('mNewConv');await openConv(_theirMems[0].conversation_id);return;
+            const _sharedConvIds=_theirMems.map(m=>m.conversation_id);
+            const{data:_directConv}=await sb.from('conversations').select('id').eq('type','direct').in('id',_sharedConvIds).single();
+            if(_directConv){closeM('mNewConv');await openConv(_directConv.id);return;}
           }
         }
       }
@@ -7178,7 +7239,7 @@ async function createConv(){
 // ═══════════════════════════════════════════════════════════════════════════════
 // ─── TASKS / KANBAN ───────────────────────────────────────────────────────────
 // ═══════════════════════════════════════════════════════════════════════════════
-const TK={tasks:[],filterUser:'all',rtSub:null,_movingTask:null,_deletingTask:false,_movingTasks:new Set(),_deletingTasks:new Set()};
+const TK={tasks:[],filterUser:'all',rtSub:null,_movingTask:null,_deletingTask:false,_movingTasks:new Set(),_deletingTasks:new Set(),_pollInterval:null};
 let _taskReminderInterval=null;
 
 async function renderTasks(){
@@ -7203,6 +7264,9 @@ async function renderTasks(){
     </div>
   </div>`);
   await loadTasks();
+  if(!TK._pollInterval){
+    TK._pollInterval=setInterval(()=>{if(S.screen&&S.screen.includes('tasks'))loadTasks();},30000);
+  }
   }finally{
   renderTasks._loading=false;
   }
@@ -7781,11 +7845,11 @@ function exportICal(){
     (evs||[]).forEach(ev=>{
       if(!ev.event_date)return;
       const _evTime=(ev.event_time||'09:00').substring(0,5); // "HH:MM" only
-      const _evDt=new Date(ev.event_date+'T'+_evTime+':00Z');
+      const _evDt=new Date(ev.event_date+'T'+_evTime+':00');
       if(isNaN(_evDt.getTime()))return; // skip invalid events
       const _evEndMs=_evDt.getTime()+(parseInt(ev.duration_minutes)||60)*60000;
       const _evEnd=new Date(_evEndMs);
-      const _toIcalUtc=d=>d.toISOString().replace(/[-:]/g,'').replace(/\.\d{3}/,'');
+      const _toIcalUtc=d=>d.toISOString().replace(/[-:]/g,'').replace(/\.\d{3}Z$/,'');
       const dtStart=_toIcalUtc(_evDt);
       const dtEnd=_toIcalUtc(_evEnd);
       lines.push('BEGIN:VEVENT',
