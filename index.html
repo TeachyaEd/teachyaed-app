@@ -1065,7 +1065,7 @@ body[data-theme="dark"] .vocab-back{color:#6ee7b7!important;background:rgba(16,1
     <button class="modal-close" onclick="closeM('mChangeRole')">✕</button>
     <h3>Изменить роль</h3>
     <div id="changeRoleUserInfo" style="font-weight:600;margin-bottom:14px;color:var(--purple)"></div>
-    <div class="form-group"><label>Новая роль</label><select id="newRole"><option value="teacher">Учитель</option><option value="admin">Администратор</option><option value="owner">Владелец</option></select></div>
+    <div class="form-group"><label>Новая роль</label><select id="newRole"><option value="student">Ученик</option><option value="teacher">Учитель</option><option value="admin">Администратор</option><option value="owner">Владелец</option></select></div>
     <div class="btn-row"><button class="btn btn-purple" onclick="applyRoleChange()">Сохранить</button><button class="btn btn-outline" onclick="closeM('mChangeRole')">Отмена</button></div>
   </div>
 </div>
@@ -1151,7 +1151,7 @@ body[data-theme="dark"] .vocab-back{color:#6ee7b7!important;background:rgba(16,1
     <div id="hwrExercises" style="max-height:46vh;overflow-y:auto;padding-right:4px"></div>
     <div class="form-group" style="margin-top:14px"><label>Комментарий учителя</label><textarea id="hwr_comment" placeholder="Отлично! / Нужно доработать..."></textarea></div>
     <div class="btn-row">
-      <button class="btn btn-green" onclick="saveHWReview()">💾 Сохранить оценку</button>
+      <button class="btn btn-green" onclick="saveHWReview()">💾 Сохранить отзыв</button>
       <button class="btn btn-outline" onclick="closeM('mHWReview')">Закрыть</button>
     </div>
   </div>
@@ -1571,10 +1571,10 @@ const SCHOOL='00000000-0000-0000-0000-000000000001';
 const S={
   role:null,profile:null,schoolId:null,screen:null,contacts:[],
   pc:null,localStream:null,callChannel:null,notifyChannel:null,
-  inCall:false,pendingRoom:null,pendingPartner:null,
+  inCall:false,pendingRoom:null,pendingPartner:null,pendingCallerId:null,
   micOn:true,camOn:true,screenOn:false,screenTrack:null,
   editPayId:null,currentHwId:null,currentSalTId:null,
-  editLessonId:null,assignLessonId:null,currentAssignId:null,
+  editLessonId:null,assignLessonId:null,currentAssignId:null,_assignLessonClassId:null,
   editClassId:null,currentClassId:null,editEventId:null,currentClassTab:'students',
   lang:localStorage.getItem('ty_lang')||'ru'
 };
@@ -2692,6 +2692,7 @@ function _getReverseDataGE(){
 // Revert DOM from any translated lang back to RU (handles both EN→RU and GE→RU)
 function revertToRU(root){
   if(!root)return;
+  document.documentElement.lang = S.lang==='en'?'en':S.lang==='ge'?'ka':'ru';
   const {entries:enE,map:enM}=_getReverseData();
   const {entries:geE,map:geM}=_getReverseDataGE();
   const allEntries=[...enE,...geE].sort((a,b)=>b[0].length-a[0].length);
@@ -2714,6 +2715,7 @@ function revertToRU(root){
     if(al&&allMap[al])el.setAttribute('aria-label',allMap[al]);
   });
   root.querySelectorAll('[value]').forEach(el=>{
+    if(el.tagName==='INPUT'||el.tagName==='TEXTAREA'||el.tagName==='SELECT')return;
     const v=el.getAttribute('value');
     if(v&&allMap[v])el.setAttribute('value',allMap[v]);
   });
@@ -2764,6 +2766,7 @@ function applyRU(root){
 
 function applyEN(root){
   if(!root||S.lang!=='en')return;
+  document.documentElement.lang = S.lang==='en'?'en':S.lang==='ge'?'ka':'ru';
   const entries=_getTrEntries();
   const walker=document.createTreeWalker(root,NodeFilter.SHOW_TEXT,null,false);
   const nodes=[];
@@ -2787,11 +2790,14 @@ function applyEN(root){
     const v=opt.textContent.trim();
     if(TRANSLATIONS[v])opt.textContent=TRANSLATIONS[v];
   });
-  root.querySelectorAll('[aria-label],[value]').forEach(el=>{
+  root.querySelectorAll('[value]').forEach(el=>{
+    if(el.tagName==='INPUT'||el.tagName==='TEXTAREA'||el.tagName==='SELECT')return;
+    const v=el.getAttribute('value');
+    if(v&&TRANSLATIONS[v])el.setAttribute('value',TRANSLATIONS[v]);
+  });
+  root.querySelectorAll('[aria-label]').forEach(el=>{
     const al=el.getAttribute('aria-label');
     if(al&&TRANSLATIONS[al])el.setAttribute('aria-label',TRANSLATIONS[al]);
-    const val=el.getAttribute('value');
-    if(val&&TRANSLATIONS[val])el.setAttribute('value',TRANSLATIONS[val]);
   });
   root.querySelectorAll('button,a,label,th,td,span,div,p,h1,h2,h3,h4,li').forEach(el=>{
     if(el.children.length===0){
@@ -2803,6 +2809,7 @@ function applyEN(root){
 
 function applyGE(root){
   if(!root||S.lang!=='ge')return;
+  document.documentElement.lang = S.lang==='en'?'en':S.lang==='ge'?'ka':'ru';
   const entries=_getTrEntriesGE();
   const walker=document.createTreeWalker(root,NodeFilter.SHOW_TEXT,null,false);
   const nodes=[];let node;
@@ -2821,6 +2828,7 @@ function applyGE(root){
     const al=el.getAttribute('aria-label');if(al&&TRANSLATIONS_GE[al])el.setAttribute('aria-label',TRANSLATIONS_GE[al]);
   });
   root.querySelectorAll('[value]').forEach(el=>{
+    if(el.tagName==='INPUT'||el.tagName==='TEXTAREA'||el.tagName==='SELECT')return;
     const v=el.getAttribute('value');
     if(v&&TRANSLATIONS_GE[v])el.setAttribute('value',TRANSLATIONS_GE[v]);
   });
@@ -3407,7 +3415,7 @@ function ceAddExType(type){
   const actualType=typeMap[type]||type;
   const def=CE_DEFAULTS[actualType];
   if(!def){showToast(t('Неизвестный тип:')+' '+type);return;}
-  sec.exercises.push({...def});
+  sec.exercises.push(JSON.parse(JSON.stringify(def)));
   CE.curEx=sec.exercises.length-1;ceRenderAll();showToast('Упражнение добавлено ✓');
 }
 
@@ -3517,7 +3525,7 @@ async function cvCallStudent(){
   const partnerId=S._cvStudentId||_ac?.student_id;
   if(!partnerId){showToast(t('Ученик не определён'),'error');return;}
   // Try to find student name from loaded contacts
-  const _ct=S.contacts?.find(c=>c.id===partnerId);
+  const _ct=S.contacts?.find(c=>c.id===partnerId||c.id==='stu_'+partnerId);
   const partnerName=_ct?((_ct.first_name||'')+' '+(_ct.last_name||'')).trim()||'Ученик':'Ученик';
   callContact(partnerId,partnerName,'student');
 }
@@ -3612,7 +3620,11 @@ async function setInvitePassword(){
   _invSuccess=true;
   C('inviteScreen').style.display='none';
   const{data:{session}}=await sb.auth.getSession();
-  if(session)await afterLogin(session.user);
+  if(session){
+    await afterLogin(session.user);
+  } else {
+    C('loginScreen').style.display='flex';
+  }
   }finally{if(inv_btn){inv_btn.disabled=false;inv_btn.textContent=_invSuccess?t('Войти в систему →'):t('Установить пароль');}}
 }
 
@@ -3650,19 +3662,24 @@ async function doLogin(){
   const _loginErrEl=document.getElementById('loginErr')||C('loginErr');
   if(_loginErrEl)_loginErrEl.style.display='none';
   const btn=document.querySelector('#loginForm button.btn-login');
-  if(btn){btn.disabled=true;btn.textContent='Входим...';}
+  if(btn){btn.disabled=true;btn.textContent=t('Входим...');}
   try{
     const e=C('loginEmail').value.trim(),p=C('loginPass').value;
     const{data,error}=await sb.auth.signInWithPassword({email:e,password:p});
-    if(error){const _le=C('loginErr');if(_le){_le.textContent=t('Неверный email или пароль');_le.style.display='block';}return;}
+    if(error){const _le=C('loginErr');if(_le){const _em=(error.message||'').toLowerCase();if(_em.includes('email not confirmed')||_em.includes('not confirmed')){_le.textContent=t('Email не подтверждён. Проверьте почту.');}else{_le.textContent=t('Неверный email или пароль');}_le.style.display='block';}return;}
     await afterLogin(data.user);
   }finally{
-    if(btn){btn.disabled=false;btn.textContent='Войти';}
+    if(btn){btn.disabled=false;btn.textContent=t('Войти');}
   }
 }
 async function afterLogin(user){
   if(!user){showToast('Ошибка авторизации','error');return;}
-  let{data:prof}=await sb.from('profiles').select('*').eq('id',user.id).single();
+  let{data:prof,error:profErr}=await sb.from('profiles').select('*').eq('id',user.id).single();
+  if(profErr&&profErr.code!=='PGRST116'){
+    showToast(t('Ошибка загрузки профиля. Попробуйте ещё раз.'),'error');
+    if(C('loginScreen'))C('loginScreen').style.display='flex';
+    return;
+  }
 
   // ── Fallback: profile not found — create from invite metadata ──────────────
   if(!prof){
@@ -3745,11 +3762,11 @@ async function doLogout(){
     Object.assign(TK,{tasks:[],filterUser:'all',rtSub:null,_movingTasks:new Set(),_deletingTasks:new Set(),_pollInterval:null});
   }
   // 4. Sign out
-  await sb.auth.signOut();
+  try{ await sb.auth.signOut(); }catch(_){}
   // 5. Reset state
   C('app').style.display='none';C('loginScreen').style.display='flex';
   C('loginErr').style.display='none';C('dialBtn').style.display='none';
-  Object.assign(S,{role:null,profile:null,contacts:[],inCall:false,schoolId:null,userId:null,_currentClassData:null,_cvStudentId:null,_aiSending:false,pendingRoom:null,pendingPartner:null,currentAssignId:null,studentRowId:null,_loadingVocab:false,_savingMaterial:false,_deletingMaterial:false,_savingEvent:false,_deletingEvent:false,_deletingStudent:false,_deletingUser:false,_savingStudentCard:false,_logLessonSaving:false,_sendingPlacementTest:false,_ptpSubmitting:false,_exportingICal:false,_addingToClass:false,_savingSalary:false,_ringTimeout:null,_savingClass:false,_deletingClass:false,screen:'',callChannel:null,pc:null,localStream:null,screenTrack:null,micOn:true,camOn:true,screenOn:false,editPayId:null,currentHwId:null,editLessonId:null,assignLessonId:null,editClassId:null,currentClassId:null,editEventId:null,currentClassTab:'schedule',currentSalTId:null});
+  Object.assign(S,{role:null,profile:null,contacts:[],inCall:false,schoolId:null,userId:null,_currentClassData:null,_cvStudentId:null,_aiSending:false,pendingRoom:null,pendingPartner:null,pendingCallerId:null,currentAssignId:null,studentRowId:null,_assignLessonClassId:null,_loadingVocab:false,_savingMaterial:false,_deletingMaterial:false,_savingEvent:false,_deletingEvent:false,_deletingStudent:false,_deletingUser:false,_savingStudentCard:false,_logLessonSaving:false,_sendingPlacementTest:false,_ptpSubmitting:false,_exportingICal:false,_addingToClass:false,_savingSalary:false,_ringTimeout:null,_savingClass:false,_deletingClass:false,screen:'',callChannel:null,pc:null,localStream:null,screenTrack:null,micOn:true,camOn:true,screenOn:false,editPayId:null,currentHwId:null,editLessonId:null,assignLessonId:null,editClassId:null,currentClassId:null,editEventId:null,currentClassTab:'schedule',currentSalTId:null});
   if(typeof LV!=='undefined')Object.assign(LV,{sections:[],materials:[],curSec:0,curEx:0,assignId:null,viewAll:false,_completing:false,_chatSending:false,chatRoomId:null});
   // clear cached data
   try{
@@ -3771,6 +3788,8 @@ async function doLogout(){
   if(typeof _aiHistory!=='undefined'){_aiHistory.cv=[];_aiHistory.ce=[];}
   // Reset all render loading flags
   ['renderSchedule','renderLibrary','renderStudentVocab','renderTeacherHw','renderStudentHw','renderClasses','renderOwnerStudents','renderTeacherStudents','renderMessenger','renderTasks','renderOwnerUsers','renderAdminHome','renderOwnerHome','renderAdminStudents','renderAdminTeachers','renderSalaries','renderPayments','renderStudentHome','renderStudentLessons','renderTeacherLessons','renderMaterials'].forEach(fn=>{if(typeof window[fn]==='function'){window[fn]._loading=false;window[fn]._busy=false;}});
+  if(typeof openHWPlayer==='function')openHWPlayer._busy=false;
+  if(typeof openHWReview==='function')openHWReview._busy=false;
   // Clear localStorage
   try{Object.keys(localStorage).filter(k=>k.startsWith('teachya_notes_')).forEach(k=>localStorage.removeItem(k));localStorage.removeItem('teachya_dict');}catch(_){}
 }
@@ -3782,13 +3801,14 @@ sb.auth.onAuthStateChange((event,session)=>{if(((event==='SIGNED_OUT'||event==='
     if(typeof cvChatChannel!=='undefined'&&cvChatChannel){sb.removeChannel(cvChatChannel);cvChatChannel=null;}
     if(typeof TK!=='undefined'&&TK.rtSub){sb.removeChannel(TK.rtSub);TK.rtSub=null;}
     if(typeof TK!=='undefined'&&TK._pollInterval){clearInterval(TK._pollInterval);TK._pollInterval=null;}
-    if(typeof _taskReminderInterval!=='undefined'&&_taskReminderInterval){clearInterval(_taskReminderInterval);}
+    if(typeof _taskReminderInterval!=='undefined'&&_taskReminderInterval){clearInterval(_taskReminderInterval);_taskReminderInterval=null;}
+    if(typeof checkTaskReminders!=='undefined')checkTaskReminders._busy=false;
   }catch(e){}
   // Clear data cache on external logout
   Object.keys(_DC).forEach(k=>delete _DC[k]);
   // Clear localStorage session data
   try{Object.keys(localStorage).filter(k=>k.startsWith('teachya_notes_')).forEach(k=>localStorage.removeItem(k));localStorage.removeItem('teachya_dict');}catch(_){}
-  S.userId=null;S.profile=null;S.role=null;S.schoolId=null;if(C('loginScreen'))C('loginScreen').style.display='flex';}});
+  S.userId=null;S.profile=null;S.role=null;S.schoolId=null;if(C('app'))C('app').style.display='none';if(C('dialBtn'))C('dialBtn').style.display='none';if(C('loginScreen'))C('loginScreen').style.display='flex';}});
 (async()=>{
   // First check if this is an invite/password-reset redirect
   const invited=await checkInviteToken();
@@ -3892,7 +3912,7 @@ function openInviteStaff(){
   if(_ownerOpt)_ownerOpt.style.display=S.role==='owner'?'':'none';
 }
 function closeM(id){C(id).classList.remove('open');}
-const fmtDate=d=>{if(!d)return'—';const s=String(d);const parts=s.split('-');if(parts.length>=3&&!parts[2].includes('T')&&!parts[2].includes(' ')){return new Date(+parts[0],+parts[1]-1,+parts[2]).toLocaleDateString('ru-RU');}return new Date(d).toLocaleDateString('ru-RU');};
+const fmtDate=d=>{if(!d)return'—';const s=String(d);const _fmtLoc=(S.lang==='en'?'en-US':S.lang==='ge'?'ka-GE':'ru-RU');const parts=s.split('-');if(parts.length>=3&&!parts[2].includes('T')&&!parts[2].includes(' ')){return new Date(+parts[0],+parts[1]-1,+parts[2]).toLocaleDateString(_fmtLoc);}return new Date(d).toLocaleDateString(_fmtLoc);};
 const fmtCur=(n,c='GEL')=>`${Number(n||0).toFixed(0)} ${c}`;
 var AVCOLORS=['#7C3AED','#EC4899','#10B981','#F59E0B','#3B82F6','#EF4444','#8B5CF6'];
 function avColor(s){let h=0;for(const c of(s||''))h=(h+c.charCodeAt(0))%AVCOLORS.length;return AVCOLORS[h];}
@@ -3957,7 +3977,7 @@ function stopRingTone(){if(_ringInterval){clearInterval(_ringInterval);_ringInte
 
 function handleIncomingCall(payload){
   if(S.inCall||S.pendingRoom)return; // уже в звонке или уже показано
-  S.pendingRoom=payload.room_id;S.pendingPartner=payload.from_name;
+  S.pendingRoom=payload.room_id;S.pendingPartner=payload.from_name;S.pendingCallerId=payload.from_id||null;
   if(C('icName'))C('icName').textContent=payload.from_name||'Звонок';
   C('icRole').textContent=ROLE_L[payload.from_role]||'';
   C('incomingCall').classList.add('show');
@@ -3970,7 +3990,7 @@ function subscribeNotifications(){
   S.notifyChannel=sb.channel(`notify-${S.profile.id}`)
     // Broadcast (быстро, когда оба онлайн)
     .on('broadcast',{event:'ring'},({payload})=>handleIncomingCall(payload))
-    .on('broadcast',{event:'decline'},()=>{if(!S.inCall)showToast('Звонок отклонён');})
+    .on('broadcast',{event:'decline'},()=>{if(S.inCall){showToast(t('Звонок отклонён'),'info');hangUp();}})
     // Postgres Changes (надёжно — основной канал уведомлений)
     .on('postgres_changes',{event:'INSERT',schema:'public',table:'call_signals',
       filter:`to_profile_id=eq.${S.profile.id}`},
@@ -4024,7 +4044,7 @@ async function callContact(partnerId,partnerName,partnerRole){
   }
   // Send ring notification (only if we have a real profile UUID)
   if(!ringId.startsWith('stu_')){
-    const rPayload={from_name:`${S.profile.first_name} ${S.profile.last_name}`,from_role:S.role,room_id:roomId};
+    const rPayload={from_name:`${S.profile.first_name} ${S.profile.last_name}`,from_role:S.role,room_id:roomId,from_id:S.profile?.id};
     // 1️⃣ Postgres Changes — надёжно (основной канал)
     sb.from('call_signals').insert({to_profile_id:ringId,school_id:S.schoolId,...rPayload})
       .then(({error})=>{if(error)console.warn('call_signal insert:',error);});
@@ -4045,15 +4065,26 @@ async function callContact(partnerId,partnerName,partnerRole){
 async function acceptCall(){
   stopRingTone();clearTimeout(S._ringTimeout);
   C('incomingCall').classList.remove('show');
-  if(!S.pendingRoom){showToast('Ошибка: данные звонка потеряны. Попросите собеседника позвонить снова.');return;}
+  if(!S.pendingRoom){showToast(t('Ошибка: данные звонка потеряны'),'error');return;}
+  S.inCall=true;  // close race window
   const room=S.pendingRoom,partner=S.pendingPartner||'Собеседник';
   S.pendingRoom=null;S.pendingPartner=null;
   await initCall(room,partner,true);
 }
 function declineCall(){
-  stopRingTone();clearTimeout(S._ringTimeout);C('incomingCall').classList.remove('show');
-  if(S.pendingRoom){const ch=sb.channel(S.pendingRoom);ch.subscribe(st=>{if(st==='SUBSCRIBED'){ch.send({type:'broadcast',event:'decline',payload:{}});setTimeout(()=>sb.removeChannel(ch),1000);}});}
+  stopRingTone();
+  clearTimeout(S._ringTimeout);S._ringTimeout=null;
+  C('incomingCall').classList.remove('show');
+  if(S.pendingCallerId){
+    const _dch=sb.channel(`notify-${S.pendingCallerId}`);
+    _dch.subscribe(st=>{if(st==='SUBSCRIBED'){_dch.send({type:'broadcast',event:'decline',payload:{}});setTimeout(()=>sb.removeChannel(_dch),1000);}});
+  } else if(S.pendingRoom){
+    const _dch=sb.channel(S.pendingRoom);
+    _dch.subscribe(st=>{if(st==='SUBSCRIBED'){_dch.send({type:'broadcast',event:'decline',payload:{}});setTimeout(()=>sb.removeChannel(_dch),1000);}});
+  }
   S.pendingRoom=null;
+  S.pendingPartner=null;
+  S.pendingCallerId=null;
 }
 // DAILY_KEY removed from frontend — proxied via Supabase Edge Function 'daily-room'
 async function initCall(roomId,partnerName,isCallee){
@@ -4084,6 +4115,8 @@ async function initCall(roomId,partnerName,isCallee){
     .subscribe();
 }
 async function hangUp(){
+  stopRingTone();
+  clearTimeout(S._ringTimeout);S._ringTimeout=null;
   if(S.callChannel){try{S.callChannel.send({type:'broadcast',event:'hangup',payload:{}});}catch(e){}sb.removeChannel(S.callChannel);S.callChannel=null;}
   C('jitsiFrame').src='about:blank';
   C('callWindow').classList.remove('visible');C('dialBtn').classList.remove('incall');C('dialBtn').textContent='📞';
@@ -4140,9 +4173,13 @@ window.addEventListener('keydown',e=>{if(e.key==='Escape'){closeWb();C('contactP
 async function renderStudentHome(){
   if(renderStudentHome._loading)return;renderStudentHome._loading=true;
   try{
-  const _shSnap=S.screen;
+  const _shSnap=S.screen;showSkel();
   const{data:stu}=await sb.from('students').select('*').eq('email',S.profile.email).eq('school_id',S.schoolId).single();
   if(S.screen!==_shSnap)return;
+  if(!stu){
+    setContent('<div class="empty-state"><div class="ei">📭</div><p>'+t('Профиль ученика не найден. Обратитесь к учителю.')+'</p></div>');
+    return;
+  }
   const stuId=stu?.id||null;
   const[{data:hw},{data:assigns}]=await Promise.all([
     stuId?sb.from('homeworks').select('id').eq('student_id',stuId).eq('school_id',S.schoolId).eq('status','pending'):Promise.resolve({data:[]}),
@@ -4342,6 +4379,7 @@ async function openHWPlayer(hwId){
       if(_stuRow)S.studentRowId=_stuRow.id;
     }
     if(!S.studentRowId||hw.student_id!==S.studentRowId){showToast('Доступ запрещён','error');return;}
+    if(hw.status!=='pending'){showToast(t('Задание уже сдано'),'info');return;}
   }
   HWP.hwData=hw;
   try{HWP.exercises=JSON.parse(hw.description)||[];}catch(e){HWP.exercises=[];}
@@ -4449,7 +4487,8 @@ async function submitHWAnswers(){
       .update({status:'submitted',student_answer:JSON.stringify(answers)})
       .eq('id',HWP.hwId)
       .eq('school_id',S.schoolId)
-      .eq('student_id',S.studentRowId);
+      .eq('student_id',S.studentRowId||S.profile?.id)
+      .eq('status','pending');
     if(error){showToast('Ошибка отправки ДЗ: '+error.message,'error');return;}
     dcInval('homeworks_'+S.schoolId);closeM('mHWPlayer');showToast('✅ ДЗ отправлено!');renderStudentHw();
   } finally {
@@ -4716,12 +4755,15 @@ async function renderAdminStudents(){
   if(S.screen!==_adsSnap)return;
   setContent(`<div class="section-header"><h2>👥 ${t('Ученики')}</h2><button class="btn btn-purple" onclick="openAddStudent()">+ ${t('Добавить')}</button></div>
     <div class="card" style="padding:0;overflow:hidden"><table><thead><tr><th>${t('Ученик')}</th><th>${t('Язык')}</th><th>${t('Уровень')}</th><th>${t('Телефон')}</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>`);
-  }finally{renderAdminStudents._loading=false;}
+  }catch(e){
+  console.error('renderAdminStudents error:',e);
+  setContent('<div class="empty-state"><div class="ei">⚠️</div><p>'+t('Ошибка загрузки')+'</p></div>');
+}finally{renderAdminStudents._loading=false;}
 }
 async function renderAdminTeachers(){
   if(renderAdminTeachers._loading)return;renderAdminTeachers._loading=true;
   try{
-  const _adtSnap=S.screen;
+  const _adtSnap=S.screen;showSkel();
   const{data:ts}=await sb.from('profiles').select('*').eq('school_id',S.schoolId).eq('role','teacher');
   if(S.screen!==_adtSnap)return;
   const rows=(ts||[]).map(tc=>{const tcName=(_esc(tc.first_name||'')+' '+_esc(tc.last_name||'')).replace(/'/g,'&#39;');const tcId=_esc(tc.id).replace(/'/g,"&#39;");return`<tr><td><div style="display:flex;align-items:center;gap:10px">${avHTML(tc.first_name,tc.last_name)}<div><div style="font-weight:600">${_esc(tc.first_name)} ${_esc(tc.last_name)}</div><div style="font-size:.75rem;color:var(--text3)">${_esc(tc.email||'—')}</div></div></div></td>
@@ -4734,12 +4776,15 @@ async function renderAdminTeachers(){
   if(S.screen!==_adtSnap)return;
   setContent(`<div class="section-header"><h2>👨‍🏫 ${t('Учителя')}</h2><button class="btn btn-purple" onclick="openInviteStaff()">+ ${t('Пригласить')}</button></div>
     <div class="card" style="padding:0;overflow:hidden"><table><thead><tr><th>${t('Учитель')}</th><th>${t('Роль')}</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>`);
-  }finally{renderAdminTeachers._loading=false;}
+  }catch(e){
+  console.error('renderAdminTeachers error:',e);
+  setContent('<div class="empty-state"><div class="ei">⚠️</div><p>'+t('Ошибка загрузки')+'</p></div>');
+}finally{renderAdminTeachers._loading=false;}
 }
 async function renderOwnerUsers(){
   if(renderOwnerUsers._loading)return;renderOwnerUsers._loading=true;
   try{
-  const _ouSnap=S.screen;
+  const _ouSnap=S.screen;showSkel();
   const{data:users}=await sb.from('profiles').select('*').eq('school_id',S.schoolId).order('role');
   if(S.screen!==_ouSnap)return;
   const canDelete=S.role==='owner'||S.role==='admin';
@@ -4757,7 +4802,10 @@ async function renderOwnerUsers(){
   if(S.screen!==_ouSnap)return;
   setContent(`<div class="section-header"><h2>👥 Все пользователи</h2><button class="btn btn-purple" onclick="openInviteStaff()">+ Пригласить сотрудника</button></div>
     <div class="card" style="padding:0;overflow:hidden"><table><thead><tr><th>${t('Пользователь')}</th><th>${t('Роль')}</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>`);
-  }finally{renderOwnerUsers._loading=false;}
+  }catch(e){
+  console.error('renderOwnerUsers error:',e);
+  setContent('<div class="empty-state"><div class="ei">⚠️</div><p>'+t('Ошибка загрузки')+'</p></div>');
+}finally{renderOwnerUsers._loading=false;}
 }
 let _changeRoleId='';
 function openChangeRole(uid,name,currentRole){_changeRoleId=uid;C('mChangeRole').dataset.uid=uid;C('changeRoleUserInfo').textContent=name;C('newRole').value=currentRole;openM('mChangeRole');}
@@ -4797,7 +4845,7 @@ function confirmDeleteUser(uid,name,role){
 async function doDeleteUser(){
   if(!['owner','admin'].includes(S.role)){showToast('Нет прав','error');return;}
   if(S._deletingUser)return;S._deletingUser=true;
-  const _duBtn=document.querySelector('#mDeleteUser .btn-danger');
+  const _duBtn=document.querySelector('#mDeleteUser .btn-red');
   if(_duBtn)_duBtn.disabled=true;
   if(!_deleteUserId){closeM('mDeleteUser');S._deletingUser=false;if(_duBtn)_duBtn.disabled=false;return;}
   const uid=_deleteUserId;
@@ -4811,8 +4859,7 @@ async function doDeleteUser(){
     if(error||data?.error){
       const msg=data?.error||error?.message||'Неизвестная ошибка';
       console.error('[deleteUser] FAIL:',msg,'fullError=',error,'fullData=',data);
-      alert('❌ Ошибка удаления:\n'+msg);
-      showToast('❌ '+msg);
+      showToast('❌ '+t('Ошибка удаления')+': '+msg,'error');
       return;
     }
     ['ty_av_color_','ty_av_emoji_','ty_av_photo_'].forEach(k=>localStorage.removeItem(k+uid));
@@ -4825,7 +4872,7 @@ async function confirmDeleteStudent(sid,name){
   if(!['admin','owner'].includes(S.role)){showToast('Нет прав','error');return;}
   if(S._deletingStudent)return;
   S._deletingStudent=true;
-  if(!confirm(`Удалить ученика ${name}?\nЭто удалит все его задания, оплаты и записи в классах. Действие нельзя отменить.`)){S._deletingStudent=false;return;}
+  if(!confirm(t(`Удалить ученика ${name}?\nЭто удалит все его задания, оплаты и записи в классах. Действие нельзя отменить.`))){S._deletingStudent=false;return;}
   try{
   showToast('⏳ Удаляем...');
   // Каскадное удаление зависимых записей
@@ -4871,7 +4918,7 @@ async function renderOwnerStudents(){
 async function renderPayments(){
   if(renderPayments._loading)return;renderPayments._loading=true;
   try{
-  const _paySnap=S.screen;
+  const _paySnap=S.screen;showSkel();
   const{data:pays}=await sb.from('payments').select('*,student:student_id(first_name,last_name)').eq('school_id',S.schoolId).order('created_at',{ascending:false});
   if(S.screen!==_paySnap)return;
   const{data:sts}=await sb.from('students').select('id,first_name,last_name').eq('school_id',S.schoolId);
@@ -4896,7 +4943,10 @@ async function renderPayments(){
       <div class="stat-card pink"><div class="stat-val">${fmtCur(ov)}</div><div class="stat-lbl">Просрочено</div></div>
     </div>
     <div class="card" style="padding:0;overflow:hidden"><table><thead><tr><th>Ученик</th><th>Сумма</th><th>Период</th><th>Статус</th><th>Заметка</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>`);
-  }finally{renderPayments._loading=false;}
+  }catch(e){
+  console.error('renderPayments error:',e);
+  setContent('<div class="empty-state"><div class="ei">⚠️</div><p>'+t('Ошибка загрузки')+'</p></div>');
+}finally{renderPayments._loading=false;}
 }
 function openAddPayment(){
   S.editPayId=null;
@@ -4917,11 +4967,13 @@ async function markPaid(id,btn){
   }
 }
 async function savePayment(){
-  if(!['admin','owner'].includes(S.role)){showToast('Нет прав','error');return;}
+  if(savePayment._saving)return;savePayment._saving=true;
+  if(!['admin','owner'].includes(S.role)){showToast('Нет прав','error');savePayment._saving=false;return;}
   const btn=document.querySelector('#mAddPayment .btn.btn-purple');
-  if(btn){btn.disabled=true;btn.textContent='Сохранение...';}
+  if(btn){btn.disabled=true;btn.textContent=t('Сохранение...');}
   try{
     const sid=C('pay_student').value,cur=C('pay_cur').value;
+    if(!sid){showToast(t('Выбери ученика'),'error');return;}
     const amt=parseFloat(C('pay_amount').value);
     if(!amt||isNaN(amt)||amt<=0){showToast('Введи корректную сумму!');return;}
     const pf=C('pay_from').value||null,pt=C('pay_to').value||null,st=C('pay_status').value,note=C('pay_note').value.trim();
@@ -4932,7 +4984,8 @@ async function savePayment(){
     if(err){showToast('Ошибка: '+err.message,'error');return;}
     dcInval('payments_'+S.schoolId);closeM('mAddPayment');showToast('Платёж сохранён');renderPayments();
   }finally{
-    if(btn){btn.disabled=false;btn.textContent='Сохранить';}
+    if(btn){btn.disabled=false;btn.textContent=t('Сохранить');}
+    savePayment._saving=false;
   }
 }
 
@@ -4971,7 +5024,10 @@ async function renderSalaries(){
       <button class="period-tab ${salPeriod==='month'?'active':''}" onclick="setSalPeriod('month')">${t('Месяц')}</button>
     </div>
     <div class="card" style="padding:0;overflow:hidden"><table><thead><tr><th>${t('Учитель')}</th><th>${t('Ставка/урок')}</th><th>${t('Уроков')}</th><th>${t('Итого')}</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>`);
-  }finally{renderSalaries._loading=false;}
+  }catch(e){
+  console.error('renderSalaries error:',e);
+  setContent('<div class="empty-state"><div class="ei">⚠️</div><p>'+t('Ошибка загрузки')+'</p></div>');
+}finally{renderSalaries._loading=false;}
 }
 function setSalPeriod(p){salPeriod=p;renderSalaries();}
 function openSetSalary(tid,tname){S.currentSalTId=tid;C('salaryTName').textContent=tname;C('sal_rate').value='';openM('mSetSalary');}
@@ -4980,7 +5036,7 @@ async function saveSalary(){
   S._savingSalary=true;
   if(!['owner','admin'].includes(S.role)){showToast('Нет прав','error');S._savingSalary=false;return;}
   const btn=document.querySelector('#mSetSalary .btn.btn-purple');
-  if(btn){btn.disabled=true;btn.textContent='Сохранение...';}
+  if(btn){btn.disabled=true;btn.textContent=t('Сохранение...');}
   try{
     const rate=C('sal_rate').value,cur=C('sal_cur').value;const rateNum=parseFloat(rate);if(!rate||isNaN(rateNum)){showToast(t?t('Введи корректную ставку!'):'Введи корректную ставку!');return;}
     const _salVal=parseFloat(rate);if(isNaN(_salVal)||_salVal<0||!isFinite(_salVal)){showToast(t('Неверное значение'),'error');return;}
@@ -4988,7 +5044,7 @@ async function saveSalary(){
     if(error){showToast('Ошибка: '+error.message,'error');return;}
     dcInval('salaries_'+S.schoolId);closeM('mSetSalary');showToast('Ставка сохранена');if(S.screen==='o_salaries'||S.screen==='a_salaries')renderSalaries();
   }finally{
-    if(btn){btn.disabled=false;btn.textContent='Сохранить';}
+    if(btn){btn.disabled=false;btn.textContent=t('Сохранить');}
     S._savingSalary=false;
   }
 }
@@ -5032,10 +5088,10 @@ async function renderMaterials(){
 }
 async function deleteMaterial(id){
   if(S._deletingMaterial)return;S._deletingMaterial=true;
-  if(!confirm('Удалить этот материал?')){S._deletingMaterial=false;return;}
+  if(!confirm(t('Удалить этот материал?'))){S._deletingMaterial=false;return;}
   try{
-    const{data:mat}=await sb.from('materials').select('file_url,url').eq('id',id).eq('school_id',S.schoolId).single();
-    const _fileUrl=mat?.file_url||mat?.url||'';
+    const{data:mat}=await sb.from('materials').select('url').eq('id',id).eq('school_id',S.schoolId).single();
+    const _fileUrl=mat?.url||'';
     if(_fileUrl){
       try{
         const _urlPath=_fileUrl.split('/object/public/materials/')[1];
@@ -5170,6 +5226,7 @@ async function saveMaterial(){
       btn.disabled=false;btn.textContent=t('Добавить');
       return;
     }
+    const _uploadedPath=path;
     const{data:urlData}=sb.storage.from('materials').getPublicUrl(path);
     url=urlData?.publicUrl||'';
     }catch(upEx){
@@ -5181,7 +5238,11 @@ async function saveMaterial(){
 
   try{
     const{error:matErr}=await sb.from('materials').insert({school_id:S.schoolId,name,title:name,type,url,language,level});
-    if(matErr){showToast('Ошибка: '+matErr.message,'error');return;}
+    if(matErr){
+      if(typeof _uploadedPath!=='undefined'&&_uploadedPath){try{await sb.storage.from('materials').remove([_uploadedPath]);}catch(_){}}
+      showToast(t('Ошибка')+': '+matErr.message,'error');
+      return;
+    }
     closeM('mAddMaterial');
     showToast(t('Материал добавлен'));
     dcInval('materials_'+S.schoolId);
@@ -5197,7 +5258,8 @@ async function saveMaterial(){
 // ─── STUDENTS CRUD ────────────────────────────────────────────────────────────
 function openAddStudent(){['st_first','st_last','st_email','st_phone'].forEach(id=>C(id).value='');openM('mAddStudent');}
 async function saveStudent(){
-  if(!['teacher','admin','owner'].includes(S.role)){showToast('Нет прав','error');return;}
+  if(saveStudent._saving)return;saveStudent._saving=true;
+  if(!['teacher','admin','owner'].includes(S.role)){showToast('Нет прав','error');saveStudent._saving=false;return;}
   const btn=document.querySelector('#mAddStudent .btn.btn-purple');
   if(btn){btn.disabled=true;}
   try{
@@ -5221,11 +5283,13 @@ async function saveStudent(){
     if(S.screen==='a_students')renderAdminStudents();else if(S.screen==='o_students')renderOwnerStudents();
   }finally{
     if(btn){btn.disabled=false;}
+    saveStudent._saving=false;
   }
 }
 
 async function saveInviteStaff(){
-  if(!['owner','admin'].includes(S.role)){showToast('Нет прав','error');return;}
+  if(saveInviteStaff._saving)return;saveInviteStaff._saving=true;
+  if(!['owner','admin'].includes(S.role)){showToast('Нет прав','error');saveInviteStaff._saving=false;return;}
   const btn=document.querySelector('#mInviteStaff .btn.btn-purple');
   if(btn){btn.disabled=true;btn.textContent='Отправка...';}
   try{
@@ -5243,12 +5307,13 @@ async function saveInviteStaff(){
       ['inv_first','inv_last','inv_email_inp'].forEach(id=>C(id).value='');C('inv_role').value='teacher';
       showToast('Приглашение отправлено! 💌');
       if(S.screen==='o_users')renderOwnerUsers();
-      else if(S.screen==='a_teachers'){if(typeof renderOwnerUsers==='function')renderOwnerUsers();}
+      else if(S.screen==='a_teachers'){if(typeof renderAdminTeachers==='function')renderAdminTeachers();}
     }catch(e){
       showToast(t('Ошибка')+': '+e.message);
     }
   }finally{
     if(btn){btn.disabled=false;btn.textContent=t('Отправить приглашение');}
+    saveInviteStaff._saving=false;
   }
 }
 // ─── CLASSES ──────────────────────────────────────────────────────────────────
@@ -5339,7 +5404,7 @@ async function saveClass(){
   if(S._savingClass)return;S._savingClass=true;
   if(!['teacher','admin','owner'].includes(S.role)){showToast('Доступ запрещён','error');S._savingClass=false;return;}
   const btn=document.querySelector('#mAddClass .btn.btn-purple');
-  if(btn){btn.disabled=true;btn.textContent='Сохранение...';}
+  if(btn){btn.disabled=true;btn.textContent=t('Сохранение...');}
   try{
     const name=C('cl_name').value.trim();if(!name){showToast('Введи название!');return;}
     const data={school_id:S.schoolId,teacher_id:C('cl_teacher').value||S.profile.id,name,type:C('cl_type').value,language:C('cl_lang').value,level:C('cl_level').value,color:C('cl_color').value,emoji:C('cl_emoji').value||'📚',description:C('cl_desc').value.trim()};
@@ -5349,7 +5414,7 @@ async function saveClass(){
     if(err){showToast('Ошибка: '+err.message,'error');return;}
     closeM('mAddClass');dcInval('classes_'+S.schoolId);dcInval('classes_light_'+S.schoolId);showToast('Класс сохранён!');renderClasses();
   }finally{
-    if(btn){btn.disabled=false;btn.textContent='Сохранить';}
+    if(btn){btn.disabled=false;btn.textContent=t('Сохранить');}
     S._savingClass=false;
   }
 }
@@ -5361,7 +5426,7 @@ async function cdpDeleteClass(){
   try{
     const cl=S._currentClassData;
     if(!cl)return;
-    if(!confirm(`Удалить класс «${cl.name}»?\nУченики останутся, но будут убраны из класса. Расписание класса тоже удалится.`))return;
+    if(!confirm(t(`Удалить класс «${cl.name}»?\nУченики останутся, но будут убраны из класса. Расписание класса тоже удалится.`)))return;
     showToast('⏳ Удаляем...');
     const cid=cl.id;
     const{error:_cde1}=await sb.from('class_students').delete().eq('class_id',cid).eq('school_id',S.schoolId);
@@ -5536,6 +5601,7 @@ async function loadClassTab(tab){
   }finally{loadClassTab._busy=false;}
 }
 async function addToClass(){
+  if(!['teacher','admin','owner'].includes(S.role)){showToast(t('Нет прав'),'error');return;}
   if(S._addingToClass)return;S._addingToClass=true;
   const btn=document.querySelector('[onclick="addToClass()"]');
   if(btn){btn.disabled=true;}
@@ -5553,7 +5619,7 @@ async function addToClass(){
 }
 async function removeFromClass(csId,btn){
   if(!['teacher','admin','owner'].includes(S.role)){showToast(t('Нет прав'),'error');return;}
-  if(!confirm('Убрать ученика из класса?'))return;
+  if(!confirm(t('Убрать ученика из класса?')))return;
   if(btn){btn.disabled=true;}
   try{
     const{error}=await sb.from('class_students').delete().eq('id',csId).eq('school_id',S.schoolId);
@@ -5582,18 +5648,21 @@ async function renderSchedule(){
     return;
   }
   const[{data:evs},{data:classes}]=await Promise.all([
-    dc(_schedCacheKey(),()=>{
+    dc(_schedCacheKey(),async()=>{
     let _q=sb.from('schedule_events').select('*,class:class_id(name,color)').eq('school_id',S.schoolId);
     if(S.role==='teacher'&&S.profile?.id)_q=_q.eq('teacher_id',S.profile.id);
     else if(S.role==='student'){
-      _q=_q.eq('student_id',S.studentRowId);
+      const{data:_enrolled}=await sb.from('class_students').select('class_id').eq('student_id',S.studentRowId).eq('school_id',S.schoolId);
+      const _cids=(_enrolled||[]).map(r=>r.class_id).filter(Boolean);
+      if(_cids.length) _q=_q.in('class_id',_cids);
+      else _q=_q.eq('class_id','__no_class__');
     }
     return _q;
   }),
     dc('classes_light_'+S.schoolId,()=>sb.from('classes').select('id,name,color').eq('school_id',S.schoolId))
   ]);
   if(S.screen!==_schedSnap)return;
-  C('ev_class').innerHTML=(classes||[]).map(c=>`<option value="${_esc(c.id)}">${_esc(c.name)}</option>`).join('');
+  C('ev_class').innerHTML=`<option value="">— ${t('Без класса')} —</option>`+(classes||[]).map(c=>`<option value="${_esc(c.id)}">${_esc(c.name||'')}</option>`).join('');
 
   const today=new Date();
   const weekStart=new Date(today);
@@ -5612,7 +5681,7 @@ async function renderSchedule(){
     const timeLabel=`${h}:00`;
     let row=`<div class="sch-time">${timeLabel}</div>`;
     dayDates.forEach(d=>{
-      const dateStr=d.toISOString().split('T')[0];
+      const dateStr=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
       const cellEvs=(evs||[]).filter(ev=>ev.event_date===dateStr&&parseInt((ev.event_time||'').split(':')[0])===h);
       const evHtml=cellEvs.map(ev=>{const _evColor=/^#[0-9a-fA-F]{3,8}$/.test(ev.class?.color)?ev.class.color:'#7C3AED';const _evStatus=['scheduled','completed','cancelled'].includes(ev.status)?ev.status:'scheduled';return`<div class="sch-event ${_evStatus}" style="background:${_evColor}" onclick="event.stopPropagation();viewEvent('${_esc(ev.id).replace(/'/g,"&#39;")}')" title="${_esc(ev.title)}">${_esc(ev.title)}</div>`;}).join('');
       row+=`<div class="sch-cell" onclick="openAddEventOnDate('${dateStr}','${h}:00')">${evHtml}</div>`;
@@ -5620,7 +5689,7 @@ async function renderSchedule(){
     return row;
   }).join('');
 
-  const _loc=S.lang==='en'?'en-US':'ru-RU';
+  const _loc=S.lang==='en'?'en-US':S.lang==='ge'?'ka-GE':'ru-RU';
   const weekLabel=`${dayDates[0].toLocaleDateString(_loc,{day:'numeric',month:'short'})} – ${dayDates[6].toLocaleDateString(_loc,{day:'numeric',month:'short',year:'numeric'})}`;
 
   setContent(`
@@ -5646,7 +5715,9 @@ function openAddEventOnDate(date,time){
   S.editEventId=null;
   C('ev_title').value='';C('ev_notes').value='';C('ev_status').value='scheduled';
   const _evClassEl=C('ev_class');if(_evClassEl&&_evClassEl.options.length)_evClassEl.selectedIndex=0;
-  C('ev_date').value=date||new Date().toISOString().split('T')[0];
+  const _now=new Date();
+  const _ld=`${_now.getFullYear()}-${String(_now.getMonth()+1).padStart(2,'0')}-${String(_now.getDate()).padStart(2,'0')}`;
+  C('ev_date').value=date||_ld;
   C('ev_time').value=time||'09:00';C('ev_dur').value='60';
   C('eventModalTitle').textContent=t('Новое занятие');openM('mAddEvent');
 }
@@ -5667,13 +5738,13 @@ async function saveEvent(){
   if(!['teacher','admin','owner'].includes(S.role)){showToast('Доступ запрещён','error');return;}
   if(S._savingEvent)return;S._savingEvent=true;
   const btn=document.querySelector('#mAddEvent .btn.btn-purple');
-  if(btn){btn.disabled=true;btn.textContent='Сохранение...';}
+  if(btn){btn.disabled=true;btn.textContent=t('Сохранение...');}
   try{
     const title=C('ev_title').value.trim();if(!title){showToast('Введи название!');return;}
     const _evDate=C('ev_date').value;if(!_evDate){showToast('Укажи дату!');return;}
     const _evTime=C('ev_time').value;if(!_evTime){showToast('Укажи время!');return;}
     const data={school_id:S.schoolId,class_id:C('ev_class').value||null,teacher_id:S.profile.id,title,event_date:C('ev_date').value,event_time:(C('ev_time').value||'').substring(0,5)||'09:00',duration_minutes:(()=>{const _v=parseInt(C('ev_dur').value);return Number.isFinite(_v)&&_v>0?_v:60;})(),status:(()=>{const _s=C('ev_status').value;return['scheduled','completed','cancelled'].includes(_s)?_s:'scheduled';})(),notes:C('ev_notes').value.trim()};
-    let _seResult;if(S.editEventId){const _evUpdatePayload={...data};if(['admin','owner'].includes(S.role))delete _evUpdatePayload.teacher_id;let _seQ=sb.from('schedule_events').update(_evUpdatePayload).eq('id',S.editEventId).eq('school_id',S.schoolId);if(!['admin','owner'].includes(S.role))_seQ=_seQ.eq('teacher_id',S.profile?.id);_seResult=await _seQ;}else{_seResult=await sb.from('schedule_events').insert(data);}
+    let _seResult;if(S.editEventId){const _evUpdatePayload={...data};if(['admin','owner'].includes(S.role))delete _evUpdatePayload.teacher_id;let _seQ=sb.from('schedule_events').update(_evUpdatePayload).eq('id',S.editEventId).eq('school_id',S.schoolId);if(!['admin','owner'].includes(S.role))_seQ=_seQ.eq('teacher_id',S.profile?.id);_seResult=await _seQ;}else{const _insData={...data};if(['admin','owner'].includes(S.role))delete _insData.teacher_id;_seResult=await sb.from('schedule_events').insert(_insData);}
     const{error}=_seResult;
     if(error){showToast('Ошибка: '+error.message,'error');return;}
     closeM('mAddEvent');dcInval(_schedCacheKey());showToast('Занятие сохранено!');
@@ -5681,12 +5752,12 @@ async function saveEvent(){
     if(S.currentClassId&&S.currentClassTab==='schedule')loadClassTab('schedule');
   }finally{
     S._savingEvent=false;
-    if(btn){btn.disabled=false;btn.textContent='Сохранить';}
+    if(btn){btn.disabled=false;btn.textContent=t('Сохранить');}
   }
 }
 async function deleteEvent(id){
   if(!['teacher','admin','owner'].includes(S.role)){showToast('Доступ запрещён','error');return;}
-  if(!confirm('Удалить занятие?'))return;
+  if(!confirm(t('Удалить занятие?')))return;
   if(S._deletingEvent)return;S._deletingEvent=true;
   try{
     let _deQ=sb.from('schedule_events').delete().eq('id',id).eq('school_id',S.schoolId);if(!['admin','owner'].includes(S.role))_deQ=_deQ.eq('teacher_id',S.profile?.id);const{data:_delRows,error}=await _deQ.select('id');
@@ -5823,7 +5894,7 @@ function ceExercise(){
         <span style="padding:3px 10px;border-radius:20px;font-size:.72rem;font-weight:700;background:${m.color};flex-shrink:0">${m.icon} ${m.name}</span>
         <span style="flex:1;font-size:.84rem;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${_escHtml(prev||'—')}</span>
         <button class="btn btn-sm btn-outline" style="font-size:.7rem;padding:2px 8px;flex-shrink:0" onclick="event.stopPropagation();setCEViewAll(false);CE.curEx=${ei};ceRenderAll()">✎ Ред.</button>
-        <button class="btn btn-sm btn-red" style="font-size:.7rem;padding:2px 8px;flex-shrink:0" onclick="event.stopPropagation();CE.curEx=${ei};if(confirm('Удалить упражнение?')){CE.sections[CE.curSec].exercises.splice(CE.curEx,1);CE.curEx=Math.max(0,CE.curEx-1);ceRenderAll();}">✕</button>
+        <button class="btn btn-sm btn-red" style="font-size:.7rem;padding:2px 8px;flex-shrink:0" onclick="event.stopPropagation();CE.curEx=${ei};if(confirm(t('Удалить упражнение?'))){CE.sections[CE.curSec].exercises.splice(CE.curEx,1);CE.curEx=Math.max(0,CE.curEx-1);ceRenderAll();}">✕</button>
       </div>`;
     }).join('');
     wrap.innerHTML=`${secTitle}
@@ -5879,12 +5950,12 @@ function ceAddPanelHTML(){
 }
 
 function ceAddEx(type){
-  CE.sections[CE.curSec].exercises.push({...CE_DEFAULTS[type]});
+  CE.sections[CE.curSec].exercises.push(JSON.parse(JSON.stringify(CE_DEFAULTS[type])));
   CE.curEx=CE.sections[CE.curSec].exercises.length-1;
   ceRenderAll();
 }
 function ceRemoveEx(){
-  if(!confirm('Удалить упражнение?'))return;
+  if(!confirm(t('Удалить упражнение?')))return;
   CE.sections[CE.curSec].exercises.splice(CE.curEx,1);
   CE.curEx=Math.max(0,CE.curEx-1);
   ceRenderAll();
@@ -6062,6 +6133,7 @@ async function openAssignLesson(lessonId){
   if(openAssignLesson._busy)return;openAssignLesson._busy=true;
   try{
   S.assignLessonId=lessonId;
+  S._assignLessonClassId=S.currentClassId||null;
   const{data:sts,error}=await sb.from('students').select('id,first_name,last_name').eq('school_id',S.schoolId).order('last_name');
   if(error){showToast('Ошибка загрузки учеников: '+error.message,'error');return;}
   if(!sts||!sts.length){showToast('Нет учеников в школе');return;}
@@ -6089,7 +6161,8 @@ async function assignLesson(){
       lesson_id:S.assignLessonId,
       student_id:sid,
       teacher_id:S.profile?.id||null,
-      completed:false
+      completed:false,
+      class_id:S._assignLessonClassId||S.currentClassId||null
     });
     if(error){showToast('Ошибка назначения: '+error.message,'error');console.error('assignLesson error',error);return;}
     // Invalidate student's assignment cache so they see the new lesson immediately
@@ -6273,7 +6346,7 @@ async function previewLibLesson(lessonId){
 function _escHtml(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 
 // ─── CLASSROOM VIEW (EdVibe-style lesson viewer) ──────────────────────────────
-const LV={sections:[],materials:[],curSec:0,curEx:0,assignId:null,viewAll:false,_completing:false,_chatSending:false};
+const LV={sections:[],materials:[],curSec:0,curEx:0,assignId:null,viewAll:false,_completing:false,_chatSending:false,chatRoomId:null};
 
 function _parseLessonContent(content){
   // Accepts: encoded string (legacy), plain object, or array — never breaks on large content
@@ -6730,7 +6803,7 @@ function checkWordOrder(i){
     `<span style="color:var(--red)">❌ ${t('Неверно.')} ${t('Правильно')}: <b>${_escHtml(correct)}</b></span>`;
 }
 async function completeLessonView(){
-  if(!S.studentRowId){showToast('Ошибка: ID ученика не загружен','error');return;}
+  if(S.role==='student'&&!S.studentRowId){showToast(t('Ошибка: ID ученика не загружен'),'error');return;}
   if(LV._completing)return;
   LV._completing=true;
   try{
@@ -6792,8 +6865,21 @@ function _matEmbedUrl(url,type){
   if(gd)return`https://drive.google.com/file/d/${gd[1]}/preview`;
   // Google Docs/Slides/Sheets
   if(/docs\.google\.com\/(document|presentation|spreadsheets)/.test(url))return url.replace(/\/edit.*$/,'/preview');
-  // PDF direct
-  if(url.endsWith('.pdf')||type==='pdf')return url;
+  // Vimeo
+  const _vm=/vimeo\.com\/(\d+)/.exec(url);
+  if(_vm)return`https://player.vimeo.com/video/${_vm[1]}`;
+  // Loom
+  const _lm=/loom\.com\/share\/([a-zA-Z0-9]+)/.exec(url);
+  if(_lm)return`https://www.loom.com/embed/${_lm[1]}`;
+  // PDF direct (trusted domains only)
+  if(url.endsWith('.pdf')||type==='pdf'){
+    try{
+      const _h=new URL(url).hostname;
+      const _safe=['supabase.co','supabase.in','storage.googleapis.com','amazonaws.com'];
+      if(_safe.some(d=>_h===d||_h.endsWith('.'+d)))return url;
+    }catch(_){}
+    return null;
+  }
   return null;
 }
 function openMaterialPreview(url,title,type,lang,level){
@@ -6898,7 +6984,6 @@ async function renderMessenger(){
   renderMessenger._loading=true;
   const _msgSnap=S.screen;
   try{
-  if(S.screen!==_msgSnap)return;
   setContent(`<div class="messenger-layout" id="msgrLayout">
     <div class="msg-sidebar">
       <div class="msg-search"><input type="text" placeholder="${t('🔍 Поиск...')}" oninput="filterConvs(this.value)" id="msSearch"></div>
@@ -6910,6 +6995,7 @@ async function renderMessenger(){
     </div>
   </div>`);
   await loadConvs();
+  if(S.screen!==_msgSnap)return;
   initMsgrRealtime();
   }finally{
   renderMessenger._loading=false;
@@ -6996,7 +7082,7 @@ async function openConv(convId){
   if(MS._loadingConvs)return;
   if(!S.profile?.id)return;
   if(MS.convs&&MS.convs.length>0&&!MS.convs.find(cv=>cv.id===convId)){showToast(t('Нет прав'),'error');return;}
-  if(MS._openingConv===convId)return;MS._openingConv=convId;
+  if(MS._openingConv)return;MS._openingConv=convId;
   try{
   MS.convId=convId;
   // Mark as read
@@ -7040,9 +7126,9 @@ function renderMsgs(){
   return MS.msgs.map(m=>{
     const mine=S.profile?.id&&m.sender_id===S.profile.id;
     const prof=MS.profiles.find(p=>p.id===m.sender_id);
-    const senderName=mine?'Вы':(prof?_esc(prof.first_name||'')+' '+_esc(prof.last_name||''):'');
+    const senderName=mine?t('Вы'):(prof?_esc(prof.first_name||'')+' '+_esc(prof.last_name||''):'');
     const d=new Date(m.created_at);
-    const dateStr=d.toLocaleDateString('ru',{day:'numeric',month:'long'});
+    const dateStr=d.toLocaleDateString((S.lang==='en'?'en-US':S.lang==='ge'?'ka-GE':'ru-RU'),{day:'numeric',month:'long'});
     const dateSep=dateStr!==lastDate?`<div style="text-align:center;margin:8px 0;font-size:.72rem;color:var(--text3)">${_esc(dateStr)}</div>`:'';
     lastDate=dateStr;
     const timeStr=d.getHours()+':'+String(d.getMinutes()).padStart(2,'0');
@@ -7108,7 +7194,11 @@ async function uploadMsgFile(input){
   if(!fileUrl){_loadingToast?._dismiss();showToastCard(t('Ошибка'),'Не удалось получить URL файла','error','❌',4000);return;}
   const{error:_mInsErr}=await sb.from('messages').insert({conversation_id:MS.convId,sender_id:S.profile.id,body:'',file_url:fileUrl,file_name:file.name,file_size:file.size,file_type:file.type,school_id:S.schoolId});
   _loadingToast?._dismiss();
-  if(_mInsErr){showToastCard(t('Ошибка отправки файла'),''+_mInsErr.message,'error','❌');return;}
+  if(_mInsErr){
+    try{await sb.storage.from('chat-files').remove([path]);}catch(_){}
+    showToastCard(t('Ошибка отправки файла'),''+_mInsErr.message,'error','❌');
+    return;
+  }
   showToastCard(t('Файл отправлен'),'','success','✅');
   }finally{MS.uploading=false;}
 }
@@ -7131,6 +7221,7 @@ function initMsgrRealtime(){
       } else {
         // Show notification + update conv list
         const c=MS.convs.find(cv=>cv.id===m.conversation_id);
+        if(!c)return;  // user is not a member of this conversation
         const prof=MS.profiles.find(p=>p.id===m.sender_id);
         const sName=prof?prof.first_name+' '+prof.last_name:'Кто-то';
         if(m.sender_id!==S.profile.id){
@@ -7233,7 +7324,11 @@ async function createConv(){
     if(error){showToastCard(t('Ошибка'),''+error.message,'error','❌');return;}
     // Add members
     const{error:membErr}=await sb.from('conversation_members').insert(members.map(uid=>({conversation_id:conv.id,user_id:uid,school_id:S.schoolId})));
-    if(membErr){showToastCard(t('Ошибка'),''+membErr.message,'error','❌');return;}
+    if(membErr){
+      try{await sb.from('conversations').delete().eq('id',conv.id).eq('school_id',S.schoolId);}catch(_){}
+      showToastCard(t('Ошибка создания чата'),''+membErr.message,'error','❌');
+      return;
+    }
     closeM('mNewConv');
     await loadConvs();
     openConv(conv.id);
@@ -7254,7 +7349,6 @@ async function renderTasks(){
   renderTasks._loading=true;
   const _tkSnap=S.screen;
   try{
-  if(S.screen!==_tkSnap)return;
   setContent(`<div>
     <div class="section-header"><h2>✅ ${t('Задачи')}</h2>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
@@ -7271,6 +7365,7 @@ async function renderTasks(){
     </div>
   </div>`);
   await loadTasks();
+  if(S.screen!==_tkSnap)return;
   if(!TK._pollInterval){
     TK._pollInterval=setInterval(()=>{if(S.screen&&S.screen.includes('tasks'))loadTasks();},30000);
   }
@@ -7333,9 +7428,9 @@ function renderTaskCard(tk){
     <div class="tc-title">${_esc(tk.title)}</div>
     ${tk.description?`<div style="font-size:.78rem;color:var(--text3);margin-top:3px;line-height:1.3">${_esc((tk.description||'').substring(0,80))}${tk.description.length>80?'...':''}</div>`:''}
     <div class="tc-tags">
-      <span class="badge badge-${tk.priority==='high'?'pink':tk.priority==='low'?'green':'yellow'}" style="font-size:.68rem">${prioLabel[tk.priority||'medium']}</span>
+      <span class="badge badge-${safePrio==='high'?'pink':safePrio==='low'?'green':'yellow'}" style="font-size:.68rem">${prioLabel[safePrio]}</span>
     </div>
-    ${due?`<div class="tc-due${overdue?' overdue':''}">📅 ${due.toLocaleDateString('ru',{day:'numeric',month:'short'})}${overdue?` ⚠️ ${t('Просрочено')}`:''}</div>`:''}
+    ${due?`<div class="tc-due${overdue?' overdue':''}">📅 ${due.toLocaleDateString((S.lang==='en'?'en-US':S.lang==='ge'?'ka-GE':'ru-RU'),{day:'numeric',month:'short'})}${overdue?` ⚠️ ${t('Просрочено')}`:''}</div>`:''}
     ${assignee&&['owner','admin'].includes(S.role)?`<div class="tc-assignee">👤 ${assignee}</div>`:''}
     <div style="display:flex;gap:6px;margin-top:8px" onclick="event.stopPropagation()">
       <button class="btn-sm" style="font-size:.72rem;padding:3px 8px;background:var(--gray-light);border:none;border-radius:6px;cursor:pointer" onclick="moveTask('${_tkId}','${nextStatus[tk.status||'todo']}')">${nextLabel[tk.status||'todo']}</button>
@@ -7368,7 +7463,7 @@ async function deleteTask(id){
   if(TK._deletingTasks.has(id))return;
   TK._deletingTasks.add(id);
   try{
-    if(!confirm('Удалить задачу?'))return;
+    if(!confirm(t('Удалить задачу?')))return;
     let _dtQ=sb.from('tasks').delete().eq('id',id).eq('school_id',S.schoolId);
     if(!['owner','admin'].includes(S.role))_dtQ=_dtQ.eq('user_id',S.profile?.id);
     const{error:dtErr}=await _dtQ;
@@ -7413,7 +7508,8 @@ function populateTaskModal(tk){
 }
 
 async function saveTask(){
-  if(!S.profile?.id){showToast('Ошибка: профиль не загружен','error');return;}
+  if(saveTask._saving)return;saveTask._saving=true;
+  if(!S.profile?.id){showToast('Ошибка: профиль не загружен','error');saveTask._saving=false;return;}
   const btn=document.querySelector('#mAddTask .btn.btn-purple');
   if(btn){btn.disabled=true;btn.textContent='Сохранение...';}
   try{
@@ -7452,6 +7548,7 @@ async function saveTask(){
     showToastCard(t('Задача сохранена'),'','success','✅');
   }finally{
     if(btn){btn.disabled=false;btn.textContent='💾 Сохранить';}
+    saveTask._saving=false;
   }
 }
 
@@ -7586,6 +7683,7 @@ async function saveStudentCard(){
     const{error}=await sb.from('students').update(updates).eq('id',id).eq('school_id',S.schoolId);
     if(error){showToast('Ошибка: '+error.message);return;}
     dcInval('students_full_'+S.schoolId);
+    dcInval('students_'+S.schoolId);
     if(S.role==='teacher')dcInval('students_full_'+S.profile.id);
     dcInval('classes_'+S.schoolId);
     dcInval('classes_light_'+S.schoolId);
@@ -7785,6 +7883,10 @@ async function openPlacementTestPlayer(hwId){
   _ptpHwId=hwId;_ptpAnswers={};
   C('ptpQuestions').innerHTML='<div style="text-align:center;padding:20px;color:var(--text3)">'+(isEn?'Loading...':'Загрузка...')+'</div>';
   openM('mPlacementTestPlayer');
+  if(S.role==='student'&&!S.studentRowId&&S.profile?.email){
+    const{data:_stuRow}=await sb.from('students').select('id').eq('email',S.profile.email).eq('school_id',S.schoolId).maybeSingle();
+    if(_stuRow)S.studentRowId=_stuRow.id;
+  }
   const{data:hw}=await sb.from('homeworks').select('*').eq('id',hwId).eq('school_id',S.schoolId).single();
   if(!hw){showToast(isEn?'Test not found':'Тест не найден');closeM('mPlacementTestPlayer');return;}
   if(S.role==='student'&&(!S.studentRowId||hw.student_id!==S.studentRowId)){showToast('Доступ запрещён','error');closeM('mPlacementTestPlayer');return;}
@@ -7838,14 +7940,19 @@ async function submitPlacementTest(){
 
 // ─── FEATURE 5: iCAL EXPORT ───────────────────────────────────────────────────
 function _icalEsc(s){return(s||'').replace(/\\/g,'\\\\').replace(/;/g,'\\;').replace(/,/g,'\\,').replace(/\n/g,'\\n');}
-function exportICal(){
+async function exportICal(){
   if(S._exportingICal)return;S._exportingICal=true;
+  try{
   const isEn=S.lang==='en';
   let _icalQ=sb.from('schedule_events').select('*').eq('school_id',S.schoolId);
   if(S.role==='teacher')_icalQ=_icalQ.eq('teacher_id',S.profile.id);
-  else if(S.role==='student'){if(!S.studentRowId){S._exportingICal=false;showToast(t('Ошибка')+': '+t('Профиль не загружен'),'error');return;}
-  _icalQ=_icalQ.eq('student_id',S.studentRowId);}
-  _icalQ.then(({data:evs})=>{
+  else if(S.role==='student'){if(!S.studentRowId){showToast(t('Ошибка')+': '+t('Профиль не загружен'),'error');return;}
+  const{data:_icalEnrolled}=await sb.from('class_students').select('class_id').eq('student_id',S.studentRowId).eq('school_id',S.schoolId);
+  const _icalCids=(_icalEnrolled||[]).map(r=>r.class_id).filter(Boolean);
+  if(_icalCids.length) _icalQ=_icalQ.in('class_id',_icalCids);
+  else _icalQ=_icalQ.eq('class_id','__no_class__');}
+  const{data:evs}=await _icalQ;
+  {
     const calName=_icalEsc('TeachyaED');
     const lines=['BEGIN:VCALENDAR','VERSION:2.0','CALSCALE:GREGORIAN',
       'PRODID:-//TeachyaED//TeachyaED//EN',`X-WR-CALNAME:${calName}`,'METHOD:PUBLISH'];
@@ -7880,7 +7987,8 @@ function exportICal(){
     document.body.removeChild(a);
     setTimeout(()=>URL.revokeObjectURL(_icalUrl),1000);
     showToast(S.lang==='en'?'📥 Schedule exported!':S.lang==='ge'?'📥 განრიგი ექსპორტირებულია!':'📥 Расписание экспортировано!');
-  }).catch(e=>showToast(t('Ошибка')+': '+(e.message||e),'error')).finally(()=>{S._exportingICal=false;});
+  }
+  }catch(e){showToast(t('Ошибка')+': '+(e.message||e),'error');}finally{S._exportingICal=false;}
 }
 
 </script>
