@@ -5614,7 +5614,7 @@ async function renderSchedule(){
     dayDates.forEach(d=>{
       const dateStr=d.toISOString().split('T')[0];
       const cellEvs=(evs||[]).filter(ev=>ev.event_date===dateStr&&parseInt((ev.event_time||'').split(':')[0])===h);
-      const evHtml=cellEvs.map(ev=>{const _evColor=/^#[0-9a-fA-F]{3,8}$/.test(ev.class?.color)?ev.class.color:'#7C3AED';const _evStatus=['scheduled','completed','cancelled'].includes(ev.status)?ev.status:'scheduled';return`<div class="sch-event ${_evStatus}" style="background:${_evColor}" onclick="event.stopPropagation();viewEvent('${_esc(ev.id).replace(/'/g,&quot;&#39;&quot;)}')" title="${_esc(ev.title)}">${_esc(ev.title)}</div>`;}).join('');
+      const evHtml=cellEvs.map(ev=>{const _evColor=/^#[0-9a-fA-F]{3,8}$/.test(ev.class?.color)?ev.class.color:'#7C3AED';const _evStatus=['scheduled','completed','cancelled'].includes(ev.status)?ev.status:'scheduled';return`<div class="sch-event ${_evStatus}" style="background:${_evColor}" onclick="event.stopPropagation();viewEvent('${_esc(ev.id).replace(/'/g,"&#39;")}')" title="${_esc(ev.title)}">${_esc(ev.title)}</div>`;}).join('');
       row+=`<div class="sch-cell" onclick="openAddEventOnDate('${dateStr}','${h}:00')">${evHtml}</div>`;
     });
     return row;
