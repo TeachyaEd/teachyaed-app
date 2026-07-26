@@ -108,8 +108,8 @@ body[data-theme="dark"] .ce-sec-item{color:var(--text2)!important;}
 body[data-theme="dark"] .ce-sec-item.active{background:var(--purple-light)!important;color:var(--purple)!important;}
 /* ── Dark: misc hardcoded #fff ── */
 body[data-theme="dark"] .match-item,body[data-theme="dark"] .word-chip,body[data-theme="dark"] .tf-btn{background:var(--gray-light)!important;border-color:var(--gray-border)!important;color:var(--text)!important;}
-body[data-theme="dark"] .kanban-col{background:var(--gray-light)!important;}
-body[data-theme="dark"] .kanban-card{background:var(--white)!important;border-color:var(--gray-border)!important;}
+body[data-theme="dark"] .task-col{background:var(--gray-light)!important;}
+body[data-theme="dark"] .task-card{background:var(--white)!important;border-color:var(--gray-border)!important;}
 /* ── Dark: Class detail page ── */
 body[data-theme="dark"] #classDetailPage{background:#15112B!important;}
 body[data-theme="dark"] .cdp-body{background:#15112B!important;}
@@ -225,7 +225,7 @@ tr:hover td{background:#FAFAFA}
 .empty-state{text-align:center;padding:40px;color:var(--text3)}
 .empty-state .ei{font-size:3rem;margin-bottom:8px}
 .skel-wrap{display:flex;flex-direction:column;gap:12px;padding:4px 0}
-.skel-card{background:var(--card-bg);border-radius:12px;padding:18px 20px;display:flex;flex-direction:column;gap:10px;border:1.5px solid var(--gray-border)}
+.skel-card{background:var(--white);border-radius:12px;padding:18px 20px;display:flex;flex-direction:column;gap:10px;border:1.5px solid var(--gray-border)}
 .skel-line{height:12px;border-radius:6px;background:linear-gradient(90deg,var(--gray-border) 25%,var(--purple-light) 50%,var(--gray-border) 75%);background-size:200% 100%;animation:skel-shine 1.2s infinite}
 .skel-line.w60{width:60%}.skel-line.w40{width:40%}
 @keyframes skel-shine{0%{background-position:200% 0}100%{background-position:-200% 0}}
@@ -512,7 +512,7 @@ tr:hover td{background:#FAFAFA}
 .mat-upload-drop{border:2px dashed var(--purple);border-radius:12px;padding:22px 16px;text-align:center;cursor:pointer;transition:background .2s,border-color .2s;user-select:none}
 .mat-upload-drop:hover,.mat-upload-drop.drag-over{background:var(--purple-light);border-color:var(--purple)}
 .mat-drop-text{font-size:15px;font-weight:600;color:var(--purple);margin-bottom:4px}
-.mat-drop-sub{font-size:12px;color:var(--text-secondary)}
+.mat-drop-sub{font-size:12px;color:var(--text3)}
 .mat-upload-drop.has-file{border-style:solid;background:var(--purple-light)}
 .mat-upload-drop.has-file .mat-drop-text{color:var(--green)}
 /* Material Preview Modal */
@@ -2981,7 +2981,7 @@ function _renderProfileModal(){
 
 function switchProfileTab(tab,el){
   _profileTab=tab;
-  document.querySelectorAll('.profile-tab').forEach(tab=>tab.classList.remove('active'));
+  document.querySelectorAll('.profile-tab').forEach(btn=>btn.classList.remove('active'));
   el.classList.add('active');
   _renderProfileModal();
 }
@@ -3082,7 +3082,7 @@ async function saveProfile(){
   dcInval('profile_'+uid);
 
   // Try to also update avatar columns (may not exist — ignore error)
-  sb.from('profiles').update({avatar_color:color,avatar_emoji:emoji}).eq('id',uid).eq('school_id',S.schoolId).then(()=>{dcInval('profile_'+uid);});
+  sb.from('profiles').update({avatar_color:color,avatar_emoji:emoji}).eq('id',uid).eq('school_id',S.schoolId).then(()=>{dcInval('profile_'+uid);}).catch(e=>console.warn('avatar update failed:',e));
 
   S.profile.first_name=first;
   S.profile.last_name=last;
@@ -3693,7 +3693,7 @@ async function doLogout(){
 function buildSidebar(){
   C('sidebar').innerHTML=(NAV[S.role]||[]).map(n=>{
     if(n.sec)return`<div class="nav-section">${t(n.sec)}</div>`;
-    return`<div class="nav-item" id="nav_${n.id}" onclick="showScreen('${_esc(n.id)}')"><span style="font-size:1rem;width:20px;text-align:center">${n.icon}</span>${t(n.l)}</div>`;
+    return`<div class="nav-item" id="nav_${n.id}" onclick="showScreen('${_esc(n.id)}')"><span style="font-size:1rem;width:20px;text-align:center">${_esc(n.icon)}</span>${_esc(t(n.l))}</div>`;
   }).join('');
   if(S.screen)document.querySelectorAll('.nav-item').forEach(el=>el.classList.toggle('active',el.id===`nav_${S.screen}`));
   // Translate topBar static elements (Выйти button etc.)
@@ -3861,7 +3861,7 @@ function renderContacts(){
   const sorted=[...S.contacts].sort((a,b)=>(order[a.role]||9)-(order[b.role]||9));
   C('contactList').innerHTML=sorted.map(c=>{const _cId=_esc(c.id).replace(/'/g,"&#39;");const _cName=(_esc(c.first_name||'')+' '+_esc(c.last_name||'')).replace(/'/g,"&#39;");const _cRole=_esc(c.role||'').replace(/'/g,"&#39;");return`<div class="contact-item" onclick="callContact('${_cId}','${_cName}','${_cRole}')">
     ${avHTML(c.first_name,c.last_name,32)}
-    <div><div style="font-weight:600;font-size:.9rem">${_esc(c.first_name)} ${_esc(c.last_name)}</div><div style="font-size:.75rem;color:var(--text3)">${t(ROLE_L[c.role]||c.role)}</div></div>
+    <div><div style="font-weight:600;font-size:.9rem">${_esc(c.first_name)} ${_esc(c.last_name)}</div><div style="font-size:.75rem;color:var(--text3)">${_esc(t(ROLE_L[c.role]||c.role))}</div></div>
   </div>`;}).join('')||'<div style="padding:16px;color:var(--text3);font-size:.85rem">Нет контактов</div>';
 }
 async function callContact(partnerId,partnerName,partnerRole){
@@ -4293,7 +4293,8 @@ async function submitHWAnswers(){
     const{error}=await sb.from('homeworks')
       .update({status:'submitted',student_answer:JSON.stringify(answers)})
       .eq('id',HWP.hwId)
-      .eq('school_id',S.schoolId);
+      .eq('school_id',S.schoolId)
+      .eq('student_id',S.studentRowId);
     if(error){showToast('Ошибка отправки ДЗ: '+error.message,'error');return;}
     dcInval('homeworks_'+S.schoolId);closeM('mHWPlayer');showToast('✅ ДЗ отправлено!');renderStudentHw();
   } finally {
@@ -4411,7 +4412,7 @@ function _hwrRenderEx(ex,i,ans){
   } else if(ex.type==='quiz'){
     q=_esc(ex.question||'');
     const chosen=ex.options?.[ans];const correctOpt=ex.options?.[ex.correct||0]||'';
-    correct=(ans==ex.correct);
+    correct=(Number(ans)===ex.correct);
     ansHtml=`<div class="hwr-ans ${correct?'correct':'wrong'}">${_esc(chosen||'(нет ответа)')}</div>
       ${!correct?`<div style="font-size:.78rem;color:#22c55e;margin-top:4px">✅ Правильно: ${_esc(correctOpt)}</div>`:''}`;
   } else if(ex.type==='matching'){
@@ -4444,7 +4445,7 @@ async function saveHWReview(){
   const btn=document.querySelector('#mHWReview .btn-green');if(btn)btn.disabled=true;
   try{
   const comment=C('hwr_comment').value.trim();
-  const{error}=await sb.from('homeworks').update({status:'reviewed',teacher_comment:comment}).eq('id',HWR.hwId).eq('school_id',S.schoolId);
+  const{error}=await sb.from('homeworks').update({status:'reviewed',teacher_comment:comment}).eq('id',HWR.hwId).eq('school_id',S.schoolId).eq('teacher_id',S.profile?.id);
   if(error){showToast('Ошибка сохранения проверки: '+error.message,'error');return;}
   dcInval('homeworks_'+S.schoolId);
   closeM('mHWReview');showToast('✅ ДЗ проверено!');
@@ -4653,6 +4654,8 @@ async function confirmDeleteStudent(sid,name){
   }finally{S._deletingStudent=false;}
 }
 async function renderOwnerStudents(){
+  if(renderOwnerStudents._loading)return;renderOwnerStudents._loading=true;
+  try{
   const{data:sts}=await sb.from('students').select('*').eq('school_id',S.schoolId).order('last_name');
   const rows=(sts||[]).map(s=>{const _sId=_esc(s.id).replace(/'/g,"&#39;");return`<tr>
     <td><div style="display:flex;align-items:center;gap:10px">${avHTML(s.first_name,s.last_name)}<div><div style="font-weight:600;cursor:pointer" onclick="openStudentCard('${_sId}')">${_esc(s.first_name)} ${_esc(s.last_name)}</div><div style="font-size:.75rem;color:var(--text3)">${_esc(s.email||'—')}</div></div></div></td>
@@ -4663,10 +4666,13 @@ async function renderOwnerStudents(){
     </td></tr>`}).join('')||`<tr><td colspan="5" style="text-align:center;color:var(--text3)">${t('Нет учеников')}</td></tr>`;
   setContent(`<div class="section-header"><h2>🎓 ${t('Ученики')}</h2><button class="btn btn-purple" onclick="openAddStudent()">+ ${t('Добавить')}</button></div>
     <div class="card" style="padding:0;overflow:hidden"><table><thead><tr><th>${t('Ученик')}</th><th>${t('Язык')}</th><th>${t('Уровень')}</th><th>${t('Телефон')}</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>`);
+  }finally{renderOwnerStudents._loading=false;}
 }
 
 // ─── PAYMENTS ─────────────────────────────────────────────────────────────────
 async function renderPayments(){
+  if(renderPayments._loading)return;renderPayments._loading=true;
+  try{
   const{data:pays}=await sb.from('payments').select('*,student:student_id(first_name,last_name)').eq('school_id',S.schoolId).order('created_at',{ascending:false});
   const{data:sts}=await sb.from('students').select('id,first_name,last_name').eq('school_id',S.schoolId);
   C('pay_student').innerHTML=(sts||[]).map(s=>`<option value="${_esc(s.id)}">${_esc(s.first_name)} ${_esc(s.last_name)}</option>`).join('');
@@ -4688,6 +4694,7 @@ async function renderPayments(){
       <div class="stat-card pink"><div class="stat-val">${fmtCur(ov)}</div><div class="stat-lbl">Просрочено</div></div>
     </div>
     <div class="card" style="padding:0;overflow:hidden"><table><thead><tr><th>Ученик</th><th>Сумма</th><th>Период</th><th>Статус</th><th>Заметка</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>`);
+  }finally{renderPayments._loading=false;}
 }
 function openAddPayment(){
   S.editPayId=null;
@@ -4710,9 +4717,10 @@ async function savePayment(){
   const btn=document.querySelector('#mAddPayment .btn.btn-purple');
   if(btn){btn.disabled=true;btn.textContent='Сохранение...';}
   try{
-    const sid=C('pay_student').value,amt=parseFloat(C('pay_amount').value)||0,cur=C('pay_cur').value;
+    const sid=C('pay_student').value,cur=C('pay_cur').value;
+    const amt=parseFloat(C('pay_amount').value);
+    if(!amt||isNaN(amt)||amt<=0){showToast('Введи корректную сумму!');return;}
     const pf=C('pay_from').value||null,pt=C('pay_to').value||null,st=C('pay_status').value,note=C('pay_note').value.trim();
-    if(!amt){showToast('Введи сумму!');return;}
     const pd={student_id:sid,amount:amt,currency:cur,period_from:pf,period_to:pt,status:st,note};
     let err;
     if(S.editPayId){({error:err}=await sb.from('payments').update(pd).eq('id',S.editPayId).eq('school_id',S.schoolId));}
@@ -4727,6 +4735,8 @@ async function savePayment(){
 // ─── SALARIES ─────────────────────────────────────────────────────────────────
 let salPeriod='month';
 async function renderSalaries(){
+  if(renderSalaries._loading)return;renderSalaries._loading=true;
+  try{
   const[{data:ts},{data:sals},{data:logs}]=await Promise.all([
     sb.from('profiles').select('*').eq('school_id',S.schoolId).eq('role','teacher'),
     sb.from('teacher_salaries').select('*').eq('school_id',S.schoolId),
@@ -4754,6 +4764,7 @@ async function renderSalaries(){
       <button class="period-tab ${salPeriod==='month'?'active':''}" onclick="setSalPeriod('month')">${t('Месяц')}</button>
     </div>
     <div class="card" style="padding:0;overflow:hidden"><table><thead><tr><th>${t('Учитель')}</th><th>${t('Ставка/урок')}</th><th>${t('Уроков')}</th><th>${t('Итого')}</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>`);
+  }finally{renderSalaries._loading=false;}
 }
 function setSalPeriod(p){salPeriod=p;renderSalaries();}
 function openSetSalary(tid,tname){S.currentSalTId=tid;C('salaryTName').textContent=tname;C('sal_rate').value='';openM('mSetSalary');}
@@ -4976,6 +4987,7 @@ async function saveInviteStaff(){
     const f=C('inv_first').value.trim(),l=C('inv_last').value.trim();
     const email=C('inv_email_inp').value.trim();
     const role=C('inv_role').value;
+    if(role==='owner'&&S.role!=='owner'){showToast('Только владелец может назначать владельцев','error');return;}
     if(!f||!l){showToast('Введи имя и фамилию!');return;}
     if(!email){showToast('Введи email!');return;}
     try{
@@ -4995,6 +5007,8 @@ async function saveInviteStaff(){
 // ─── CLASSES ──────────────────────────────────────────────────────────────────
 let _allClasses=[];
 async function renderClasses(){
+  if(renderClasses._loading)return;renderClasses._loading=true;
+  try{
   showSkel();
   const[{data:classes},{data:teachers}]=await Promise.all([
     dc('classes_'+S.schoolId,()=>sb.from('classes').select('*').eq('school_id',S.schoolId).order('created_at',{ascending:false})),
@@ -5015,6 +5029,7 @@ async function renderClasses(){
     </div>
     <div class="ev-classes-grid" id="evClassesGrid"></div>`);
   renderClassCards(_allClasses,canCreate);
+  }finally{renderClasses._loading=false;}
 }
 let _classFilter='all';
 function setClassFilter(f,el){
@@ -5272,7 +5287,7 @@ async function addToClass(){
   const btn=document.querySelector('[onclick="addToClass()"]');
   if(btn){btn.disabled=true;}
   try{
-    const sid=C('addStuSel').value;if(!sid)return;
+    const sel=C('addStuSel');if(!sel||!sel.value)return;const sid=sel.value;
     const{error}=await sb.from('class_students').insert({school_id:S.schoolId,class_id:S.currentClassId,student_id:sid});
     if(error){showToast('Ошибка: '+error.message,'error');return;}
     dcInval('classes_'+S.schoolId);
@@ -5330,7 +5345,7 @@ async function renderSchedule(){
     dayDates.forEach(d=>{
       const dateStr=d.toISOString().split('T')[0];
       const cellEvs=(evs||[]).filter(ev=>ev.event_date===dateStr&&parseInt((ev.event_time||'').split(':')[0])===h);
-      const evHtml=cellEvs.map(ev=>{const _evColor=/^#[0-9a-fA-F]{3,8}$/.test(ev.class?.color)?ev.class.color:'#7C3AED';const _evStatus=['scheduled','completed','cancelled'].includes(ev.status)?ev.status:'scheduled';return`<div class="sch-event ${_evStatus}" style="background:${_evColor}" onclick="event.stopPropagation();viewEvent('${ev.id}')" title="${_esc(ev.title)}">${_esc(ev.title)}</div>`;}).join('');
+      const evHtml=cellEvs.map(ev=>{const _evColor=/^#[0-9a-fA-F]{3,8}$/.test(ev.class?.color)?ev.class.color:'#7C3AED';const _evStatus=['scheduled','completed','cancelled'].includes(ev.status)?ev.status:'scheduled';return`<div class="sch-event ${_evStatus}" style="background:${_evColor}" onclick="event.stopPropagation();viewEvent('${_esc(ev.id).replace(/'/g,&quot;&#39;&quot;)}')" title="${_esc(ev.title)}">${_esc(ev.title)}</div>`;}).join('');
       row+=`<div class="sch-cell" onclick="openAddEventOnDate('${dateStr}','${h}:00')">${evHtml}</div>`;
     });
     return row;
@@ -5385,7 +5400,7 @@ async function saveEvent(){
   if(btn){btn.disabled=true;btn.textContent='Сохранение...';}
   try{
     const title=C('ev_title').value.trim();if(!title){showToast('Введи название!');return;}
-    const data={school_id:S.schoolId,class_id:C('ev_class').value||null,teacher_id:S.profile.id,title,event_date:C('ev_date').value,event_time:C('ev_time').value,duration_minutes:parseInt(C('ev_dur').value),status:C('ev_status').value,notes:C('ev_notes').value.trim()};
+    const data={school_id:S.schoolId,class_id:C('ev_class').value||null,teacher_id:S.profile.id,title,event_date:C('ev_date').value,event_time:C('ev_time').value,duration_minutes:(()=>{const _v=parseInt(C('ev_dur').value);return Number.isFinite(_v)&&_v>0?_v:60;})(),status:(()=>{const _s=C('ev_status').value;return['scheduled','completed','cancelled'].includes(_s)?_s:'scheduled';})(),notes:C('ev_notes').value.trim()};
     const{error}=S.editEventId?await sb.from('schedule_events').update(data).eq('id',S.editEventId).eq('school_id',S.schoolId):await sb.from('schedule_events').insert(data);
     if(error){showToast('Ошибка: '+error.message,'error');return;}
     closeM('mAddEvent');dcInval('schedule_'+S.schoolId);showToast('Занятие сохранено!');
@@ -5935,12 +5950,12 @@ async function toggleLibraryLike(lessonId,btn){
   try{
   const liked=_libLikes[lessonId]||false;
   if(liked){
-    const{error}=await sb.from('lesson_library_likes').delete().eq('lesson_id',lessonId).eq('user_id',S.userId);
+    const{error}=await sb.from('lesson_library_likes').delete().eq('lesson_id',lessonId).eq('user_id',S.userId).eq('school_id',S.schoolId);
     if(error){showToast('Ошибка: '+error.message,'error');return;}
     _libLikes[lessonId]=false;
     window._libLikeMap[lessonId]=Math.max(0,(window._libLikeMap[lessonId]||1)-1);
   }else{
-    const{error}=await sb.from('lesson_library_likes').insert({lesson_id:lessonId,user_id:S.userId});
+    const{error}=await sb.from('lesson_library_likes').insert({lesson_id:lessonId,user_id:S.userId,school_id:S.schoolId});
     if(error){showToast('Ошибка: '+error.message,'error');return;}
     _libLikes[lessonId]=true;
     window._libLikeMap[lessonId]=(window._libLikeMap[lessonId]||0)+1;
@@ -6119,8 +6134,8 @@ async function cvChatInit(roomId){
   const dot=C('cv_chatDot');if(dot)dot.style.display='';
   cvChatChannel=sb.channel('lc_'+roomId)
     .on('postgres_changes',{event:'INSERT',schema:'public',table:'lesson_chat',filter:'room_id=eq.'+roomId},(payload)=>{
-      const m=payload.new;
-      if(m&&!document.getElementById('cvm_'+m.id)){
+      const m=payload.new; if(!m||m.school_id!==S.schoolId)return;
+      if(!document.getElementById('cvm_'+m.id)){
         const empty=C('cv_chatMsgs').querySelector('.cv-chat-empty');
         if(empty)empty.remove();
         cvChatAddMsg(m);
@@ -6905,6 +6920,8 @@ async function renderTasks(){
 }
 
 async function loadTasks(){
+  if(TK._loadingTasks)return;TK._loadingTasks=true;
+  try{
   let q=sb.from('tasks').select('*').eq('school_id',S.schoolId).order('created_at',{ascending:false});
   if(!['owner','admin'].includes(S.role))q=q.eq('user_id',S.profile?.id);
   const{data:tasks}=await q;
@@ -6915,6 +6932,7 @@ async function loadTasks(){
     // Populate filter
     const sel=document.getElementById('tkFilterUser');
     if(sel&&profs){
+      while(sel.options.length>2)sel.remove(2);
       const existing=new Set(['all',S.profile?.id]);
       profs.filter(p=>!existing.has(p.id)).forEach(p=>{
         const o=document.createElement('option');o.value=p.id;o.textContent=p.first_name+' '+p.last_name;
@@ -6923,6 +6941,7 @@ async function loadTasks(){
     }
   }
   refreshKanban();
+  }finally{TK._loadingTasks=false;}
 }
 
 function refreshKanban(){
@@ -7162,7 +7181,8 @@ async function saveStudentCard(){
   const _scBtn=document.querySelector('#mStudentCard .btn-purple');
   if(_scBtn)_scBtn.disabled=true;
   try{
-    const id=C('sc_student_id').value;
+    const id=C('sc_student_id')?.value||'';
+    if(!id){showToast('Ошибка: ID студента','error');return;}
     const _scLevel=C('sc_level')?.value||'';
     const _validLevels=['A1','A2','B1','B2','C1','C2'];
     if(!_validLevels.includes(_scLevel)){showToast('Неверный уровень','error');return;}
@@ -7384,13 +7404,15 @@ async function sendPlacementTest(){
 // Placement test player for students
 let _ptpHwId='',_ptpAnswers={};
 async function openPlacementTestPlayer(hwId){
+  if(openPlacementTestPlayer._busy)return;openPlacementTestPlayer._busy=true;
+  try{
   const isEn=S.lang==='en';
   _ptpHwId=hwId;_ptpAnswers={};
   C('ptpQuestions').innerHTML='<div style="text-align:center;padding:20px;color:var(--text3)">'+(isEn?'Loading...':'Загрузка...')+'</div>';
   openM('mPlacementTestPlayer');
   const{data:hw}=await sb.from('homeworks').select('*').eq('id',hwId).eq('school_id',S.schoolId).single();
-  if(!hw){showToast(isEn?'Test not found':'Тест не найден');return;}
-  if(S.role==='student'&&(!S.studentRowId||hw.student_id!==S.studentRowId)){showToast('Доступ запрещён','error');return;}
+  if(!hw){showToast(isEn?'Test not found':'Тест не найден');closeM('mPlacementTestPlayer');return;}
+  if(S.role==='student'&&(!S.studentRowId||hw.student_id!==S.studentRowId)){showToast('Доступ запрещён','error');closeM('mPlacementTestPlayer');return;}
   if(S.role==='teacher'&&hw.teacher_id!==S.profile?.id){showToast('Доступ запрещён','error');return;}
   let questions=[];try{questions=JSON.parse(hw.description)||[];}catch(e){}
   C('ptpQuestions').innerHTML=questions.map((q,i)=>`
@@ -7402,6 +7424,7 @@ async function openPlacementTestPlayer(hwId){
           <span>${_esc(opt)}</span>
         </label>`).join('')}
     </div>`).join('');
+  }finally{openPlacementTestPlayer._busy=false;}
 }
 async function submitPlacementTest(){
   if(S._ptpSubmitting)return;S._ptpSubmitting=true;
@@ -7440,6 +7463,7 @@ async function submitPlacementTest(){
 // ─── FEATURE 5: iCAL EXPORT ───────────────────────────────────────────────────
 function _icalEsc(s){return(s||'').replace(/\\/g,'\\\\').replace(/;/g,'\\;').replace(/,/g,'\\,').replace(/\n/g,'\\n');}
 function exportICal(){
+  if(S._exportingICal)return;S._exportingICal=true;
   const isEn=S.lang==='en';
   let _icalQ=sb.from('schedule_events').select('*').eq('school_id',S.schoolId);
   if(S.role==='teacher')_icalQ=_icalQ.eq('teacher_id',S.profile.id);
@@ -7455,11 +7479,9 @@ function exportICal(){
       const hh=String(parts[0]||9).padStart(2,'0');
       const mm=String(parts[1]||0).padStart(2,'0');
       const dt=ev.event_date.replace(/-/g,'');
-      const dtStart=`${dt}T${hh}${mm}00Z`;
-      const startMs=new Date(`${ev.event_date}T${hh}:${mm}:00Z`).getTime();
-      const endMs=startMs+(Number(ev.duration_minutes)||60)*60000;
-      const endD=new Date(endMs);
-      const dtEnd=`${endD.getUTCFullYear()}${String(endD.getUTCMonth()+1).padStart(2,'0')}${String(endD.getUTCDate()).padStart(2,'0')}T${String(endD.getUTCHours()).padStart(2,'0')}${String(endD.getUTCMinutes()).padStart(2,'0')}00Z`;
+      const dtStart=`${dt}T${hh}${mm}00`;
+      const end=new Date(new Date(ev.event_date+'T'+(ev.event_time||'09:00')).getTime()+(parseInt(ev.duration_minutes)||60)*60000);
+      const dtEnd=end.getFullYear()+String(end.getMonth()+1).padStart(2,'0')+String(end.getDate()).padStart(2,'0')+'T'+String(end.getHours()).padStart(2,'0')+String(end.getMinutes()).padStart(2,'0')+'00';
       lines.push('BEGIN:VEVENT',
         `UID:${ev.id}@teachyaed`,
         `DTSTART:${dtStart}`,
@@ -7474,7 +7496,7 @@ function exportICal(){
     const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='teachyaed-schedule.ics';
     document.body.appendChild(a);a.click();document.body.removeChild(a);
     showToast(isEn?'📥 Schedule exported!':'📥 Расписание экспортировано!');
-  }).catch(e=>showToast('Ошибка экспорта: '+(e.message||e),'error'));
+  }).catch(e=>showToast('Ошибка экспорта: '+(e.message||e),'error')).finally(()=>{S._exportingICal=false;});
 }
 
 </script>
