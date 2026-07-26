@@ -139,6 +139,7 @@ body[data-theme="dark"] .task-card,
 body[data-theme="dark"] .task-col-count,
 body[data-theme="dark"] .toast-card{background:var(--white)!important;border-color:var(--gray-border)!important;color:var(--text)!important;}
 /* ── Dark: period tabs & misc buttons ── */
+body[data-theme="dark"] .lib-like-btn:hover,body[data-theme="dark"] .lib-like-btn.liked{background:var(--gray-light)!important;border-color:#e879f9!important;color:#e879f9!important;}
 body[data-theme="dark"] .period-tab:not(.active),
 body[data-theme="dark"] .hw-add-ex-btn,
 body[data-theme="dark"] .hwp-wo-chip,
@@ -523,7 +524,7 @@ tr:hover td{background:#FAFAFA}
 .hw-comment{background:var(--yellow-light);border-radius:8px;padding:10px;font-size:.85rem}
 .period-tabs{display:flex;gap:4px;margin-bottom:16px}
 .period-tab{padding:6px 16px;border-radius:20px;border:2px solid var(--gray-border);background:#fff;font-size:.82rem;font-weight:600;cursor:pointer;font-family:var(--font)}
-.period-tab.active{background:var(--purple);color:#fff;border-color:var(--purple)}
+.period-tab.active{background:var(--purple);color:#fff;border-color:var(--purple)}.period-tab:not(.active):hover{background:var(--purple-light);color:var(--purple);border-color:var(--purple)}
 .materials-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px}
 .material-card{background:#fff;border-radius:var(--radius);padding:16px;box-shadow:var(--shadow);cursor:pointer;transition:.2s;position:relative}
 .material-card:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(0,0,0,.1)}
@@ -3513,10 +3514,12 @@ async function sendAIMsg(prefix){
 // Call student from lesson view
 async function cvCallStudent(){
   const _ac=(window._assignCache||{})[S.currentAssignId];
-  const partnerId=S._cvStudentId||_ac?.student_profile_id;
-  if(!partnerId){showToast('Ученик не определён','error');return;}
-  const partnerName=_ac?(_ac.student_first||'')+' '+(_ac.student_last||''):'Ученик';
-  callContact(partnerId,partnerName.trim()||'Ученик','student');
+  const partnerId=S._cvStudentId||_ac?.student_id;
+  if(!partnerId){showToast(t('Ученик не определён'),'error');return;}
+  // Try to find student name from loaded contacts
+  const _ct=S.contacts?.find(c=>c.id===partnerId);
+  const partnerName=_ct?((_ct.first_name||'')+' '+(_ct.last_name||'')).trim()||'Ученик':'Ученик';
+  callContact(partnerId,partnerName,'student');
 }
 
 // ─── INVITE SYSTEM ────────────────────────────────────────────────────────────
@@ -3734,7 +3737,7 @@ async function doLogout(){
   // 3. Remove all realtime channels before signOut
   if(S.notifyChannel){try{sb.removeChannel(S.notifyChannel);}catch(e){}S.notifyChannel=null;}
   if(MS.rtSub){try{sb.removeChannel(MS.rtSub);}catch(e){}MS.rtSub=null;}
-  try{Object.assign(MS,{convId:null,convs:[],msgs:[],uploading:false,rtSub:null,profiles:[],_loadingConvs:false,_sending:false,_openingConv:null});}catch(e){}
+  try{Object.assign(MS,{convId:null,convs:[],msgs:[],uploading:false,rtSub:null,profiles:[],_loadingConvs:false,_sending:false,_openingConv:null,_creatingConv:false});}catch(e){}
   if(typeof cvChatChannel!=='undefined'&&cvChatChannel){try{sb.removeChannel(cvChatChannel);}catch(e){}cvChatChannel=null;}
   if(typeof TK!=='undefined'){
     if(TK.rtSub){try{sb.removeChannel(TK.rtSub);}catch(e){}TK.rtSub=null;}
@@ -3767,7 +3770,7 @@ async function doLogout(){
   if(typeof _allClasses!=='undefined')_allClasses.length=0;
   if(typeof _aiHistory!=='undefined'){_aiHistory.cv=[];_aiHistory.ce=[];}
   // Reset all render loading flags
-  ['renderSchedule','renderLibrary','renderStudentVocab','renderTeacherHw','renderStudentHw','renderClasses','renderOwnerStudents','renderTeacherStudents','renderMessenger','renderTasks','renderOwnerUsers','renderAdminHome','renderOwnerHome','renderAdminStudents','renderAdminTeachers','renderSalaries','renderPayments'].forEach(fn=>{if(typeof window[fn]==='function')window[fn]._loading=false;});
+  ['renderSchedule','renderLibrary','renderStudentVocab','renderTeacherHw','renderStudentHw','renderClasses','renderOwnerStudents','renderTeacherStudents','renderMessenger','renderTasks','renderOwnerUsers','renderAdminHome','renderOwnerHome','renderAdminStudents','renderAdminTeachers','renderSalaries','renderPayments','renderStudentHome','renderStudentLessons','renderTeacherLessons','renderMaterials'].forEach(fn=>{if(typeof window[fn]==='function'){window[fn]._loading=false;window[fn]._busy=false;}});
   // Clear localStorage
   try{Object.keys(localStorage).filter(k=>k.startsWith('teachya_notes_')).forEach(k=>localStorage.removeItem(k));localStorage.removeItem('teachya_dict');}catch(_){}
 }
@@ -3778,6 +3781,8 @@ sb.auth.onAuthStateChange((event,session)=>{if(((event==='SIGNED_OUT'||event==='
     if(typeof MS!=='undefined'&&MS.rtSub){sb.removeChannel(MS.rtSub);MS.rtSub=null;}
     if(typeof cvChatChannel!=='undefined'&&cvChatChannel){sb.removeChannel(cvChatChannel);cvChatChannel=null;}
     if(typeof TK!=='undefined'&&TK.rtSub){sb.removeChannel(TK.rtSub);TK.rtSub=null;}
+    if(typeof TK!=='undefined'&&TK._pollInterval){clearInterval(TK._pollInterval);TK._pollInterval=null;}
+    if(typeof _taskReminderInterval!=='undefined'&&_taskReminderInterval){clearInterval(_taskReminderInterval);}
   }catch(e){}
   // Clear data cache on external logout
   Object.keys(_DC).forEach(k=>delete _DC[k]);
@@ -3887,7 +3892,7 @@ function openInviteStaff(){
   if(_ownerOpt)_ownerOpt.style.display=S.role==='owner'?'':'none';
 }
 function closeM(id){C(id).classList.remove('open');}
-const fmtDate=d=>{if(!d)return'—';const[y,m,day]=(d+'').split('-');return new Date(+y,+m-1,+day).toLocaleDateString('ru-RU');};
+const fmtDate=d=>{if(!d)return'—';const s=String(d);const parts=s.split('-');if(parts.length>=3&&!parts[2].includes('T')&&!parts[2].includes(' ')){return new Date(+parts[0],+parts[1]-1,+parts[2]).toLocaleDateString('ru-RU');}return new Date(d).toLocaleDateString('ru-RU');};
 const fmtCur=(n,c='GEL')=>`${Number(n||0).toFixed(0)} ${c}`;
 var AVCOLORS=['#7C3AED','#EC4899','#10B981','#F59E0B','#3B82F6','#EF4444','#8B5CF6'];
 function avColor(s){let h=0;for(const c of(s||''))h=(h+c.charCodeAt(0))%AVCOLORS.length;return AVCOLORS[h];}
@@ -4373,7 +4378,7 @@ function _hwpRenderEx(ex,i){
       ${(ex.pairs||[]).map((p,pi)=>`<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
         <span style="font-weight:600;min-width:90px;font-size:.92rem">${_esc(p.left)}</span>
         <span style="color:var(--text3)">→</span>
-        <select id="hwp_match_${i}_${pi}" style="flex:1;padding:7px 10px;border:2px solid var(--gray-border);border-radius:8px;font-family:var(--font);font-size:.88rem;background:#fff">
+        <select id="hwp_match_${i}_${pi}" style="flex:1;padding:7px 10px;border:2px solid var(--gray-border);border-radius:8px;font-family:var(--font);font-size:.88rem;background:var(--white,#fff)">
           <option value="">— выбери —</option>
           ${rights.map(r=>`<option value="${_esc(r)}">${_esc(r)}</option>`).join('')}
         </select>
@@ -6284,7 +6289,7 @@ function openClassroomView(title,sections,assignId,studentName,materials){
   LV.sections=sections;LV.materials=Array.isArray(materials)?materials:[];LV.curSec=0;LV.curEx=0;LV.assignId=assignId;LV.viewAll=false;
   const matBtn=C('cv_matBtn');if(matBtn)matBtn.style.display=LV.materials.length?'':'none';
   S.currentAssignId=assignId||null;
-  S._cvStudentId=(window._assignCache||{})[assignId]?.student_profile_id||null;
+  S._cvStudentId=(window._assignCache||{})[assignId]?.student_id||null;
   window._matchState={};
   C('cv_view1btn').classList.add('active');C('cv_viewAllBtn').classList.remove('active');
   C('cv_lessonName').textContent=title;
@@ -6623,12 +6628,12 @@ function renderBlockView(b,i){
     const ytMatch=rawUrl.match(/(?:v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
     if(ytMatch)embedUrl=`https://www.youtube.com/embed/${ytMatch[1]}`;
     else if(/^https:\/\//.test(rawUrl)){
-  const _iframeHosts=['youtube.com','youtu.be','drive.google.com','docs.google.com','vimeo.com','loom.com'];
+  const _iframeHosts=['youtube.com','youtu.be','youtube-nocookie.com','drive.google.com','docs.google.com','vimeo.com','loom.com'];
   try{const _h=new URL(rawUrl).hostname.replace(/^www\./,'');
     if(_iframeHosts.some(d=>_h===d||_h.endsWith('.'+d)))embedUrl=rawUrl;
   }catch(_){}
 }
-    const _isSafe=embedUrl&&(embedUrl.includes('youtube.com')||embedUrl.includes('youtu.be')||embedUrl.includes('vimeo.com'));
+    const _isSafe=embedUrl&&(embedUrl.includes('youtube.com')||embedUrl.includes('youtu.be')||embedUrl.includes('youtube-nocookie.com')||embedUrl.includes('vimeo.com')||embedUrl.includes('drive.google.com')||embedUrl.includes('docs.google.com')||embedUrl.includes('loom.com'));
     const _sbx=_isSafe?'allow-scripts allow-forms allow-popups allow-presentation allow-same-origin':'allow-scripts allow-forms allow-popups allow-presentation';
     return`<div class="lesson-view-block">
       ${b.note?`<div style="padding:10px;background:var(--yellow-light);border-radius:8px;font-size:.85rem;margin-bottom:12px">📌 ${_escHtml(b.note)}</div>`:''}
@@ -6800,7 +6805,7 @@ function openMaterialPreview(url,title,type,lang,level){
   C('mp_openBtn').dataset.url=url;
   if(embedUrl){
     if(!embedUrl||!/^https?:\/\//i.test(embedUrl)){C('mp_body').innerHTML='<p style="color:var(--pink)">Некорректная ссылка</p>';return;}
-    const _mpIsSafe=embedUrl.includes('youtube.com')||embedUrl.includes('youtu.be')||embedUrl.includes('vimeo.com');
+    const _mpIsSafe=embedUrl.includes('youtube.com')||embedUrl.includes('youtu.be')||embedUrl.includes('youtube-nocookie.com')||embedUrl.includes('vimeo.com')||embedUrl.includes('drive.google.com')||embedUrl.includes('docs.google.com')||embedUrl.includes('loom.com');
     const _mpSbx=_mpIsSafe?'allow-scripts allow-forms allow-popups allow-presentation allow-same-origin':'allow-scripts allow-forms allow-popups allow-presentation';
     C('mp_body').innerHTML=`<div class="mp-iframe-wrap"><iframe src="${_escHtml(embedUrl)}" allowfullscreen allow="autoplay" sandbox="${_mpSbx}"></iframe></div>`;
   } else {
@@ -6824,7 +6829,7 @@ async function renderCEMaterialsPanel(){
   const body=document.getElementById('ceMatsBody');
   if(!body)return;
   body.innerHTML=`<div style="color:var(--text3);font-size:.83rem;text-align:center;padding:16px">${t('Загрузка материалов...')}</div>`;
-  const{data:mats}=await sb.from('materials').select('*').eq('school_id',S.schoolId).order('created_at',{ascending:false});
+  const{data:mats}=await sb.from('materials').select('*').eq('school_id',S.schoolId).order('created_at',{ascending:false}).limit(500);
   if(!mats||!mats.length){body.innerHTML=`<div style="color:var(--text3);font-size:.83rem;text-align:center;padding:16px">${t('Нет материалов в библиотеке')}</div>`;return;}
   const selectedIds=new Set(CE.materials.map(m=>m.id));
   body.innerHTML=mats.map(m=>`
@@ -6878,7 +6883,9 @@ function showToastCard(title,text='',type='',icon='ℹ️',duration=4000){
   d.className='toast-card'+(type?' tc-'+type:'');
   d.innerHTML=`<span class="tc-icon">${_escHtml(icon)}</span><div class="tc-body"><div class="tc-title">${_escHtml(title)}</div>${text?`<div class="tc-text">${_escHtml(text)}</div>`:''}</div><button class="tc-close" onclick="this.closest('.toast-card').remove()">✕</button>`;
   stack.appendChild(d);
-  setTimeout(()=>{d.style.opacity='0';d.style.transform='translateX(30px)';d.style.transition='.3s';setTimeout(()=>d.remove(),300);},duration);
+  const _tid=setTimeout(()=>{d.style.opacity='0';d.style.transform='translateX(30px)';d.style.transition='.3s';setTimeout(()=>d.remove(),300);},duration);
+  d._dismiss=()=>{clearTimeout(_tid);d.style.opacity='0';d.style.transform='translateX(30px)';d.style.transition='.3s';setTimeout(()=>d.remove(),300);};
+  return d;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -7021,7 +7028,7 @@ function renderMsgMain(conv){
       <label class="msg-compose-btn" style="background:var(--gray-light);color:var(--text3)" title="Прикрепить файл">
         📎<input type="file" style="display:none" onchange="uploadMsgFile(this)">
       </label>
-      <textarea id="msgInput" placeholder="Написать сообщение..." rows="1" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMsg()}" oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight,110)+'px'"></textarea>
+      <textarea id="msgInput" placeholder="Написать сообщение..." rows="1" maxlength="4000" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMsg()}" oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight,110)+'px'"></textarea>
       <button class="msg-compose-btn" style="background:var(--purple);color:#fff" onclick="sendMsg()" title="Отправить">➤</button>
     </div>`;
   scrollThread();
@@ -7091,16 +7098,16 @@ async function uploadMsgFile(input){
   const file=input.files[0];
   input.value='';
   if(file.size>20*1024*1024){showToastCard(t('Файл слишком большой'),t('Максимум 20MB'),'error','❌');return;}
-  showToastCard(t('Загрузка файла...'),'','','📎',60000);
+  const _loadingToast=showToastCard(t('Загрузка файла...'),'','','📎',60000);
   const safeName=file.name.replace(/[^a-zA-Z0-9._-]/g,'_');
   const path=`${S.schoolId}/${MS.convId}/${Date.now()}_${safeName}`;
   const{data:upData,error:upErr}=await sb.storage.from('chat-files').upload(path,file,{upsert:true});
-  if(upErr){showToastCard(t('Ошибка загрузки'),''+upErr.message,'error','❌');return;}
+  if(upErr){_loadingToast?._dismiss();showToastCard(t('Ошибка загрузки'),''+upErr.message,'error','❌');return;}
   const{data:urlData}=sb.storage.from('chat-files').getPublicUrl(path);
   const fileUrl=urlData?.publicUrl;
-  if(!fileUrl){showToastCard(t('Ошибка'),'Не удалось получить URL файла','error','❌',4000);return;}
-  // Clear loading toast (it auto-removes)
+  if(!fileUrl){_loadingToast?._dismiss();showToastCard(t('Ошибка'),'Не удалось получить URL файла','error','❌',4000);return;}
   const{error:_mInsErr}=await sb.from('messages').insert({conversation_id:MS.convId,sender_id:S.profile.id,body:'',file_url:fileUrl,file_name:file.name,file_size:file.size,file_type:file.type,school_id:S.schoolId});
+  _loadingToast?._dismiss();
   if(_mInsErr){showToastCard(t('Ошибка отправки файла'),''+_mInsErr.message,'error','❌');return;}
   showToastCard(t('Файл отправлен'),'','success','✅');
   }finally{MS.uploading=false;}
@@ -7207,7 +7214,7 @@ async function createConv(){
           const{data:_theirMems}=await sb.from('conversation_members').select('conversation_id').eq('user_id',uid).eq('school_id',S.schoolId).in('conversation_id',_myConvIds);
           if(_theirMems&&_theirMems.length){
             const _sharedConvIds=_theirMems.map(m=>m.conversation_id);
-            const{data:_directConv}=await sb.from('conversations').select('id').eq('type','direct').in('id',_sharedConvIds).single();
+            const{data:_directConv}=await sb.from('conversations').select('id').eq('type','direct').in('id',_sharedConvIds).maybeSingle();
             if(_directConv){closeM('mNewConv');await openConv(_directConv.id);return;}
           }
         }
@@ -7836,7 +7843,7 @@ function exportICal(){
   const isEn=S.lang==='en';
   let _icalQ=sb.from('schedule_events').select('*').eq('school_id',S.schoolId);
   if(S.role==='teacher')_icalQ=_icalQ.eq('teacher_id',S.profile.id);
-  else if(S.role==='student'){if(!S.studentRowId){S._exportingICal=false;showToast('Ошибка: ID ученика не найден','error');return;}
+  else if(S.role==='student'){if(!S.studentRowId){S._exportingICal=false;showToast(t('Ошибка')+': '+t('Профиль не загружен'),'error');return;}
   _icalQ=_icalQ.eq('student_id',S.studentRowId);}
   _icalQ.then(({data:evs})=>{
     const calName=_icalEsc('TeachyaED');
@@ -7849,9 +7856,10 @@ function exportICal(){
       if(isNaN(_evDt.getTime()))return; // skip invalid events
       const _evEndMs=_evDt.getTime()+(parseInt(ev.duration_minutes)||60)*60000;
       const _evEnd=new Date(_evEndMs);
-      const _toIcalUtc=d=>d.toISOString().replace(/[-:]/g,'').replace(/\.\d{3}Z$/,'');
-      const dtStart=_toIcalUtc(_evDt);
-      const dtEnd=_toIcalUtc(_evEnd);
+      // Format as floating local time (no Z = no timezone conversion)
+      const _toIcalLocal=d=>`${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}T${String(d.getHours()).padStart(2,'0')}${String(d.getMinutes()).padStart(2,'0')}${String(d.getSeconds()).padStart(2,'0')}`;
+      const dtStart=_toIcalLocal(_evDt);
+      const dtEnd=_toIcalLocal(_evEnd);
       lines.push('BEGIN:VEVENT',
         `UID:${ev.id}@${S.schoolId||'school'}.teachyaed`,
         `DTSTART:${dtStart}`,
@@ -7871,8 +7879,8 @@ function exportICal(){
     a.click();
     document.body.removeChild(a);
     setTimeout(()=>URL.revokeObjectURL(_icalUrl),1000);
-    showToast(isEn?'📥 Schedule exported!':'📥 Расписание экспортировано!');
-  }).catch(e=>showToast('Ошибка экспорта: '+(e.message||e),'error')).finally(()=>{S._exportingICal=false;});
+    showToast(S.lang==='en'?'📥 Schedule exported!':S.lang==='ge'?'📥 განრიგი ექსპორტირებულია!':'📥 Расписание экспортировано!');
+  }).catch(e=>showToast(t('Ошибка')+': '+(e.message||e),'error')).finally(()=>{S._exportingICal=false;});
 }
 
 </script>
