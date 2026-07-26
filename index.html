@@ -144,6 +144,25 @@ body[data-theme="dark"] .hwp-wo-sentence,
 body[data-theme="dark"] .hwr-ans{background:var(--gray-light)!important;border-color:var(--gray-border)!important;color:var(--text)!important;}
 body[data-theme="dark"] .hwr-ans.correct{border-color:#22c55e!important;background:#064e3b!important;color:#6ee7b7!important}
 body[data-theme="dark"] .hwr-ans.wrong{border-color:#ef4444!important;background:#450a0a!important;color:#fca5a5!important}
+body[data-theme="dark"] .quiz-opt.wrong,
+body[data-theme="dark"] .tf-btn.wrong,
+body[data-theme="dark"] .fill-blank-input.wrong,
+body[data-theme="dark"] .match-item.wrong-match{background:#450a0a!important;border-color:#ef4444!important;color:#fca5a5!important}
+body[data-theme="dark"] .quiz-opt.correct,
+body[data-theme="dark"] .tf-btn.correct,
+body[data-theme="dark"] .fill-blank-input.correct,
+body[data-theme="dark"] .match-item.matched{background:#064e3b!important;border-color:#22c55e!important;color:#6ee7b7!important}
+body[data-theme="dark"] .btn-danger{background:#450a0a!important;color:#fca5a5!important}
+body[data-theme="dark"] .btn-danger:hover{background:#7f1d1d!important}
+body[data-theme="dark"] .hwe-pair-del,
+body[data-theme="dark"] .mc-opt-row button{background:#450a0a!important;color:#fca5a5!important}
+body[data-theme="dark"] .cv-exit-btn:hover{background:#450a0a!important}
+body[data-theme="dark"] .grade-btn{background:var(--gray-light)!important;color:var(--text2)!important;border-color:var(--gray-border)!important}
+body[data-theme="dark"] .hw-ex-card input,
+body[data-theme="dark"] .hw-ex-card textarea,
+body[data-theme="dark"] .hw-ex-card select{background:var(--gray-light)!important;color:var(--text)!important}
+body[data-theme="dark"] .hwp-mc-opt{background:var(--gray-light)!important;color:var(--text)!important;border-color:var(--gray-border)!important}
+body[data-theme="dark"] .hwp-ans-area{background:var(--gray-light)!important;color:var(--text)!important;border-color:var(--gray-border)!important}
 /* ── Dark: Messenger ── */
 body[data-theme="dark"] .messenger-layout,
 body[data-theme="dark"] .msg-sidebar,
@@ -335,11 +354,11 @@ tr:hover td{background:#FAFAFA}
 /* ── STUDENT EXERCISE VIEW ── */
 .lesson-view-block{background:#fff;border-radius:var(--radius);padding:20px;margin-bottom:14px;box-shadow:var(--shadow)}
 .vocab-card{perspective:600px;cursor:pointer;margin-bottom:8px}
-.vocab-inner{position:relative;width:100%;height:60px;transform-style:preserve-3d;transition:.5s}
+.vocab-inner{position:relative;width:100%;height:60px;transform-style:preserve-3d;transition:transform .5s}
 .vocab-card.flipped .vocab-inner{transform:rotateY(180deg)}
 .vocab-front,.vocab-back{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;border-radius:10px;font-weight:600;font-size:1rem;backface-visibility:hidden}
 .vocab-front{background:var(--purple-light);color:var(--purple)}
-.vocab-back{background:var(--green-light);color:#065F46;transform:rotateY(180deg)}
+.vocab-back{background:var(--green-light);color:var(--text);transform:rotateY(180deg)}
 .fill-blank-input{border:2px solid var(--gray-border);border-radius:6px;padding:4px 10px;font-size:.95rem;font-family:var(--font);width:120px;text-align:center}
 .fill-blank-input.correct{border-color:var(--green);background:var(--green-light)}
 .fill-blank-input.wrong{border-color:var(--red);background:#FEE2E2}
@@ -502,9 +521,8 @@ tr:hover td{background:#FAFAFA}
 .period-tab{padding:6px 16px;border-radius:20px;border:2px solid var(--gray-border);background:#fff;font-size:.82rem;font-weight:600;cursor:pointer;font-family:var(--font)}
 .period-tab.active{background:var(--purple);color:#fff;border-color:var(--purple)}
 .materials-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px}
-.material-card{background:#fff;border-radius:var(--radius);padding:16px;box-shadow:var(--shadow);cursor:pointer;transition:.2s}
+.material-card{background:#fff;border-radius:var(--radius);padding:16px;box-shadow:var(--shadow);cursor:pointer;transition:.2s;position:relative}
 .material-card:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(0,0,0,.1)}
-.material-card{position:relative}
 .mat-del-btn{position:absolute;top:6px;right:6px;width:20px;height:20px;border-radius:50%;background:var(--red,#ef4444);color:#fff;border:none;cursor:pointer;font-size:.65rem;display:flex;align-items:center;justify-content:center;opacity:0;transition:.15s;z-index:2;padding:0}
 .material-card:hover .mat-del-btn{opacity:1}
 .material-card.mat-no-link{opacity:.6;cursor:default}
@@ -539,6 +557,8 @@ tr:hover td{background:#FAFAFA}
 .avatar-circle{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.9rem;color:#fff;flex-shrink:0}
 #toast{position:fixed;bottom:100px;right:24px;background:#111827;color:#fff;padding:10px 18px;border-radius:10px;font-size:.85rem;z-index:9999;opacity:0;transition:.3s;pointer-events:none}
 #toast.show{opacity:1}
+#toast.toast-error{background:var(--red)!important;color:#fff!important}
+#toast.toast-success{background:var(--green,#10B981)!important;color:#fff!important}
 
 /* ── МОБИЛЬНАЯ НАВИГАЦИЯ ── */
 #menuBtn{display:none;background:none;border:none;font-size:1.3rem;cursor:pointer;color:var(--text2);padding:6px 8px;border-radius:8px;line-height:1;flex-shrink:0;-webkit-tap-highlight-color:transparent}
@@ -548,7 +568,7 @@ tr:hover td{background:#FAFAFA}
 
 /* Touch-friendly: убираем tap-задержку на iOS */
 button,a,.nav-item,.btn,.ev-class-card,.cdp-tab,.cv-tab,.contact-item,.quiz-opt,.match-item,.word-chip,.tf-btn{-webkit-tap-highlight-color:transparent;touch-action:manipulation}
-input,select,textarea{font-size:16px!important} /* Предотвращаем зум на iOS при фокусе */
+/* font-size:16px for inputs moved to @media(max-width:767px) only */
 
 /* ── МОБИЛЬНЫЕ (≤ 767px) ── */
 @media(max-width:767px){
@@ -858,6 +878,10 @@ input,select,textarea{font-size:16px!important} /* Предотвращаем з
 .lib-badge-shared{background:#f0fdf4;color:#15803d;border:1px solid #bbf7d0;border-radius:6px;padding:2px 8px;font-size:.72rem;font-weight:700}
 body[data-theme="dark"] .lib-card{background:var(--white)!important;border-color:var(--gray-border)!important}
 body[data-theme="dark"] .lib-filters select,body[data-theme="dark"] .lib-filters input{background:var(--white)!important;color:var(--text)!important;border-color:var(--gray-border)!important}
+body[data-theme="dark"] .lib-badge-shared{background:#064e3b!important;color:#6ee7b7!important;border-color:#065f46!important}
+body[data-theme="dark"] #toolPanel{background:var(--white)!important;border-color:var(--gray-border)!important}
+body[data-theme="dark"] #timerPopup{background:var(--white)!important}
+body[data-theme="dark"] .vocab-back{color:#6ee7b7!important;background:rgba(16,185,129,.25)!important}
 </style>
 </head>
 <body>
@@ -1587,20 +1611,20 @@ const TRANSLATIONS={
   '+ Новый класс':'+ New Class','+ Создать урок':'+ Create Lesson',
   '+ Занятие':'+ Event','Сегодня':'Today',
   '▶ Начать урок':'▶ Start Lesson','✎ Изменить':'✎ Edit',
-  '📊 Прогресс':'📊 Progress','Кол-во классов':'Total classes',
+  'Кол-во классов':'Total classes',
   '+ Урок':'+ Log Lesson','+ Добавить':'+ Add',
   '✎ Ставка':'✎ Rate','💰 Ставка':'💰 Rate',
   'Это вы':'That\'s you',
   // Table headers
   'Ставка/урок':'Rate/lesson','Уроков пройдено':'Lessons Done',
   'Уроков не пройдено':'Lessons Pending',
-  'Имя':'Name','Телефон':'Phone','Роль':'Role','Уровень':'Level',
-  'Язык':'Language','Статус':'Status','Дата':'Date',
+  'Имя':'Name','Телефон':'Phone','Роль':'Role',
+  'Статус':'Status','Дата':'Date',
   'Сумма':'Amount','Валюта':'Currency',
-  'Класс':'Class','Ставка':'Rate','Действия':'Actions','Тип':'Type',
+  'Класс':'Class','Ставка':'Rate','Действия':'Actions',
   'Период':'Period','Итого':'Total','Уроков':'Lessons',
   // Payment statuses
-  'Оплачено':'Paid','Ожидает':'Pending','Просрочено':'Overdue',
+  'Оплачено':'Paid','Ожидает':'Pending',
   'Запланировано':'Scheduled','Проведено':'Completed','Отменено':'Cancelled',
   // Salary period tabs
   'Неделя':'Week','2 недели':'Bi-weekly','Месяц':'Month',
@@ -1631,13 +1655,12 @@ const TRANSLATIONS={
   // Modals/headings
   'Новый ученик':'New Student','Пригласить сотрудника':'Invite Staff',
   'Изменить роль':'Change Role','Новый платёж':'New Payment',
-  'Домашнее задание':'Homework','Сдать задание':'Submit Assignment',
+  'Домашнее задание':'Homework',
   'Проверить задание':'Review Assignment','Ставка учителя':'Teacher Rate',
-  'Новый материал':'New Material',
   'Новое занятие':'New Event','Назначить урок':'Assign Lesson',
   'Новый класс':'New Class','Удалить пользователя':'Delete User',
   // Form labels
-  'Название':'Title','Описание':'Description','Срок сдачи':'Due date',
+  'Описание':'Description','Срок сдачи':'Due date',
   'Ответ':'Answer','Комментарий':'Comment','Ставка за урок':'Rate per lesson',
   'Новая роль':'New role','Цвет':'Color','Эмодзи (необязательно)':'Emoji (optional)',
   'Эмодзи':'Emoji','Длительность (мин)':'Duration (min)',
@@ -1645,12 +1668,12 @@ const TRANSLATIONS={
   // Badges
   '✓ Проверено':'✓ Reviewed','⏳ На проверке':'⏳ Submitted','📋 Задано':'📋 Assigned',
   // Lesson builder
-  'Текст':'Text','Изображение':'Image','Видео':'Video','Словарь':'Vocabulary',
+  'Текст':'Text','Изображение':'Image',
   'Множественный выбор':'Multiple Choice','Заполни пропуск':'Fill in the Blank',
   'Верно/Неверно':'True/False','Порядок слов':'Word Order',
   'Соответствие':'Matching','Открытый вопрос':'Open Question',
   // Empty states
-  'Нет классов':'No classes','Нет материалов':'No materials',
+  'Нет материалов':'No materials',
   'Нет учеников':'No students','Нет учителей':'No teachers',
   'Нет контактов':'No contacts','Уроков пока нет':'No lessons yet',
   // Search placeholders
@@ -1722,7 +1745,6 @@ const TRANSLATIONS={
   '✏️ Редактировать задачу':'✏️ Edit Task',
   'Нет задач':'No tasks',
   'Задача сохранена':'Task saved',
-  'Введи название задачи':'Enter task title',
   'Удалить задачу?':'Delete this task?',
   '🔴 Высокий':'🔴 High',
   '🟡 Средний':'🟡 Medium',
@@ -1771,8 +1793,6 @@ const TRANSLATIONS={
   'Напиши свой ответ...':'Write your answer...',
   'Заданий ждут':'Assignments pending',
   'Новое':'New',
-  'Сдано':'Submitted',
-  'Проверено':'Reviewed',
   'Проверено!':'Reviewed!',
   'Проверить':'Review',
   'Ответ:':'Answer:',
@@ -1803,7 +1823,6 @@ const TRANSLATIONS={
   'Нет разделов':'No sections',
   'Нет упражнений в этом разделе':'No exercises in this section',
   'Нет упражнений. Добавь первое ниже.':'No exercises. Add the first one below.',
-  'Добавь первое упражнение ниже':'Add the first exercise below',
   'Раздел 1':'Section 1',
   'Добавить раздел':'Add section',
   'Добавить упражнение':'Add exercise',
@@ -1908,7 +1927,6 @@ const TRANSLATIONS={
   'упражнений':'exercises',
   'мин':'min',
   'Длит.':'Duration',
-  'Аудио':'Audio',
 
   // ── MATERIALS ─────────────────────────────────────────────────────────────
   'Материал':'Material',
@@ -1920,8 +1938,8 @@ const TRANSLATIONS={
   'DOC, DOCX, TXT, PPTX, XLSX — до 50MB':'DOC, DOCX, TXT, PPTX, XLSX — up to 50MB',
   'MP4, WebM, MOV — или вставь ссылку ниже':'MP4, WebM, MOV — or paste a link below',
   'Или URL файла (необязательно)':'Or file URL (optional)',
-  'Новый материал':'New Material','Файл':'File','Название':'Title','Тип':'Type','Уровень':'Level','Язык':'Language',
-  'Видео':'Video','Аудио':'Audio','Ссылка':'Link','Документ':'Document',
+  'Новый материал':'New Material','Название':'Title','Тип':'Type','Уровень':'Level','Язык':'Language',
+  'Видео':'Video',
   'Материал удалён':'Material deleted',
   'Нет материалов в библиотеке':'No materials in library',
   'Загрузка материалов...':'Loading materials...',
@@ -1929,7 +1947,6 @@ const TRANSLATIONS={
   'У этого материала нет ссылки ⚠️':'This material has no link ⚠️',
   'Открыть в новой вкладке':'Open in new tab',
   'Нет ссылки':'No link',
-  'Документ':'Document',
   'Файл':'File',
   'Картинка':'Image',
   'Изображение не добавлено':'No image added',
@@ -1940,7 +1957,6 @@ const TRANSLATIONS={
   'картинки (необяз.)':'image (optional)',
   'Подпись (необяз.)':'Caption (optional)',
   'Подпись к картинке...':'Image caption...',
-  'Название раздела...':'Section title...',
   'Название раздела:':'Section title:',
   'Краткое описание...':'Brief description...',
   'Заметки к уроку...':'Lesson notes...',
@@ -1998,7 +2014,6 @@ const TRANSLATIONS={
   'Ученик:':'Student:',
   'Учитель:':'Teacher:',
   'Язык:':'Language:',
-  'Уровень:':'Level:',
   'Комментарий:':'Comment:',
   'Твой ответ:':'Your answer:',
   'Занятие: ':'Event: ',
@@ -2041,7 +2056,7 @@ const TRANSLATIONS={
   '🚀 Опубликовано!':'🚀 Published!','💾 Сохранено!':'💾 Saved!',
   'удалён':'deleted','📎 Файл':'📎 File','⏰ Напоминание':'⏰ Reminder',
   'Ошибка':'Error',
-  '⏳ Создаю комнату...':'⏳ Creating room...','⏳ Соединяю...':'⏳ Connecting...',
+  '⏳ Создаю комнату...':'⏳ Creating room...',
   '(пусто)':'(empty)',
   'Неверно.':'Incorrect.',
   'Правильно':'Correct',
@@ -2166,6 +2181,21 @@ const TRANSLATIONS={
   'Сначала сохрани урок':'Save the lesson first',
   'В библиотеке':'In library',
   'Поиск по названию':'Search by title',
+  'В этом уроке нет разделов':'No sections in this lesson',
+  'Введи корректную ставку!':'Enter a valid rate!',
+  'Введи тему урока':'Enter lesson topic',
+  'Заполните поле':'Fill in the field',
+  'Неверное значение':'Invalid value',
+  'Неверный тип файла':'Invalid file type',
+  'Нет прав':'No access',
+  'Ответ...':'Answer...',
+  'Ошибка соединения':'Connection error',
+  'Слишком длинное название':'Name too long',
+  'Слишком длинное описание':'Description too long',
+  'Некорректный email':'Invalid email',
+  'Профиль не загружен':'Profile not loaded',
+  'Не авторизован':'Not authorized',
+  'Установить пароль':'Set password',
 };
 
 // ─── GEORGIAN TRANSLATIONS ───────────────────────────────────────────────────
@@ -2659,6 +2689,14 @@ function revertToRU(root){
     const ti=el.getAttribute('title');if(ti&&allMap[ti])el.setAttribute('title',allMap[ti]);
   });
   root.querySelectorAll('option').forEach(opt=>{const v=opt.textContent.trim();if(allMap[v])opt.textContent=allMap[v];});
+  root.querySelectorAll('[aria-label]').forEach(el=>{
+    const al=el.getAttribute('aria-label');
+    if(al&&allMap[al])el.setAttribute('aria-label',allMap[al]);
+  });
+  root.querySelectorAll('[value]').forEach(el=>{
+    const v=el.getAttribute('value');
+    if(v&&allMap[v])el.setAttribute('value',allMap[v]);
+  });
   root.querySelectorAll('button,a,label,th,td,span,div,p,h1,h2,h3,h4,li').forEach(el=>{
     if(el.children.length===0){const txt=el.textContent.trim();if(txt&&allMap[txt])el.textContent=el.textContent.replace(txt,allMap[txt]);}
   });
@@ -2760,6 +2798,10 @@ function applyGE(root){
   root.querySelectorAll('[aria-label]').forEach(el=>{
     const al=el.getAttribute('aria-label');if(al&&TRANSLATIONS_GE[al])el.setAttribute('aria-label',TRANSLATIONS_GE[al]);
   });
+  root.querySelectorAll('[value]').forEach(el=>{
+    const v=el.getAttribute('value');
+    if(v&&TRANSLATIONS_GE[v])el.setAttribute('value',TRANSLATIONS_GE[v]);
+  });
   root.querySelectorAll('button,a,label,th,td,span,div,p,h1,h2,h3,h4,li').forEach(el=>{
     if(el.children.length===0){
       const txt=el.textContent.trim();
@@ -2819,7 +2861,7 @@ function _applyLang(prevLang){
   // Re-render current screen
   const fn={
     s_home:renderStudentHome,s_homework:renderStudentHw,s_lessons:renderStudentLessons,s_vocab:renderStudentVocab,s_materials:renderMaterials,
-    t_home:renderStudentHome,t_classes:renderClasses,t_schedule:renderSchedule,
+    t_classes:renderClasses,t_schedule:renderSchedule,
     t_students:renderTeacherStudents,t_homework:renderTeacherHw,t_lessons:renderTeacherLessons,t_materials:renderMaterials,
     t_messages:renderMessenger,t_tasks:renderTasks,
     a_home:renderAdminHome,a_classes:renderClasses,a_schedule:renderSchedule,
@@ -3236,25 +3278,27 @@ function saveToolNotes(){
 
 // Dictionary — auto-detects RU or EN
 function isRussian(w){return /[а-яёА-ЯЁ]/.test(w);}
+let _lwAbortCtrl=null;
 
 async function lookupWord(){
   const w=(document.getElementById('dictSearch')?.value||'').trim();
   if(!w)return;
   const res=document.getElementById('dictResult');
   res.innerHTML=`<div style="color:var(--text3)">🔍 ${_esc(t('Ищем...'))}</div>`;
-  const _lwCtrl=new AbortController();
-  const _lwTimer=setTimeout(()=>_lwCtrl.abort(),8000);
+  if(typeof _lwAbortCtrl!=='undefined'&&_lwAbortCtrl){try{_lwAbortCtrl.abort();}catch(e){}}
+  _lwAbortCtrl=new AbortController();
+  const _lwTimer=setTimeout(()=>_lwAbortCtrl.abort(),8000);
   try{
   if(isRussian(w)){
     // Russian word → translate RU→EN via MyMemory, then look up EN definition
     try{
       // Step 1: translate to English
-      const tr=await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(w)}&langpair=ru|en`,{signal:_lwCtrl.signal}).then(r=>r.json());
+      const tr=await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(w)}&langpair=ru|en`,{signal:_lwAbortCtrl.signal}).then(r=>r.json());
       const enWord=(tr.responseData?.translatedText||'').trim();
       if(!enWord){res.innerHTML=`<div style="color:var(--pink)">${t('Перевод не найден')}</div>`;return;}
 
       // Step 2: get EN definition
-      const data=await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(enWord.toLowerCase())}`,{signal:_lwCtrl.signal}).then(r=>r.json());
+      const data=await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(enWord.toLowerCase())}`,{signal:_lwAbortCtrl.signal}).then(r=>r.json());
       const entry=Array.isArray(data)&&data[0];
       const phonetic=_escHtml(entry?.phonetics?.find(p=>p.text)?.text||'');
       const meanings=entry?(entry.meanings||[]).slice(0,2).map(m=>`
@@ -3278,10 +3322,10 @@ async function lookupWord(){
   } else {
     // English word → direct lookup
     try{
-      const data=await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(w.toLowerCase())}`,{signal:_lwCtrl.signal}).then(r=>r.json());
+      const data=await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(w.toLowerCase())}`,{signal:_lwAbortCtrl.signal}).then(r=>r.json());
       if(!Array.isArray(data)||!data[0]){
         // fallback: translate EN→RU
-        const tr=await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(w)}&langpair=en|ru`,{signal:_lwCtrl.signal}).then(r=>r.json());
+        const tr=await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(w)}&langpair=en|ru`,{signal:_lwAbortCtrl.signal}).then(r=>r.json());
         const ruWord=tr.responseData?.translatedText||'—';
         const saveKey=`${w} → ${ruWord}`;
         res.innerHTML=`<div style="background:var(--purple-light);border-radius:8px;padding:8px 12px;margin-bottom:10px">
@@ -3293,7 +3337,7 @@ async function lookupWord(){
       const entry=data[0];
       const phonetic=_escHtml(entry.phonetics?.find(p=>p.text)?.text||'');
       // Also get RU translation
-      const tr=await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(w)}&langpair=en|ru`,{signal:_lwCtrl.signal}).then(r=>r.json());
+      const tr=await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(w)}&langpair=en|ru`,{signal:_lwAbortCtrl.signal}).then(r=>r.json());
       const ruWord=tr.responseData?.translatedText||'';
       const meanings=(entry.meanings||[]).slice(0,2).map(m=>`
         <div style="margin-bottom:8px">
@@ -3537,30 +3581,44 @@ async function setInvitePassword(){
   errEl.style.display='none';
   if(!p1||p1.length<6){errEl.textContent=t('Пароль должен быть не менее 6 символов');errEl.style.display='block';return;}
   if(p1!==p2){errEl.textContent=t('Пароли не совпадают');errEl.style.display='block';return;}
-  C('inv_btn').textContent=t('Сохраняем...');C('inv_btn').disabled=true;
+  const inv_btn=C('inv_btn');
+  inv_btn.textContent=t('Сохраняем...');inv_btn.disabled=true;
+  let _invSuccess=false;
   try{
   const{error}=await sb.auth.updateUser({password:p1});
   if(error){errEl.textContent=t('Ошибка')+': '+error.message;errEl.style.display='block';return;}
   // Password set — now login
+  _invSuccess=true;
   C('inviteScreen').style.display='none';
   const{data:{session}}=await sb.auth.getSession();
   if(session)await afterLogin(session.user);
-  }finally{C('inv_btn').disabled=false;C('inv_btn').textContent=t('Войти в систему →');}
-}
+  }finally{if(inv_btn){inv_btn.disabled=false;inv_btn.textContent=_invSuccess?t('Войти в систему →'):t('Установить пароль');}}
 
 async function callInviteFunction(email,role,firstName,lastName,opts={}){
   const{data:{session}}=await sb.auth.getSession();
   if(!session)throw new Error('Нет авторизации');
-  const res=await fetch(INVITE_FN,{
-    method:'POST',
-    headers:{'Content-Type':'application/json','Authorization':'Bearer '+session.access_token},
-    body:JSON.stringify({
-      email,role,first_name:firstName,last_name:lastName,
-      school_id:S.schoolId,
-      language:opts.language||'',level:opts.level||'A1',phone:opts.phone||'',
-      redirect_to:window.location.origin+window.location.pathname
-    })
-  });
+  const _invCtrl=new AbortController();
+  const _invTo=setTimeout(()=>_invCtrl.abort(),15000);
+  let res;
+  try{
+    res=await fetch(INVITE_FN,{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+session.access_token},
+      body:JSON.stringify({
+        email,role,first_name:firstName,last_name:lastName,
+        school_id:S.schoolId,
+        language:opts.language||'',level:opts.level||'A1',phone:opts.phone||'',
+        redirect_to:window.location.origin+window.location.pathname
+      }),
+      signal:_invCtrl.signal
+    });
+    clearTimeout(_invTo);
+  }catch(e){
+    clearTimeout(_invTo);
+    if(e.name==='AbortError'){showToast('Превышено время ожидания','error');}
+    else throw e;
+    return;
+  }
   const data=await res.json();
   if(!res.ok)throw new Error(data.error||'Ошибка отправки приглашения');
   return data;
@@ -3608,6 +3666,7 @@ async function afterLogin(user){
 
   if(!prof){
     showToast('Профиль не найден. Обратитесь к администратору.');
+    await sb.auth.signOut();
     C('inviteScreen').style.display='none';
     C('loginScreen').style.display='flex';
     return;
@@ -3647,6 +3706,7 @@ async function doLogout(){
   // 1. Очистка кэша и интервалов
   if(typeof _DC!=='undefined')Object.keys(_DC).forEach(k=>delete _DC[k]);
   if(typeof _taskReminderInterval!=='undefined'&&_taskReminderInterval){clearInterval(_taskReminderInterval);_taskReminderInterval=null;}
+  if(typeof checkTaskReminders!=='undefined')checkTaskReminders._busy=false;
   if(typeof _ringInterval!=='undefined'&&_ringInterval){clearInterval(_ringInterval);_ringInterval=null;}
   if(typeof _timerInt!=='undefined'&&_timerInt){clearInterval(_timerInt);_timerInt=null;}
   if(typeof _timerRunning!=='undefined')_timerRunning=false;
@@ -3656,20 +3716,38 @@ async function doLogout(){
   // 3. Remove all realtime channels before signOut
   if(S.notifyChannel){try{sb.removeChannel(S.notifyChannel);}catch(e){}S.notifyChannel=null;}
   if(MS.rtSub){try{sb.removeChannel(MS.rtSub);}catch(e){}MS.rtSub=null;}
+  try{Object.assign(MS,{convId:null,convs:[],msgs:[],uploading:false,rtSub:null,profiles:[],_loadingConvs:false,_sending:false,_openingConv:null});}catch(e){}
   if(typeof cvChatChannel!=='undefined'&&cvChatChannel){try{sb.removeChannel(cvChatChannel);}catch(e){}cvChatChannel=null;}
   if(typeof TK!=='undefined'){
     if(TK.rtSub){try{sb.removeChannel(TK.rtSub);}catch(e){}TK.rtSub=null;}
-    Object.assign(TK,{tasks:[],filterUser:'all',rtSub:null});
+    Object.assign(TK,{tasks:[],filterUser:'all',rtSub:null,_movingTasks:new Set(),_deletingTasks:new Set()});
   }
   // 4. Sign out
   await sb.auth.signOut();
   // 5. Reset state
   C('app').style.display='none';C('loginScreen').style.display='flex';
   C('loginErr').style.display='none';C('dialBtn').style.display='none';
-  Object.assign(S,{role:null,profile:null,contacts:[],inCall:false,schoolId:null,userId:null,_currentClassData:null,_cvStudentId:null,_aiSending:false,pendingRoom:null,pendingPartner:null,currentAssignId:null,studentRowId:null,_loadingVocab:false,_savingMaterial:false,_deletingMaterial:false,_savingEvent:false,_deletingEvent:false,_deletingStudent:false,_deletingUser:false,_savingStudentCard:false,_logLessonSaving:false,_sendingPlacementTest:false,_ptpSubmitting:false,_exportingICal:false,_addingToClass:false,_savingSalary:false,_ringTimeout:null});
+  Object.assign(S,{role:null,profile:null,contacts:[],inCall:false,schoolId:null,userId:null,_currentClassData:null,_cvStudentId:null,_aiSending:false,pendingRoom:null,pendingPartner:null,currentAssignId:null,studentRowId:null,_loadingVocab:false,_savingMaterial:false,_deletingMaterial:false,_savingEvent:false,_deletingEvent:false,_deletingStudent:false,_deletingUser:false,_savingStudentCard:false,_logLessonSaving:false,_sendingPlacementTest:false,_ptpSubmitting:false,_exportingICal:false,_addingToClass:false,_savingSalary:false,_ringTimeout:null,_savingClass:false,_deletingClass:false});
   if(typeof LV!=='undefined')Object.assign(LV,{sections:[],materials:[],curSec:0,curEx:0,assignId:null,viewAll:false,_completing:false,_chatSending:false,chatRoomId:null});
+  // clear cached data
+  try{
+    window._libLessons=[];window._libLikeMap={};
+    if(typeof _libLikes!=='undefined')_libLikes={};
+    if(typeof _libFilter!=='undefined')_libFilter={lang:'',level:'',q:''};
+    if(window._lessonCache)Object.keys(window._lessonCache).forEach(k=>delete window._lessonCache[k]);
+    if(window._assignCache)Object.keys(window._assignCache).forEach(k=>delete window._assignCache[k]);
+    if(typeof _vocabWords!=='undefined'){_vocabWords=[];_vocabIdx=0;_vocabTraining=false;_vocabMissed=[];}
+  }catch(e){}
 }
-sb.auth.onAuthStateChange((event,session)=>{if(((event==='SIGNED_OUT'||event==='TOKEN_REFRESHED')&&!session)&&S.userId){S.userId=null;S.profile=null;S.role=null;S.schoolId=null;if(C('loginScreen'))C('loginScreen').style.display='flex';}});
+sb.auth.onAuthStateChange((event,session)=>{if(((event==='SIGNED_OUT'||event==='TOKEN_REFRESHED')&&!session)&&S.userId){
+  // cleanup channels on external logout
+  try{
+    if(S.notifyChannel){sb.removeChannel(S.notifyChannel);S.notifyChannel=null;}
+    if(typeof MS!=='undefined'&&MS.rtSub){sb.removeChannel(MS.rtSub);MS.rtSub=null;}
+    if(typeof cvChatChannel!=='undefined'&&cvChatChannel){sb.removeChannel(cvChatChannel);cvChatChannel=null;}
+    if(typeof TK!=='undefined'&&TK.rtSub){sb.removeChannel(TK.rtSub);TK.rtSub=null;}
+  }catch(e){}
+  S.userId=null;S.profile=null;S.role=null;S.schoolId=null;if(C('loginScreen'))C('loginScreen').style.display='flex';}});
 (async()=>{
   // First check if this is an invite/password-reset redirect
   const invited=await checkInviteToken();
@@ -3709,8 +3787,8 @@ function showScreen(id){
   // Get allowed screen IDs for current role
   const _allowedIds=(typeof NAV!=='undefined'&&NAV[S.role]||[]).map(n=>n.id).filter(Boolean);
   // Also allow screens that have no NAV entry but are valid sub-screens
-  const _extraAllowed=['s_vocab','t_lessons','t_homework','t_students','o_users','a_home','o_home'];
-  if(_allowedIds.length&&!_allowedIds.includes(id)&&!_extraAllowed.includes(id)){
+  const _extraAllowed={student:['s_vocab'],teacher:['t_lessons','t_homework','t_students'],admin:['a_home','t_lessons','t_homework','t_students'],owner:['o_home','o_users','t_lessons','t_homework','t_students']};
+  if(_allowedIds.length&&!_allowedIds.includes(id)&&!(_extraAllowed[S.role]||[]).includes(id)){
     console.warn('[showScreen] Access denied:',id,'for role:',S.role);
     return;
   }
@@ -3719,7 +3797,7 @@ function showScreen(id){
   document.querySelectorAll('.nav-item').forEach(el=>el.classList.toggle('active',el.id===`nav_${id}`));
   const fn={
     s_home:renderStudentHome,s_homework:renderStudentHw,s_lessons:renderStudentLessons,s_vocab:renderStudentVocab,s_materials:renderMaterials,
-    t_home:renderStudentHome,t_classes:renderClasses,t_schedule:renderSchedule,
+    t_classes:renderClasses,t_schedule:renderSchedule,
     t_students:renderTeacherStudents,t_homework:renderTeacherHw,t_lessons:renderTeacherLessons,t_materials:renderMaterials,
     t_messages:renderMessenger,t_tasks:renderTasks,
     a_home:renderAdminHome,a_classes:renderClasses,a_schedule:renderSchedule,
@@ -3736,7 +3814,16 @@ function showScreen(id){
 // ─── HELPERS ──────────────────────────────────────────────────────────────────
 const C=id=>document.getElementById(id);
 const setContent=h=>{C('content').innerHTML=h;requestAnimationFrame(()=>{if(S.lang==='en')applyEN(C('content'));else if(S.lang==='ge')applyGE(C('content'));});};
-function showToast(m){const t=C('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2800);}
+function showToast(m,type){
+  const tc=C('toast');if(!tc)return;
+  tc.textContent=m;
+  tc.className='';
+  if(type==='error')tc.classList.add('toast-error');
+  else if(type==='success')tc.classList.add('toast-success');
+  tc.classList.add('show');
+  clearTimeout(showToast._t);
+  showToast._t=setTimeout(()=>tc.classList.remove('show','toast-error','toast-success'),2800);
+}
 
 // ─── DATA CACHE (30s TTL) ─────────────────────────────────────────────────────
 const _DC={};
@@ -3757,6 +3844,11 @@ function openM(id){
   const el=C(id);
   el.classList.add('open');
   requestAnimationFrame(()=>{if(S.lang==='en')applyEN(el);else if(S.lang==='ge')applyGE(el);});
+}
+function openInviteStaff(){
+  openM('mInviteStaff');
+  const _ownerOpt=document.querySelector('#inv_role option[value="owner"]');
+  if(_ownerOpt)_ownerOpt.style.display=S.role==='owner'?'':'none';
 }
 function closeM(id){C(id).classList.remove('open');}
 const fmtDate=d=>d?new Date(d).toLocaleDateString('ru-RU'):'—';
@@ -3867,6 +3959,7 @@ function renderContacts(){
   </div>`;}).join('')||'<div style="padding:16px;color:var(--text3);font-size:.85rem">Нет контактов</div>';
 }
 async function callContact(partnerId,partnerName,partnerRole){
+  if(!S.profile?.id){showToast(t('Не авторизован'),'error');return;}
   C('contactPicker').classList.remove('open');
   if(S.inCall){showToast('Уже идёт звонок');return;}
   S.inCall=true;
@@ -4198,7 +4291,13 @@ async function openHWPlayer(hwId){
   HWP.hwId=hwId;HWP.answers={};
   const{data:hw}=await sb.from('homeworks').select('*').eq('id',hwId).eq('school_id',S.schoolId).single();
   if(!hw){showToast('ДЗ не найдено');return;}
-  if(S.role==='student'){if(!S.studentRowId||hw.student_id!==S.studentRowId){showToast('Доступ запрещён','error');return;}}
+  if(S.role==='student'){
+    if(!S.studentRowId&&S.profile?.email){
+      const{data:_stuRow}=await sb.from('students').select('id').eq('email',S.profile.email).eq('school_id',S.schoolId).single();
+      if(_stuRow)S.studentRowId=_stuRow.id;
+    }
+    if(!S.studentRowId||hw.student_id!==S.studentRowId){showToast('Доступ запрещён','error');return;}
+  }
   HWP.hwData=hw;
   try{HWP.exercises=JSON.parse(hw.description)||[];}catch(e){HWP.exercises=[];}
   C('hwpTitle').textContent='📋 '+hw.title;
@@ -4346,6 +4445,7 @@ async function renderStudentLessons(){
 async function renderTeacherStudents(){
   if(renderTeacherStudents._loading)return;renderTeacherStudents._loading=true;
   try{
+  const _tsSnap=S.screen;
   showSkel();
   // Если учитель — показываем только его учеников (teacher_id = S.profile.id)
   // Если owner/admin — показываем всех (через t_students, как учитель)
@@ -4356,6 +4456,7 @@ async function renderTeacherStudents(){
     if(isTeacher)q=q.eq('teacher_id',S.profile.id);
     return q;
   });
+  if(S.screen!==_tsSnap)return;
   const rows=(sts||[]).map(s=>{const sName=(_esc(s.first_name||'')+' '+_esc(s.last_name||'')).replace(/'/g,'&#39;');const sId=_esc(s.id).replace(/'/g,"&#39;");return`<tr>
     <td><div style="display:flex;align-items:center;gap:10px">${avHTML(s.first_name,s.last_name)}<div><div style="font-weight:600;cursor:pointer" onclick="openStudentCard('${sId}')">${_esc(s.first_name)} ${_esc(s.last_name)}</div><div style="font-size:.75rem;color:var(--text3)">${_esc(s.email||'—')}</div></div></div></td>
     <td>${_escHtml(s.language||'—')}</td><td><span class="badge badge-purple">${_escHtml(s.level||'—')}</span></td><td>${_escHtml(s.phone||'—')}</td>
@@ -4585,7 +4686,7 @@ async function renderAdminTeachers(){
       <button class="btn-danger" onclick="confirmDeleteUser('${tcId}','${tcName}','teacher')">🗑</button>
     </td></tr>`}).join('')||`<tr><td colspan="3" style="text-align:center;color:var(--text3)">${t('Нет учителей')}</td></tr>`;
   if(S.screen!==_adtSnap)return;
-  setContent(`<div class="section-header"><h2>👨‍🏫 ${t('Учителя')}</h2><button class="btn btn-purple" onclick="openM('mInviteStaff')">+ ${t('Пригласить')}</button></div>
+  setContent(`<div class="section-header"><h2>👨‍🏫 ${t('Учителя')}</h2><button class="btn btn-purple" onclick="openInviteStaff()">+ ${t('Пригласить')}</button></div>
     <div class="card" style="padding:0;overflow:hidden"><table><thead><tr><th>${t('Учитель')}</th><th>${t('Роль')}</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>`);
   }finally{renderAdminTeachers._loading=false;}
 }
@@ -4608,7 +4709,7 @@ async function renderOwnerUsers(){
     </td>
   </tr>`}).join('');
   if(S.screen!==_ouSnap)return;
-  setContent(`<div class="section-header"><h2>👥 Все пользователи</h2><button class="btn btn-purple" onclick="openM('mInviteStaff')">+ Пригласить сотрудника</button></div>
+  setContent(`<div class="section-header"><h2>👥 Все пользователи</h2><button class="btn btn-purple" onclick="openInviteStaff()">+ Пригласить сотрудника</button></div>
     <div class="card" style="padding:0;overflow:hidden"><table><thead><tr><th>${t('Пользователь')}</th><th>${t('Роль')}</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>`);
   }finally{renderOwnerUsers._loading=false;}
 }
@@ -4627,12 +4728,15 @@ async function applyRoleChange(){
     if(uid===S.profile?.id){showToast(t('Нет прав'),'error');return;}
     if(S.role==='admin'){
       // Admin cannot change an owner's role
-      const{data:_targetProf}=await sb.from('profiles').select('role').eq('id',uid).eq('school_id',S.schoolId).single();
+      const{data:_targetProf,error:_tpErr}=await sb.from('profiles').select('role').eq('id',uid).eq('school_id',S.schoolId).single();
+      if(_tpErr){showToast(t('Ошибка'),'error');return;}
       if(_targetProf?.role==='owner'){showToast(t('Нет прав'),'error');return;}
     }
     const{error}=await sb.from('profiles').update({role:newRole}).eq('id',uid).eq('school_id',S.schoolId);
     if(error){showToast('Ошибка: '+error.message,'error');return;}
-    closeM('mChangeRole');showToast('Роль изменена!');renderOwnerUsers();
+    closeM('mChangeRole');showToast('Роль изменена!');
+    if(S.role==='owner')renderOwnerUsers();
+    else if(S.role==='admin'){if(S.screen==='a_teachers')renderAdminTeachers();else renderAdminStudents();}
   }finally{if(_arcBtn){_arcBtn.disabled=false;}}
 }
 
@@ -4687,6 +4791,8 @@ async function confirmDeleteStudent(sid,name){
   if(e3){showToast('Ошибка удаления: '+e3.message,'error');return;}
   const{error:e4}=await sb.from('payments').delete().eq('student_id',sid).eq('school_id',S.schoolId);
   if(e4){showToast('Ошибка удаления: '+e4.message,'error');return;}
+  const{error:_seErr}=await sb.from('schedule_events').delete().eq('student_id',sid).eq('school_id',S.schoolId);
+  if(_seErr)console.error('schedule_events delete:',_seErr);
   // Финальное удаление ученика
   const{error}=await sb.from('students').delete().eq('id',sid).eq('school_id',S.schoolId);
   if(error){showToast('❌ '+error.message);console.error('[deleteStudent]',error);return;}
@@ -4700,7 +4806,9 @@ async function confirmDeleteStudent(sid,name){
 async function renderOwnerStudents(){
   if(renderOwnerStudents._loading)return;renderOwnerStudents._loading=true;
   try{
+  const _osSnap=S.screen;
   const{data:sts}=await sb.from('students').select('*').eq('school_id',S.schoolId).order('last_name');
+  if(S.screen!==_osSnap)return;
   const rows=(sts||[]).map(s=>{const _sId=_esc(s.id).replace(/'/g,"&#39;");return`<tr>
     <td><div style="display:flex;align-items:center;gap:10px">${avHTML(s.first_name,s.last_name)}<div><div style="font-weight:600;cursor:pointer" onclick="openStudentCard('${_sId}')">${_esc(s.first_name)} ${_esc(s.last_name)}</div><div style="font-size:.75rem;color:var(--text3)">${_esc(s.email||'—')}</div></div></div></td>
     <td>${_escHtml(s.language||'—')}</td><td><span class="badge badge-purple">${_escHtml(s.level||'—')}</span></td><td>${_escHtml(s.phone||'—')}</td>
@@ -4786,8 +4894,8 @@ async function savePayment(){
 let salPeriod='month';
 async function renderSalaries(){
   if(renderSalaries._loading)return;renderSalaries._loading=true;
-  if(!['owner','admin'].includes(S.role)){showToast(t('Нет прав'),'error');renderSalaries._loading=false;return;}
   try{
+  if(!['owner','admin'].includes(S.role)){showToast(t('Нет прав'),'error');return;}
   const _salSnap=S.screen;
   const[{data:ts},{data:sals},{data:logs}]=await Promise.all([
     sb.from('profiles').select('*').eq('school_id',S.schoolId).eq('role','teacher'),
@@ -4800,7 +4908,7 @@ async function renderSalaries(){
   const rows=(ts||[]).map(tc=>{
     const sal=(sals||[]).find(s=>s.teacher_id===tc.id);
     const rate=sal?.rate_per_lesson||0,cur=sal?.currency||'GEL';
-    const cnt=(logs||[]).filter(l=>l.teacher_id===tc.id&&l.lesson_date&&new Date(l.lesson_date)>=start).length;
+    const cnt=(logs||[]).filter(l=>l.teacher_id===tc.id&&l.lesson_date&&l.lesson_date>=(start.toISOString().split('T')[0])).length;
     const safeTname=(_esc(tc.first_name||'')+' '+_esc(tc.last_name||'')).replace(/'/g,'&#39;');
     const safeTcId=_esc(tc.id).replace(/'/g,"&#39;");
     return`<tr>
@@ -5043,6 +5151,7 @@ async function saveStudent(){
     const email=C('st_email').value.trim();
     if(!f||!l){showToast('Введи имя и фамилию!');return;}
     if(!email){showToast('Введи email для приглашения!');return;}
+    if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){showToast(t('Некорректный email'),'error');return;}
     // Insert student record
     const{error:stuErr}=await sb.from('students').insert({school_id:S.schoolId,first_name:f,last_name:l,email,phone:C('st_phone').value.trim(),language:C('st_lang').value,level:C('st_level').value,teacher_id:S.profile.id});
     if(stuErr){showToast('Ошибка добавления: '+stuErr.message,'error');return;}
@@ -5072,6 +5181,7 @@ async function saveInviteStaff(){
     if(role==='owner'&&S.role!=='owner'){showToast('Только владелец может назначать владельцев','error');return;}
     if(!f||!l){showToast('Введи имя и фамилию!');return;}
     if(!email){showToast('Введи email!');return;}
+    if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){showToast(t('Некорректный email'),'error');return;}
     try{
       await callInviteFunction(email,role,f,l);
       closeM('mInviteStaff');
@@ -5083,7 +5193,7 @@ async function saveInviteStaff(){
       showToast(t('Ошибка')+': '+e.message);
     }
   }finally{
-    if(btn){btn.disabled=false;btn.textContent='Отправить приглашение';}
+    if(btn){btn.disabled=false;btn.textContent=t('Отправить приглашение');}
   }
 }
 // ─── CLASSES ──────────────────────────────────────────────────────────────────
@@ -5171,7 +5281,8 @@ async function editClass(id){
   C('classModalTitle').textContent=t('Редактировать класс');openM('mAddClass');
 }
 async function saveClass(){
-  if(!['teacher','admin','owner'].includes(S.role)){showToast('Доступ запрещён','error');return;}
+  if(S._savingClass)return;S._savingClass=true;
+  if(!['teacher','admin','owner'].includes(S.role)){showToast('Доступ запрещён','error');S._savingClass=false;return;}
   const btn=document.querySelector('#mAddClass .btn.btn-purple');
   if(btn){btn.disabled=true;btn.textContent='Сохранение...';}
   try{
@@ -5184,6 +5295,7 @@ async function saveClass(){
     closeM('mAddClass');dcInval('classes_'+S.schoolId);dcInval('classes_light_'+S.schoolId);showToast('Класс сохранён!');renderClasses();
   }finally{
     if(btn){btn.disabled=false;btn.textContent='Сохранить';}
+    S._savingClass=false;
   }
 }
 
@@ -5203,6 +5315,8 @@ async function cdpDeleteClass(){
     if(_cde2){showToast('Ошибка удаления расписания: '+_cde2.message,'error');return;}
     const{error:_cde3}=await sb.from('lesson_assignments').delete().eq('class_id',cid).eq('school_id',S.schoolId);
     if(_cde3){showToast('Ошибка удаления назначений: '+_cde3.message,'error');return;}
+    const{error:_hwDelErr}=await sb.from('homeworks').delete().eq('class_id',cid).eq('school_id',S.schoolId);
+    if(_hwDelErr)console.error('homeworks delete:',_hwDelErr);
     const{error}=await sb.from('classes').delete().eq('id',cid).eq('school_id',S.schoolId);
     if(error){showToast('❌ '+error.message);return;}
     showToast('✅ Класс «'+_esc(cl.name)+'» удалён');
@@ -5401,18 +5515,22 @@ async function removeFromClass(csId,btn){
 
 // ─── SCHEDULE ─────────────────────────────────────────────────────────────────
 let scheduleWeekOffset=0;
-function _schedCacheKey(){return 'schedule_'+S.schoolId+'_'+(S.role==='teacher'?S.profile?.id:S.role==='student'&&S.studentRowId?S.studentRowId:'all');}
+function _schedCacheKey(){return 'schedule_'+S.schoolId+'_'+(S.role==='teacher'?S.profile?.id:S.role==='student'?(S.studentRowId||'student_unknown'):'all');}
 async function renderSchedule(){
   if(renderSchedule._loading)return;renderSchedule._loading=true;
   try{
   showSkel();
   const _schedSnap=S.screen;
+  if(S.role==='student'&&!S.studentRowId){
+    setContent('<div class="empty-state"><div class="ei">📅</div><p>'+t('Профиль ученика не найден')+'</p></div>');
+    renderSchedule._loading=false;
+    return;
+  }
   const[{data:evs},{data:classes}]=await Promise.all([
     dc(_schedCacheKey(),()=>{
     let _q=sb.from('schedule_events').select('*,class:class_id(name,color)').eq('school_id',S.schoolId);
     if(S.role==='teacher'&&S.profile?.id)_q=_q.eq('teacher_id',S.profile.id);
     else if(S.role==='student'){
-      if(!S.studentRowId){showToast(t('Ошибка'),'error');return;}
       _q=_q.eq('student_id',S.studentRowId);
     }
     return _q;
@@ -5431,7 +5549,7 @@ async function renderSchedule(){
   const dayDates=Array.from({length:7},(_,i)=>{const d=new Date(weekStart);d.setDate(weekStart.getDate()+i);return d;});
   const isToday=d=>d.toDateString()===today.toDateString();
 
-  const HOURS=Array.from({length:14},(_,i)=>i+8); // 8:00-21:00
+  const HOURS=Array.from({length:16},(_,i)=>i+8); // 8:00-23:00
 
   let headRow=`<div class="sch-head"></div>`+dayDates.map((d,i)=>`<div class="sch-head" style="${isToday(d)?'background:var(--purple-light);color:var(--purple)':''}">${days[i]}<br><span style="font-size:.9rem;font-weight:800">${d.getDate()}</span></div>`).join('');
 
@@ -5479,7 +5597,7 @@ function openAddEventOnDate(date,time){
 }
 function openAddEventForClass(classId){
   openAddEventOnDate('','');
-  setTimeout(()=>{if(C('ev_class'))C('ev_class').value=classId;},50);
+  const _evc=C('ev_class');if(_evc)_evc.value=classId;
 }
 async function viewEvent(id){
   const{data:ev}=await sb.from('schedule_events').select('*,class:class_id(name)').eq('id',id).eq('school_id',S.schoolId).single();
@@ -5499,7 +5617,7 @@ async function saveEvent(){
     const title=C('ev_title').value.trim();if(!title){showToast('Введи название!');return;}
     const _evDate=C('ev_date').value;if(!_evDate){showToast('Укажи дату!');return;}
     const _evTime=C('ev_time').value;if(!_evTime){showToast('Укажи время!');return;}
-    const data={school_id:S.schoolId,class_id:C('ev_class').value||null,teacher_id:S.profile.id,title,event_date:C('ev_date').value,event_time:C('ev_time').value,duration_minutes:(()=>{const _v=parseInt(C('ev_dur').value);return Number.isFinite(_v)&&_v>0?_v:60;})(),status:(()=>{const _s=C('ev_status').value;return['scheduled','completed','cancelled'].includes(_s)?_s:'scheduled';})(),notes:C('ev_notes').value.trim()};
+    const data={school_id:S.schoolId,class_id:C('ev_class').value||null,teacher_id:S.profile.id,title,event_date:C('ev_date').value,event_time:(C('ev_time').value||'').substring(0,5)||'09:00',duration_minutes:(()=>{const _v=parseInt(C('ev_dur').value);return Number.isFinite(_v)&&_v>0?_v:60;})(),status:(()=>{const _s=C('ev_status').value;return['scheduled','completed','cancelled'].includes(_s)?_s:'scheduled';})(),notes:C('ev_notes').value.trim()};
     let _seResult;if(S.editEventId){const _evUpdatePayload={...data};if(['admin','owner'].includes(S.role))delete _evUpdatePayload.teacher_id;let _seQ=sb.from('schedule_events').update(_evUpdatePayload).eq('id',S.editEventId).eq('school_id',S.schoolId);if(!['admin','owner'].includes(S.role))_seQ=_seQ.eq('teacher_id',S.profile?.id);_seResult=await _seQ;}else{_seResult=await sb.from('schedule_events').insert(data);}
     const{error}=_seResult;
     if(error){showToast('Ошибка: '+error.message,'error');return;}
@@ -5516,9 +5634,10 @@ async function deleteEvent(id){
   if(!confirm('Удалить занятие?'))return;
   if(S._deletingEvent)return;S._deletingEvent=true;
   try{
-    let _deQ=sb.from('schedule_events').delete().eq('id',id).eq('school_id',S.schoolId);if(!['admin','owner'].includes(S.role))_deQ=_deQ.eq('teacher_id',S.profile?.id);const{error}=await _deQ;
-    if(error){showToast('Ошибка: '+error.message,'error');return;}
-    showToast('Удалено');dcInval(_schedCacheKey());
+    let _deQ=sb.from('schedule_events').delete().eq('id',id).eq('school_id',S.schoolId);if(!['admin','owner'].includes(S.role))_deQ=_deQ.eq('teacher_id',S.profile?.id);const{data:_delRows,error}=await _deQ.select('id');
+    if(error){showToast(t('Ошибка')+': '+error.message,'error');return;}
+    if(!_delRows||_delRows.length===0){showToast(t('Нет прав'),'error');return;}
+    showToast(t('Удалено'));dcInval(_schedCacheKey());
     if(S.currentClassId)loadClassTab('schedule');else renderSchedule();
   }catch(e){
     showToast('Ошибка удаления: '+e.message,'error');
@@ -5933,6 +6052,7 @@ let _libLikes={};
 
 async function renderLibrary(){
   if(renderLibrary._busy)return;renderLibrary._busy=true;
+  const _libSnap=S.screen;
   try{
   showSkel();
   const[{data:lessons},{data:myLikes}]=await Promise.all([
@@ -5944,7 +6064,9 @@ async function renderLibrary(){
       .order('shared_at',{ascending:false}),
     sb.from('lesson_library_likes').select('lesson_id').eq('user_id',S.userId).eq('school_id',S.schoolId)
   ]);
+  if(S.screen!==_libSnap)return;
   const{data:likeCounts}=await sb.from('lesson_library_likes').select('lesson_id').eq('school_id',S.schoolId).in('lesson_id',(lessons||[]).map(l=>l.id));
+  if(S.screen!==_libSnap)return;
   const likeMap={};
   (likeCounts||[]).forEach(r=>{likeMap[r.lesson_id]=(likeMap[r.lesson_id]||0)+1;});
   _libLikes={};
@@ -5952,6 +6074,9 @@ async function renderLibrary(){
   window._libLessons=lessons||[];
   window._libLikeMap=likeMap;
   _renderLibGrid();
+  }catch(e){
+  setContent('<div class="empty-state"><div class="ei">❌</div><p>'+t('Ошибка загрузки')+'</p></div>');
+  console.error('renderLibrary error:',e);
   }finally{renderLibrary._busy=false;}
 }
 
@@ -6027,6 +6152,7 @@ async function shareToLibrary(){
 }
 
 async function copyFromLibrary(lessonId,btn){
+  if(!S.profile?.id){showToast(t('Профиль не загружен'),'error');return;}
   if(!['teacher','admin','owner'].includes(S.role)){showToast('Доступ запрещён','error');return;}
   if(copyFromLibrary._busy===lessonId)return;copyFromLibrary._busy=lessonId;
   if(btn){btn.disabled=true;btn.textContent='Копирование...';}
@@ -6041,7 +6167,7 @@ async function copyFromLibrary(lessonId,btn){
       content:lesson.content,
       published:false,
       is_shared:false,
-      teacher_id:S.profile?.id||S.userId
+      teacher_id:S.profile.id
     });
     if(error){showToast('❌ '+error.message);return;}
     dcInval('lessons_'+S.schoolId);
@@ -6176,7 +6302,7 @@ function lvRender(){
   C('cv_btnFinishSec').style.display=(total>0&&isLastEx&&!isLastSec)?'':'none';
   // content
   if(!ex){C('cv_exerciseContent').innerHTML=`<div class="empty-state" style="padding:60px 0"><div class="ei">📭</div><p>${t('Нет упражнений в этом разделе')}</p></div>`;
-  } else {C('cv_exerciseContent').innerHTML=renderBlockView(ex,LV.curSec*1000+LV.curEx);}
+  } else {C('cv_exerciseContent').innerHTML=renderBlockView(ex,`${LV.curSec}_${LV.curEx}`);}
   // scroll top
   const sc=C('cv_exerciseContent').closest('.cv-content-scroll');if(sc)sc.scrollTop=0;
   // sections list in right sidebar
@@ -6236,7 +6362,7 @@ async function cvChatInit(roomId){
     .order('created_at',{ascending:true})
     .limit(60);
   // Guard: if classroom was closed or room changed while fetching, abort
-  if(LV.chatRoomId!==roomId)return;
+  if(LV.chatRoomId!==roomId){cvChatInit._pending=null;return;}
   msgs.innerHTML='';
   if(error){msgs.innerHTML='<div class="cv-chat-empty" style="color:var(--text3)">Чат временно недоступен</div>';if(cvChatInit._pending===roomId)cvChatInit._pending=null;return;}
   if(data&&data.length){data.forEach(m=>cvChatAddMsg(m));}
@@ -6246,7 +6372,7 @@ async function cvChatInit(roomId){
   if(cvChatChannel){try{sb.removeChannel(cvChatChannel);}catch(e){}cvChatChannel=null;}
   const dot=C('cv_chatDot');if(dot)dot.style.display='';
   cvChatChannel=sb.channel('lc_'+roomId)
-    .on('postgres_changes',{event:'INSERT',schema:'public',table:'lesson_chat',filter:'room_id=eq.'+roomId},(payload)=>{
+    .on('postgres_changes',{event:'INSERT',schema:'public',table:'lesson_chat',filter:'room_id=eq.'+roomId+',school_id=eq.'+S.schoolId},(payload)=>{
       const m=payload.new; if(!m||m.school_id!==S.schoolId)return;
       if(!document.getElementById('cvm_'+m.id)){
         const empty=C('cv_chatMsgs').querySelector('.cv-chat-empty');
@@ -6365,7 +6491,7 @@ function lvRenderAll(){
               <span style="padding:2px 10px;border-radius:20px;font-size:.72rem;font-weight:700;background:${_escHtml(m.color||'#eee')}">${_escHtml(m.icon||'?')} ${_escHtml(m.name||'')}</span>
               <span style="font-size:.75rem;color:var(--text3)">${ei+1} из ${exs.length}</span>
             </div>
-            ${renderBlockView(ex,si*1000+ei)}
+            ${renderBlockView(ex,`${si}_${ei}`)}
           </div>`;
         }).join('')}
     </div>`;
@@ -6453,7 +6579,7 @@ function renderBlockView(b,i){
 }
     return`<div class="lesson-view-block">
       ${b.note?`<div style="padding:10px;background:var(--yellow-light);border-radius:8px;font-size:.85rem;margin-bottom:12px">📌 ${_escHtml(b.note)}</div>`:''}
-      ${embedUrl?`<div style="position:relative;padding-bottom:56.25%;height:0;overflow:hidden;border-radius:10px;margin-bottom:12px"><iframe src="${embedUrl}" style="position:absolute;top:0;left:0;width:100%;height:100%;border:none;border-radius:10px" allowfullscreen sandbox="allow-scripts allow-same-origin allow-forms allow-popups"></iframe></div>`:'<div style="color:var(--text3);padding:20px;text-align:center">🎬 Видео не указано</div>'}
+      ${embedUrl?`<div style="position:relative;padding-bottom:56.25%;height:0;overflow:hidden;border-radius:10px;margin-bottom:12px"><iframe src="${embedUrl}" style="position:absolute;top:0;left:0;width:100%;height:100%;border:none;border-radius:10px" allowfullscreen sandbox="allow-scripts allow-forms allow-popups allow-presentation"></iframe></div>`:'<div style="color:var(--text3);padding:20px;text-align:center">🎬 Видео не указано</div>'}
       ${b.question?`<div style="font-weight:700;margin-top:8px">❓ ${_escHtml(b.question)}</div><textarea style="width:100%;margin-top:8px;padding:8px 10px;border:2px solid var(--gray-border);border-radius:8px;font-family:var(--font);min-height:60px" placeholder="Напиши свой ответ..."></textarea>`:''}
     </div>`;
   }
@@ -6561,8 +6687,8 @@ async function completeLessonView(){
         await sb.from('lessons_log').insert({
           school_id:S.schoolId,
           student_id:S.studentRowId,
-          lesson_id:S.currentAssignId,
-          teacher_id:null,
+          lesson_id:(window._assignCache||{})[S.currentAssignId]?.lesson_id||S.currentAssignId,
+          teacher_id:(window._assignCache||{})[S.currentAssignId]?.teacher_id||null,
           status:'completed',
           lesson_date:new Date().toISOString().split('T')[0]
         });
@@ -6621,7 +6747,7 @@ function openMaterialPreview(url,title,type,lang,level){
   C('mp_openBtn').dataset.url=url;
   if(embedUrl){
     if(!embedUrl||!/^https?:\/\//i.test(embedUrl)){C('mp_body').innerHTML='<p style="color:var(--pink)">Некорректная ссылка</p>';return;}
-    C('mp_body').innerHTML=`<div class="mp-iframe-wrap"><iframe src="${_escHtml(embedUrl)}" allowfullscreen allow="autoplay" sandbox="allow-scripts allow-same-origin allow-popups allow-forms"></iframe></div>`;
+    C('mp_body').innerHTML=`<div class="mp-iframe-wrap"><iframe src="${_escHtml(embedUrl)}" allowfullscreen allow="autoplay" sandbox="allow-scripts allow-forms allow-popups allow-presentation"></iframe></div>`;
   } else {
     C('mp_openBtn').onclick=()=>{if(/^https?:\/\//i.test(url))window.open(url,'_blank','noopener,noreferrer');else showToast('Небезопасный URL','error');};
     C('mp_body').innerHTML=`<div class="mp-no-embed">
@@ -6705,7 +6831,9 @@ const MS={convId:null,convs:[],msgs:[],uploading:false,rtSub:null,profiles:[]};
 async function renderMessenger(){
   if(renderMessenger._loading)return;
   renderMessenger._loading=true;
+  const _msgSnap=S.screen;
   try{
+  if(S.screen!==_msgSnap)return;
   setContent(`<div class="messenger-layout" id="msgrLayout">
     <div class="msg-sidebar">
       <div class="msg-search"><input type="text" placeholder="${t('🔍 Поиск...')}" oninput="filterConvs(this.value)" id="msSearch"></div>
@@ -6734,7 +6862,7 @@ async function loadConvs(){
   const[{data:convs},{data:lastMsgs},{data:profs}]=await Promise.all([
     sb.from('conversations').select('*').in('id',convIds).eq('school_id',S.schoolId),
     sb.from('messages').select('*').in('conversation_id',convIds).eq('school_id',S.schoolId).order('created_at',{ascending:false}).limit(convIds.length*10),
-    sb.from('profiles').select('id,first_name,last_name,role').eq('school_id',S.schoolId)
+    sb.from('profiles').select('id,first_name,last_name,role').eq('school_id',S.schoolId).neq('role','student')
   ]);
   MS.profiles=profs||[];
   // Build conv list with last message
@@ -6801,6 +6929,7 @@ function fmtMsgTime(iso){
 
 async function openConv(convId){
   if(!S.profile?.id)return;
+  if(MS.convs&&MS.convs.length>0&&!MS.convs.find(cv=>cv.id===convId)){showToast(t('Нет прав'),'error');return;}
   if(MS._openingConv===convId)return;MS._openingConv=convId;
   try{
   MS.convId=convId;
@@ -6912,7 +7041,8 @@ async function uploadMsgFile(input){
   const fileUrl=urlData?.publicUrl;
   if(!fileUrl){showToastCard(t('Ошибка'),'Не удалось получить URL файла','error','❌',4000);return;}
   // Clear loading toast (it auto-removes)
-  await sb.from('messages').insert({conversation_id:MS.convId,sender_id:S.profile.id,body:'',file_url:fileUrl,file_name:file.name,file_size:file.size,file_type:file.type,school_id:S.schoolId});
+  const{error:_mInsErr}=await sb.from('messages').insert({conversation_id:MS.convId,sender_id:S.profile.id,body:'',file_url:fileUrl,file_name:file.name,file_size:file.size,file_type:file.type,school_id:S.schoolId});
+  if(_mInsErr){showToastCard(t('Ошибка отправки файла'),''+_mInsErr.message,'error','❌');return;}
   showToastCard(t('Файл отправлен'),'','success','✅');
   }finally{MS.uploading=false;}
 }
@@ -7010,6 +7140,17 @@ async function createConv(){
     if(type==='direct'){
       const uid=document.getElementById('nc_user')?.value;
       if(!uid)return;
+      // dedup check — look for existing direct conversation
+      if(S.profile?.id){
+        const{data:_myMems}=await sb.from('conversation_members').select('conversation_id').eq('user_id',S.profile.id).eq('school_id',S.schoolId);
+        if(_myMems&&_myMems.length){
+          const _myConvIds=_myMems.map(m=>m.conversation_id);
+          const{data:_theirMems}=await sb.from('conversation_members').select('conversation_id').eq('user_id',uid).eq('school_id',S.schoolId).in('conversation_id',_myConvIds);
+          if(_theirMems&&_theirMems.length){
+            closeM('mNewConv');await openConv(_theirMems[0].conversation_id);return;
+          }
+        }
+      }
       members=[S.profile.id,uid];
       // Check existing direct conv
       const prof=MS.profiles.find(p=>p.id===uid);
@@ -7037,13 +7178,15 @@ async function createConv(){
 // ═══════════════════════════════════════════════════════════════════════════════
 // ─── TASKS / KANBAN ───────────────────────────────────────────────────────────
 // ═══════════════════════════════════════════════════════════════════════════════
-const TK={tasks:[],filterUser:'all',rtSub:null,_movingTask:null,_deletingTask:false};
+const TK={tasks:[],filterUser:'all',rtSub:null,_movingTask:null,_deletingTask:false,_movingTasks:new Set(),_deletingTasks:new Set()};
 let _taskReminderInterval=null;
 
 async function renderTasks(){
   if(renderTasks._loading)return;
   renderTasks._loading=true;
+  const _tkSnap=S.screen;
   try{
+  if(S.screen!==_tkSnap)return;
   setContent(`<div>
     <div class="section-header"><h2>✅ ${t('Задачи')}</h2>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
@@ -7204,14 +7347,14 @@ async function saveTask(){
   if(btn){btn.disabled=true;btn.textContent='Сохранение...';}
   try{
     const title=C('task_title').value.trim();
-    if(!title||title.trim().length===0){showToast(t('Заполните поле'),'error');return;}
+    if(!title){showToast(t('Заполните поле'),'error');return;}
     if(title.length>255){showToast(t('Слишком длинное название'),'error');return;}
     const taskDesc=C('task_desc').value.trim()||null;
     if(taskDesc&&taskDesc.length>2000){showToast(t('Слишком длинное описание'),'error');return;}
     const userId=['owner','admin'].includes(S.role)?C('task_assignee')?.value||S.profile.id:S.profile.id;
     const payload={
       school_id:S.schoolId,user_id:userId,
-      title,description:C('task_desc').value.trim()||null,
+      title,description:taskDesc||null,
       priority:C('task_priority').value,status:C('task_status').value,
       due_date:C('task_due').value||null,
       remind_at:C('task_remind').value?new Date(C('task_remind').value).toISOString():null,
@@ -7432,22 +7575,26 @@ let _vocabWords=[];let _vocabIdx=0;let _vocabTraining=false;let _vocabMissed=[];
 async function renderStudentVocab(){
   if(S._loadingVocab)return;S._loadingVocab=true;
   try{
+  const _svSnap=S.screen;
   showSkel();
   _vocabWords=[];_vocabTraining=false;_vocabIdx=0;
   const isEn=S.lang==='en';
   // Only load vocab from lessons assigned to this student
   if(!S.studentRowId){
     // Try to get studentRowId
+    if(!S.profile?.email){setContent('<div class="empty-state"><p>'+t('Ошибка загрузки')+'</p></div>');S._loadingVocab=false;return;}
     const{data:stuRow}=await sb.from('students').select('id').eq('email',S.profile.email).eq('school_id',S.schoolId).single();
     if(stuRow?.id)S.studentRowId=stuRow.id;
   }
   const{data:assigns}=await sb.from('lesson_assignments').select('lesson_id').eq('student_id',S.studentRowId||'').eq('school_id',S.schoolId);
   const lessonIds=(assigns||[]).map(a=>a.lesson_id).filter(Boolean);
+  if(S.screen!==_svSnap)return;
   if(!lessonIds.length){
     setContent('<div class="empty-state"><div class="ei">📖</div><p>Нет назначенных уроков</p></div>');
     return;
   }
   const{data:lessons}=await sb.from('lessons').select('title,content').in('id',lessonIds).eq('school_id',S.schoolId).eq('published',true);
+  if(S.screen!==_svSnap)return;
   (lessons||[]).forEach(lesson=>{
     let cont;try{cont=typeof lesson.content==='string'?JSON.parse(lesson.content):lesson.content;}catch(e){return;}
     if(!cont||!cont.sections)return;
