@@ -299,7 +299,7 @@ tr:hover td{background:#FAFAFA}
 .ctrl-btn.end{background:var(--red);color:#fff;width:52px;height:52px;font-size:1.2rem}
 .ctrl-btn:hover{transform:scale(1.1)}
 .ctrl-label{font-size:.65rem;color:#888;margin-top:2px;text-align:center}
-#incomingCall{display:none;position:fixed;bottom:100px;right:24px;background:#fff;border-radius:16px;box-shadow:0 8px 32px rgba(0,0,0,.2);padding:20px;z-index:350;width:260px;border:2px solid var(--green)}
+#incomingCall{display:none;position:fixed;bottom:100px;right:24px;background:#fff;border-radius:16px;box-shadow:0 8px 32px rgba(0,0,0,.2);padding:20px;z-index:510;width:260px;border:2px solid var(--green)}
 #incomingCall.show{display:block}
 #incomingCall .ic-name{font-weight:700;font-size:1rem;margin-bottom:4px}
 #incomingCall .ic-role{font-size:.8rem;color:var(--text3);margin-bottom:14px}
@@ -759,7 +759,7 @@ input,select,textarea{font-size:16px!important} /* Предотвращаем з
 .msg-compose textarea{flex:1;padding:9px 12px;border:2px solid var(--gray-border);border-radius:12px;font-size:.88rem;font-family:var(--font);resize:none;max-height:110px;min-height:38px;line-height:1.4;overflow-y:auto}
 .msg-compose textarea:focus{outline:none;border-color:var(--purple)}
 .msg-compose-btn{width:36px;height:36px;border-radius:50%;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:1rem;flex-shrink:0;transition:.15s}
-@media(max-width:768px){.msg-sidebar{width:220px}.msg-row{max-width:85%}}
+@media(max-width:767px){.msg-sidebar{width:220px}.msg-row{max-width:85%}}
 @media(max-width:520px){.messenger-layout{flex-direction:column}.msg-sidebar{width:100%;height:180px;flex-shrink:0}}
 
 /* ── TASKS / KANBAN ── */
@@ -869,7 +869,7 @@ body[data-theme="dark"] .lib-filters select,body[data-theme="dark"] .lib-filters
     </div>
     <!-- Login form -->
     <div id="loginForm">
-      <input type="email" id="loginEmail" placeholder="Email" autocomplete="email">
+      <input type="email" id="loginEmail" placeholder="Email" autocomplete="email" onkeydown="if(event.key==='Enter')document.getElementById('loginPass').focus();">
       <input type="password" id="loginPass" placeholder="Пароль" onkeydown="if(event.key==='Enter')doLogin()">
       <button class="btn-login" onclick="doLogin()">Войти</button>
       <div id="loginErr">Неверный email или пароль</div>
@@ -900,7 +900,7 @@ body[data-theme="dark"] .lib-filters select,body[data-theme="dark"] .lib-filters
     <h3 id="inviteTitle" style="text-align:center;margin-bottom:6px;font-size:1.05rem">Создайте пароль</h3>
     <p id="inviteSubtitle" style="text-align:center;font-size:.83rem;color:var(--text3);margin-bottom:16px">Вас пригласили в TeachyaED. Придумайте пароль для входа.</p>
     <div class="inv-email" id="inv_email"></div>
-    <input type="password" id="inv_pass1" placeholder="Новый пароль (мин. 6 символов)" autocomplete="new-password">
+    <input type="password" id="inv_pass1" placeholder="Новый пароль (мин. 6 символов)" autocomplete="new-password" onkeydown="if(event.key==='Enter')document.getElementById('inv_pass2').focus();">
     <input type="password" id="inv_pass2" placeholder="Повторите пароль" autocomplete="new-password" onkeydown="if(event.key==='Enter')setInvitePassword()">
     <button class="btn-login" onclick="setInvitePassword()" id="inv_btn">Войти в систему →</button>
     <div id="inviteErr"></div>
@@ -995,7 +995,7 @@ body[data-theme="dark"] .lib-filters select,body[data-theme="dark"] .lib-filters
       <div class="form-group"><label>Фамилия</label><input id="st_last" placeholder="Фамилия"></div>
     </div>
     <div class="form-group"><label>Email</label><input id="st_email" type="email" placeholder="email@..."></div>
-    <div class="form-group"><label>Телефон</label><input id="st_phone" placeholder="+995..."></div>
+    <div class="form-group"><label>Телефон</label><input type="tel" id="st_phone" placeholder="+995..."></div>
     <div class="form-row">
       <div class="form-group"><label>Язык</label><select id="st_lang"><option>Английский</option><option>Грузинский</option><option>Русский</option><option>Немецкий</option><option>Французский</option><option>Испанский</option></select></div>
       <div class="form-group"><label>Уровень</label><select id="st_level"><option>A1</option><option>A2</option><option>B1</option><option>B2</option><option>C1</option><option>C2</option></select></div>
@@ -1160,7 +1160,7 @@ body[data-theme="dark"] .lib-filters select,body[data-theme="dark"] .lib-filters
     </div>
     <div class="form-group" id="mat_url_area">
       <label id="mat_url_label">URL</label>
-      <input id="mat_url" placeholder="https://...">
+      <input type="url" id="mat_url" placeholder="https://...">
     </div>
     <div class="form-group"><label id="mat_lang_label">Язык</label><select id="mat_lang"><option>Английский</option><option>Грузинский</option><option>Русский</option><option>Немецкий</option><option>Французский</option></select></div>
     <div class="btn-row"><button class="btn btn-purple" onclick="saveMaterial()" id="mat_save_btn">Добавить</button><button class="btn btn-outline" id="mat_cancel_btn" onclick="closeM('mAddMaterial')">Отмена</button></div>
@@ -1805,7 +1805,6 @@ const TRANSLATIONS={
   'Нет учеников в школе':'No students in school',
   'Урок завершён!':'Lesson complete!',
   'Урок завершён! 🎉':'Lesson complete! 🎉',
-  'Весь урок':'Full lesson',
   'Раздел':'Section',
   'Нет разделов':'No sections',
   'Нет упражнений':'No exercises',
@@ -1931,7 +1930,6 @@ const TRANSLATIONS={
   'DOC, DOCX, TXT, PPTX, XLSX — до 50MB':'DOC, DOCX, TXT, PPTX, XLSX — up to 50MB',
   'MP4, WebM, MOV — или вставь ссылку ниже':'MP4, WebM, MOV — or paste a link below',
   'Или URL файла (необязательно)':'Or file URL (optional)',
-  'Ссылка на видео (YouTube, Vimeo) — или загрузи файл выше':'Video link (YouTube, Vimeo) — or upload file above',
   'Новый материал':'New Material','Файл':'File','Название':'Title','Тип':'Type','Уровень':'Level','Язык':'Language',
   'Видео':'Video','Аудио':'Audio','Ссылка':'Link','Документ':'Document',
   'Материал удалён':'Material deleted',
@@ -1996,7 +1994,6 @@ const TRANSLATIONS={
   // ── CALLS / WHITEBOARD ─────────────────────────────────────────────────────
   'Для звонка с учителем':'To call a teacher',
   'Позвони ученику через Диалер':'Call the student via Dialer',
-  'Собеседник':'Caller',
   'Собеседник завершил звонок':'The other person ended the call',
   'Звонок отклонён':'Call declined',
   'Уже идёт звонок':'Call already in progress',
@@ -2078,7 +2075,7 @@ const TRANSLATIONS={
   'Войти в систему →':'Enter the system →','Звонок':'Call',
   '⏳ Создаю комнату...':'⏳ Creating room...','⏳ Соединяю...':'⏳ Connecting...',
   'Ответ':'Answer','(пусто)':'(empty)','Кол-во классов':'Total classes',
-  'Новое занятие':'New Event','Раздел':'Section','Весь урок':'Full lesson',
+  'Новое занятие':'New Event','Раздел':'Section',
   'Правильно!':'Correct!','Неверно.':'Incorrect.',
   'Правильный ответ':'Correct answer','Правильно':'Correct',
   'Все совпадения верны!':'All matches are correct!',
@@ -2086,7 +2083,6 @@ const TRANSLATIONS={
   'Материал':'Material','Загрузка материалов...':'Loading materials...',
   'Чат только для себя — заметки, ссылки, файлы.':'Self-chat — notes, links, files.',
   'Выбрать человека':'Select a person','Название группы':'Group name',
-  'Например: Команда учителей':'E.g. Teachers team',
   'Участники (все по умолчанию)':'Members (all by default)',
   'Редактировать задачу':'Edit task','Новая задача':'New task',
 
@@ -3294,17 +3290,19 @@ async function lookupWord(){
   if(!w)return;
   const res=document.getElementById('dictResult');
   res.innerHTML=`<div style="color:var(--text3)">🔍 ${_esc(t('Ищем...'))}</div>`;
-
+  const _lwCtrl=new AbortController();
+  const _lwTimer=setTimeout(()=>_lwCtrl.abort(),8000);
+  try{
   if(isRussian(w)){
     // Russian word → translate RU→EN via MyMemory, then look up EN definition
     try{
       // Step 1: translate to English
-      const tr=await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(w)}&langpair=ru|en`).then(r=>r.json());
+      const tr=await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(w)}&langpair=ru|en`,{signal:_lwCtrl.signal}).then(r=>r.json());
       const enWord=(tr.responseData?.translatedText||'').trim();
       if(!enWord){res.innerHTML=`<div style="color:var(--pink)">${t('Перевод не найден')}</div>`;return;}
 
       // Step 2: get EN definition
-      const data=await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(enWord.toLowerCase())}`).then(r=>r.json());
+      const data=await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(enWord.toLowerCase())}`,{signal:_lwCtrl.signal}).then(r=>r.json());
       const entry=Array.isArray(data)&&data[0];
       const phonetic=_escHtml(entry?.phonetics?.find(p=>p.text)?.text||'');
       const meanings=entry?(entry.meanings||[]).slice(0,2).map(m=>`
@@ -3321,14 +3319,17 @@ async function lookupWord(){
         </div>
         ${meanings}
         <button onclick="saveDictWord(JSON.parse(decodeURIComponent('${encodeURIComponent(JSON.stringify(saveKey))}')))" style="margin-top:8px;padding:5px 12px;background:var(--purple-light);color:var(--purple);border:none;border-radius:6px;font-size:.78rem;font-weight:600;cursor:pointer">+ ${t('Сохранить')}</button>`;
-    }catch(e){res.innerHTML=`<div style="color:var(--pink)">${_esc(t('Ошибка'))}: ${_escHtml(e.message)}</div>`;}
+    }catch(e){
+      if(e.name==='AbortError'){showToast(t('Timeout'),'error');return;}
+      res.innerHTML=`<div style="color:var(--pink)">${_esc(t('Ошибка'))}: ${_escHtml(e.message)}</div>`;
+    }
   } else {
     // English word → direct lookup
     try{
-      const data=await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(w.toLowerCase())}`).then(r=>r.json());
+      const data=await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(w.toLowerCase())}`,{signal:_lwCtrl.signal}).then(r=>r.json());
       if(!Array.isArray(data)||!data[0]){
         // fallback: translate EN→RU
-        const tr=await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(w)}&langpair=en|ru`).then(r=>r.json());
+        const tr=await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(w)}&langpair=en|ru`,{signal:_lwCtrl.signal}).then(r=>r.json());
         const ruWord=tr.responseData?.translatedText||'—';
         const saveKey=`${w} → ${ruWord}`;
         res.innerHTML=`<div style="background:var(--purple-light);border-radius:8px;padding:8px 12px;margin-bottom:10px">
@@ -3340,7 +3341,7 @@ async function lookupWord(){
       const entry=data[0];
       const phonetic=_escHtml(entry.phonetics?.find(p=>p.text)?.text||'');
       // Also get RU translation
-      const tr=await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(w)}&langpair=en|ru`).then(r=>r.json());
+      const tr=await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(w)}&langpair=en|ru`,{signal:_lwCtrl.signal}).then(r=>r.json());
       const ruWord=tr.responseData?.translatedText||'';
       const meanings=(entry.meanings||[]).slice(0,2).map(m=>`
         <div style="margin-bottom:8px">
@@ -3355,8 +3356,12 @@ async function lookupWord(){
         </div>
         ${meanings}
         <button onclick="saveDictWord(JSON.parse(decodeURIComponent('${encodeURIComponent(JSON.stringify(saveKey))}')))" style="margin-top:8px;padding:5px 12px;background:var(--purple-light);color:var(--purple);border:none;border-radius:6px;font-size:.78rem;font-weight:600;cursor:pointer">+ ${t('Сохранить')}</button>`;
-    }catch(e){res.innerHTML=`<div style="color:var(--pink)">${_esc(t('Ошибка'))}: ${_escHtml(e.message)}</div>`;}
+    }catch(e){
+      if(e.name==='AbortError'){showToast(t('Timeout'),'error');return;}
+      res.innerHTML=`<div style="color:var(--pink)">${_esc(t('Ошибка'))}: ${_escHtml(e.message)}</div>`;
+    }
   }
+  }finally{clearTimeout(_lwTimer);}
 }
 
 function saveDictWord(w){
@@ -3616,7 +3621,7 @@ async function doLogin(){
   try{
     const e=C('loginEmail').value.trim(),p=C('loginPass').value;
     const{data,error}=await sb.auth.signInWithPassword({email:e,password:p});
-    if(error){const _le=C('loginErr');if(_le){_le.textContent=error.message||t('Неверный email или пароль');_le.style.display='block';}return;}
+    if(error){const _le=C('loginErr');if(_le){_le.textContent=t('Неверный email или пароль');_le.style.display='block';}return;}
     await afterLogin(data.user);
   }finally{
     if(btn){btn.disabled=false;btn.textContent='Войти';}
@@ -3693,12 +3698,13 @@ async function doLogout(){
   if(typeof _taskReminderInterval!=='undefined'&&_taskReminderInterval){clearInterval(_taskReminderInterval);_taskReminderInterval=null;}
   if(S.notifyChannel){try{sb.removeChannel(S.notifyChannel);}catch(e){}S.notifyChannel=null;}
   if(MS.rtSub){try{sb.removeChannel(MS.rtSub);}catch(e){}MS.rtSub=null;}
+  if(typeof cvChatChannel!=='undefined'&&cvChatChannel){try{sb.removeChannel(cvChatChannel);}catch(e){}cvChatChannel=null;}
   C('app').style.display='none';C('loginScreen').style.display='flex';
   C('loginErr').style.display='none';C('dialBtn').style.display='none';
   Object.assign(S,{role:null,profile:null,contacts:[],inCall:false,schoolId:null,userId:null,_currentClassData:null,_cvStudentId:null,_aiSending:false,pendingRoom:null,pendingPartner:null,currentAssignId:null,studentRowId:null});
   if(typeof LV!=='undefined')Object.assign(LV,{sections:[],materials:[],curSec:0,curEx:0,assignId:null,viewAll:false,_completing:false,_chatSending:false});
 }
-sb.auth.onAuthStateChange((event,session)=>{if((event==='SIGNED_OUT'||event==='TOKEN_REFRESHED'&&!session)&&S.userId){S.userId=null;S.profile=null;S.role=null;S.schoolId=null;if(C('loginScreen'))C('loginScreen').style.display='flex';}});
+sb.auth.onAuthStateChange((event,session)=>{if(((event==='SIGNED_OUT'||event==='TOKEN_REFRESHED')&&!session)&&S.userId){S.userId=null;S.profile=null;S.role=null;S.schoolId=null;if(C('loginScreen'))C('loginScreen').style.display='flex';}});
 (async()=>{
   // First check if this is an invite/password-reset redirect
   const invited=await checkInviteToken();
@@ -4529,7 +4535,7 @@ async function renderAdminHome(){
     <div class="stat-card green"><div class="stat-val">${fmtCur(paid)}</div><div class="stat-lbl">${t('Получено')}</div></div>
     <div class="stat-card yellow"><div class="stat-val">${fmtCur(pend)}</div><div class="stat-lbl">${t('Ожидает')}</div></div>
   </div>`);
-  }catch(e){setContent('<div class="empty-state"><div class="ei">⚠️</div><p>Ошибка загрузки</p></div>');}
+  }catch(e){console.error('renderAdminHome error:',e);setContent('<div class="empty-state"><div class="ei">⚠️</div><p>Ошибка загрузки</p></div>');}
   finally{renderAdminHome._loading=false;}
 }
 async function renderOwnerHome(){
@@ -4552,7 +4558,7 @@ async function renderOwnerHome(){
     <div class="stat-card"><div class="stat-val">${adm?.length||0}</div><div class="stat-lbl">${t('Администраторов')}</div></div>
     <div class="stat-card" style="border-left-color:var(--blue)"><div class="stat-val">${cls?.length||0}</div><div class="stat-lbl">${t('Классов')}</div></div>
   </div>`);
-  }catch(e){setContent('<div class="empty-state"><div class="ei">⚠️</div><p>Ошибка загрузки</p></div>');}
+  }catch(e){console.error('renderOwnerHome error:',e);setContent('<div class="empty-state"><div class="ei">⚠️</div><p>Ошибка загрузки</p></div>');}
   finally{renderOwnerHome._loading=false;}
 }
 async function renderAdminStudents(){
@@ -4619,6 +4625,7 @@ async function applyRoleChange(){
   try{
     const uid=C('mChangeRole').dataset.uid||'';
     if(!uid)return;
+    if(uid===S.profile?.id){showToast(t('Нет прав'),'error');return;}
     const{error}=await sb.from('profiles').update({role:newRole}).eq('id',uid).eq('school_id',S.schoolId);
     if(error){showToast('Ошибка: '+error.message,'error');return;}
     closeM('mChangeRole');showToast('Роль изменена!');renderOwnerUsers();
@@ -4810,6 +4817,7 @@ async function saveSalary(){
   if(btn){btn.disabled=true;btn.textContent='Сохранение...';}
   try{
     const rate=C('sal_rate').value,cur=C('sal_cur').value;const rateNum=parseFloat(rate);if(!rate||isNaN(rateNum)){showToast(t?t('Введи корректную ставку!'):'Введи корректную ставку!');return;}
+    const _salVal=parseFloat(rate);if(isNaN(_salVal)||_salVal<0||!isFinite(_salVal)){showToast(t('Неверное значение'),'error');return;}
     const{error}=await sb.from('teacher_salaries').upsert({school_id:S.schoolId,teacher_id:S.currentSalTId,rate_per_lesson:rateNum,currency:cur,updated_at:new Date().toISOString()},{onConflict:'teacher_id,school_id'});
     if(error){showToast('Ошибка: '+error.message,'error');return;}
     dcInval('salaries_'+S.schoolId);closeM('mSetSalary');showToast('Ставка сохранена');if(S.screen==='o_salaries'||S.screen==='a_salaries')renderSalaries();
@@ -4950,6 +4958,9 @@ function matDropFile(e){
 }
 
 async function saveMaterial(){
+  if(S._savingMaterial)return;
+  S._savingMaterial=true;
+  try{
   const btn=C('mat_save_btn');
   if(btn){btn.disabled=true;btn.textContent=t('Загрузка...');}
   const name=C('mat_name').value.trim();
@@ -5002,6 +5013,9 @@ async function saveMaterial(){
     renderMaterials();
   }finally{
     if(btn){btn.disabled=false;btn.textContent=t('Добавить');}
+  }
+  }finally{
+    S._savingMaterial=false;
   }
 }
 
@@ -5065,10 +5079,12 @@ async function renderClasses(){
   if(renderClasses._loading)return;renderClasses._loading=true;
   try{
   showSkel();
+  const _clSnap=S.screen;
   const[{data:classes},{data:teachers}]=await Promise.all([
     dc('classes_'+S.schoolId,()=>sb.from('classes').select('*').eq('school_id',S.schoolId).order('created_at',{ascending:false})),
     dc('teachers_'+S.schoolId,()=>sb.from('profiles').select('id,first_name,last_name').eq('school_id',S.schoolId).in('role',['teacher','admin','owner']))
   ]);
+  if(S.screen!==_clSnap)return;
   C('cl_teacher').innerHTML=(teachers||[]).map(tc=>`<option value="${_esc(tc.id)}">${_esc(tc.first_name)} ${_esc(tc.last_name)}</option>`).join('');
   _allClasses=classes||[];
   const canCreate=['teacher','admin','owner'].includes(S.role);
@@ -5377,18 +5393,17 @@ async function renderSchedule(){
   if(renderSchedule._loading)return;renderSchedule._loading=true;
   try{
   showSkel();
+  const _schedSnap=S.screen;
   const[{data:evs},{data:classes}]=await Promise.all([
-    (()=>{
-  const _schKey='schedule_'+S.schoolId+'_'+(S.role==='teacher'?S.profile?.id:S.role==='student'&&S.studentRowId?S.studentRowId:'all');
-  return dc(_schKey,()=>{
+    dc(_schedCacheKey(),()=>{
     let _q=sb.from('schedule_events').select('*,class:class_id(name,color)').eq('school_id',S.schoolId);
     if(S.role==='teacher'&&S.profile?.id)_q=_q.eq('teacher_id',S.profile.id);
     else if(S.role==='student'&&S.studentRowId)_q=_q.eq('student_id',S.studentRowId);
     return _q;
-  });
-})(),
+  }),
     dc('classes_light_'+S.schoolId,()=>sb.from('classes').select('id,name,color').eq('school_id',S.schoolId))
   ]);
+  if(S.screen!==_schedSnap)return;
   C('ev_class').innerHTML=(classes||[]).map(c=>`<option value="${_esc(c.id)}">${_esc(c.name)}</option>`).join('');
 
   const today=new Date();
@@ -5806,11 +5821,16 @@ async function saveFromCE(publish){
 }
 
 async function renderTeacherLessons(){
+  if(renderTeacherLessons._loading)return;
+  renderTeacherLessons._loading=true;
+  try{
   showSkel();
+  const _tlSnap=S.screen;
   const[{data:lessons},{data:sts}]=await Promise.all([
     dc('lessons_'+S.schoolId,()=>sb.from('lessons').select('*').eq('school_id',S.schoolId).order('created_at',{ascending:false}).then(r=>r)),
     dc('students_'+S.schoolId,()=>sb.from('students').select('id,first_name,last_name').eq('school_id',S.schoolId).then(r=>r))
   ]);
+  if(S.screen!==_tlSnap){return;}
   C('assign_student').innerHTML=(sts||[]).map(s=>`<option value="${_esc(s.id)}">${_esc(s.first_name)} ${_esc(s.last_name)}</option>`).join('');
   window._lessonCache=window._lessonCache||{};
   (lessons||[]).forEach(l=>{window._lessonCache[l.id]=l;});
@@ -5831,6 +5851,9 @@ async function renderTeacherLessons(){
       </div>
     </div>`;}).join('');
   setContent(`<div class="section-header"><h2>📖 Уроки</h2><button class="btn btn-purple" onclick="newLesson()">+ Создать урок</button></div>${cards||'<div class="empty-state"><div class="ei">📖</div><p>Уроков пока нет</p></div>'}`);
+  }finally{
+  renderTeacherLessons._loading=false;
+  }
 }
 function newLesson(){
   CE.lessonId=null;C('ce_title').value='';C('ce_lang').value='Английский';C('ce_level').value='A1';
@@ -5901,10 +5924,11 @@ async function renderLibrary(){
       .select('id,title,language,level,content,shared_by,shared_at,school_id')
       .eq('is_shared',true)
       .eq('published',true)
+      .limit(500)
       .order('shared_at',{ascending:false}),
-    sb.from('lesson_library_likes').select('lesson_id').eq('user_id',S.userId)
+    sb.from('lesson_library_likes').select('lesson_id').eq('user_id',S.userId).eq('school_id',S.schoolId)
   ]);
-  const{data:likeCounts}=await sb.from('lesson_library_likes').select('lesson_id').in('lesson_id',(lessons||[]).map(l=>l.id));
+  const{data:likeCounts}=await sb.from('lesson_library_likes').select('lesson_id').eq('school_id',S.schoolId).in('lesson_id',(lessons||[]).map(l=>l.id));
   const likeMap={};
   (likeCounts||[]).forEach(r=>{likeMap[r.lesson_id]=(likeMap[r.lesson_id]||0)+1;});
   _libLikes={};
@@ -6412,7 +6436,7 @@ function renderBlockView(b,i){
 }
     return`<div class="lesson-view-block">
       ${b.note?`<div style="padding:10px;background:var(--yellow-light);border-radius:8px;font-size:.85rem;margin-bottom:12px">📌 ${_escHtml(b.note)}</div>`:''}
-      ${embedUrl?`<div style="position:relative;padding-bottom:56.25%;height:0;overflow:hidden;border-radius:10px;margin-bottom:12px"><iframe src="${embedUrl}" style="position:absolute;top:0;left:0;width:100%;height:100%;border:none;border-radius:10px" allowfullscreen></iframe></div>`:'<div style="color:var(--text3);padding:20px;text-align:center">🎬 Видео не указано</div>'}
+      ${embedUrl?`<div style="position:relative;padding-bottom:56.25%;height:0;overflow:hidden;border-radius:10px;margin-bottom:12px"><iframe src="${embedUrl}" style="position:absolute;top:0;left:0;width:100%;height:100%;border:none;border-radius:10px" allowfullscreen sandbox="allow-scripts allow-same-origin allow-forms allow-popups"></iframe></div>`:'<div style="color:var(--text3);padding:20px;text-align:center">🎬 Видео не указано</div>'}
       ${b.question?`<div style="font-weight:700;margin-top:8px">❓ ${_escHtml(b.question)}</div><textarea style="width:100%;margin-top:8px;padding:8px 10px;border:2px solid var(--gray-border);border-radius:8px;font-family:var(--font);min-height:60px" placeholder="Напиши свой ответ..."></textarea>`:''}
     </div>`;
   }
@@ -6651,6 +6675,9 @@ function showToastCard(title,text='',type='',icon='ℹ️',duration=4000){
 const MS={convId:null,convs:[],msgs:[],uploading:false,rtSub:null,profiles:[]};
 
 async function renderMessenger(){
+  if(renderMessenger._loading)return;
+  renderMessenger._loading=true;
+  try{
   setContent(`<div class="messenger-layout" id="msgrLayout">
     <div class="msg-sidebar">
       <div class="msg-search"><input type="text" placeholder="${t('🔍 Поиск...')}" oninput="filterConvs(this.value)" id="msSearch"></div>
@@ -6663,6 +6690,9 @@ async function renderMessenger(){
   </div>`);
   await loadConvs();
   initMsgrRealtime();
+  }finally{
+  renderMessenger._loading=false;
+  }
 }
 
 async function loadConvs(){
@@ -6828,8 +6858,12 @@ async function sendMsg(){
   if(!body)return;
   if(body.length>4000){showToast('Сообщение слишком длинное (макс 4000 символов)','error');return;}
   inp.value='';inp.style.height='auto';
-  const{error}=await sb.from('messages').insert({conversation_id:MS.convId,sender_id:S.profile.id,body,school_id:S.schoolId});
+  const{data:_sentMsg,error}=await sb.from('messages').insert({conversation_id:MS.convId,sender_id:S.profile.id,body,school_id:S.schoolId}).select('*').single();
   if(error){showToastCard(t('Ошибка'),''+error.message,'error','❌');inp.value=body;return;}
+  if(_sentMsg&&!MS.msgs.find(x=>x.id===_sentMsg.id)){
+    MS.msgs.push(_sentMsg);
+    refreshMsgThread&&refreshMsgThread();
+  }
   }finally{MS._sending=false;}
 }
 
@@ -6850,7 +6884,7 @@ async function uploadMsgFile(input){
   const fileUrl=urlData?.publicUrl;
   if(!fileUrl){showToastCard(t('Ошибка'),'Не удалось получить URL файла','error','❌',4000);return;}
   // Clear loading toast (it auto-removes)
-  await sb.from('messages').insert({conversation_id:MS.convId,sender_id:S.profile.id,body:'',file_url:fileUrl,file_name:file.name,file_size:file.size,file_type:file.type});
+  await sb.from('messages').insert({conversation_id:MS.convId,sender_id:S.profile.id,body:'',file_url:fileUrl,file_name:file.name,file_size:file.size,file_type:file.type,school_id:S.schoolId});
   showToastCard(t('Файл отправлен'),'','success','✅');
   }finally{MS.uploading=false;}
 }
@@ -6979,6 +7013,9 @@ const TK={tasks:[],filterUser:'all',rtSub:null,_movingTask:null,_deletingTask:fa
 let _taskReminderInterval=null;
 
 async function renderTasks(){
+  if(renderTasks._loading)return;
+  renderTasks._loading=true;
+  try{
   setContent(`<div>
     <div class="section-header"><h2>✅ ${t('Задачи')}</h2>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
@@ -6995,6 +7032,9 @@ async function renderTasks(){
     </div>
   </div>`);
   await loadTasks();
+  }finally{
+  renderTasks._loading=false;
+  }
 }
 
 async function loadTasks(){
@@ -7136,7 +7176,10 @@ async function saveTask(){
   if(btn){btn.disabled=true;btn.textContent='Сохранение...';}
   try{
     const title=C('task_title').value.trim();
-    if(!title){showToastCard(t('Введи название задачи'),'','error','❌');return;}
+    if(!title||title.trim().length===0){showToast(t('Заполните поле'),'error');return;}
+    if(title.length>255){showToast(t('Слишком длинное название'),'error');return;}
+    const taskDesc=C('task_desc').value.trim()||null;
+    if(taskDesc&&taskDesc.length>2000){showToast(t('Слишком длинное описание'),'error');return;}
     const userId=['owner','admin'].includes(S.role)?C('task_assignee')?.value||S.profile.id:S.profile.id;
     const payload={
       school_id:S.schoolId,user_id:userId,
@@ -7421,8 +7464,8 @@ function _renderVocabScreen(){
       <div style="max-width:400px;margin:40px auto;text-align:center">
         <div class="vocab-card" id="trainCard" onclick="this.classList.toggle('flipped')" style="height:160px;margin-bottom:24px">
           <div class="vocab-inner" style="height:160px">
-            <div class="vocab-front" style="font-size:1.5rem">${_esc(w.word)}</div>
-            <div class="vocab-back" style="font-size:1.3rem">${_esc(w.trans)}</div>
+            <div class="vocab-front" style="font-size:1.5rem">${_escHtml(w.word)}</div>
+            <div class="vocab-back" style="font-size:1.3rem">${_escHtml(w.trans)}</div>
           </div>
         </div>
         <p style="color:var(--text3);font-size:.85rem;margin-bottom:20px">${isEn?'Tap the card to reveal the translation':'Нажмите на карточку, чтобы увидеть перевод'}</p>
@@ -7436,8 +7479,8 @@ function _renderVocabScreen(){
   const cards=_vocabWords.map(w=>`
     <div class="vocab-card" onclick="this.classList.toggle('flipped')" style="margin-bottom:12px">
       <div class="vocab-inner">
-        <div class="vocab-front">${_esc(w.word)}</div>
-        <div class="vocab-back">${_esc(w.trans)}</div>
+        <div class="vocab-front">${_escHtml(w.word)}</div>
+        <div class="vocab-back">${_escHtml(w.trans)}</div>
       </div>
     </div>`).join('');
   setContent(`<div class="section-header"><h2>${lblTitle} <span class="badge badge-purple">${_vocabWords.length} ${isEn?'words':'слов'}</span></h2>
@@ -7561,7 +7604,7 @@ function exportICal(){
     (evs||[]).forEach(ev=>{
       if(!ev.event_date)return;
       const parts=(ev.event_time||'09:00').split(':');
-      const _evDt=new Date(ev.event_date+'T'+(ev.event_time||'09:00'));
+      const _evDt=new Date(ev.event_date+'T'+(ev.event_time||'09:00')+':00Z');
       const _evEndMs=_evDt.getTime()+(parseInt(ev.duration_minutes)||60)*60000;
       const _evEnd=new Date(_evEndMs);
       const _toIcalUtc=d=>d.toISOString().replace(/[-:]/g,'').replace(/\.\d{3}/,'');
