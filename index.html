@@ -142,6 +142,8 @@ body[data-theme="dark"] .hw-add-ex-btn,
 body[data-theme="dark"] .hwp-wo-chip,
 body[data-theme="dark"] .hwp-wo-sentence,
 body[data-theme="dark"] .hwr-ans{background:var(--gray-light)!important;border-color:var(--gray-border)!important;color:var(--text)!important;}
+body[data-theme="dark"] .hwr-ans.correct{border-color:#22c55e!important;background:#064e3b!important;color:#6ee7b7!important}
+body[data-theme="dark"] .hwr-ans.wrong{border-color:#ef4444!important;background:#450a0a!important;color:#fca5a5!important}
 /* ── Dark: Messenger ── */
 body[data-theme="dark"] .messenger-layout,
 body[data-theme="dark"] .msg-sidebar,
@@ -535,7 +537,7 @@ tr:hover td{background:#FAFAFA}
 .progress-bar{height:6px;background:var(--gray-border);border-radius:3px;overflow:hidden;margin-top:4px}
 .progress-fill{height:100%;background:linear-gradient(90deg,var(--purple),var(--pink));border-radius:3px;transition:.3s}
 .avatar-circle{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.9rem;color:#fff;flex-shrink:0}
-#toast{position:fixed;bottom:100px;right:24px;background:#111827;color:#fff;padding:10px 18px;border-radius:10px;font-size:.85rem;z-index:500;opacity:0;transition:.3s;pointer-events:none}
+#toast{position:fixed;bottom:100px;right:24px;background:#111827;color:#fff;padding:10px 18px;border-radius:10px;font-size:.85rem;z-index:9999;opacity:0;transition:.3s;pointer-events:none}
 #toast.show{opacity:1}
 
 /* ── МОБИЛЬНАЯ НАВИГАЦИЯ ── */
@@ -954,7 +956,7 @@ body[data-theme="dark"] .lib-filters select,body[data-theme="dark"] .lib-filters
   </div>
   <div id="callBody">
     <div id="videoArea">
-      <iframe id="jitsiFrame" allow="camera; microphone; fullscreen; speaker-selection; display-capture; autoplay; compute-pressure; clipboard-write" allowfullscreen></iframe>
+      <iframe id="jitsiFrame" allow="camera; microphone; fullscreen; speaker-selection; display-capture; autoplay; compute-pressure; clipboard-write" allowfullscreen sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals allow-top-navigation-by-user-activation"></iframe>
       <div id="callStatus">⏳ Соединяю...</div>
     </div>
     <div id="callControls">
@@ -1523,8 +1525,8 @@ body[data-theme="dark"] .lib-filters select,body[data-theme="dark"] .lib-filters
 // ─── CAPTURE URL HASH BEFORE SUPABASE CLEARS IT ──────────────────────────────
 // Supabase JS v2 calls history.replaceState() during createClient init,
 // wiping the hash before checkInviteToken() can read it.
-const _initHash=window.location.hash;
-const _initSearch=window.location.search;
+let _initHash=window.location.hash;
+let _initSearch=window.location.search;
 // Parse type from hash (#access_token=...&type=invite) or query (?type=invite)
 const _initAuthType=(()=>{
   const hp=new URLSearchParams(_initHash.replace(/^#/,''));
@@ -1922,7 +1924,7 @@ const TRANSLATIONS={
   'Материал':'Material',
   'Материал добавлен':'Material added',
   'Добавь файл или URL!':'Add a file or URL!',
-  'Загрузка файла...':'Uploading...',
+  'Загрузка файла...':'Uploading file...',
   '📁 Нажми или перетащи файл сюда':'📁 Click or drag file here',
   'PDF до 50MB':'PDF up to 50MB',
   'MP3, WAV, OGG, M4A, AAC — до 50MB':'MP3, WAV, OGG, M4A, AAC — up to 50MB',
@@ -2059,7 +2061,7 @@ const TRANSLATIONS={
   '← Выйти':'← Close',
   '▶ Продолжить':'▶ Resume',
   '⏸ Пауза':'⏸ Pause',
-  'Просмотр завершён!':'Preview done!',
+  'Просмотр завершён!':'View complete!',
   'Завершить раздел →':'Complete section →',
   'Следующий раздел →':'Next section →',
   'Далее →':'Next →',
@@ -2073,17 +2075,17 @@ const TRANSLATIONS={
   'Думаю...':'Thinking...','Ошибка':'Error',
   'Пароль должен быть не менее 6 символов':'Password must be at least 6 characters',
   'Пароли не совпадают':'Passwords do not match','Сохраняем...':'Saving...',
-  'Войти в систему →':'Enter system →','Звонок':'Call',
+  'Войти в систему →':'Enter the system →','Звонок':'Call',
   '⏳ Создаю комнату...':'⏳ Creating room...','⏳ Соединяю...':'⏳ Connecting...',
   'Ответ':'Answer','(пусто)':'(empty)','Кол-во классов':'Total classes',
-  'Новое занятие':'New event','Раздел':'Section','Весь урок':'Full lesson',
-  'Правильно!':'Correct!','Неверно.':'Wrong.',
+  'Новое занятие':'New Event','Раздел':'Section','Весь урок':'Full lesson',
+  'Правильно!':'Correct!','Неверно.':'Incorrect.',
   'Правильный ответ':'Correct answer','Правильно':'Correct',
-  'Все совпадения верны!':'All matches correct!',
+  'Все совпадения верны!':'All matches are correct!',
   'Кликай слова ниже...':'Click words below...',
   'Материал':'Material','Загрузка материалов...':'Loading materials...',
-  'Чат только для себя — заметки, ссылки, файлы.':'Private notes — links, files, reminders.',
-  'Выбрать человека':'Select person','Название группы':'Group name',
+  'Чат только для себя — заметки, ссылки, файлы.':'Self-chat — notes, links, files.',
+  'Выбрать человека':'Select a person','Название группы':'Group name',
   'Например: Команда учителей':'E.g. Teachers team',
   'Участники (все по умолчанию)':'Members (all by default)',
   'Редактировать задачу':'Edit task','Новая задача':'New task',
@@ -2484,7 +2486,7 @@ const TRANSLATIONS_GE={
   'упр.':'სავ.','упражнений':'სავარჯიშო','мин':'წთ','Длит.':'ხანგ.','Аудио':'აუდიო',
   // Materials
   'Материал':'მასალა','Материал добавлен':'მასალა დამატებულია',
-  'Добавь файл или URL!':'დაამატე ფაილი ან URL!','Загрузка файла...':'ატვირთვა...',
+  'Добавь файл или URL!':'დაამატე ფაილი ან URL!',
   '📁 Нажми или перетащи файл сюда':'📁 დააჭირე ან გადმოაგდე ფაილი აქ',
   'PDF до 50MB':'PDF 50MB-მდე',
   'Или URL файла (необязательно)':'ან ფაილის URL (სურვილისამებრ)',
@@ -2649,8 +2651,8 @@ const TRANSLATIONS_GE={
 };
 
 function t(str){
-  if(S.lang==='en'&&TRANSLATIONS[str])return TRANSLATIONS[str];
-  if(S.lang==='ge'&&TRANSLATIONS_GE[str])return TRANSLATIONS_GE[str];
+  if(S.lang==='en'&&str in TRANSLATIONS)return TRANSLATIONS[str];
+  if(S.lang==='ge'&&str in TRANSLATIONS_GE)return TRANSLATIONS_GE[str];
   return str;
 }
 
@@ -2694,7 +2696,7 @@ function revertToRU(root){
   if(!root)return;
   const {entries:enE,map:enM}=_getReverseData();
   const {entries:geE,map:geM}=_getReverseDataGE();
-  const allEntries=[...geE,...enE].sort((a,b)=>b[0].length-a[0].length);
+  const allEntries=[...enE,...geE].sort((a,b)=>b[0].length-a[0].length);
   const allMap={...enM,...geM};
   const walker=document.createTreeWalker(root,NodeFilter.SHOW_TEXT,null,false);
   const nodes=[];let node;
@@ -3093,7 +3095,8 @@ async function saveProfile(){
   closeM('mProfile');
   }finally{
     saveProfile._saving=false;
-    if(btn){btn.disabled=false;btn.textContent=t('Сохранить');}
+    const _profileBtn=document.querySelector('#mProfile .btn.btn-purple');
+    if(_profileBtn){_profileBtn.disabled=false;_profileBtn.textContent=t('Сохранить');}
   }
 }
 
@@ -3533,6 +3536,7 @@ async function checkInviteToken(){
   C('inviteScreen').style.display='flex';
   // Clean up URL
   history.replaceState(null,'',window.location.pathname);
+  _initHash='';_initSearch='';
   return true;
 }
 
@@ -3612,7 +3616,7 @@ async function doLogin(){
   try{
     const e=C('loginEmail').value.trim(),p=C('loginPass').value;
     const{data,error}=await sb.auth.signInWithPassword({email:e,password:p});
-    if(error){C('loginErr').style.display='block';return;}
+    if(error){const _le=C('loginErr');if(_le){_le.textContent=error.message||t('Неверный email или пароль');_le.style.display='block';}return;}
     await afterLogin(data.user);
   }finally{
     if(btn){btn.disabled=false;btn.textContent='Войти';}
@@ -3655,6 +3659,7 @@ async function afterLogin(user){
     C('loginScreen').style.display='flex';
     return;
   }
+  const _VALID_ROLES=['owner','admin','teacher','student'];if(!_VALID_ROLES.includes(prof.role)){showToast('Неизвестная роль: '+prof.role+'. Обратитесь к администратору.','error');await sb.auth.signOut();C('loginScreen').style.display='flex';return;}
   S.profile=prof;S.role=prof.role;S.schoolId=prof.school_id;S.userId=prof.id;
   _mergeLocalAvatar(); // merge avatar prefs from localStorage
   C('loginScreen').style.display='none';
@@ -3691,7 +3696,9 @@ async function doLogout(){
   C('app').style.display='none';C('loginScreen').style.display='flex';
   C('loginErr').style.display='none';C('dialBtn').style.display='none';
   Object.assign(S,{role:null,profile:null,contacts:[],inCall:false,schoolId:null,userId:null,_currentClassData:null,_cvStudentId:null,_aiSending:false,pendingRoom:null,pendingPartner:null,currentAssignId:null,studentRowId:null});
+  if(typeof LV!=='undefined')Object.assign(LV,{sections:[],materials:[],curSec:0,curEx:0,assignId:null,viewAll:false,_completing:false,_chatSending:false});
 }
+sb.auth.onAuthStateChange((event,session)=>{if((event==='SIGNED_OUT'||event==='TOKEN_REFRESHED'&&!session)&&S.userId){S.userId=null;S.profile=null;S.role=null;S.schoolId=null;if(C('loginScreen'))C('loginScreen').style.display='flex';}});
 (async()=>{
   // First check if this is an invite/password-reset redirect
   const invited=await checkInviteToken();
@@ -3701,6 +3708,8 @@ async function doLogout(){
     if(user)await afterLogin(user);
   }
 })();
+window.addEventListener('unhandledrejection',e=>{console.error('[TeachyaED] Unhandled rejection:',e.reason);});
+window.onerror=(msg,src,line,col,err)=>{console.error('[TeachyaED] Global error:',msg,src+':'+line,err);return false;};
 
 // ─── SIDEBAR ──────────────────────────────────────────────────────────────────
 function buildSidebar(){
@@ -3873,7 +3882,7 @@ function toggleDialer(){if(S.inCall){hangUp();return;}const p=C('contactPicker')
 function renderContacts(){
   const order={owner:0,admin:1,teacher:2,student:3};
   const sorted=[...S.contacts].sort((a,b)=>(order[a.role]||9)-(order[b.role]||9));
-  C('contactList').innerHTML=sorted.map(c=>{const _cId=_esc(c.id).replace(/'/g,"&#39;");const _cName=(_esc(c.first_name||'')+' '+_esc(c.last_name||'')).replace(/'/g,"&#39;");const _cRole=_esc(c.role||'').replace(/'/g,"&#39;");return`<div class="contact-item" onclick="callContact('${_cId}','${_cName}','${_cRole}')">
+  C('contactList').innerHTML=sorted.map(c=>{return`<div class="contact-item" data-cid="${_esc(c.id)}" data-cname="${_esc((c.first_name||'')+' '+(c.last_name||''))}" data-crole="${_esc(c.role||'')}" onclick="const _cd=this.dataset;callContact(_cd.cid,_cd.cname,_cd.crole)">
     ${avHTML(c.first_name,c.last_name,32)}
     <div><div style="font-weight:600;font-size:.9rem">${_esc(c.first_name)} ${_esc(c.last_name)}</div><div style="font-size:.75rem;color:var(--text3)">${_esc(t(ROLE_L[c.role]||c.role))}</div></div>
   </div>`;}).join('')||'<div style="padding:16px;color:var(--text3);font-size:.85rem">Нет контактов</div>';
@@ -3894,7 +3903,11 @@ async function callContact(partnerId,partnerName,partnerRole){
         const{data:prof}=await sb.from('profiles').select('id').eq('email',stu.email).eq('school_id',S.schoolId).single();
         if(prof?.id)ringId=prof.id;
       }
-    }catch(e){}
+    }catch(e){
+      S.inCall=false;
+      showToast(t('Ошибка соединения'),'error');
+      return;
+    }
   }
   // Send ring notification (only if we have a real profile UUID)
   if(!ringId.startsWith('stu_')){
@@ -4758,6 +4771,7 @@ async function savePayment(){
 let salPeriod='month';
 async function renderSalaries(){
   if(renderSalaries._loading)return;renderSalaries._loading=true;
+  if(!['owner','admin'].includes(S.role)){showToast(t('Нет прав'),'error');renderSalaries._loading=false;return;}
   try{
   const[{data:ts},{data:sals},{data:logs}]=await Promise.all([
     sb.from('profiles').select('*').eq('school_id',S.schoolId).eq('role','teacher'),
@@ -4806,7 +4820,10 @@ async function saveSalary(){
 async function logLessonFor(tid,tname){
   if(S._logLessonSaving)return;S._logLessonSaving=true;
   try{
-    const topic=(prompt(`Тема урока (${tname}):`)??'').trim();if(topic===null||topic==='')return;
+    const rawTopic=prompt(`Тема урока (${tname}):`);
+    if(rawTopic===null)return;
+    const topic=rawTopic.trim();
+    if(!topic){showToast(t('Введи тему урока'),'error');return;}
     if(topic.length>500){showToast('Тема слишком длинная (макс 500 символов)','error');return;}
     const{error}=await sb.from('lessons_log').insert({school_id:S.schoolId,teacher_id:tid,lesson_date:new Date().toISOString().split('T')[0],topic,status:'completed'});
     if(error){showToast('Ошибка: '+error.message,'error');return;}
@@ -4818,6 +4835,7 @@ async function logLessonFor(tid,tname){
 const MICONS={pdf:'📄',video:'🎬',audio:'🎵',link:'🔗',doc:'📝'};
 async function renderMaterials(){
   if(renderMaterials._loading)return;renderMaterials._loading=true;
+  const _matScreen=S.screen;
   try{
   const{data:mats}=await sb.from('materials').select('*').eq('school_id',S.schoolId).order('created_at',{ascending:false});
   const canManage=['teacher','admin','owner'].includes(S.role);
@@ -4832,6 +4850,7 @@ async function renderMaterials(){
       ${!hasUrl?'<div style="font-size:.7rem;color:var(--red);margin-top:4px">⚠️ Нет ссылки</div>':'<div style="font-size:.7rem;color:var(--text3);margin-top:4px">🔗 Открыть</div>'}
     </div>`;
   }).join('')||`<div style="grid-column:1/-1" class="empty-state"><div class="ei">📁</div><p>${t('Нет материалов')}</p></div>`;
+  if(S.screen!==_matScreen)return;
   setContent(`<div class="section-header"><h2>📁 ${t('Материалы')}</h2>${canManage?`<button class="btn btn-purple" onclick="openAddMaterial()">+ ${t('Добавить')}</button>`:''}</div>
     <div class="materials-grid">${grid}</div>`);
   }finally{renderMaterials._loading=false;}
@@ -5335,6 +5354,7 @@ async function addToClass(){
   }
 }
 async function removeFromClass(csId,btn){
+  if(!['teacher','admin','owner'].includes(S.role)){showToast(t('Нет прав'),'error');return;}
   if(!confirm('Убрать ученика из класса?'))return;
   if(btn){btn.disabled=true;}
   try{
@@ -5352,6 +5372,7 @@ async function removeFromClass(csId,btn){
 
 // ─── SCHEDULE ─────────────────────────────────────────────────────────────────
 let scheduleWeekOffset=0;
+function _schedCacheKey(){return 'schedule_'+S.schoolId+'_'+(S.role==='teacher'?S.profile?.id:S.role==='student'&&S.studentRowId?S.studentRowId:'all');}
 async function renderSchedule(){
   if(renderSchedule._loading)return;renderSchedule._loading=true;
   try{
@@ -5435,7 +5456,7 @@ async function viewEvent(id){
   S.editEventId=id;
   C('ev_title').value=ev.title||'';C('ev_date').value=ev.event_date||'';C('ev_time').value=ev.event_time?.slice(0,5)||'';
   C('ev_dur').value=ev.duration_minutes||60;C('ev_status').value=ev.status||'scheduled';C('ev_notes').value=ev.notes||'';
-  if(ev.class_id)C('ev_class').value=ev.class_id;
+  const _evCls=C('ev_class');if(_evCls){if(ev.class_id){_evCls.value=ev.class_id;}else{_evCls.selectedIndex=0;}}
   C('eventModalTitle').textContent=t('Занятие')+': '+ev.title;openM('mAddEvent');
 }
 async function saveEvent(){
@@ -5448,10 +5469,10 @@ async function saveEvent(){
     const _evDate=C('ev_date').value;if(!_evDate){showToast('Укажи дату!');return;}
     const _evTime=C('ev_time').value;if(!_evTime){showToast('Укажи время!');return;}
     const data={school_id:S.schoolId,class_id:C('ev_class').value||null,teacher_id:S.profile.id,title,event_date:C('ev_date').value,event_time:C('ev_time').value,duration_minutes:(()=>{const _v=parseInt(C('ev_dur').value);return Number.isFinite(_v)&&_v>0?_v:60;})(),status:(()=>{const _s=C('ev_status').value;return['scheduled','completed','cancelled'].includes(_s)?_s:'scheduled';})(),notes:C('ev_notes').value.trim()};
-    let _seResult;if(S.editEventId){let _seQ=sb.from('schedule_events').update(data).eq('id',S.editEventId).eq('school_id',S.schoolId);if(!['admin','owner'].includes(S.role))_seQ=_seQ.eq('teacher_id',S.profile?.id);_seResult=await _seQ;}else{_seResult=await sb.from('schedule_events').insert(data);}
+    let _seResult;if(S.editEventId){const _evUpdatePayload={...data};if(['admin','owner'].includes(S.role))delete _evUpdatePayload.teacher_id;let _seQ=sb.from('schedule_events').update(_evUpdatePayload).eq('id',S.editEventId).eq('school_id',S.schoolId);if(!['admin','owner'].includes(S.role))_seQ=_seQ.eq('teacher_id',S.profile?.id);_seResult=await _seQ;}else{_seResult=await sb.from('schedule_events').insert(data);}
     const{error}=_seResult;
     if(error){showToast('Ошибка: '+error.message,'error');return;}
-    closeM('mAddEvent');dcInval('schedule_'+S.schoolId);showToast('Занятие сохранено!');
+    closeM('mAddEvent');dcInval(_schedCacheKey());showToast('Занятие сохранено!');
     if(S.screen==='t_schedule'||S.screen==='a_schedule'||S.screen==='o_schedule')renderSchedule();
     if(S.currentClassId&&S.currentClassTab==='schedule')loadClassTab('schedule');
   }finally{
@@ -5466,7 +5487,7 @@ async function deleteEvent(id){
   try{
     let _deQ=sb.from('schedule_events').delete().eq('id',id).eq('school_id',S.schoolId);if(!['admin','owner'].includes(S.role))_deQ=_deQ.eq('teacher_id',S.profile?.id);const{error}=await _deQ;
     if(error){showToast('Ошибка: '+error.message,'error');return;}
-    showToast('Удалено');dcInval('schedule_'+S.schoolId);
+    showToast('Удалено');dcInval(_schedCacheKey());
     if(S.currentClassId)loadClassTab('schedule');else renderSchedule();
   }catch(e){
     showToast('Ошибка удаления: '+e.message,'error');
@@ -6176,7 +6197,7 @@ async function cvChatInit(roomId){
   // Guard: if classroom was closed or room changed while fetching, abort
   if(LV.chatRoomId!==roomId)return;
   msgs.innerHTML='';
-  if(error){msgs.innerHTML='<div class="cv-chat-empty" style="color:var(--text3)">Чат временно недоступен</div>';return;}
+  if(error){msgs.innerHTML='<div class="cv-chat-empty" style="color:var(--text3)">Чат временно недоступен</div>';if(cvChatInit._pending===roomId)cvChatInit._pending=null;return;}
   if(data&&data.length){data.forEach(m=>cvChatAddMsg(m));}
   else{msgs.innerHTML='<div class="cv-chat-empty">Пока нет сообщений. Напишите первым! 👋</div>';}
   cvChatScrollBottom();
@@ -6808,10 +6829,7 @@ async function sendMsg(){
   if(body.length>4000){showToast('Сообщение слишком длинное (макс 4000 символов)','error');return;}
   inp.value='';inp.style.height='auto';
   const{error}=await sb.from('messages').insert({conversation_id:MS.convId,sender_id:S.profile.id,body,school_id:S.schoolId});
-  if(error){showToastCard(t('Ошибка'),''+error.message,'error','❌');return;}
-  // Optimistic
-  MS.msgs.push({id:'tmp_'+Date.now(),conversation_id:MS.convId,sender_id:S.profile.id,body,created_at:new Date().toISOString()});
-  refreshMsgThread();
+  if(error){showToastCard(t('Ошибка'),''+error.message,'error','❌');inp.value=body;return;}
   }finally{MS._sending=false;}
 }
 
@@ -7274,7 +7292,7 @@ async function saveStudentCard(){
             await sb.from('class_students').delete().eq('student_id',id).in('class_id',oldClassIds).eq('school_id',S.schoolId);
           }
         }
-        dcInval('students_full_'+oldTeacherId);
+        if(oldTeacherId)dcInval('students_full_'+oldTeacherId);
         if(newTeacherId)dcInval('students_full_'+newTeacherId);
       }
     }
@@ -7506,10 +7524,7 @@ async function submitPlacementTest(){
     let score=0;
     questions.forEach((q,i)=>{if(Number(_ptpAnswers[i])===q.correct)score++;});
     const cefrLevel=score<=3?'A1':score<=6?'A2':score<=9?'B1':score<=12?'B2':score<=14?'C1':'C2';
-    // Update student level
-    const{error:stuLvlErr}=await sb.from('students').update({level:cefrLevel}).eq('id',S.studentRowId).eq('school_id',S.schoolId);
-    if(stuLvlErr){showToast('Ошибка обновления уровня: '+stuLvlErr.message,'error');return;}
-    // Mark homework as reviewed
+    // Mark homework as reviewed (FIRST — atomic: if students.update fails hw is already done)
     const{error:hwUpdErr}=await sb.from('homeworks').update({
       status:'reviewed',
       student_answer:JSON.stringify(_ptpAnswers),
@@ -7518,6 +7533,9 @@ async function submitPlacementTest(){
         :`🎉 Результат теста: ${score}/15 правильных. Определён уровень: ${cefrLevel}`
     }).eq('id',_ptpHwId).eq('school_id',S.schoolId);
     if(hwUpdErr){showToast('Ошибка: '+hwUpdErr.message,'error');return;}
+    // Update student level (SECOND — non-fatal if fails)
+    const{error:stuLvlErr}=await sb.from('students').update({level:cefrLevel}).eq('id',S.studentRowId).eq('school_id',S.schoolId);
+    if(stuLvlErr)console.warn('[PlacementTest] Level update failed:',stuLvlErr.message);
     dcInval('homeworks_'+S.schoolId);
     closeM('mPlacementTestPlayer');
     dcInval('students_full_'+S.schoolId);dcInval('students_full_'+S.profile?.id);
@@ -7543,12 +7561,12 @@ function exportICal(){
     (evs||[]).forEach(ev=>{
       if(!ev.event_date)return;
       const parts=(ev.event_time||'09:00').split(':');
-      const hh=String(parts[0]||9).padStart(2,'0');
-      const mm=String(parts[1]||0).padStart(2,'0');
-      const dt=ev.event_date.replace(/-/g,'');
-      const dtStart=`${dt}T${hh}${mm}00`;
-      const end=new Date(new Date(ev.event_date+'T'+(ev.event_time||'09:00')).getTime()+(parseInt(ev.duration_minutes)||60)*60000);
-      const dtEnd=end.getFullYear()+String(end.getMonth()+1).padStart(2,'0')+String(end.getDate()).padStart(2,'0')+'T'+String(end.getHours()).padStart(2,'0')+String(end.getMinutes()).padStart(2,'0')+'00';
+      const _evDt=new Date(ev.event_date+'T'+(ev.event_time||'09:00'));
+      const _evEndMs=_evDt.getTime()+(parseInt(ev.duration_minutes)||60)*60000;
+      const _evEnd=new Date(_evEndMs);
+      const _toIcalUtc=d=>d.toISOString().replace(/[-:]/g,'').replace(/\.\d{3}/,'');
+      const dtStart=_toIcalUtc(_evDt);
+      const dtEnd=_toIcalUtc(_evEnd);
       lines.push('BEGIN:VEVENT',
         `UID:${ev.id}@teachyaed`,
         `DTSTART:${dtStart}`,
