@@ -4123,6 +4123,7 @@ async function hangUp(){
   S.inCall=false;closeWb();
   S.pendingRoom=null;
   S.pendingPartner=null;
+  S.pendingCallerId=null;
 }
 function minimizeCall(){const b=C('callBody');b.style.display=b.style.display==='none'?'block':'none';}
 
@@ -4180,6 +4181,7 @@ async function renderStudentHome(){
     setContent('<div class="empty-state"><div class="ei">📭</div><p>'+t('Профиль ученика не найден. Обратитесь к учителю.')+'</p></div>');
     return;
   }
+  S.studentRowId=stu.id;
   const stuId=stu?.id||null;
   const[{data:hw},{data:assigns}]=await Promise.all([
     stuId?sb.from('homeworks').select('id').eq('student_id',stuId).eq('school_id',S.schoolId).eq('status','pending'):Promise.resolve({data:[]}),
@@ -4404,7 +4406,7 @@ function _hwpRenderEx(ex,i){
       ${ex.question?`<div style="font-weight:700;margin-bottom:6px">❓ ${_esc(ex.question)}</div><textarea class="hwp-ans-area" id="hwp_inp_${i}" placeholder="Твой ответ..."></textarea>`:''}`;
   } else if(ex.type==='fill_blank'){
     const sentParts=(ex.sentence||'').split('{{blank}}');
-    const sent=sentParts.map(p=>_esc(p)).join(`<input type="text" id="hwp_inp_${i}" class="hwp-fb-inp" placeholder="...">`);
+    const sent=sentParts.map((p,bi)=>bi<sentParts.length-1?_esc(p)+`<input type="text" id="hwp_fb_${i}_${bi}" class="hwp-fb-inp" placeholder="...">`:_esc(p)).join('');
     body=`<div style="font-size:1rem;line-height:2.4">${sent}</div>`;
   } else if(ex.type==='quiz'){
     body=`<div style="font-weight:600;margin-bottom:10px">${_esc(ex.question||'')}</div>
@@ -4461,7 +4463,7 @@ function hwpWoReset(i){
 function _hwpCollectAnswers(){
   const ans={};
   HWP.exercises.forEach((ex,i)=>{
-    if(ex.type==='fill_blank'){const el=C(`hwp_inp_${i}`);ans[i]=(el?el.value:'').trim();}
+    if(ex.type==='fill_blank'){const _fbParts=(ex.sentence||'').split('{{blank}}');ans[i]=_fbParts.slice(0,-1).map((_,bi)=>{const _el=document.getElementById(`hwp_fb_${i}_${bi}`);return _el?_el.value.trim():'';}).join(' / ');}
     else if(ex.type==='quiz'){ans[i]=HWP.answers[i]!==undefined?HWP.answers[i]:null;}
     else if(ex.type==='matching'){
       const map={};(ex.pairs||[]).forEach((p,pi)=>{const sel=C(`hwp_match_${i}_${pi}`);map[p.left]=sel?sel.value:'';});
@@ -4911,7 +4913,8 @@ async function renderOwnerStudents(){
     </td></tr>`}).join('')||`<tr><td colspan="5" style="text-align:center;color:var(--text3)">${t('Нет учеников')}</td></tr>`;
   setContent(`<div class="section-header"><h2>🎓 ${t('Ученики')}</h2><button class="btn btn-purple" onclick="openAddStudent()">+ ${t('Добавить')}</button></div>
     <div class="card" style="padding:0;overflow:hidden"><table><thead><tr><th>${t('Ученик')}</th><th>${t('Язык')}</th><th>${t('Уровень')}</th><th>${t('Телефон')}</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>`);
-  }finally{renderOwnerStudents._loading=false;}
+  }catch(e){showToast('Ошибка загрузки учеников: '+e.message,'error');}
+  finally{renderOwnerStudents._loading=false;}
 }
 
 // ─── PAYMENTS ─────────────────────────────────────────────────────────────────
@@ -5356,7 +5359,7 @@ function filterClasses(){
   const q=(C('classSearch')?.value||'').toLowerCase();
   let list=_allClasses.filter(cl=>{
     const matchType=_classFilter==='all'||cl.type===_classFilter;
-    const matchQ=!q||cl.name.toLowerCase().includes(q)||(cl.description||'').toLowerCase().includes(q);
+    const matchQ=!q||(cl.name||'').toLowerCase().includes(q)||(cl.description||'').toLowerCase().includes(q);
     return matchType&&matchQ;
   });
   C('classesCount').textContent=`${t('Кол-во классов')} ${list.length}`;
@@ -5473,6 +5476,7 @@ async function openClassDetail(classId){
 }
 function closeClassDetail(){
   C('classDetailPage').classList.remove('open');
+  S.currentClassId=null;
 }
 function cdpEditClass(){
   if(S._currentClassData)editClass(S._currentClassData.id);
@@ -5721,9 +5725,17 @@ function openAddEventOnDate(date,time){
   C('ev_time').value=time||'09:00';C('ev_dur').value='60';
   C('eventModalTitle').textContent=t('Новое занятие');openM('mAddEvent');
 }
-function openAddEventForClass(classId){
+async function openAddEventForClass(classId){
   openAddEventOnDate('','');
-  const _evc=C('ev_class');if(_evc)_evc.value=classId;
+  const _evc=C('ev_class');
+  if(_evc){
+    if(!_evc.options.length||(_evc.options.length===1&&!_evc.options[0].value)){
+      // dropdown not yet populated — load classes now
+      const{data:_cls}=await sb.from('classes').select('id,name').eq('school_id',S.schoolId);
+      _evc.innerHTML=`<option value="">— ${t('Без класса')} —</option>` + (_cls||[]).map(c=>`<option value="${_esc(c.id)}">${_esc(c.name||'')}</option>`).join('');
+    }
+    _evc.value=classId;
+  }
 }
 async function viewEvent(id){
   const{data:ev}=await sb.from('schedule_events').select('*,class:class_id(name)').eq('id',id).eq('school_id',S.schoolId).single();
@@ -5744,7 +5756,7 @@ async function saveEvent(){
     const _evDate=C('ev_date').value;if(!_evDate){showToast('Укажи дату!');return;}
     const _evTime=C('ev_time').value;if(!_evTime){showToast('Укажи время!');return;}
     const data={school_id:S.schoolId,class_id:C('ev_class').value||null,teacher_id:S.profile.id,title,event_date:C('ev_date').value,event_time:(C('ev_time').value||'').substring(0,5)||'09:00',duration_minutes:(()=>{const _v=parseInt(C('ev_dur').value);return Number.isFinite(_v)&&_v>0?_v:60;})(),status:(()=>{const _s=C('ev_status').value;return['scheduled','completed','cancelled'].includes(_s)?_s:'scheduled';})(),notes:C('ev_notes').value.trim()};
-    let _seResult;if(S.editEventId){const _evUpdatePayload={...data};if(['admin','owner'].includes(S.role))delete _evUpdatePayload.teacher_id;let _seQ=sb.from('schedule_events').update(_evUpdatePayload).eq('id',S.editEventId).eq('school_id',S.schoolId);if(!['admin','owner'].includes(S.role))_seQ=_seQ.eq('teacher_id',S.profile?.id);_seResult=await _seQ;}else{const _insData={...data};if(['admin','owner'].includes(S.role))delete _insData.teacher_id;_seResult=await sb.from('schedule_events').insert(_insData);}
+    let _seResult;if(S.editEventId){const _evUpdatePayload={...data};if(['admin','owner'].includes(S.role))delete _evUpdatePayload.teacher_id;let _seQ=sb.from('schedule_events').update(_evUpdatePayload).eq('id',S.editEventId).eq('school_id',S.schoolId);if(!['admin','owner'].includes(S.role))_seQ=_seQ.eq('teacher_id',S.profile?.id);_seResult=await _seQ;}else{_seResult=await sb.from('schedule_events').insert(data);}
     const{error}=_seResult;
     if(error){showToast('Ошибка: '+error.message,'error');return;}
     closeM('mAddEvent');dcInval(_schedCacheKey());showToast('Занятие сохранено!');
@@ -6653,20 +6665,20 @@ function renderBlockView(b,i){
     <div style="font-weight:700;margin-bottom:10px">✏️ Заполни пропуск</div>
     <div style="font-size:1rem;line-height:2.2">
       ${(()=>{const parts=(b.sentence||'').split('{{blank}}').map(p=>_escHtml(p));return parts.map((p,bi)=>bi<parts.length-1?p+`<input class="fill-blank-input" id="fb_${i}_${bi}" placeholder="${t('Ответ...')}" style="min-width:80px">`:`${p}`).join('');})()}
-      <button class="btn btn-purple btn-sm" onclick="checkFillBlankByRef(${i})">Проверить</button>
+      <button class="btn btn-purple btn-sm" onclick="checkFillBlankByRef('${i}')">Проверить</button>
     </div>
     <div id="fb_res_${i}" style="margin-top:6px;font-size:.85rem"></div>
   </div>`;}
   if(b.type==='quiz') return`<div class="lesson-view-block">
     <div style="font-weight:700;margin-bottom:10px">🎯 ${_escHtml(b.question||'Вопрос')}</div>
-    ${(b.options||[]).map((opt,oi)=>`<div class="quiz-opt" id="qo_${i}_${oi}" onclick="checkQuiz(${i},${oi},${Number.isInteger(b.correct)?b.correct:parseInt(b.correct)||0})">${_escHtml(opt)}</div>`).join('')}
+    ${(b.options||[]).map((opt,oi)=>`<div class="quiz-opt" id="qo_${i}_${oi}" onclick="checkQuiz('${i}',${oi},${Number.isInteger(b.correct)?b.correct:parseInt(b.correct)||0})">${_escHtml(opt)}</div>`).join('')}
   </div>`;
   if(b.type==='truefalse'){const _tfa=(b.answer===true||b.answer===false)?b.answer:true;return`<div class="lesson-view-block">
     <div style="font-weight:700;margin-bottom:12px">✅ Верно или Неверно?</div>
     <div style="font-size:1rem;margin-bottom:14px;padding:12px;background:var(--gray-light);border-radius:8px">"${_escHtml(b.statement||'')}"</div>
     <div style="display:flex;gap:10px">
-      <button class="tf-btn" id="tf_${i}_t" onclick="checkTF(${i},true,${_tfa})">✅ Верно (True)</button>
-      <button class="tf-btn" id="tf_${i}_f" onclick="checkTF(${i},false,${_tfa})">❌ Неверно (False)</button>
+      <button class="tf-btn" id="tf_${i}_t" onclick="checkTF('${i}',true,${_tfa})">✅ Верно (True)</button>
+      <button class="tf-btn" id="tf_${i}_f" onclick="checkTF('${i}',false,${_tfa})">❌ Неверно (False)</button>
     </div>
     <div id="tf_res_${i}" style="margin-top:8px;font-size:.85rem"></div>
     ${b.explanation?`<div id="tf_exp_${i}" style="display:none;margin-top:8px;padding:10px;background:var(--blue-light);border-radius:8px;font-size:.85rem">💡 ${_escHtml(b.explanation)}</div>`:''}
@@ -6678,8 +6690,8 @@ function renderBlockView(b,i){
     return`<div class="lesson-view-block">
       <div style="font-weight:700;margin-bottom:10px">🔗 Соотнеси слова</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-        <div>${pairs.map((p,pi)=>`<div class="match-item" id="ml_${i}_${pi}" onclick="matchLeft(${i},${pi})">${_escHtml(p.left)}</div>`).join('')}</div>
-        <div id="mr_${i}">${rights.map((r,ri)=>`<div class="match-item" id="mr_${i}_${ri}" onclick="matchRight(${i},${ri})">${_escHtml(r)}</div>`).join('')}</div>
+        <div>${pairs.map((p,pi)=>`<div class="match-item" id="ml_${i}_${pi}" onclick="matchLeft('${i}',${pi})">${_escHtml(p.left)}</div>`).join('')}</div>
+        <div id="mr_${i}">${rights.map((r,ri)=>`<div class="match-item" id="mr_${i}_${ri}" onclick="matchRight('${i}',${ri})">${_escHtml(r)}</div>`).join('')}</div>
       </div>
       <div id="match_res_${i}" style="margin-top:8px;font-size:.85rem"></div>
     </div>`;
@@ -6692,10 +6704,10 @@ function renderBlockView(b,i){
       <div id="wo_sentence_${i}" style="min-height:40px;padding:8px;border:2px dashed var(--gray-border);border-radius:8px;margin-bottom:10px;font-size:1rem">
         <span style="color:var(--text3);font-size:.85rem">Кликай слова ниже...</span>
       </div>
-      <div id="wo_chips_${i}">${words.map((w,wi)=>`<span class="word-chip" id="wc_${i}_${wi}" data-word="${_escHtml(w)}" onclick="woPickWord(${i},${wi},this.dataset.word)">${_escHtml(w)}</span>`).join('')}</div>
+      <div id="wo_chips_${i}">${words.map((w,wi)=>`<span class="word-chip" id="wc_${i}_${wi}" data-word="${_escHtml(w)}" onclick="woPickWord('${i}',${wi},this.dataset.word)">${_escHtml(w)}</span>`).join('')}</div>
       <div style="display:flex;gap:8px;margin-top:10px">
-        <button class="btn btn-purple" onclick="checkWordOrder(${i})">Проверить</button>
-        <button class="btn btn-outline" onclick="resetWordOrder(${i})">Сбросить</button>
+        <button class="btn btn-purple" onclick="checkWordOrder('${i}')">Проверить</button>
+        <button class="btn btn-outline" onclick="resetWordOrder('${i}')">Сбросить</button>
       </div>
       <div id="wo_res_${i}" style="margin-top:8px;font-size:.85rem"></div>
     </div>`;
@@ -7018,7 +7030,7 @@ async function loadConvs(){
   const[{data:convs},{data:lastMsgs},{data:profs}]=await Promise.all([
     sb.from('conversations').select('*').in('id',convIds).eq('school_id',S.schoolId),
     sb.from('messages').select('*').in('conversation_id',convIds).eq('school_id',S.schoolId).order('created_at',{ascending:false}).limit(convIds.length*10),
-    sb.from('profiles').select('id,first_name,last_name,role').eq('school_id',S.schoolId).neq('role','student')
+    sb.from('profiles').select('id,first_name,last_name,role').eq('school_id',S.schoolId)
   ]);
   MS.profiles=profs||[];
   // Build conv list with last message
@@ -7336,7 +7348,7 @@ async function createConv(){
     }
     closeM('mNewConv');
     await loadConvs();
-    openConv(conv.id);
+    await openConv(conv.id);
   }finally{
     MS._creatingConv=false;
     if(_ncBtn)_ncBtn.disabled=false;
