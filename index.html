@@ -4175,10 +4175,11 @@ async function renderStudentHome(){
   if(renderStudentHome._loading)return;renderStudentHome._loading=true;
   try{
   const _shSnap=S.screen;showSkel();
-  const{data:stu}=await sb.from('students').select('*').eq('email',S.profile.email).eq('school_id',S.schoolId).single();
+  let{data:_shRows}=await sb.from('students').select('*').ilike('email',S.profile.email).eq('school_id',S.schoolId).limit(1);
+  let stu=_shRows?.[0]||null;
   if(S.screen!==_shSnap)return;
   if(!stu){
-    setContent('<div class="empty-state"><div class="ei">📭</div><p>'+t('Профиль ученика не найден. Обратитесь к учителю.')+'</p></div>');
+    setContent(`<div class="empty-state"><div class="ei">📭</div><p>${t('Профиль ученика не найден. Обратитесь к учителю.')}<br><small style="color:var(--text3)">Email: ${_escHtml(S.profile.email||'')}</small></p></div>`);
     return;
   }
   S.studentRowId=stu.id;
@@ -4503,9 +4504,16 @@ async function renderStudentLessons(){
   try{
   const _slSnap=S.screen;
   showSkel();
-  const{data:stu}=await dc('stu_me_'+S.profile.id,()=>sb.from('students').select('id').eq('email',S.profile.email).eq('school_id',S.schoolId).single());
+  // Try exact match, then case-insensitive match (handles email case mismatch)
+  let{data:_stuRows}=await dc('stu_me_'+S.profile.id,()=>sb.from('students').select('id').ilike('email',S.profile.email).eq('school_id',S.schoolId).limit(1));
+  let stu=_stuRows?.[0]||null;
+  if(!stu){
+    // Fallback: try exact match (clears cache key mismatch)
+    const{data:_stuExact}=await sb.from('students').select('id').eq('email',(S.profile.email||'').toLowerCase()).eq('school_id',S.schoolId).limit(1);
+    stu=_stuExact?.[0]||null;
+  }
   if(S.screen!==_slSnap)return;
-  if(!stu?.id){C('content').innerHTML='<div class="empty-state"><div class="ei">📭</div><p>Профиль ученика не найден. Обратитесь к учителю.</p></div>';return;}
+  if(!stu?.id){C('content').innerHTML=`<div class="empty-state"><div class="ei">📭</div><p>Профиль ученика не найден.<br><small style="color:var(--text3)">Email аккаунта: ${_escHtml(S.profile.email||'')}<br>Попросите учителя проверить email в карточке ученика.</small></p></div>`;return;}
   S.studentRowId=stu.id; // store for cache invalidation
   const{data:assigns}=await dc('stu_assigns_'+stu.id,()=>sb.from('lesson_assignments').select('*,lesson:lesson_id(id,title,language,level,content)').eq('student_id',stu.id).eq('school_id',S.schoolId).order('created_at',{ascending:false}));
   if(S.screen!==_slSnap)return;
