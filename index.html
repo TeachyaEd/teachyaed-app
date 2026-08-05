@@ -2890,7 +2890,7 @@ function _applyLang(prevLang){
   buildSidebar();
   // Re-render current screen
   const fn={
-    s_home:renderStudentHome,s_homework:renderStudentHw,s_lessons:renderStudentLessons,s_vocab:renderStudentVocab,s_materials:renderMaterials,
+    s_home:renderStudentHome,s_classes:renderStudentClasses,s_homework:renderStudentHw,s_lessons:renderStudentLessons,s_vocab:renderStudentVocab,s_materials:renderMaterials,
     t_classes:renderClasses,t_schedule:renderSchedule,
     t_students:renderTeacherStudents,t_homework:renderTeacherHw,t_lessons:renderTeacherLessons,t_materials:renderMaterials,
     t_messages:renderMessenger,t_tasks:renderTasks,
@@ -3181,7 +3181,7 @@ async function changePassword(){
 const NAV={
   student:[
     {sec:'Учёба'},
-    {id:'s_home',icon:'🏠',l:'Кабинет'},{id:'s_lessons',icon:'📖',l:'Уроки'},{id:'s_homework',icon:'📋',l:'Задания'},{id:'s_vocab',icon:'📚',l:'Словарь'},{id:'s_materials',icon:'📁',l:'Материалы'}
+    {id:'s_home',icon:'🏠',l:'Кабинет'},{id:'s_classes',icon:'🎓',l:'Мой класс'},{id:'s_lessons',icon:'📖',l:'Уроки'},{id:'s_homework',icon:'📋',l:'Задания'},{id:'s_vocab',icon:'📚',l:'Словарь'},{id:'s_materials',icon:'📁',l:'Материалы'}
   ],
   teacher:[
     {sec:'Классы'},
@@ -3857,7 +3857,7 @@ function showScreen(id){
   closeSidebar(); // Закрываем мобильный sidebar при переходе
   document.querySelectorAll('.nav-item').forEach(el=>el.classList.toggle('active',el.id===`nav_${id}`));
   const fn={
-    s_home:renderStudentHome,s_homework:renderStudentHw,s_lessons:renderStudentLessons,s_vocab:renderStudentVocab,s_materials:renderMaterials,
+    s_home:renderStudentHome,s_classes:renderStudentClasses,s_homework:renderStudentHw,s_lessons:renderStudentLessons,s_vocab:renderStudentVocab,s_materials:renderMaterials,
     t_classes:renderClasses,t_schedule:renderSchedule,
     t_students:renderTeacherStudents,t_homework:renderTeacherHw,t_lessons:renderTeacherLessons,t_materials:renderMaterials,
     t_messages:renderMessenger,t_tasks:renderTasks,
@@ -4534,6 +4534,58 @@ async function renderStudentLessons(){
   </div>`;}).join('')||'<div class="empty-state"><div class="ei">📖</div><p>Уроки не назначены</p></div>';
   setContent(`<div class="section-header"><h2>📖 Мои уроки</h2></div>${cards}`);
   }finally{renderStudentLessons._loading=false;}
+}
+
+async function renderStudentClasses(){
+  if(renderStudentClasses._loading)return;renderStudentClasses._loading=true;
+  try{
+  const _snap=S.screen;showSkel();
+  // Ensure studentRowId is set
+  if(!S.studentRowId){
+    const{data:_stuRows}=await sb.from('students').select('id').ilike('email',S.profile.email).eq('school_id',S.schoolId).limit(1);
+    S.studentRowId=_stuRows?.[0]?.id||null;
+  }
+  if(!S.studentRowId){setContent('<div class="empty-state"><div class="ei">📭</div><p>Профиль ученика не найден</p></div>');return;}
+  // Get classes student is enrolled in
+  const{data:enrollments}=await sb.from('class_students').select('class_id,classes(id,name,language,level,type,color,description,teacher_id,profiles:teacher_id(first_name,last_name))').eq('student_id',S.studentRowId).eq('school_id',S.schoolId);
+  if(_snap!==S.screen)return;
+  const classes=(enrollments||[]).map(e=>e.classes).filter(Boolean);
+  if(!classes.length){
+    setContent('<div class="empty-state"><div class="ei">🎓</div><p>Ты пока не добавлен ни в один класс.<br><small style="color:var(--text3)">Попроси учителя добавить тебя.</small></p></div>');
+    return;
+  }
+  // Get upcoming schedule for these classes
+  const classIds=classes.map(c=>c.id);
+  const today=new Date().toISOString().slice(0,10);
+  const{data:events}=await sb.from('schedule_events').select('*').in('class_id',classIds).eq('school_id',S.schoolId).gte('event_date',today).order('event_date').order('event_time').limit(20);
+  if(_snap!==S.screen)return;
+  const COLORS=['#F97316','#8B5CF6','#EC4899','#10B981','#3B82F6'];
+  const cards=classes.map((cl,ci)=>{
+    const color=/^#[0-9a-fA-F]{3,8}$/.test(cl.color)?cl.color:COLORS[ci%COLORS.length];
+    const teacher=cl.profiles;
+    const teacherName=teacher?`${_escHtml(teacher.first_name||'')} ${_escHtml(teacher.last_name||'')}`.trim():t('Не указан');
+    const clEvents=(events||[]).filter(e=>e.class_id===cl.id).slice(0,3);
+    const schedHtml=clEvents.length?clEvents.map(e=>`<div style="font-size:.82rem;padding:6px 10px;background:var(--gray-light);border-radius:6px;margin-bottom:4px">
+      📅 <b>${_escHtml(e.event_date||'')}</b> ${_escHtml((e.event_time||'').slice(0,5))} — ${_escHtml(e.title||'')}
+    </div>`).join(''):`<div style="font-size:.82rem;color:var(--text3)">Нет ближайших занятий</div>`;
+    return`<div class="card" style="margin-bottom:16px;border-left:4px solid ${color}">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
+        <div style="width:44px;height:44px;border-radius:50%;background:${color};display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:1.2rem;flex-shrink:0">${(_escHtml(cl.name||'?').replace(/[^a-zA-Zа-яА-ЯёЁ0-9]/g,'')[0]||'?').toUpperCase()}</div>
+        <div>
+          <div style="font-weight:700;font-size:1rem">${_escHtml(cl.name||'')}</div>
+          <div style="font-size:.8rem;color:var(--text3)">${_escHtml(cl.language||'')} · ${_escHtml(cl.level||'')} · ${t(cl.type==='group'?'Групповой':'Индивидуальный')}</div>
+        </div>
+      </div>
+      <div style="font-size:.85rem;margin-bottom:10px">👤 <b>Учитель:</b> ${teacherName}
+        ${teacher&&S.profile?.id?`<button class="btn btn-sm btn-outline" style="margin-left:8px;padding:3px 8px;font-size:.75rem" onclick="callContact('${_esc(cl.teacher_id)}','${teacherName}','teacher')">📞 Позвонить</button>`:''}
+      </div>
+      ${cl.description?`<div style="font-size:.82rem;color:var(--text3);margin-bottom:10px">${_escHtml(cl.description)}</div>`:''}
+      <div style="font-weight:600;font-size:.82rem;margin-bottom:6px;color:var(--purple)">📅 Ближайшие занятия:</div>
+      ${schedHtml}
+    </div>`;
+  }).join('');
+  setContent(`<div class="section-header"><h2>🎓 Мой класс</h2></div>${cards}`);
+  }finally{renderStudentClasses._loading=false;}
 }
 
 // ─── TEACHER SCREENS ──────────────────────────────────────────────────────────
