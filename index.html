@@ -929,6 +929,7 @@ body[data-theme="dark"] .vocab-back{color:#6ee7b7!important;background:rgba(16,1
     <div class="login-logo">
       <span>TeachyaED</span>
       <p>Платформа языковой школы</p>
+      <p id="loginBuild" style="font-size:.65rem;opacity:.55;margin-top:4px"></p>
     </div>
     <!-- Login form -->
     <div id="loginForm">
@@ -4048,7 +4049,9 @@ sb.auth.onAuthStateChange((event,session)=>{if(((event==='SIGNED_OUT'||event==='
   }
 })();
 // ─── АВТООБНОВЛЕНИЕ (кэш GitHub Pages) ───────────────────────────────────────
-const APP_BUILD='2026.08.11-a'; // ⚠️ менять при каждом деплое
+const APP_BUILD='2026.08.11-b'; // ⚠️ менять при каждом деплое
+// Показываем номер сборки на логине — для диагностики версий
+setTimeout(()=>{const lb=document.getElementById('loginBuild');if(lb)lb.textContent='v '+APP_BUILD;},300);
 function checkAppUpdate(){
   fetch(location.pathname+'?upd='+Date.now(),{cache:'no-store'})
     .then(r=>r.text())
@@ -4092,6 +4095,7 @@ function buildSidebar(){
     }
   });
   if(secIdx>=0)html+='</div>';
+  html+=`<div style="padding:12px 20px;font-size:.62rem;color:var(--text3);opacity:.7">v ${typeof APP_BUILD!=='undefined'?APP_BUILD:''}</div>`;
   C('sidebar').innerHTML=html;
   if(S.screen)document.querySelectorAll('.nav-item').forEach(el=>el.classList.toggle('active',el.id===`nav_${S.screen}`));
   // Translate topBar static elements (Выйти button etc.)
