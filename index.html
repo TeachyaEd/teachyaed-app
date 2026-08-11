@@ -3616,7 +3616,8 @@ async function setInvitePassword(){
   try{
   const{error}=await sb.auth.updateUser({password:p1});
   if(error){errEl.textContent=t('Ошибка')+': '+error.message;errEl.style.display='block';return;}
-  // Password set — now login
+  // Password set — ensure profile exists before proceeding (handles re-invite case)
+  try{await sb.rpc('ensure_my_profile');}catch(_e){console.warn('[setInvitePassword] ensure_my_profile:',_e);}
   _invSuccess=true;
   C('inviteScreen').style.display='none';
   const{data:{session}}=await sb.auth.getSession();
@@ -3674,21 +3675,21 @@ async function doLogin(){
 }
 async function afterLogin(user){
   if(!user){showToast('Ошибка авторизации','error');return;}
-  let{data:prof,error:profErr}=await sb.from('profiles').select('*').eq('id',user.id).single();
-  if(profErr&&profErr.code!=='PGRST116'){
-    showToast(t('Ошибка загрузки профиля. Попробуйте ещё раз.'),'error');
-    if(C('loginScreen'))C('loginScreen').style.display='flex';
-    return;
-  }
-
-  // ── Fallback: profile not found — create via SECURITY DEFINER RPC (bypasses RLS) ──
+  // ── Проактивно гарантируем наличие профиля (обходит RLS, создаёт из метаданных если нет) ──
+  let prof=null;
+  try{
+    const{data:_rpcRes,error:_rpcErr}=await sb.rpc('ensure_my_profile');
+    if(!_rpcErr&&_rpcRes?.profile) prof=_rpcRes.profile;
+  }catch(_e){console.warn('[afterLogin] ensure_my_profile:',_e);}
+  // Если RPC вернул профиль — хорошо; если нет — пробуем прямой запрос
   if(!prof){
-    try{
-      const{data:_rpcRes,error:_rpcErr}=await sb.rpc('ensure_my_profile');
-      if(!_rpcErr&&_rpcRes?.profile){
-        prof=_rpcRes.profile;
-      }
-    }catch(_e){console.warn('[afterLogin] ensure_my_profile failed:',_e);}
+    const{data:_pDirect,error:_pErr}=await sb.from('profiles').select('*').eq('id',user.id).single();
+    if(_pErr&&_pErr.code!=='PGRST116'){
+      showToast(t('Ошибка загрузки профиля. Попробуйте ещё раз.'),'error');
+      if(C('loginScreen'))C('loginScreen').style.display='flex';
+      return;
+    }
+    prof=_pDirect||null;
   }
 
   if(!prof){
