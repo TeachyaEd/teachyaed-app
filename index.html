@@ -1422,14 +1422,10 @@ body[data-theme="dark"] .vocab-back{color:#6ee7b7!important;background:rgba(16,1
         <div id="cv_exerciseContent"></div>
       </div>
       <div class="cv-bottom-nav">
-        <button class="btn btn-outline" id="cv_btnBack" onclick="lvNav(-1)">← Назад</button>
+        <button class="btn btn-outline" id="cv_btnBack" onclick="lvNav(-1)">← Раздел</button>
         <span class="cv-counter-label" id="cv_counter">1 из 1</span>
-        <button class="btn btn-purple" id="cv_btnNext" onclick="lvNav(1)">Далее →</button>
-        <button class="btn btn-outline" id="cv_btnFinishSec" onclick="lvFinishSection()">Завершить раздел →</button>
-        <div class="ce-mode-grp" style="flex-shrink:0;margin-left:4px" title="Режим отображения">
-          <button class="ce-mode-btn active" id="cv_view1btn" onclick="setLVViewAll(false)" title="По одному">① По одному</button>
-          <button class="ce-mode-btn" id="cv_viewAllBtn" onclick="setLVViewAll(true)" title="Показать все">☰ Все</button>
-        </div>
+        <button class="btn btn-purple" id="cv_btnNext" onclick="lvNav(1)">Раздел →</button>
+        <button class="btn btn-outline" id="cv_btnFinishSec" onclick="lvFinishSection()" style="display:none">Завершить раздел →</button>
       </div>
     </div>
     <!-- Right sidebar -->
@@ -7100,7 +7096,6 @@ function openClassroomView(title,sections,assignId,studentName,materials){
   S.currentAssignId=assignId||null;
   S._cvStudentId=(window._assignCache||{})[assignId]?.student_id||null;
   window._matchState={};
-  C('cv_view1btn').classList.add('active');C('cv_viewAllBtn').classList.remove('active');
   C('cv_lessonName').textContent=title;
   const badge=C('cv_studentBadge');
   if(studentName){badge.textContent='👤 '+studentName;badge.style.display='';}
@@ -7136,8 +7131,7 @@ function openLessonView(assignId){
 }
 
 function lvRender(){
-  if(LV.viewAll){lvRenderAll();return;}
-  // Guard: no sections
+  // Просмотр по разделам: все упражнения текущего раздела на одной странице
   if(!LV.sections||LV.sections.length===0){
     C('cv_sectionTitle').textContent=t('Урок');
     C('cv_counter').textContent='—';
@@ -7146,33 +7140,36 @@ function lvRender(){
     C('cv_exerciseContent').innerHTML=`<div class="empty-state" style="padding:60px 0"><div class="ei">📭</div><p>${t('В этом уроке нет разделов')}</p></div>`;
     lvRenderSections();return;
   }
+  if(LV.curSec>=LV.sections.length)LV.curSec=LV.sections.length-1;
   const sec=LV.sections[LV.curSec];
   const exs=Array.isArray(sec?.exercises)?sec.exercises:[];
-  const ex=exs[LV.curEx];
-  const total=exs.length;
-  const isLastEx=total===0||LV.curEx>=total-1;
   const isLastSec=LV.curSec>=LV.sections.length-1;
-  // nav visibility
+  // nav
   C('cv_btnBack').style.visibility='';C('cv_btnNext').style.visibility='';C('cv_counter').style.visibility='';
-  // section title
   C('cv_sectionTitle').textContent=sec?.title||`${t('Раздел')} ${LV.curSec+1}`;
-  // counter
-  C('cv_counter').textContent=total>0?`${LV.curEx+1} ${t('из')} ${total}`:'—';
-  // back button
-  C('cv_btnBack').disabled=LV.curEx===0&&LV.curSec===0;
-  // next button
+  C('cv_counter').textContent=`${t('Раздел')} ${LV.curSec+1} ${t('из')} ${LV.sections.length}`;
+  C('cv_btnBack').disabled=LV.curSec===0;
   const nb=C('cv_btnNext');
-  if(isLastEx&&isLastSec){nb.textContent=t('✓ Завершить урок');nb.className='btn btn-green';}
-  else if(isLastEx){nb.textContent=t('Следующий раздел →');nb.className='btn btn-purple';}
-  else{nb.textContent=t('Далее →');nb.className='btn btn-purple';}
-  // finish section btn — only show if there are exercises to finish
-  C('cv_btnFinishSec').style.display=(total>0&&isLastEx&&!isLastSec)?'':'none';
-  // content
-  if(!ex){C('cv_exerciseContent').innerHTML=`<div class="empty-state" style="padding:60px 0"><div class="ei">📭</div><p>${t('Нет упражнений в этом разделе')}</p></div>`;
-  } else {C('cv_exerciseContent').innerHTML=renderBlockView(ex,`${LV.curSec}_${LV.curEx}`);}
-  // scroll top
+  if(isLastSec){nb.textContent=t('✓ Завершить урок');nb.className='btn btn-green';}
+  else{nb.textContent=t('Раздел')+' →';nb.className='btn btn-purple';}
+  C('cv_btnFinishSec').style.display='none';
+  // content: весь раздел целиком
+  window._matchState={};
+  if(!exs.length){
+    C('cv_exerciseContent').innerHTML=`<div class="empty-state" style="padding:60px 0"><div class="ei">📭</div><p>${t('Нет упражнений в этом разделе')}</p></div>`;
+  } else {
+    C('cv_exerciseContent').innerHTML=exs.map((ex,ei)=>{
+      const m=(typeof BLOCK_META!=='undefined'&&BLOCK_META[ex.type])||{icon:'•',name:'',color:'var(--gray-light)'};
+      return`<div style="margin-bottom:22px">
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
+          <span style="padding:2px 10px;border-radius:20px;font-size:.72rem;font-weight:700;background:${_escHtml(m.color||'#eee')}">${_escHtml(m.icon||'•')} ${_escHtml(m.name||'')}</span>
+          <span style="font-size:.75rem;color:var(--text3)">${ei+1} ${t('из')} ${exs.length}</span>
+        </div>
+        ${renderBlockView(ex,`${LV.curSec}_${ei}`)}
+      </div>`;
+    }).join('');
+  }
   const sc=C('cv_exerciseContent').closest('.cv-content-scroll');if(sc)sc.scrollTop=0;
-  // sections list in right sidebar
   lvRenderSections();
   if(S.lang==='en')applyEN(C('classroomView'));else if(S.lang==='ge')applyGE(C('classroomView'));
 }
@@ -7292,19 +7289,15 @@ function cvChatClose(){
 }
 
 function lvNav(dir){
-  const sec=LV.sections[LV.curSec];
-  const exs=Array.isArray(sec?.exercises)?sec.exercises:[];
-  const isLastEx=exs.length===0||LV.curEx>=exs.length-1;
+  // Навигация по разделам (каждый листает независимо)
   const isLastSec=LV.curSec>=LV.sections.length-1;
   if(dir>0){
-    if(isLastEx&&isLastSec){completeLessonView();return;}
-    if(isLastEx){if(LV.curSec<LV.sections.length-1){LV.curSec++;LV.curEx=0;}else{completeLessonView();return;}}
-    else{LV.curEx++;}
+    if(isLastSec){completeLessonView();return;}
+    LV.curSec++;
   } else {
-    if(LV.curEx>0)LV.curEx--;
-    else if(LV.curSec>0){LV.curSec--;const _prevExs=Array.isArray(LV.sections[LV.curSec]?.exercises)?LV.sections[LV.curSec].exercises:[];LV.curEx=Math.max(0,_prevExs.length-1);}
+    if(LV.curSec>0)LV.curSec--;
   }
-  window._matchState={};lvRender();
+  LV.curEx=0;window._matchState={};lvRender();
 }
 // ── VIEW MODE TOGGLES ─────────────────────────────────────────────────────────
 function setCEViewAll(all){
@@ -7314,12 +7307,7 @@ function setCEViewAll(all){
   ceExercise();
 }
 
-function setLVViewAll(all){
-  LV.viewAll=all;
-  C('cv_view1btn').classList.toggle('active',!all);
-  C('cv_viewAllBtn').classList.toggle('active',all);
-  lvRender();
-}
+function setLVViewAll(all){lvRender();} // режим «по одному» удалён — всегда по разделам
 
 // Short preview text for exercise list
 function ceExPreview(ex){
