@@ -4916,7 +4916,7 @@ async function doDeleteUser(){
   closeM('mDeleteUser');
   showToast('⏳ Удаляем...');
   try{
-    const{data,error}=await sb.rpc('delete_school_user',{target_user_id:uid,school_id:S.schoolId});
+    const{data,error}=await sb.rpc('delete_school_user',{target_user_id:uid});
     console.log('[deleteUser] uid=',uid,'data=',data,'error=',error);
     if(error||data?.error){
       const msg=data?.error||error?.message||'Неизвестная ошибка';
