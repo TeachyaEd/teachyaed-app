@@ -4937,20 +4937,32 @@ async function confirmDeleteStudent(sid,name){
   if(!confirm(t(`Удалить ученика ${name}?\nЭто удалит все его задания, оплаты и записи в классах. Действие нельзя отменить.`))){S._deletingStudent=false;return;}
   try{
   showToast('⏳ Удаляем...');
-  // Каскадное удаление зависимых записей
-  const{error:e1}=await sb.from('class_students').delete().eq('student_id',sid).eq('school_id',S.schoolId);
-  if(e1){showToast('Ошибка удаления: '+e1.message,'error');return;}
-  const{error:e2}=await sb.from('homeworks').delete().eq('student_id',sid).eq('school_id',S.schoolId);
-  if(e2){showToast('Ошибка удаления: '+e2.message,'error');return;}
-  const{error:e3}=await sb.from('lesson_assignments').delete().eq('student_id',sid).eq('school_id',S.schoolId);
-  if(e3){showToast('Ошибка удаления: '+e3.message,'error');return;}
-  const{error:e4}=await sb.from('payments').delete().eq('student_id',sid).eq('school_id',S.schoolId);
-  if(e4){showToast('Ошибка удаления: '+e4.message,'error');return;}
-  const{error:_seErr}=await sb.from('schedule_events').delete().eq('student_id',sid).eq('school_id',S.schoolId);
-  if(_seErr){showToast(t('Ошибка')+': '+_seErr.message,'error');return;}
-  // Финальное удаление ученика
-  const{error}=await sb.from('students').delete().eq('id',sid).eq('school_id',S.schoolId);
-  if(error){showToast('❌ '+error.message);console.error('[deleteStudent]',error);return;}
+  // Получаем email ученика чтобы найти его профиль
+  const{data:_stuRec}=await sb.from('students').select('email').eq('id',sid).single();
+  const _stuEmail=_stuRec?.email||null;
+  // Ищем профиль по email
+  let _profId=null;
+  if(_stuEmail){
+    const{data:_profRec}=await sb.from('profiles').select('id').ilike('email',_stuEmail).eq('school_id',S.schoolId).maybeSingle();
+    _profId=_profRec?.id||null;
+  }
+  if(_profId){
+    // У ученика есть аккаунт — удаляем через delete_school_user (каскад: профиль + students + всё)
+    const{data:_drData,error:_drErr}=await sb.rpc('delete_school_user',{target_user_id:_profId});
+    if(_drErr||_drData?.error){
+      const _msg=_drData?.error||_drErr?.message||'Неизвестная ошибка';
+      showToast('❌ '+t('Ошибка удаления')+': '+_msg,'error');return;
+    }
+  } else {
+    // Нет аккаунта — удаляем только CRM-запись и связанные данные
+    await sb.from('class_students').delete().eq('student_id',sid).eq('school_id',S.schoolId);
+    await sb.from('homeworks').delete().eq('student_id',sid).eq('school_id',S.schoolId);
+    await sb.from('lesson_assignments').delete().eq('student_id',sid).eq('school_id',S.schoolId);
+    await sb.from('payments').delete().eq('student_id',sid).eq('school_id',S.schoolId);
+    await sb.from('schedule_events').delete().eq('student_id',sid).eq('school_id',S.schoolId);
+    const{error}=await sb.from('students').delete().eq('id',sid).eq('school_id',S.schoolId);
+    if(error){showToast('❌ '+error.message,'error');console.error('[deleteStudent]',error);return;}
+  }
   showToast('✅ '+name+' удалён');
   dcInval('students_'+S.schoolId);dcInval('students_full_'+S.schoolId);dcInval('students_full_'+S.profile.id);
   if(S.screen==='a_students')renderAdminStudents();
