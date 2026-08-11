@@ -2309,6 +2309,8 @@ const TRANSLATIONS={
   'Начать этот урок':'Start this lesson',
   'Управление классом':'Manage class',
   'В урок':'To lesson',
+  'Доступна новая версия платформы':'A new version of the platform is available',
+  'Обновить':'Update',
   'Подробнее о классе':'Class details',
   'Уроки пока не назначены. Попроси учителя!':'No lessons assigned yet. Ask your teacher!',
   'Сменить урок':'Switch lesson',
@@ -2815,6 +2817,8 @@ const TRANSLATIONS_GE={
   'Начать этот урок':'ამ გაკვეთილის დაწყება',
   'Управление классом':'კლასის მართვა',
   'В урок':'გაკვეთილზე',
+  'Доступна новая версия платформы':'ხელმისაწვდომია პლატფორმის ახალი ვერსია',
+  'Обновить':'განახლება',
   'Подробнее о классе':'კლასის დეტალები',
   'Уроки пока не назначены. Попроси учителя!':'გაკვეთილები ჯერ არ არის მინიჭებული. სთხოვე მასწავლებელს!',
   'Сменить урок':'გაკვეთილის შეცვლა',
@@ -4043,6 +4047,27 @@ sb.auth.onAuthStateChange((event,session)=>{if(((event==='SIGNED_OUT'||event==='
     const _sp=C('bootSplash');if(_sp)_sp.style.display='none';
   }
 })();
+// ─── АВТООБНОВЛЕНИЕ (кэш GitHub Pages) ───────────────────────────────────────
+const APP_BUILD='2026.08.11-a'; // ⚠️ менять при каждом деплое
+function checkAppUpdate(){
+  fetch(location.pathname+'?upd='+Date.now(),{cache:'no-store'})
+    .then(r=>r.text())
+    .then(html=>{
+      const m=html.match(/APP_BUILD='([^']+)'/);
+      if(!m||m[1]===APP_BUILD)return;
+      if(document.getElementById('updBanner'))return;
+      const b=document.createElement('div');
+      b.id='updBanner';
+      b.style.cssText='position:fixed;bottom:16px;left:50%;transform:translateX(-50%);background:linear-gradient(135deg,#7C3AED,#EC4899);color:#fff;padding:12px 18px;border-radius:14px;z-index:99999;display:flex;gap:12px;align-items:center;box-shadow:0 8px 28px rgba(0,0,0,.3);font-weight:600;font-size:.9rem;max-width:92vw';
+      b.innerHTML='✨ '+t('Доступна новая версия платформы')+
+        ' <button onclick="location.reload()" style="background:#fff;color:#7C3AED;border:none;border-radius:9px;padding:8px 16px;font-weight:800;cursor:pointer;font-family:inherit">'+t('Обновить')+'</button>';
+      document.body.appendChild(b);
+    }).catch(()=>{});
+}
+setTimeout(checkAppUpdate,20000);
+setInterval(checkAppUpdate,4*60*1000);
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)checkAppUpdate();});
+
 window.addEventListener('unhandledrejection',e=>{console.error('[TeachyaED] Unhandled rejection:',e.reason);});
 window.onerror=(msg,src,line,col,err)=>{console.error('[TeachyaED] Global error:',msg,src+':'+line,err);return false;};
 
