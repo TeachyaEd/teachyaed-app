@@ -1492,6 +1492,7 @@ body[data-theme="dark"] .vocab-back{color:#6ee7b7!important;background:rgba(16,1
         <button class="cv-action-row" onclick="toggleToolPanel('notes')">📝 Заметки к уроку</button>
         <button class="cv-action-row" id="cv_matBtn" onclick="toggleToolPanel('cv_materials')" style="display:none">📎 Материалы урока</button>
         <button class="cv-action-row" id="cv_switchBtn" onclick="cvOpenSwitchLesson()" style="display:none">🔄 Сменить урок</button>
+        <button class="cv-action-row" onclick="openWb()">🖊 Доска</button>
       </div>
       <!-- ── Lesson Chat ── -->
       <div class="cv-chat-section" id="cv_chatSection">
@@ -4411,26 +4412,69 @@ async function hangUp(){
 }
 function minimizeCall(){const b=C('callBody');b.style.display=b.style.display==='none'?'block':'none';}
 
-// ─── WHITEBOARD ───────────────────────────────────────────────────────────────
-let wbCtx,wbDrawing=false,wbTool='pen',wbLX=0,wbLY=0;
-function openWb(){C('wbOverlay').classList.add('open');initWb();if(S.lang==='en')applyEN(C('wbOverlay'));else if(S.lang==='ge')applyGE(C('wbOverlay'));}
+// ─── WHITEBOARD (общая доска — синхронно у учителя и ученика) ────────────────
+let wbCtx,wbDrawing=false,wbTool='pen',wbLX=0,wbLY=0,wbInited=false;
+let _wbQ=[],_wbFlushTimer=null;
+function openWb(fromRemote){
+  C('wbOverlay').classList.add('open');
+  initWb();
+  if(S.lang==='en')applyEN(C('wbOverlay'));else if(S.lang==='ge')applyGE(C('wbOverlay'));
+  // Сообщаем собеседнику, чтобы доска открылась и у него
+  if(!fromRemote)wbSend('wbopen',null);
+}
 function closeWb(){C('wbOverlay').classList.remove('open');}
+function wbSend(kind,segs){
+  if(!LV._syncCh)return;
+  try{LV._syncCh.send({type:'broadcast',event:'ex',payload:{id:'wb',kind,segs:segs||null,from:S.profile?.id||''}});}catch(e){}
+}
+function _wbQueueSeg(x0,y0,x1,y1,color,width){
+  const c=C('wbCanvas');if(!c||!c.width)return;
+  _wbQ.push([+(x0/c.width).toFixed(4),+(y0/c.height).toFixed(4),+(x1/c.width).toFixed(4),+(y1/c.height).toFixed(4),color,width]);
+  if(!_wbFlushTimer)_wbFlushTimer=setTimeout(()=>{const b=_wbQ;_wbQ=[];_wbFlushTimer=null;if(b.length)wbSend('wb',b);},90);
+}
+function wbApplySegs(segs){
+  if(!C('wbOverlay').classList.contains('open'))openWb(true); // авто-открытие у собеседника
+  if(!wbCtx)initWb();
+  const c=C('wbCanvas');
+  segs.forEach(s=>{
+    const[x0,y0,x1,y1,color,w]=s;
+    wbCtx.beginPath();wbCtx.strokeStyle=color;wbCtx.lineWidth=w;wbCtx.lineCap='round';wbCtx.lineJoin='round';
+    wbCtx.moveTo(x0*c.width,y0*c.height);wbCtx.lineTo(x1*c.width,y1*c.height);wbCtx.stroke();
+  });
+}
 function initWb(){
-  const c=C('wbCanvas');c.width=window.innerWidth;c.height=window.innerHeight-56;
-  wbCtx=c.getContext('2d');wbCtx.fillStyle='#fff';wbCtx.fillRect(0,0,c.width,c.height);
+  const c=C('wbCanvas');
+  const needResize=c.width!==window.innerWidth||c.height!==(window.innerHeight-56);
+  if(needResize){
+    // Сохраняем нарисованное при изменении размера
+    let saved=null;
+    if(wbInited&&c.width>0){try{saved=document.createElement('canvas');saved.width=c.width;saved.height=c.height;saved.getContext('2d').drawImage(c,0,0);}catch(e){saved=null;}}
+    c.width=window.innerWidth;c.height=window.innerHeight-56;
+    wbCtx=c.getContext('2d');wbCtx.fillStyle='#fff';wbCtx.fillRect(0,0,c.width,c.height);
+    if(saved)wbCtx.drawImage(saved,0,0,saved.width,saved.height,0,0,c.width,c.height);
+  } else if(!wbCtx){
+    wbCtx=c.getContext('2d');wbCtx.fillStyle='#fff';wbCtx.fillRect(0,0,c.width,c.height);
+  }
+  wbInited=true;
   const draw=e=>{
-    if(!wbDrawing)return;wbCtx.beginPath();
-    wbCtx.strokeStyle=wbTool==='eraser'?'#fff':C('wbColor').value;
-    wbCtx.lineWidth=parseInt(C('wbSz').value)*(wbTool==='eraser'?4:1);wbCtx.lineCap='round';wbCtx.lineJoin='round';
+    if(!wbDrawing)return;
+    const color=wbTool==='eraser'?'#fff':C('wbColor').value;
+    const width=parseInt(C('wbSz').value)*(wbTool==='eraser'?4:1);
+    wbCtx.beginPath();wbCtx.strokeStyle=color;wbCtx.lineWidth=width;wbCtx.lineCap='round';wbCtx.lineJoin='round';
     const[x,y]=e.offsetX!==undefined?[e.offsetX,e.offsetY]:[(e.touches[0].clientX-c.getBoundingClientRect().left),(e.touches[0].clientY-c.getBoundingClientRect().top)];
-    wbCtx.moveTo(wbLX,wbLY);wbCtx.lineTo(x,y);wbCtx.stroke();[wbLX,wbLY]=[x,y];
+    wbCtx.moveTo(wbLX,wbLY);wbCtx.lineTo(x,y);wbCtx.stroke();
+    _wbQueueSeg(wbLX,wbLY,x,y,color,width); // синхронизация
+    [wbLX,wbLY]=[x,y];
   };
   c.onmousedown=e=>{wbDrawing=true;[wbLX,wbLY]=[e.offsetX,e.offsetY];};c.onmousemove=draw;c.onmouseup=c.onmouseleave=()=>wbDrawing=false;
   c.ontouchstart=e=>{e.preventDefault();wbDrawing=true;const r=c.getBoundingClientRect();[wbLX,wbLY]=[e.touches[0].clientX-r.left,e.touches[0].clientY-r.top];};
   c.ontouchmove=e=>{e.preventDefault();draw(e);};c.ontouchend=()=>wbDrawing=false;
 }
 function setWbTool(tool){wbTool=tool;C('wbPen').classList.toggle('active',tool==='pen');C('wbEr').classList.toggle('active',tool==='eraser');}
-function clearWb(){if(wbCtx){const c=C('wbCanvas');wbCtx.fillStyle='#fff';wbCtx.fillRect(0,0,c.width,c.height);}}
+function clearWb(fromRemote){
+  if(wbCtx){const c=C('wbCanvas');wbCtx.fillStyle='#fff';wbCtx.fillRect(0,0,c.width,c.height);}
+  if(!fromRemote)wbSend('wbclear',null);
+}
 function saveWb(){const c=C('wbCanvas');const a=document.createElement('a');a.download='board.png';a.href=c.toDataURL();a.click();showToast('Сохранено');}
 
 // ─── EXPAND / COLLAPSE CALL WINDOW ───────────────────────────────────────────
@@ -7773,6 +7817,12 @@ function lvSyncApply(p){
     } else if(p.kind==='wo'){
       const el=document.getElementById('wo_sentence_'+p.id);
       if(el)el.innerHTML=p.value?String(p.value).split(' ').map(w=>`<span style="display:inline-block;padding:4px 10px;background:var(--purple-light);color:var(--purple);border-radius:6px;margin:2px;font-weight:600">${_escHtml(w)}</span>`).join(' '):`<span style="color:var(--text3);font-size:.85rem">${t('Кликай слова ниже...')}</span>`;
+    } else if(p.kind==='wb'&&Array.isArray(p.segs)){
+      wbApplySegs(p.segs);
+    } else if(p.kind==='wbopen'){
+      if(!C('wbOverlay').classList.contains('open'))openWb(true);
+    } else if(p.kind==='wbclear'){
+      clearWb(true);
     } else if(p.kind==='lesson'&&p.value){
       // Учитель сменил урок — подтягиваем новый контент
       (async()=>{
