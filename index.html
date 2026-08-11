@@ -2308,6 +2308,9 @@ const TRANSLATIONS={
   'Урок программы':'Path lesson',
   'Начать этот урок':'Start this lesson',
   'Управление классом':'Manage class',
+  'В урок':'To lesson',
+  'Подробнее о классе':'Class details',
+  'Уроки пока не назначены. Попроси учителя!':'No lessons assigned yet. Ask your teacher!',
   'Сменить урок':'Switch lesson',
   'Уроки программы':'Path lessons',
   'Все материалы платформы':'All platform materials',
@@ -2811,6 +2814,9 @@ const TRANSLATIONS_GE={
   'Урок программы':'პროგრამის გაკვეთილი',
   'Начать этот урок':'ამ გაკვეთილის დაწყება',
   'Управление классом':'კლასის მართვა',
+  'В урок':'გაკვეთილზე',
+  'Подробнее о классе':'კლასის დეტალები',
+  'Уроки пока не назначены. Попроси учителя!':'გაკვეთილები ჯერ არ არის მინიჭებული. სთხოვე მასწავლებელს!',
   'Сменить урок':'გაკვეთილის შეცვლა',
   'Уроки программы':'პროგრამის გაკვეთილები',
   'Все материалы платформы':'პლატფორმის ყველა მასალა',
@@ -4908,7 +4914,7 @@ async function renderStudentClasses(){
         <span style="animation:pulse 1.2s infinite">🔴</span><b style="flex:1">${t('Урок идёт прямо сейчас!')}</b>
         <button class="btn btn-sm" style="background:#fff;color:#EF4444;font-weight:800" onclick="event.stopPropagation();joinLiveLesson('${_esc(_lv.id)}')">▶️ ${t('Войти в урок')}</button>
       </div>`:'';
-    return`<div class="card" style="margin-bottom:16px;border-left:4px solid ${color};cursor:pointer;transition:.15s" onclick="openStudentClass('${_clId}')" onmouseover="this.style.boxShadow='0 4px 16px rgba(0,0,0,.1)'" onmouseout="this.style.boxShadow=''">
+    return`<div class="card" style="margin-bottom:16px;border-left:4px solid ${color};cursor:pointer;transition:.15s" onclick="enterStudentClassLesson('${_clId}')" onmouseover="this.style.boxShadow='0 4px 16px rgba(0,0,0,.1)'" onmouseout="this.style.boxShadow=''">
       ${_lvBanner}
       <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
         <div style="width:44px;height:44px;border-radius:50%;background:${color};display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:1.2rem;flex-shrink:0">${(_escHtml(cl.name||'?').replace(/[^a-zA-Zа-яА-ЯёЁ0-9]/g,'')[0]||'?').toUpperCase()}</div>
@@ -4916,7 +4922,8 @@ async function renderStudentClasses(){
           <div style="font-weight:700;font-size:1rem">${_escHtml(cl.name||'')}</div>
           <div style="font-size:.8rem;color:var(--text3)">${_escHtml(cl.language||'')} · ${_escHtml(cl.level||'')} · ${t(cl.type==='group'?'Групповой':'Индивидуальный')}</div>
         </div>
-        <button class="btn btn-purple" onclick="event.stopPropagation();openStudentClass('${_clId}')">${t('Войти в класс')} →</button>
+        <button class="btn btn-purple" onclick="event.stopPropagation();enterStudentClassLesson('${_clId}')">▶️ ${t('В урок')}</button>
+        <button class="btn btn-outline" style="padding:9px 12px" title="${t('Подробнее о классе')}" onclick="event.stopPropagation();openStudentClass('${_clId}')">ℹ️</button>
       </div>
       <div style="font-size:.85rem;margin-bottom:10px">👤 <b>Учитель:</b> ${teacherName}
         ${teacher&&S.profile?.id?`<button class="btn btn-sm btn-outline" style="margin-left:8px;padding:3px 8px;font-size:.75rem" onclick="event.stopPropagation();callContact('${_esc(cl.teacher_id)}','${teacherName}','teacher')">📞 Позвонить</button>`:''}
@@ -4928,6 +4935,39 @@ async function renderStudentClasses(){
   }).join('');
   setContent(`<div class="section-header"><h2>🎓 Мой класс</h2></div>${cards}`);
   }finally{renderStudentClasses._loading=false;}
+}
+
+// ─── STUDENT: клик по классу → сразу в урок ──────────────────────────────────
+async function enterStudentClassLesson(classId){
+  if(enterStudentClassLesson._busy)return;enterStudentClassLesson._busy=true;
+  try{
+    // 1) Идёт живой урок → присоединяемся к нему (контент + видео)
+    const{data:liveRows}=await sb.from('class_live').select('*').eq('class_id',classId).eq('school_id',S.schoolId).eq('active',true).order('started_at',{ascending:false}).limit(1);
+    const live=(liveRows||[])[0];
+    if(live&&Date.now()-new Date(live.started_at).getTime()<3*3600*1000){await joinLiveLesson(live.id);return;}
+    // 2) Следующий непройденный урок программы
+    if(!S.studentRowId&&S.profile?.email){
+      const{data:_sr}=await sb.from('students').select('id').ilike('email',S.profile.email).eq('school_id',S.schoolId).limit(1);
+      S.studentRowId=_sr?.[0]?.id||null;
+    }
+    if(!S.studentRowId){openStudentClass(classId);return;}
+    const[{data:prog},{data:assigns}]=await Promise.all([
+      sb.from('class_lessons').select('lesson_id,position').eq('class_id',classId).eq('school_id',S.schoolId).order('position'),
+      sb.from('lesson_assignments').select('*,lesson:lesson_id(id,title,language,level,content)').eq('student_id',S.studentRowId).eq('school_id',S.schoolId).order('assigned_at',{ascending:false})
+    ]);
+    window._assignCache=window._assignCache||{};
+    (assigns||[]).forEach(a=>{window._assignCache[a.id]=a;});
+    const byLesson={};(assigns||[]).forEach(a=>{if(!byLesson[a.lesson_id]||!byLesson[a.lesson_id].completed&&a.completed===false)byLesson[a.lesson_id]=byLesson[a.lesson_id]||a;});
+    let target=null;
+    for(const p of (prog||[])){const a=byLesson[p.lesson_id];if(a&&!a.completed){target=a;break;}}
+    if(!target)target=(assigns||[]).find(a=>!a.completed&&a.class_id===classId)||(assigns||[]).find(a=>!a.completed);
+    if(!target&&(prog||[]).length){const last=byLesson[prog[prog.length-1].lesson_id];if(last)target=last;} // всё пройдено → последний
+    if(target&&target.lesson){openLessonView(target.id);return;}
+    // 3) Уроков нет → детальный экран класса
+    openStudentClass(classId);
+    showToast(t('Уроки пока не назначены. Попроси учителя!'));
+  }catch(e){console.warn('[enterStudentClassLesson]',e);openStudentClass(classId);}
+  finally{enterStudentClassLesson._busy=false;}
 }
 
 // ─── STUDENT CLASS DETAIL ─────────────────────────────────────────────────────
