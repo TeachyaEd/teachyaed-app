@@ -2242,6 +2242,18 @@ const TRANSLATIONS={
   'Урок идёт прямо сейчас!':'Lesson is live right now!',
   'Войти в урок':'Join lesson',
   'Урок начался! Зайди в «Мой класс», чтобы присоединиться':'Lesson started! Open "My class" to join',
+  'Сохранить ответ':'Save answer',
+  'Напиши ответ перед сохранением':'Write an answer before saving',
+  'Ответ сохранён — учитель его увидит':'Answer saved — your teacher will see it',
+  'Ответы':'Answers',
+  'Квиз':'Quiz',
+  'Соотнесение':'Matching',
+  'Вопрос к видео':'Video question',
+  'Верно':'Correct',
+  'Неверно':'Wrong',
+  'всего':'total',
+  'Ученик ещё не отвечал на упражнения':'The student has not answered any exercises yet',
+  'Назад':'Back',
 };
 
 // ─── GEORGIAN TRANSLATIONS ───────────────────────────────────────────────────
@@ -2718,6 +2730,18 @@ const TRANSLATIONS_GE={
   'Урок идёт прямо сейчас!':'გაკვეთილი ახლა მიმდინარეობს!',
   'Войти в урок':'გაკვეთილში შესვლა',
   'Урок начался! Зайди в «Мой класс», чтобы присоединиться':'გაკვეთილი დაიწყო! შედი „ჩემს კლასში" შესაერთებლად',
+  'Сохранить ответ':'პასუხის შენახვა',
+  'Напиши ответ перед сохранением':'დაწერე პასუხი შენახვამდე',
+  'Ответ сохранён — учитель его увидит':'პასუხი შენახულია — მასწავლებელი ნახავს',
+  'Ответы':'პასუხები',
+  'Квиз':'ქვიზი',
+  'Соотнесение':'შესაბამისობა',
+  'Вопрос к видео':'კითხვა ვიდეოზე',
+  'Верно':'სწორია',
+  'Неверно':'არასწორია',
+  'всего':'სულ',
+  'Ученик ещё не отвечал на упражнения':'მოსწავლეს ჯერ არ უპასუხია სავარჯიშოებზე',
+  'Назад':'უკან',
 };
 
 function t(str){
@@ -4126,6 +4150,28 @@ function subscribeNotifications(){
           const{data:en}=await sb.from('class_students').select('id').eq('class_id',lv.class_id).eq('student_id',S.studentRowId).eq('school_id',S.schoolId).maybeSingle();
           if(!en)return;
           showToast('🔴 '+t('Урок начался! Зайди в «Мой класс», чтобы присоединиться'));
+          if(S._viewingClassId===lv.class_id){openStudentClass._loading=false;openStudentClass(lv.class_id);}
+        }catch(_e){}
+      })
+    // 💬 Чат класса: живое обновление
+    .on('postgres_changes',{event:'INSERT',schema:'public',table:'class_feed'},
+      ({new:cf})=>{
+        try{
+          if(!cf||cf.school_id!==S.schoolId)return;
+          if(cf.author_id===S.profile?.id)return; // своё сообщение уже видно
+          // Ученик смотрит этот класс — перерисуем
+          if(S.role==='student'&&S._viewingClassId===cf.class_id){
+            const _txt=C('stuFeedText');
+            if(!_txt||!_txt.value){openStudentClass._loading=false;openStudentClass(cf.class_id);}
+            else if(cf.type==='post')showToast('💬 '+_escHtml(cf.author_name||'')+': '+_escHtml((cf.text||'').slice(0,60)));
+            return;
+          }
+          // Учитель на вкладке «Лента» этого класса — перерисуем
+          if(['teacher','admin','owner'].includes(S.role)&&S.currentClassId===cf.class_id&&S.currentClassTab==='feed'){
+            loadClassTab._busy=false;loadClassTab('feed');return;
+          }
+          // Иначе — тост для сообщений (не системных)
+          if(cf.type==='post')showToast('💬 '+_escHtml(cf.author_name||'')+': '+_escHtml((cf.text||'').slice(0,60)));
         }catch(_e){}
       })
     .subscribe();
@@ -4667,6 +4713,7 @@ async function renderStudentLessons(){
 
 async function renderStudentClasses(){
   if(renderStudentClasses._loading)return;renderStudentClasses._loading=true;
+  S._viewingClassId=null;
   try{
   const _snap=S.screen;showSkel();
   // Ensure studentRowId is set
@@ -4731,8 +4778,22 @@ async function renderStudentClasses(){
 }
 
 // ─── STUDENT CLASS DETAIL ─────────────────────────────────────────────────────
+async function postClassFeedStudent(classId){
+  if(postClassFeedStudent._busy)return;postClassFeedStudent._busy=true;
+  try{
+    const inp=C('stuFeedText');const text=(inp?.value||'').trim();
+    if(!text)return;
+    if(text.length>1000){showToast(t('Слишком длинное сообщение'),'error');return;}
+    const{error}=await sb.from('class_feed').insert({school_id:S.schoolId,class_id:classId,author_id:S.profile?.id||null,author_name:((S.profile?.first_name||'')+' '+(S.profile?.last_name||'')).trim(),type:'post',text});
+    if(error){showToast('❌ '+error.message,'error');return;}
+    if(inp)inp.value='';
+    openStudentClass._loading=false;
+    await openStudentClass(classId);
+  }finally{postClassFeedStudent._busy=false;}
+}
 async function openStudentClass(classId){
   if(openStudentClass._loading)return;openStudentClass._loading=true;
+  S._viewingClassId=classId;
   try{
   showSkel();
   const isEn=S.lang==='en';
@@ -4835,11 +4896,15 @@ async function openStudentClass(classId){
       <div style="font-size:.86rem;margin-top:3px">${_escHtml(f.text||'')}</div>
     </div>`;
   }).join('');
-  const feedSection=(feed||[]).length?`
+  const feedSection=`
     <div>
-      <div style="font-weight:700;margin-bottom:10px;color:var(--purple)">📰 ${isEn?'Class feed':'Лента класса'}</div>
-      ${feedRows}
-    </div>`:'';
+      <div style="font-weight:700;margin-bottom:10px;color:var(--purple)">💬 ${isEn?'Class chat & feed':'Чат и лента класса'}</div>
+      <div style="display:flex;gap:8px;margin-bottom:10px">
+        <input id="stuFeedText" placeholder="${isEn?'Write a note or question...':'Напиши заметку или вопрос...'}" style="flex:1;padding:9px 13px;border:2px solid var(--gray-border);border-radius:10px;font-family:var(--font)" onkeydown="if(event.key==='Enter')postClassFeedStudent('${_esc(classId)}')">
+        <button class="btn btn-purple" onclick="postClassFeedStudent('${_esc(classId)}')">➤</button>
+      </div>
+      ${feedRows||`<div style="font-size:.84rem;color:var(--text3);padding:6px 0">${isEn?'No messages yet — write the first one!':'Сообщений пока нет — напиши первое!'}</div>`}
+    </div>`;
   // 📝 ДЗ
   const _sMap={pending:isEn?'New':'Новое',submitted:isEn?'Submitted':'Сдано',reviewed:isEn?'Reviewed':'Проверено'};
   const _bMap={pending:'badge-purple',submitted:'badge-yellow',reviewed:'badge-green'};
@@ -6109,13 +6174,16 @@ async function loadClassTab(tab){
       const done=stuAssigns.filter(a=>a.completed).length;
       const total=stuAssigns.length;
       const pct=total>0?Math.round(done/total*100):0;
+      const _csId=_esc(c.student_id).replace(/'/g,"&#39;");
+      const _csName=_esc(((c.student?.first_name||'')+' '+(c.student?.last_name||'')).trim()).replace(/'/g,"&#39;");
       return`<tr>
         <td><div style="display:flex;align-items:center;gap:10px">${avHTML(c.student?.first_name,c.student?.last_name)}<div style="font-weight:600">${_esc(c.student?.first_name||'—')} ${_esc(c.student?.last_name||'')}</div></div></td>
         <td>${done}/${total}</td>
         <td><div style="min-width:120px"><div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div><div style="font-size:.72rem;color:var(--text3);margin-top:2px">${pct}%</div></div></td>
+        <td><button class="btn btn-sm btn-outline" style="font-size:.75rem" onclick="openStudentAnswers('${_csId}','${_csName}')">👁 ${t('Ответы')}</button></td>
       </tr>`;
     }).join('');
-    C('classDetailContent').innerHTML=`<div class="card" style="padding:0;overflow:hidden"><table><thead><tr><th>${t('Ученик')}</th><th>${t('Уроков пройдено')}</th><th>${t('Прогресс')}</th></tr></thead><tbody>${rows||`<tr><td colspan="3" style="text-align:center;color:var(--text3)">${t('Нет учеников')}</td></tr>`}</tbody></table></div>`;
+    C('classDetailContent').innerHTML=`<div class="card" style="padding:0;overflow:hidden"><table><thead><tr><th>${t('Ученик')}</th><th>${t('Уроков пройдено')}</th><th>${t('Прогресс')}</th><th></th></tr></thead><tbody>${rows||`<tr><td colspan="4" style="text-align:center;color:var(--text3)">${t('Нет учеников')}</td></tr>`}</tbody></table></div>`;
   }
   }finally{loadClassTab._busy=false;}
 }
@@ -6227,6 +6295,43 @@ async function progRemove(progId){
   const{error}=await sb.from('class_lessons').delete().eq('id',progId).eq('school_id',S.schoolId);
   if(error){showToast('❌ '+error.message,'error');return;}
   await loadClassTab('program');
+}
+
+// ─── ОТВЕТЫ УЧЕНИКА (просмотр учителем) ──────────────────────────────────────
+async function openStudentAnswers(sid,name){
+  if(openStudentAnswers._busy)return;openStudentAnswers._busy=true;
+  try{
+    const{data:answers}=await sb.from('lesson_answers').select('*,lesson:lesson_id(title)').eq('student_id',sid).eq('school_id',S.schoolId).order('answered_at',{ascending:false}).limit(200);
+    const TYPE_L={quiz:'🎯 '+t('Квиз'),fill_blank:'✏️ '+t('Пропуск'),truefalse:'✅ True/False',word_order:'🔀 '+t('Порядок слов'),matching:'🔗 '+t('Соотнесение'),openq:'💬 '+t('Открытый вопрос'),video_q:'🎬 '+t('Вопрос к видео')};
+    // Группируем по уроку
+    const byLesson={};
+    (answers||[]).forEach(a=>{const k=a.lesson?.title||t('Урок');(byLesson[k]=byLesson[k]||[]).push(a);});
+    const groups=Object.entries(byLesson).map(([title,arr])=>{
+      const items=arr.map(a=>{
+        const when=new Date(a.answered_at).toLocaleString('ru-RU',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+        const badge=a.correct===true?'<span class="badge badge-green">✅ '+t('Верно')+'</span>':a.correct===false?'<span class="badge" style="background:var(--pink-light);color:var(--pink)">❌ '+t('Неверно')+'</span>':'<span class="badge badge-purple">💬 '+t('Ответ')+'</span>';
+        return`<div style="padding:10px 14px;border:1px solid var(--gray-border);border-radius:10px;margin-bottom:6px">
+          <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:center">
+            <span style="font-size:.78rem;font-weight:600;color:var(--text3)">${TYPE_L[a.ex_type]||_escHtml(a.ex_type||'')}</span>
+            <div style="display:flex;gap:8px;align-items:center">${badge}<span style="font-size:.7rem;color:var(--text3)">${when}</span></div>
+          </div>
+          <div style="font-size:.9rem;margin-top:6px;white-space:pre-wrap">${_escHtml(a.answer||'—')}</div>
+        </div>`;
+      }).join('');
+      const okCount=arr.filter(a=>a.correct===true).length;
+      const wrCount=arr.filter(a=>a.correct===false).length;
+      return`<div style="margin-bottom:20px">
+        <div style="font-weight:700;margin-bottom:8px;color:var(--purple)">📖 ${_escHtml(title)} <span style="font-size:.75rem;color:var(--text3);font-weight:500">✅ ${okCount} · ❌ ${wrCount} · ${t('всего')}: ${arr.length}</span></div>
+        ${items}
+      </div>`;
+    }).join('');
+    C('classDetailContent').innerHTML=`
+      <div class="section-header" style="margin-bottom:16px">
+        <span style="font-weight:700">👁 ${t('Ответы')}: ${_escHtml(name||'')}</span>
+        <button class="btn btn-outline" onclick="loadClassTab('progress')">← ${t('Назад')}</button>
+      </div>
+      ${groups||`<div class="empty-state"><div class="ei">📭</div><p>${t('Ученик ещё не отвечал на упражнения')}</p></div>`}`;
+  }finally{openStudentAnswers._busy=false;}
 }
 
 // ─── SCHEDULE ─────────────────────────────────────────────────────────────────
@@ -7323,7 +7428,8 @@ function renderBlockView(b,i){
     return`<div class="lesson-view-block">
       ${b.note?`<div style="padding:10px;background:var(--yellow-light);border-radius:8px;font-size:.85rem;margin-bottom:12px">📌 ${_escHtml(b.note)}</div>`:''}
       ${embedUrl?`<div style="position:relative;padding-bottom:56.25%;height:0;overflow:hidden;border-radius:10px;margin-bottom:12px"><iframe src="${_escHtml(embedUrl)}" style="position:absolute;top:0;left:0;width:100%;height:100%;border:none;border-radius:10px" allowfullscreen sandbox="${_sbx}"></iframe></div>`:'<div style="color:var(--text3);padding:20px;text-align:center">🎬 Видео не указано</div>'}
-      ${b.question?`<div style="font-weight:700;margin-top:8px">❓ ${_escHtml(b.question)}</div><textarea style="width:100%;margin-top:8px;padding:8px 10px;border:2px solid var(--gray-border);border-radius:8px;font-family:var(--font);min-height:60px" placeholder="Напиши свой ответ..."></textarea>`:''}
+      ${b.question?`<div style="font-weight:700;margin-top:8px">❓ ${_escHtml(b.question)}</div><textarea id="vq_${i}" style="width:100%;margin-top:8px;padding:8px 10px;border:2px solid var(--gray-border);border-radius:8px;font-family:var(--font);min-height:60px" placeholder="Напиши свой ответ..."></textarea>
+      ${S.role==='student'?`<button class="btn btn-purple btn-sm" style="margin-top:8px" onclick="saveOpenAnswer('${i}','vq')">💾 ${t('Сохранить ответ')}</button><div id="vq_res_${i}" style="margin-top:6px;font-size:.85rem"></div>`:''}`:''}
     </div>`;
   }
   if(b.type==='image'){const _iUrl=_escHtml(b.url||'');return`<div class="lesson-view-block">
@@ -7332,9 +7438,32 @@ function renderBlockView(b,i){
   </div>`;}
   if(b.type==='openq') return`<div class="lesson-view-block">
     <div style="font-weight:700;margin-bottom:10px">💬 ${_escHtml(b.question||'Вопрос')}</div>
-    <textarea style="width:100%;padding:10px 12px;border:2px solid var(--gray-border);border-radius:8px;font-family:var(--font);min-height:80px;font-size:.92rem" placeholder="Напиши свой ответ..."></textarea>
+    <textarea id="oq_${i}" style="width:100%;padding:10px 12px;border:2px solid var(--gray-border);border-radius:8px;font-family:var(--font);min-height:80px;font-size:.92rem" placeholder="Напиши свой ответ..."></textarea>
+    ${S.role==='student'?`<button class="btn btn-purple btn-sm" style="margin-top:8px" onclick="saveOpenAnswer('${i}','oq')">💾 ${t('Сохранить ответ')}</button><div id="oq_res_${i}" style="margin-top:6px;font-size:.85rem"></div>`:''}
   </div>`;
   return'';
+}
+
+// ─── СОХРАНЕНИЕ ОТВЕТОВ УЧЕНИКА (учитель видит их в классе) ──────────────────
+function saveLessonAnswer(exKey,exType,answer,correct){
+  try{
+    if(S.role!=='student'||!S.currentAssignId||!S.studentRowId)return;
+    const a=(window._assignCache||{})[S.currentAssignId];
+    sb.from('lesson_answers').upsert({
+      school_id:S.schoolId,assignment_id:S.currentAssignId,lesson_id:a?.lesson_id||null,
+      student_id:S.studentRowId,ex_key:String(exKey),ex_type:exType||'',
+      answer:String(answer==null?'':answer).slice(0,2000),
+      correct:(correct===null||correct===undefined)?null:!!correct,
+      answered_at:new Date().toISOString()
+    },{onConflict:'assignment_id,ex_key'}).then(({error})=>{if(error)console.warn('[answers]',error);});
+  }catch(e){console.warn('[answers]',e);}
+}
+function saveOpenAnswer(i,kind){
+  const ta=C(`${kind}_${i}`);if(!ta)return;
+  const v=(ta.value||'').trim();
+  if(!v){showToast(t('Напиши ответ перед сохранением'));return;}
+  saveLessonAnswer(i,kind==='oq'?'openq':'video_q',v,null);
+  const res=C(`${kind}_res_${i}`);if(res)res.innerHTML=`<span style="color:var(--green)">💾 ${t('Ответ сохранён — учитель его увидит')}</span>`;
 }
 
 // exercise check functions
@@ -7348,16 +7477,19 @@ function checkFillBlank(i,answer){
   inputs.forEach(inp=>{inp.classList.toggle('correct',correct);inp.classList.toggle('wrong',!correct);});
   if(correct){res.innerHTML=`<span style="color:var(--green)">✅ ${t('Правильно!')}</span>`;}
   else{res.innerHTML=`<span style="color:var(--red)">❌ ${t('Неверно.')} ${t('Правильный ответ')}: <b>${_escHtml(answer)}</b></span>`;}
+  saveLessonAnswer(i,'fill_blank',val,correct);
 }
 function checkFillBlankByRef(i){
   const answer=window[`_fbAns_${i}`]||'';
   checkFillBlank(i,answer);
 }
 function checkQuiz(blockI,chosen,correct){
+  const _chosenTxt=(C(`qo_${blockI}_${chosen}`)?.textContent||'').trim();
   document.querySelectorAll(`[id^="qo_${blockI}_"]`).forEach(o=>o.onclick=null);
   const _correctEl=C(`qo_${blockI}_${correct}`);
   if(_correctEl)_correctEl.classList.add('correct');
   if(chosen!==correct){const _chosenEl=C(`qo_${blockI}_${chosen}`);if(_chosenEl)_chosenEl.classList.add('wrong');}
+  saveLessonAnswer(blockI,'quiz',_chosenTxt,chosen===correct);
 }
 function checkTF(i,chosen,correct){
   const isCorrect=chosen===correct;
@@ -7367,6 +7499,7 @@ function checkTF(i,chosen,correct){
   [bt,bf].forEach(b=>{if(b)b.onclick=null;});
   C(`tf_res_${i}`).innerHTML=isCorrect?`<span style="color:var(--green)">✅ ${t('Правильно!')}</span>`:`<span style="color:var(--red)">❌ ${t('Неверно!')}</span>`;
   const exp=C(`tf_exp_${i}`);if(exp)exp.style.display='block';
+  saveLessonAnswer(i,'truefalse',chosen?'True':'False',isCorrect);
 }
 function matchLeft(i,pi){
   const st=window._matchState[i];if(!st)return;
@@ -7386,7 +7519,7 @@ function matchRight(i,ri){
     C(`mr_${i}_${ri}`).classList.add('matched');
     st.matched[`l${li}`]=true;st.matched[`r${ri}`]=true;
     const done=Object.keys(st.matched).length/2;
-    if(done===st.pairs.length)C(`match_res_${i}`).innerHTML=`<span style="color:var(--green)">🎉 ${t('Все совпадения верны!')}</span>`;
+    if(done===st.pairs.length){C(`match_res_${i}`).innerHTML=`<span style="color:var(--green)">🎉 ${t('Все совпадения верны!')}</span>`;saveLessonAnswer(i,'matching',st.pairs.map(p=>p.left+' → '+p.right).join('; '),true);}
   } else {
     C(`ml_${i}_${li}`).classList.add('wrong-match');C(`mr_${i}_${ri}`).classList.add('wrong-match');
     setTimeout(()=>{C(`ml_${i}_${li}`).classList.remove('wrong-match','selected');C(`mr_${i}_${ri}`).classList.remove('wrong-match');},800);
@@ -7410,9 +7543,11 @@ function checkWordOrder(i){
   const st=window[`_wo_${i}`];if(!st)return;
   const answer=st.chosen.map(c=>c.word).join(' ');
   const correct=st.correct.trim();
-  C(`wo_res_${i}`).innerHTML=answer.toLowerCase()===correct.toLowerCase()?
+  const _woOk=answer.toLowerCase()===correct.toLowerCase();
+  C(`wo_res_${i}`).innerHTML=_woOk?
     `<span style="color:var(--green)">✅ ${t('Правильно!')}</span>`:
     `<span style="color:var(--red)">❌ ${t('Неверно.')} ${t('Правильно')}: <b>${_escHtml(correct)}</b></span>`;
+  saveLessonAnswer(i,'word_order',answer,_woOk);
 }
 async function completeLessonView(){
   if(S.role==='student'&&!S.studentRowId){showToast(t('Ошибка: ID ученика не загружен'),'error');return;}
