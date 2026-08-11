@@ -2204,6 +2204,7 @@ const TRANSLATIONS={
   'Войти в класс':'Enter class',
   'Класс не найден':'Class not found',
   'Урок уже назначен — ученик видит его в «Мои уроки»':'Lesson already assigned — the student sees it in "My lessons"',
+  'В классе несколько учеников — выбери, кому позвонить':'This class has several students — pick who to call',
 };
 
 // ─── GEORGIAN TRANSLATIONS ───────────────────────────────────────────────────
@@ -2652,6 +2653,7 @@ const TRANSLATIONS_GE={
   'Войти в класс':'კლასში შესვლა',
   'Класс не найден':'კლასი ვერ მოიძებნა',
   'Урок уже назначен — ученик видит его в «Мои уроки»':'გაკვეთილი უკვე მინიჭებულია — მოსწავლე ხედავს მას „ჩემს გაკვეთილებში"',
+  'В классе несколько учеников — выбери, кому позвонить':'კლასში რამდენიმე მოსწავლეა — აირჩიე ვის დაურეკო',
 };
 
 function t(str){
@@ -3527,13 +3529,32 @@ async function sendAIMsg(prefix){
 
 // Call student from lesson view
 async function cvCallStudent(){
+  if(cvCallStudent._busy)return;cvCallStudent._busy=true;
+  try{
   const _ac=(window._assignCache||{})[S.currentAssignId];
-  const partnerId=S._cvStudentId||_ac?.student_id;
+  let partnerId=S._cvStudentId||_ac?.student_id||null; // students.id (CRM)
+  let partnerName=t('Ученик');
+  // Режим класса (урок запущен через «Начать урок») — берём учеников класса
+  if(!partnerId&&S.currentClassId){
+    const{data:cs}=await sb.from('class_students').select('student_id,student:student_id(first_name,last_name)').eq('class_id',S.currentClassId).eq('school_id',S.schoolId);
+    if(cs&&cs.length===1){
+      partnerId=cs[0].student_id;
+      partnerName=((cs[0].student?.first_name||'')+' '+(cs[0].student?.last_name||'')).trim()||partnerName;
+    } else if(cs&&cs.length>1){
+      showToast(t('В классе несколько учеников — выбери, кому позвонить'));
+      const p=C('contactPicker');if(p&&!p.classList.contains('open')){p.classList.add('open');renderContacts();}
+      return;
+    }
+  }
   if(!partnerId){showToast(t('Ученик не определён'),'error');return;}
-  // Try to find student name from loaded contacts
+  // Имя из загруженных контактов, если есть
   const _ct=S.contacts?.find(c=>c.id===partnerId||c.id==='stu_'+partnerId);
-  const partnerName=_ct?((_ct.first_name||'')+' '+(_ct.last_name||'')).trim()||'Ученик':'Ученик';
-  callContact(partnerId,partnerName,'student');
+  if(_ct)partnerName=((_ct.first_name||'')+' '+(_ct.last_name||'')).trim()||partnerName;
+  // ВАЖНО: partnerId — это students.id, а не profile id.
+  // Передаём с префиксом 'stu_' — callContact найдёт профиль по email.
+  const _isProfile=!!(S.contacts?.some(c=>c.id===partnerId));
+  callContact(_isProfile?partnerId:('stu_'+partnerId),partnerName,'student');
+  }finally{cvCallStudent._busy=false;}
 }
 
 // ─── INVITE SYSTEM ────────────────────────────────────────────────────────────
