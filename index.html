@@ -2201,6 +2201,8 @@ const TRANSLATIONS={
   'Профиль не загружен':'Profile not loaded',
   'Не авторизован':'Not authorized',
   'Установить пароль':'Set password',
+  'Войти в класс':'Enter class',
+  'Класс не найден':'Class not found',
 };
 
 // ─── GEORGIAN TRANSLATIONS ───────────────────────────────────────────────────
@@ -2646,6 +2648,8 @@ const TRANSLATIONS_GE={
   'Слишком длинное название':'სახელი ძალიან გრძელია',
   'Слишком длинное описание':'აღწერა ძალიან გრძელია',
   'Установить пароль':'პაროლის დაყენება',
+  'Войти в класс':'კლასში შესვლა',
+  'Класс не найден':'კლასი ვერ მოიძებნა',
 };
 
 function t(str){
@@ -4023,7 +4027,7 @@ async function callContact(partnerId,partnerName,partnerRole){
     try{
       const{data:stu}=await sb.from('students').select('email').eq('id',realId).eq('school_id',S.schoolId).single();
       if(stu?.email){
-        const{data:prof}=await sb.from('profiles').select('id').eq('email',stu.email).eq('school_id',S.schoolId).single();
+        const{data:prof}=await sb.from('profiles').select('id').ilike('email',stu.email).eq('school_id',S.schoolId).maybeSingle();
         if(prof?.id)ringId=prof.id;
       }
     }catch(e){
@@ -4558,16 +4562,18 @@ async function renderStudentClasses(){
     const schedHtml=clEvents.length?clEvents.map(e=>`<div style="font-size:.82rem;padding:6px 10px;background:var(--gray-light);border-radius:6px;margin-bottom:4px">
       📅 <b>${_escHtml(e.event_date||'')}</b> ${_escHtml((e.event_time||'').slice(0,5))} — ${_escHtml(e.title||'')}
     </div>`).join(''):`<div style="font-size:.82rem;color:var(--text3)">Нет ближайших занятий</div>`;
-    return`<div class="card" style="margin-bottom:16px;border-left:4px solid ${color}">
+    const _clId=_esc(cl.id).replace(/'/g,"&#39;");
+    return`<div class="card" style="margin-bottom:16px;border-left:4px solid ${color};cursor:pointer;transition:.15s" onclick="openStudentClass('${_clId}')" onmouseover="this.style.boxShadow='0 4px 16px rgba(0,0,0,.1)'" onmouseout="this.style.boxShadow=''">
       <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
         <div style="width:44px;height:44px;border-radius:50%;background:${color};display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:1.2rem;flex-shrink:0">${(_escHtml(cl.name||'?').replace(/[^a-zA-Zа-яА-ЯёЁ0-9]/g,'')[0]||'?').toUpperCase()}</div>
-        <div>
+        <div style="flex:1">
           <div style="font-weight:700;font-size:1rem">${_escHtml(cl.name||'')}</div>
           <div style="font-size:.8rem;color:var(--text3)">${_escHtml(cl.language||'')} · ${_escHtml(cl.level||'')} · ${t(cl.type==='group'?'Групповой':'Индивидуальный')}</div>
         </div>
+        <button class="btn btn-purple" onclick="event.stopPropagation();openStudentClass('${_clId}')">${t('Войти в класс')} →</button>
       </div>
       <div style="font-size:.85rem;margin-bottom:10px">👤 <b>Учитель:</b> ${teacherName}
-        ${teacher&&S.profile?.id?`<button class="btn btn-sm btn-outline" style="margin-left:8px;padding:3px 8px;font-size:.75rem" onclick="callContact('${_esc(cl.teacher_id)}','${teacherName}','teacher')">📞 Позвонить</button>`:''}
+        ${teacher&&S.profile?.id?`<button class="btn btn-sm btn-outline" style="margin-left:8px;padding:3px 8px;font-size:.75rem" onclick="event.stopPropagation();callContact('${_esc(cl.teacher_id)}','${teacherName}','teacher')">📞 Позвонить</button>`:''}
       </div>
       ${cl.description?`<div style="font-size:.82rem;color:var(--text3);margin-bottom:10px">${_escHtml(cl.description)}</div>`:''}
       <div style="font-weight:600;font-size:.82rem;margin-bottom:6px;color:var(--purple)">📅 Ближайшие занятия:</div>
@@ -4576,6 +4582,84 @@ async function renderStudentClasses(){
   }).join('');
   setContent(`<div class="section-header"><h2>🎓 Мой класс</h2></div>${cards}`);
   }finally{renderStudentClasses._loading=false;}
+}
+
+// ─── STUDENT CLASS DETAIL ─────────────────────────────────────────────────────
+async function openStudentClass(classId){
+  if(openStudentClass._loading)return;openStudentClass._loading=true;
+  try{
+  showSkel();
+  const isEn=S.lang==='en';
+  // Ensure studentRowId
+  if(!S.studentRowId&&S.profile?.email){
+    const{data:_sr}=await sb.from('students').select('id').ilike('email',S.profile.email).eq('school_id',S.schoolId).limit(1);
+    S.studentRowId=_sr?.[0]?.id||null;
+  }
+  const today=new Date().toISOString().slice(0,10);
+  const[{data:cl},{data:assigns},{data:events}]=await Promise.all([
+    sb.from('classes').select('*,profiles:teacher_id(first_name,last_name)').eq('id',classId).eq('school_id',S.schoolId).single(),
+    S.studentRowId?sb.from('lesson_assignments').select('*,lesson:lesson_id(id,title,language,level,content,published)').eq('student_id',S.studentRowId).eq('school_id',S.schoolId).order('created_at',{ascending:false}):Promise.resolve({data:[]}),
+    sb.from('schedule_events').select('*').eq('class_id',classId).eq('school_id',S.schoolId).gte('event_date',today).order('event_date').order('event_time').limit(10)
+  ]);
+  if(!cl){showToast(t('Класс не найден'),'error');renderStudentClasses();return;}
+  const teacher=cl.profiles;
+  const teacherName=teacher?`${_escHtml(teacher.first_name||'')} ${_escHtml(teacher.last_name||'')}`.trim():t('Не указан');
+  // Lessons: prefer assignments linked to this class; if none linked, show all student's assignments
+  const allAssigns=(assigns||[]).filter(a=>a.lesson);
+  const classAssigns=allAssigns.filter(a=>a.class_id===classId);
+  const showAssigns=classAssigns.length?classAssigns:allAssigns;
+  const _hint=classAssigns.length?'':(allAssigns.length?`<div style="font-size:.78rem;color:var(--text3);margin-bottom:8px">${isEn?'All your lessons:':'Все твои назначенные уроки:'}</div>`:'');
+  // Update assignment cache so openLessonView works
+  window._assignCache=window._assignCache||{};
+  allAssigns.forEach(a=>{window._assignCache[a.id]=a;});
+  const lessonCards=showAssigns.map(a=>{const _aId=_esc(a.id).replace(/'/g,"&#39;");return`<div class="card" style="margin-bottom:10px">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">
+      <div>
+        <div style="font-weight:700">${_escHtml(a.lesson?.title||'Урок')}</div>
+        <div style="font-size:.8rem;color:var(--text3)">${_escHtml(a.lesson?.language||'')} · ${_escHtml(a.lesson?.level||'')}</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px">
+        ${a.completed?'<span class="badge badge-green">✓ Завершён</span>':'<span class="badge badge-purple">📖 Новый</span>'}
+        <button class="btn btn-purple" onclick="openLessonView('${_aId}')">${t('Открыть')}</button>
+      </div>
+    </div>
+  </div>`;}).join('')||`<div class="empty-state" style="padding:24px"><div class="ei">📖</div><p>${isEn?'No lessons assigned yet. Ask your teacher!':'Уроки пока не назначены. Попроси учителя!'}</p></div>`;
+  const schedRows=(events||[]).map(e=>`<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--gray-light);border-radius:10px;margin-bottom:6px">
+    <div style="font-size:1.1rem">📅</div>
+    <div style="flex:1">
+      <div style="font-weight:600;font-size:.88rem">${_escHtml(e.title||t('Занятие'))}</div>
+      <div style="font-size:.78rem;color:var(--text3)">${_escHtml(e.event_date||'')} ${_escHtml((e.event_time||'').slice(0,5))} · ${Number.isFinite(Number(e.duration_minutes))?Number(e.duration_minutes):60} ${t('мин')}</div>
+    </div>
+  </div>`).join('')||`<div style="font-size:.85rem;color:var(--text3);padding:8px 0">${isEn?'No upcoming classes':'Нет ближайших занятий'}</div>`;
+  const COLORS=['#F97316','#8B5CF6','#EC4899','#10B981','#3B82F6'];
+  const color=/^#[0-9a-fA-F]{3,8}$/.test(cl.color)?cl.color:COLORS[0];
+  setContent(`
+    <div class="section-header">
+      <h2>🎓 ${_escHtml(cl.name||'')}</h2>
+      <button class="btn btn-outline" onclick="renderStudentClasses()">← ${isEn?'Back':'Назад'}</button>
+    </div>
+    <div class="card" style="margin-bottom:16px;border-left:4px solid ${color}">
+      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+        <div style="flex:1;min-width:200px">
+          <div style="font-size:.85rem;color:var(--text3)">${_escHtml(cl.language||'')} · ${_escHtml(cl.level||'')} · ${t(cl.type==='group'?'Групповой':'Индивидуальный')}</div>
+          <div style="font-size:.9rem;margin-top:6px">👤 <b>${t('Учитель')}:</b> ${teacherName}</div>
+        </div>
+        ${teacher&&cl.teacher_id?`<button class="btn btn-green" onclick="callContact('${_esc(cl.teacher_id)}','${teacherName}','teacher')">📞 ${isEn?'Call teacher':'Позвонить учителю'}</button>`:''}
+      </div>
+      ${cl.description?`<div style="font-size:.82rem;color:var(--text3);margin-top:10px">${_escHtml(cl.description)}</div>`:''}
+    </div>
+    <div style="display:grid;grid-template-columns:1fr;gap:16px">
+      <div>
+        <div style="font-weight:700;margin-bottom:10px;color:var(--purple)">📖 ${isEn?'Lessons':'Уроки'}</div>
+        ${_hint}${lessonCards}
+      </div>
+      <div>
+        <div style="font-weight:700;margin-bottom:10px;color:var(--purple)">📅 ${isEn?'Upcoming schedule':'Ближайшие занятия'}</div>
+        ${schedRows}
+      </div>
+    </div>`);
+  }catch(e){console.error('[openStudentClass]',e);showToast(t('Ошибка загрузки'),'error');}
+  finally{openStudentClass._loading=false;}
 }
 
 // ─── TEACHER SCREENS ──────────────────────────────────────────────────────────
