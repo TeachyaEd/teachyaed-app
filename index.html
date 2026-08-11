@@ -352,6 +352,13 @@ tr:hover td{background:#FAFAFA}
 .wb-btn{padding:5px 12px;border:2px solid var(--gray-border);border-radius:8px;background:#fff;cursor:pointer;font-size:.8rem;font-weight:600;font-family:var(--font)}
 .wb-btn.active{border-color:var(--purple);background:var(--purple-light);color:var(--purple)}
 #wbCanvas{flex:1;cursor:crosshair;display:block;width:100%}
+#wbTools{position:fixed;left:14px;top:50%;transform:translateY(-50%);background:#fff;border-radius:16px;box-shadow:0 8px 28px rgba(0,0,0,.16);padding:10px 8px;display:flex;flex-direction:column;gap:4px;z-index:521}
+.wb-tool{width:40px;height:40px;border:none;background:none;border-radius:10px;cursor:pointer;font-size:1.15rem;display:flex;align-items:center;justify-content:center;color:#3D3A50;font-weight:700;transition:.12s;font-family:var(--font)}
+.wb-tool:hover{background:var(--purple-light)}
+.wb-tool.active{background:var(--purple);color:#fff}
+.wb-tool-sep{height:1px;background:var(--gray-border);margin:4px 6px}
+body[data-theme="dark"] #wbTools{background:var(--white);box-shadow:0 8px 28px rgba(0,0,0,.5)}
+body[data-theme="dark"] .wb-tool{color:var(--text2)}
 
 /* ── LESSON BUILDER ── */
 .lesson-block{background:#fff;border:2px solid var(--gray-border);border-radius:10px;padding:14px;margin-bottom:10px;position:relative}
@@ -1036,15 +1043,28 @@ body[data-theme="dark"] .vocab-back{color:#6ee7b7!important;background:rgba(16,1
 <div id="wbOverlay">
   <div id="wbBar">
     <span style="font-weight:800;font-size:1rem;margin-right:6px">✏️ Доска</span>
-    <button class="wb-btn active" id="wbPen" onclick="setWbTool('pen')">🖊 Ручка</button>
-    <button class="wb-btn" id="wbEr" onclick="setWbTool('eraser')">⬜ Ластик</button>
-    <input type="color" id="wbColor" value="#7C3AED" style="width:34px;height:34px;border:2px solid var(--gray-border);border-radius:6px;cursor:pointer;padding:2px">
+    <input type="color" id="wbColor" value="#7C3AED" title="Цвет" style="width:34px;height:34px;border:2px solid var(--gray-border);border-radius:6px;cursor:pointer;padding:2px">
     <select id="wbSz" style="border:2px solid var(--gray-border);border-radius:6px;padding:5px 8px;font-size:.8rem;font-family:var(--font)">
       <option value="2">Тонкий</option><option value="4" selected>Средний</option><option value="8">Толстый</option>
     </select>
+    <button class="wb-btn" onclick="wbUndo()" title="Отменить">↩️ Отменить</button>
     <button class="wb-btn" onclick="clearWb()">🗑 Очистить</button>
     <button class="wb-btn" onclick="saveWb()">💾 Сохранить</button>
     <button class="wb-btn" style="margin-left:auto" onclick="closeWb()">✕ Закрыть</button>
+  </div>
+  <!-- Вертикальная панель инструментов (как в Miro/EdVibe) -->
+  <div id="wbTools">
+    <button class="wb-tool active" id="wbt_pen" onclick="setWbTool('pen')" title="Ручка">🖊</button>
+    <button class="wb-tool" id="wbt_marker" onclick="setWbTool('marker')" title="Маркер">🖍</button>
+    <button class="wb-tool" id="wbt_eraser" onclick="setWbTool('eraser')" title="Ластик">🧽</button>
+    <div class="wb-tool-sep"></div>
+    <button class="wb-tool" id="wbt_line" onclick="setWbTool('line')" title="Линия">╱</button>
+    <button class="wb-tool" id="wbt_arrow" onclick="setWbTool('arrow')" title="Стрелка">↗</button>
+    <button class="wb-tool" id="wbt_rect" onclick="setWbTool('rect')" title="Прямоугольник">▭</button>
+    <button class="wb-tool" id="wbt_ellipse" onclick="setWbTool('ellipse')" title="Овал">◯</button>
+    <div class="wb-tool-sep"></div>
+    <button class="wb-tool" id="wbt_text" onclick="setWbTool('text')" title="Текст">T</button>
+    <button class="wb-tool" id="wbt_note" onclick="setWbTool('note')" title="Стикер">🗒</button>
   </div>
   <canvas id="wbCanvas"></canvas>
 </div>
@@ -2312,6 +2332,8 @@ const TRANSLATIONS={
   'В урок':'To lesson',
   'Доступна новая версия платформы':'A new version of the platform is available',
   'Обновить':'Update',
+  'Текст:':'Text:',
+  'Текст стикера:':'Sticky note text:',
   'Подробнее о классе':'Class details',
   'Уроки пока не назначены. Попроси учителя!':'No lessons assigned yet. Ask your teacher!',
   'Сменить урок':'Switch lesson',
@@ -2820,6 +2842,8 @@ const TRANSLATIONS_GE={
   'В урок':'გაკვეთილზე',
   'Доступна новая версия платформы':'ხელმისაწვდომია პლატფორმის ახალი ვერსია',
   'Обновить':'განახლება',
+  'Текст:':'ტექსტი:',
+  'Текст стикера:':'სტიკერის ტექსტი:',
   'Подробнее о классе':'კლასის დეტალები',
   'Уроки пока не назначены. Попроси учителя!':'გაკვეთილები ჯერ არ არის მინიჭებული. სთხოვე მასწავლებელს!',
   'Сменить урок':'გაკვეთილის შეცვლა',
@@ -4049,7 +4073,7 @@ sb.auth.onAuthStateChange((event,session)=>{if(((event==='SIGNED_OUT'||event==='
   }
 })();
 // ─── АВТООБНОВЛЕНИЕ (кэш GitHub Pages) ───────────────────────────────────────
-const APP_BUILD='2026.08.11-b'; // ⚠️ менять при каждом деплое
+const APP_BUILD='2026.08.11-c'; // ⚠️ менять при каждом деплое
 // Показываем номер сборки на логине — для диагностики версий
 setTimeout(()=>{const lb=document.getElementById('loginBuild');if(lb)lb.textContent='v '+APP_BUILD;},300);
 function checkAppUpdate(){
@@ -4447,67 +4471,207 @@ async function hangUp(){
 }
 function minimizeCall(){const b=C('callBody');b.style.display=b.style.display==='none'?'block':'none';}
 
-// ─── WHITEBOARD (общая доска — синхронно у учителя и ученика) ────────────────
+// ─── WHITEBOARD 2.0 (Miro-style, общая, синхронная, с undo) ──────────────────
+// Модель: window._wbOps — список операций в норм. координатах (0..1). Redraw = replay.
 let wbCtx,wbDrawing=false,wbTool='pen',wbLX=0,wbLY=0,wbInited=false;
+let wbStartX=0,wbStartY=0,_wbCurStroke=null;
 let _wbQ=[],_wbFlushTimer=null;
+window._wbOps=window._wbOps||[];
 function openWb(fromRemote){
   C('wbOverlay').classList.add('open');
   initWb();
   if(S.lang==='en')applyEN(C('wbOverlay'));else if(S.lang==='ge')applyGE(C('wbOverlay'));
-  // Сообщаем собеседнику, чтобы доска открылась и у него
   if(!fromRemote)wbSend('wbopen',null);
 }
 function closeWb(){C('wbOverlay').classList.remove('open');}
-function wbSend(kind,segs){
+function wbSend(kind,data){
   if(!LV._syncCh)return;
-  try{LV._syncCh.send({type:'broadcast',event:'ex',payload:{id:'wb',kind,segs:segs||null,from:S.profile?.id||''}});}catch(e){}
+  try{LV._syncCh.send({type:'broadcast',event:'ex',payload:{id:'wb',kind,segs:kind==='wb'?data:null,op:kind==='wbop'?data:null,from:S.profile?.id||''}});}catch(e){}
 }
-function _wbQueueSeg(x0,y0,x1,y1,color,width){
+// ── нормализация ──
+function _wbN(x,y){const c=C('wbCanvas');return[+(x/c.width).toFixed(4),+(y/c.height).toFixed(4)];}
+// ── отрисовка одной операции ──
+function wbDrawOp(op){
+  const c=C('wbCanvas');if(!wbCtx||!c)return;
+  const W=c.width,H=c.height;
+  wbCtx.save();
+  wbCtx.lineCap='round';wbCtx.lineJoin='round';
+  if(op.t==='s'){ // stroke (pen/marker/eraser)
+    wbCtx.strokeStyle=op.c;wbCtx.lineWidth=op.w;
+    if(op.m){wbCtx.globalAlpha=.35;wbCtx.lineWidth=op.w*3;}
+    wbCtx.beginPath();
+    op.p.forEach((s,i)=>{if(i===0)wbCtx.moveTo(s[0]*W,s[1]*H);wbCtx.lineTo(s[2]*W,s[3]*H);wbCtx.moveTo(s[2]*W,s[3]*H);});
+    wbCtx.stroke();
+  } else if(op.t==='l'||op.t==='a'){ // line / arrow
+    wbCtx.strokeStyle=op.c;wbCtx.lineWidth=op.w;
+    const x0=op.x0*W,y0=op.y0*H,x1=op.x1*W,y1=op.y1*H;
+    wbCtx.beginPath();wbCtx.moveTo(x0,y0);wbCtx.lineTo(x1,y1);wbCtx.stroke();
+    if(op.t==='a'){ // наконечник
+      const ang=Math.atan2(y1-y0,x1-x0),hl=10+op.w*2;
+      wbCtx.beginPath();
+      wbCtx.moveTo(x1,y1);wbCtx.lineTo(x1-hl*Math.cos(ang-Math.PI/6),y1-hl*Math.sin(ang-Math.PI/6));
+      wbCtx.moveTo(x1,y1);wbCtx.lineTo(x1-hl*Math.cos(ang+Math.PI/6),y1-hl*Math.sin(ang+Math.PI/6));
+      wbCtx.stroke();
+    }
+  } else if(op.t==='r'){ // rect
+    wbCtx.strokeStyle=op.c;wbCtx.lineWidth=op.w;
+    wbCtx.strokeRect(Math.min(op.x0,op.x1)*W,Math.min(op.y0,op.y1)*H,Math.abs(op.x1-op.x0)*W,Math.abs(op.y1-op.y0)*H);
+  } else if(op.t==='e'){ // ellipse
+    wbCtx.strokeStyle=op.c;wbCtx.lineWidth=op.w;
+    wbCtx.beginPath();
+    wbCtx.ellipse((op.x0+op.x1)/2*W,(op.y0+op.y1)/2*H,Math.abs(op.x1-op.x0)/2*W,Math.abs(op.y1-op.y0)/2*H,0,0,Math.PI*2);
+    wbCtx.stroke();
+  } else if(op.t==='t'){ // text
+    wbCtx.fillStyle=op.c;
+    wbCtx.font='700 '+Math.max(14,op.w*6)+'px '+getComputedStyle(document.body).fontFamily;
+    wbCtx.fillText(op.txt,op.x*W,op.y*H);
+  } else if(op.t==='n'){ // sticky note
+    const nw=.16*W,nh=Math.max(.1*H,34);
+    const nx=op.x*W,ny=op.y*H;
+    wbCtx.fillStyle='#FEF08A';
+    wbCtx.shadowColor='rgba(0,0,0,.18)';wbCtx.shadowBlur=8;wbCtx.shadowOffsetY=3;
+    if(wbCtx.roundRect){wbCtx.beginPath();wbCtx.roundRect(nx,ny,nw,nh,8);wbCtx.fill();}
+    else wbCtx.fillRect(nx,ny,nw,nh);
+    wbCtx.shadowColor='transparent';wbCtx.shadowBlur=0;wbCtx.shadowOffsetY=0;
+    wbCtx.fillStyle='#3D3A50';
+    wbCtx.font='600 13px '+getComputedStyle(document.body).fontFamily;
+    // перенос текста по словам
+    const words=String(op.txt||'').split(' ');let line='',ly=ny+20;
+    words.forEach(wd=>{
+      if(wbCtx.measureText(line+wd).width>nw-20){wbCtx.fillText(line,nx+10,ly);line=wd+' ';ly+=17;}
+      else line+=wd+' ';
+    });
+    if(line&&ly<ny+nh-4)wbCtx.fillText(line.trim(),nx+10,ly);
+  }
+  wbCtx.restore();
+}
+function wbRedraw(){
+  const c=C('wbCanvas');if(!wbCtx||!c)return;
+  wbCtx.save();wbCtx.globalAlpha=1;wbCtx.fillStyle='#fff';wbCtx.fillRect(0,0,c.width,c.height);wbCtx.restore();
+  window._wbOps.forEach(wbDrawOp);
+}
+function wbCommitOp(op){
+  window._wbOps.push(op);
+  wbDrawOp(op);
+  wbSend('wbop',op);
+}
+function wbUndo(fromRemote){
+  if(!window._wbOps.length)return;
+  window._wbOps.pop();
+  wbRedraw();
+  if(!fromRemote)wbSend('wbundo',null);
+}
+// ── live-стриминг сегментов ручки (мгновенная обратная связь) ──
+function _wbQueueSeg(x0,y0,x1,y1,color,width,marker){
   const c=C('wbCanvas');if(!c||!c.width)return;
-  _wbQ.push([+(x0/c.width).toFixed(4),+(y0/c.height).toFixed(4),+(x1/c.width).toFixed(4),+(y1/c.height).toFixed(4),color,width]);
+  const[nx0,ny0]=_wbN(x0,y0),[nx1,ny1]=_wbN(x1,y1);
+  _wbQ.push([nx0,ny0,nx1,ny1,color,width,marker?1:0]);
   if(!_wbFlushTimer)_wbFlushTimer=setTimeout(()=>{const b=_wbQ;_wbQ=[];_wbFlushTimer=null;if(b.length)wbSend('wb',b);},90);
 }
 function wbApplySegs(segs){
-  if(!C('wbOverlay').classList.contains('open'))openWb(true); // авто-открытие у собеседника
+  if(!C('wbOverlay').classList.contains('open'))openWb(true);
   if(!wbCtx)initWb();
   const c=C('wbCanvas');
   segs.forEach(s=>{
-    const[x0,y0,x1,y1,color,w]=s;
-    wbCtx.beginPath();wbCtx.strokeStyle=color;wbCtx.lineWidth=w;wbCtx.lineCap='round';wbCtx.lineJoin='round';
-    wbCtx.moveTo(x0*c.width,y0*c.height);wbCtx.lineTo(x1*c.width,y1*c.height);wbCtx.stroke();
+    const[x0,y0,x1,y1,color,w,m]=s;
+    wbCtx.save();
+    wbCtx.strokeStyle=color;wbCtx.lineWidth=m?w*3:w;wbCtx.lineCap='round';wbCtx.lineJoin='round';
+    if(m)wbCtx.globalAlpha=.35;
+    wbCtx.beginPath();wbCtx.moveTo(x0*c.width,y0*c.height);wbCtx.lineTo(x1*c.width,y1*c.height);wbCtx.stroke();
+    wbCtx.restore();
   });
+}
+function wbApplyOp(op){
+  if(!C('wbOverlay').classList.contains('open'))openWb(true);
+  if(!wbCtx)initWb();
+  window._wbOps.push(op);
+  // stroke уже нарисован live-сегментами — полный redraw выравнивает картину
+  if(op.t==='s')wbRedraw();else wbDrawOp(op);
 }
 function initWb(){
   const c=C('wbCanvas');
   const needResize=c.width!==window.innerWidth||c.height!==(window.innerHeight-56);
-  if(needResize){
-    // Сохраняем нарисованное при изменении размера
-    let saved=null;
-    if(wbInited&&c.width>0){try{saved=document.createElement('canvas');saved.width=c.width;saved.height=c.height;saved.getContext('2d').drawImage(c,0,0);}catch(e){saved=null;}}
+  if(needResize||!wbCtx){
     c.width=window.innerWidth;c.height=window.innerHeight-56;
-    wbCtx=c.getContext('2d');wbCtx.fillStyle='#fff';wbCtx.fillRect(0,0,c.width,c.height);
-    if(saved)wbCtx.drawImage(saved,0,0,saved.width,saved.height,0,0,c.width,c.height);
-  } else if(!wbCtx){
-    wbCtx=c.getContext('2d');wbCtx.fillStyle='#fff';wbCtx.fillRect(0,0,c.width,c.height);
+    wbCtx=c.getContext('2d');
+    wbRedraw(); // восстанавливаем из операций
   }
   wbInited=true;
-  const draw=e=>{
-    if(!wbDrawing)return;
-    const color=wbTool==='eraser'?'#fff':C('wbColor').value;
-    const width=parseInt(C('wbSz').value)*(wbTool==='eraser'?4:1);
-    wbCtx.beginPath();wbCtx.strokeStyle=color;wbCtx.lineWidth=width;wbCtx.lineCap='round';wbCtx.lineJoin='round';
-    const[x,y]=e.offsetX!==undefined?[e.offsetX,e.offsetY]:[(e.touches[0].clientX-c.getBoundingClientRect().left),(e.touches[0].clientY-c.getBoundingClientRect().top)];
-    wbCtx.moveTo(wbLX,wbLY);wbCtx.lineTo(x,y);wbCtx.stroke();
-    _wbQueueSeg(wbLX,wbLY,x,y,color,width); // синхронизация
-    [wbLX,wbLY]=[x,y];
+  const getXY=e=>{
+    if(e.offsetX!==undefined&&e.touches===undefined)return[e.offsetX,e.offsetY];
+    const r=c.getBoundingClientRect();const t=e.touches&&e.touches[0]?e.touches[0]:e;
+    return[t.clientX-r.left,t.clientY-r.top];
   };
-  c.onmousedown=e=>{wbDrawing=true;[wbLX,wbLY]=[e.offsetX,e.offsetY];};c.onmousemove=draw;c.onmouseup=c.onmouseleave=()=>wbDrawing=false;
-  c.ontouchstart=e=>{e.preventDefault();wbDrawing=true;const r=c.getBoundingClientRect();[wbLX,wbLY]=[e.touches[0].clientX-r.left,e.touches[0].clientY-r.top];};
-  c.ontouchmove=e=>{e.preventDefault();draw(e);};c.ontouchend=()=>wbDrawing=false;
+  const down=e=>{
+    const[x,y]=getXY(e);
+    // Текст и стикер — по клику
+    if(wbTool==='text'||wbTool==='note'){
+      const txt=prompt(wbTool==='text'?t('Текст:'):t('Текст стикера:'));
+      if(txt&&txt.trim()){
+        const[nx,ny]=_wbN(x,y);
+        wbCommitOp(wbTool==='text'
+          ?{t:'t',x:nx,y:ny,txt:txt.trim().slice(0,120),c:C('wbColor').value,w:parseInt(C('wbSz').value)}
+          :{t:'n',x:nx,y:ny,txt:txt.trim().slice(0,160)});
+      }
+      return;
+    }
+    wbDrawing=true;[wbLX,wbLY]=[x,y];[wbStartX,wbStartY]=[x,y];
+    if(wbTool==='pen'||wbTool==='marker'||wbTool==='eraser'){
+      _wbCurStroke={t:'s',p:[],c:wbTool==='eraser'?'#fff':C('wbColor').value,w:parseInt(C('wbSz').value)*(wbTool==='eraser'?4:1),m:wbTool==='marker'?1:0};
+    }
+  };
+  const move=e=>{
+    if(!wbDrawing)return;
+    const[x,y]=getXY(e);
+    if(wbTool==='pen'||wbTool==='marker'||wbTool==='eraser'){
+      const color=_wbCurStroke.c,width=_wbCurStroke.w;
+      wbCtx.save();
+      wbCtx.strokeStyle=color;wbCtx.lineWidth=_wbCurStroke.m?width*3:width;wbCtx.lineCap='round';wbCtx.lineJoin='round';
+      if(_wbCurStroke.m)wbCtx.globalAlpha=.35;
+      wbCtx.beginPath();wbCtx.moveTo(wbLX,wbLY);wbCtx.lineTo(x,y);wbCtx.stroke();
+      wbCtx.restore();
+      const[nx0,ny0]=_wbN(wbLX,wbLY),[nx1,ny1]=_wbN(x,y);
+      _wbCurStroke.p.push([nx0,ny0,nx1,ny1]);
+      _wbQueueSeg(wbLX,wbLY,x,y,color,width,_wbCurStroke.m);
+      [wbLX,wbLY]=[x,y];
+    } else {
+      // Фигуры: живой предпросмотр
+      wbRedraw();
+      const[sx,sy]=_wbN(wbStartX,wbStartY),[ex,ey]=_wbN(x,y);
+      const preview={t:{line:'l',arrow:'a',rect:'r',ellipse:'e'}[wbTool],x0:sx,y0:sy,x1:ex,y1:ey,c:C('wbColor').value,w:parseInt(C('wbSz').value)};
+      wbDrawOp(preview);
+    }
+  };
+  const up=e=>{
+    if(!wbDrawing)return;
+    wbDrawing=false;
+    if(wbTool==='pen'||wbTool==='marker'||wbTool==='eraser'){
+      if(_wbCurStroke&&_wbCurStroke.p.length){window._wbOps.push(_wbCurStroke);wbSend('wbop',_wbCurStroke);}
+      _wbCurStroke=null;
+    } else if(['line','arrow','rect','ellipse'].includes(wbTool)){
+      let endX=wbLX,endY=wbLY;
+      if(e.offsetX!==undefined&&e.touches===undefined){endX=e.offsetX;endY=e.offsetY;}
+      else if(e.changedTouches&&e.changedTouches[0]){const r=c.getBoundingClientRect();endX=e.changedTouches[0].clientX-r.left;endY=e.changedTouches[0].clientY-r.top;}
+      const[sx,sy]=_wbN(wbStartX,wbStartY),[ex2,ey2]=_wbN(endX,endY);
+      if(Math.abs(ex2-sx)>0.002||Math.abs(ey2-sy)>0.002){
+        wbRedraw();
+        wbCommitOp({t:{line:'l',arrow:'a',rect:'r',ellipse:'e'}[wbTool],x0:sx,y0:sy,x1:ex2,y1:ey2,c:C('wbColor').value,w:parseInt(C('wbSz').value)});
+      } else wbRedraw();
+    }
+  };
+  c.onmousedown=down;c.onmousemove=e=>{move(e);if(wbDrawing&&(wbTool==='pen'||wbTool==='marker'||wbTool==='eraser')){}else if(wbDrawing){[wbLX,wbLY]=getXY(e);}};c.onmouseup=up;c.onmouseleave=up;
+  c.ontouchstart=e=>{e.preventDefault();down(e);};
+  c.ontouchmove=e=>{e.preventDefault();move(e);if(wbDrawing&&!['pen','marker','eraser'].includes(wbTool))[wbLX,wbLY]=getXY(e);};
+  c.ontouchend=e=>{up(e);};
 }
-function setWbTool(tool){wbTool=tool;C('wbPen').classList.toggle('active',tool==='pen');C('wbEr').classList.toggle('active',tool==='eraser');}
+function setWbTool(tool){
+  wbTool=tool;
+  document.querySelectorAll('.wb-tool').forEach(b=>b.classList.remove('active'));
+  const btn=C('wbt_'+tool);if(btn)btn.classList.add('active');
+}
 function clearWb(fromRemote){
-  if(wbCtx){const c=C('wbCanvas');wbCtx.fillStyle='#fff';wbCtx.fillRect(0,0,c.width,c.height);}
+  window._wbOps=[];
+  if(wbCtx)wbRedraw();
   if(!fromRemote)wbSend('wbclear',null);
 }
 function saveWb(){const c=C('wbCanvas');const a=document.createElement('a');a.download='board.png';a.href=c.toDataURL();a.click();showToast('Сохранено');}
@@ -7888,6 +8052,10 @@ function lvSyncApply(p){
       if(el)el.innerHTML=p.value?String(p.value).split(' ').map(w=>`<span style="display:inline-block;padding:4px 10px;background:var(--purple-light);color:var(--purple);border-radius:6px;margin:2px;font-weight:600">${_escHtml(w)}</span>`).join(' '):`<span style="color:var(--text3);font-size:.85rem">${t('Кликай слова ниже...')}</span>`;
     } else if(p.kind==='wb'&&Array.isArray(p.segs)){
       wbApplySegs(p.segs);
+    } else if(p.kind==='wbop'&&p.op){
+      wbApplyOp(p.op);
+    } else if(p.kind==='wbundo'){
+      wbUndo(true);
     } else if(p.kind==='wbopen'){
       if(!C('wbOverlay').classList.contains('open'))openWb(true);
     } else if(p.kind==='wbclear'){
