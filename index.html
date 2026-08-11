@@ -3681,25 +3681,14 @@ async function afterLogin(user){
     return;
   }
 
-  // ── Fallback: profile not found — create from invite metadata ──────────────
+  // ── Fallback: profile not found — create via SECURITY DEFINER RPC (bypasses RLS) ──
   if(!prof){
-    const meta=user.user_metadata||{};
-    const _rawRole=meta.role||null;
-    const INVITE_ALLOWED_ROLES=['teacher','student','admin'];
-    const role=INVITE_ALLOWED_ROLES.includes(_rawRole)?_rawRole:'student';
-    const schoolId=meta.school_id||null;
-    if(role&&schoolId){
-      // Create profile from invite data (DB trigger may have failed)
-      const{data:newProf,error:insErr}=await sb.from('profiles').upsert({
-        id:user.id,
-        school_id:schoolId,
-        role,
-        first_name:meta.first_name||'',
-        last_name:meta.last_name||'',
-        email:user.email||''
-      },{onConflict:'id'}).select().single();
-      if(!insErr&&newProf){prof=newProf;showToast('Профиль создан ✓');}
-    }
+    try{
+      const{data:_rpcRes,error:_rpcErr}=await sb.rpc('ensure_my_profile');
+      if(!_rpcErr&&_rpcRes?.profile){
+        prof=_rpcRes.profile;
+      }
+    }catch(_e){console.warn('[afterLogin] ensure_my_profile failed:',_e);}
   }
 
   if(!prof){
@@ -4924,6 +4913,11 @@ async function doDeleteUser(){
       showToast('❌ '+t('Ошибка удаления')+': '+msg,'error');
       return;
     }
+    // Удаляем из auth.users через Edge Function (иначе re-invite не создаст новый профиль)
+    try{
+      const{data:{session:_delSess}}=await sb.auth.getSession();
+      if(_delSess){await fetch(DELETE_USER_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+_delSess.access_token},body:JSON.stringify({user_id:uid})});}
+    }catch(_de){console.warn('[deleteUser] auth.users cleanup failed (non-fatal):',_de);}
     ['ty_av_color_','ty_av_emoji_','ty_av_photo_'].forEach(k=>localStorage.removeItem(k+uid));
     showToast('✅ '+name+' удалён');
     if(S.role==='owner')renderOwnerUsers();
@@ -4953,6 +4947,11 @@ async function confirmDeleteStudent(sid,name){
       const _msg=_drData?.error||_drErr?.message||'Неизвестная ошибка';
       showToast('❌ '+t('Ошибка удаления')+': '+_msg,'error');return;
     }
+    // Удаляем из auth.users чтобы re-invite работал корректно
+    try{
+      const{data:{session:_dsSess}}=await sb.auth.getSession();
+      if(_dsSess){await fetch(DELETE_USER_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+_dsSess.access_token},body:JSON.stringify({user_id:_profId})});}
+    }catch(_de){console.warn('[deleteStudent] auth.users cleanup:',_de);}
   } else {
     // Нет аккаунта — удаляем только CRM-запись и связанные данные
     await sb.from('class_students').delete().eq('student_id',sid).eq('school_id',S.schoolId);
