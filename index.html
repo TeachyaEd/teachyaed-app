@@ -255,6 +255,7 @@ tr:hover td{background:#FAFAFA}
 .skel-line.w60{width:60%}.skel-line.w40{width:40%}
 @keyframes skel-shine{0%{background-position:200% 0}100%{background-position:-200% 0}}
 @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.55;transform:scale(1.15)}}
+@keyframes tySpin{to{transform:rotate(360deg)}}
 
 /* ── CLASS CARDS (EdVibe style) ── */
 .classes-toolbar{display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap}
@@ -891,7 +892,12 @@ body[data-theme="dark"] .vocab-back{color:#6ee7b7!important;background:rgba(16,1
 </style>
 </head>
 <body>
-<div id="loginScreen">
+<!-- Сплэш при загрузке: показывается пока проверяем сессию, чтобы логин не мигал -->
+<div id="bootSplash" style="position:fixed;inset:0;z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;background:linear-gradient(135deg,#7C3AED 0%,#EC4899 100%)">
+  <div style="font-size:2rem;font-weight:800;color:#fff;letter-spacing:-.5px">TeachyaED</div>
+  <div style="width:36px;height:36px;border:4px solid rgba(255,255,255,.35);border-top-color:#fff;border-radius:50%;animation:tySpin .8s linear infinite"></div>
+</div>
+<div id="loginScreen" style="display:none">
   <div class="login-box">
     <div class="login-logo">
       <span>TeachyaED</span>
@@ -3824,8 +3830,14 @@ async function afterLogin(user){
   await loadContacts();
   subscribeNotifications();
   if(['owner','admin','teacher'].includes(prof.role))initTaskReminders();
+  // Восстанавливаем последний открытый экран (если он доступен этой роли)
+  let _startId=null;
+  try{
+    const _saved=localStorage.getItem('ty_last_screen_'+prof.id);
+    if(_saved&&(NAV[S.role]||[]).some(n=>n.id===_saved))_startId=_saved;
+  }catch(_e){}
   const firstItem=(NAV[S.role]||[]).find(n=>n.id);
-  if(firstItem)showScreen(firstItem.id);
+  showScreen(_startId||(firstItem&&firstItem.id));
   // Apply translations to all static elements on page load
   setTimeout(()=>{
     if(S.lang==='en')applyEN(document.body);
@@ -3906,12 +3918,21 @@ sb.auth.onAuthStateChange((event,session)=>{if(((event==='SIGNED_OUT'||event==='
   try{Object.keys(localStorage).filter(k=>k.startsWith('teachya_notes_')).forEach(k=>localStorage.removeItem(k));localStorage.removeItem('teachya_dict');}catch(_){}
   S.userId=null;S.profile=null;S.role=null;S.schoolId=null;if(C('app'))C('app').style.display='none';if(C('dialBtn'))C('dialBtn').style.display='none';if(C('loginScreen'))C('loginScreen').style.display='flex';}});
 (async()=>{
-  // First check if this is an invite/password-reset redirect
-  const invited=await checkInviteToken();
-  if(!invited){
-    // Normal load — check existing session
-    const{data:{user}}=await sb.auth.getUser();
-    if(user)await afterLogin(user);
+  try{
+    // First check if this is an invite/password-reset redirect
+    const invited=await checkInviteToken();
+    if(!invited){
+      // Normal load — check existing session
+      const{data:{user}}=await sb.auth.getUser();
+      if(user){await afterLogin(user);}
+      else{C('loginScreen').style.display='flex';}
+    }
+  }catch(e){
+    console.error('[boot]',e);
+    if(C('loginScreen'))C('loginScreen').style.display='flex';
+  }finally{
+    // Прячем сплэш в любом исходе
+    const _sp=C('bootSplash');if(_sp)_sp.style.display='none';
   }
 })();
 window.addEventListener('unhandledrejection',e=>{console.error('[TeachyaED] Unhandled rejection:',e.reason);});
@@ -3950,6 +3971,7 @@ function showScreen(id){
     return;
   }
   S.screen=id;
+  try{if(S.userId)localStorage.setItem('ty_last_screen_'+S.userId,id);}catch(_e){}
   closeSidebar(); // Закрываем мобильный sidebar при переходе
   document.querySelectorAll('.nav-item').forEach(el=>el.classList.toggle('active',el.id===`nav_${id}`));
   const fn={
