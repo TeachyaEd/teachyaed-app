@@ -1048,13 +1048,15 @@ body[data-theme="dark"] .vocab-back{color:#6ee7b7!important;background:rgba(16,1
       <option value="2">Тонкий</option><option value="4" selected>Средний</option><option value="8">Толстый</option>
     </select>
     <button class="wb-btn" onclick="wbUndo()" title="Отменить">↩️ Отменить</button>
+    <button class="wb-btn" onclick="wbResetView()" title="Вернуться к началу доски">🎯 Центр</button>
     <button class="wb-btn" onclick="clearWb()">🗑 Очистить</button>
     <button class="wb-btn" onclick="saveWb()">💾 Сохранить</button>
     <button class="wb-btn" style="margin-left:auto" onclick="closeWb()">✕ Закрыть</button>
   </div>
   <!-- Вертикальная панель инструментов (как в Miro/EdVibe) -->
   <div id="wbTools">
-    <button class="wb-tool" id="wbt_move" onclick="setWbTool('move')" title="Переместить">🖐</button>
+    <button class="wb-tool" id="wbt_move" onclick="setWbTool('move')" title="Выбрать / двигать объект">↖</button>
+    <button class="wb-tool" id="wbt_pan" onclick="setWbTool('pan')" title="Перемещение по доске">🖐</button>
     <div class="wb-tool-sep"></div>
     <button class="wb-tool active" id="wbt_pen" onclick="setWbTool('pen')" title="Ручка">🖊</button>
     <button class="wb-tool" id="wbt_marker" onclick="setWbTool('marker')" title="Маркер">🖍</button>
@@ -2339,6 +2341,7 @@ const TRANSLATIONS={
   'Текст стикера:':'Sticky note text:',
   'Указка включена — ученики видят твой курсор':'Pointer on — students see your cursor',
   'Указка выключена':'Pointer off',
+  'Вид сброшен в начало':'View reset to origin',
   'Подробнее о классе':'Class details',
   'Уроки пока не назначены. Попроси учителя!':'No lessons assigned yet. Ask your teacher!',
   'Сменить урок':'Switch lesson',
@@ -2851,6 +2854,7 @@ const TRANSLATIONS_GE={
   'Текст стикера:':'სტიკერის ტექსტი:',
   'Указка включена — ученики видят твой курсор':'მაჩვენებელი ჩართულია — მოსწავლეები ხედავენ შენს კურსორს',
   'Указка выключена':'მაჩვენებელი გამორთულია',
+  'Вид сброшен в начало':'ხედი დაბრუნდა საწყისზე',
   'Подробнее о классе':'კლასის დეტალები',
   'Уроки пока не назначены. Попроси учителя!':'გაკვეთილები ჯერ არ არის მინიჭებული. სთხოვე მასწავლებელს!',
   'Сменить урок':'გაკვეთილის შეცვლა',
@@ -4080,7 +4084,7 @@ sb.auth.onAuthStateChange((event,session)=>{if(((event==='SIGNED_OUT'||event==='
   }
 })();
 // ─── АВТООБНОВЛЕНИЕ (кэш GitHub Pages) ───────────────────────────────────────
-const APP_BUILD='2026.08.11-d'; // ⚠️ менять при каждом деплое
+const APP_BUILD='2026.08.11-e'; // ⚠️ менять при каждом деплое
 // Показываем номер сборки на логине — для диагностики версий
 setTimeout(()=>{const lb=document.getElementById('loginBuild');if(lb)lb.textContent='v '+APP_BUILD;},300);
 function checkAppUpdate(){
@@ -4548,8 +4552,12 @@ function wbSend(kind,data){
   if(!LV._syncCh)return;
   try{LV._syncCh.send({type:'broadcast',event:'ex',payload:{id:'wb',kind,segs:kind==='wb'?data:null,op:(kind==='wbop'||kind==='wbmove')?data:null,from:S.profile?.id||''}});}catch(e){}
 }
-// ── нормализация ──
-function _wbN(x,y){const c=C('wbCanvas');return[+(x/c.width).toFixed(4),+(y/c.height).toFixed(4)];}
+// ── бесконечная доска: мировые координаты + вьюпорт ──
+let wbView={x:0,y:0}; // смещение вида (у каждого своё — панорамирование локальное)
+let _wbPanStart=null;
+function _wbN(x,y){const c=C('wbCanvas');return[+(x/c.width+wbView.x).toFixed(4),+(y/c.height+wbView.y).toFixed(4)];}
+function _wbS(wx,wy){const c=C('wbCanvas');return[(wx-wbView.x)*c.width,(wy-wbView.y)*c.height];}
+function wbResetView(){wbView={x:0,y:0};wbRedraw();showToast('🎯 '+t('Вид сброшен в начало'));}
 // ── отрисовка одной операции ──
 function wbDrawOp(op){
   const c=C('wbCanvas');if(!wbCtx||!c)return;
@@ -4560,11 +4568,11 @@ function wbDrawOp(op){
     wbCtx.strokeStyle=op.c;wbCtx.lineWidth=op.w;
     if(op.m){wbCtx.globalAlpha=.35;wbCtx.lineWidth=op.w*3;}
     wbCtx.beginPath();
-    op.p.forEach((s,i)=>{if(i===0)wbCtx.moveTo(s[0]*W,s[1]*H);wbCtx.lineTo(s[2]*W,s[3]*H);wbCtx.moveTo(s[2]*W,s[3]*H);});
+    op.p.forEach((s,i)=>{const[a,b]=_wbS(s[0],s[1]),[d,e2]=_wbS(s[2],s[3]);if(i===0)wbCtx.moveTo(a,b);wbCtx.lineTo(d,e2);wbCtx.moveTo(d,e2);});
     wbCtx.stroke();
   } else if(op.t==='l'||op.t==='a'){ // line / arrow
     wbCtx.strokeStyle=op.c;wbCtx.lineWidth=op.w;
-    const x0=op.x0*W,y0=op.y0*H,x1=op.x1*W,y1=op.y1*H;
+    const[x0,y0]=_wbS(op.x0,op.y0),[x1,y1]=_wbS(op.x1,op.y1);
     wbCtx.beginPath();wbCtx.moveTo(x0,y0);wbCtx.lineTo(x1,y1);wbCtx.stroke();
     if(op.t==='a'){ // наконечник
       const ang=Math.atan2(y1-y0,x1-x0),hl=10+op.w*2;
@@ -4575,19 +4583,22 @@ function wbDrawOp(op){
     }
   } else if(op.t==='r'){ // rect
     wbCtx.strokeStyle=op.c;wbCtx.lineWidth=op.w;
-    wbCtx.strokeRect(Math.min(op.x0,op.x1)*W,Math.min(op.y0,op.y1)*H,Math.abs(op.x1-op.x0)*W,Math.abs(op.y1-op.y0)*H);
+    const[rx0,ry0]=_wbS(Math.min(op.x0,op.x1),Math.min(op.y0,op.y1));
+    wbCtx.strokeRect(rx0,ry0,Math.abs(op.x1-op.x0)*W,Math.abs(op.y1-op.y0)*H);
   } else if(op.t==='e'){ // ellipse
     wbCtx.strokeStyle=op.c;wbCtx.lineWidth=op.w;
+    const[cx,cy]=_wbS((op.x0+op.x1)/2,(op.y0+op.y1)/2);
     wbCtx.beginPath();
-    wbCtx.ellipse((op.x0+op.x1)/2*W,(op.y0+op.y1)/2*H,Math.abs(op.x1-op.x0)/2*W,Math.abs(op.y1-op.y0)/2*H,0,0,Math.PI*2);
+    wbCtx.ellipse(cx,cy,Math.abs(op.x1-op.x0)/2*W,Math.abs(op.y1-op.y0)/2*H,0,0,Math.PI*2);
     wbCtx.stroke();
   } else if(op.t==='t'){ // text
     wbCtx.fillStyle=op.c;
     wbCtx.font='700 '+Math.max(14,op.w*6)+'px '+getComputedStyle(document.body).fontFamily;
-    wbCtx.fillText(op.txt,op.x*W,op.y*H);
+    const[tx,ty]=_wbS(op.x,op.y);
+    wbCtx.fillText(op.txt,tx,ty);
   } else if(op.t==='n'){ // sticky note
     const nw=.16*W,nh=Math.max(.1*H,34);
-    const nx=op.x*W,ny=op.y*H;
+    const[nx,ny]=_wbS(op.x,op.y);
     wbCtx.fillStyle='#FEF08A';
     wbCtx.shadowColor='rgba(0,0,0,.18)';wbCtx.shadowBlur=8;wbCtx.shadowOffsetY=3;
     if(wbCtx.roundRect){wbCtx.beginPath();wbCtx.roundRect(nx,ny,nw,nh,8);wbCtx.fill();}
@@ -4607,7 +4618,17 @@ function wbDrawOp(op){
 }
 function wbRedraw(){
   const c=C('wbCanvas');if(!wbCtx||!c)return;
-  wbCtx.save();wbCtx.globalAlpha=1;wbCtx.fillStyle='#fff';wbCtx.fillRect(0,0,c.width,c.height);wbCtx.restore();
+  wbCtx.save();wbCtx.globalAlpha=1;wbCtx.fillStyle='#fff';wbCtx.fillRect(0,0,c.width,c.height);
+  // Сетка бесконечной доски (движется вместе с панорамой)
+  const step=40;
+  const offX=((-wbView.x*c.width)%step+step)%step;
+  const offY=((-wbView.y*c.height)%step+step)%step;
+  wbCtx.strokeStyle='#EFEDF7';wbCtx.lineWidth=1;
+  wbCtx.beginPath();
+  for(let gx=offX;gx<c.width;gx+=step){wbCtx.moveTo(gx,0);wbCtx.lineTo(gx,c.height);}
+  for(let gy=offY;gy<c.height;gy+=step){wbCtx.moveTo(0,gy);wbCtx.lineTo(c.width,gy);}
+  wbCtx.stroke();
+  wbCtx.restore();
   window._wbOps.forEach(wbDrawOp);
 }
 function wbCommitOp(op){
@@ -4652,13 +4673,13 @@ function _wbQueueSeg(x0,y0,x1,y1,color,width,marker){
 function wbApplySegs(segs){
   if(!C('wbOverlay').classList.contains('open'))openWb(true);
   if(!wbCtx)initWb();
-  const c=C('wbCanvas');
   segs.forEach(s=>{
-    const[x0,y0,x1,y1,color,w,m]=s;
+    const[wx0,wy0,wx1,wy1,color,w,m]=s;
+    const[x0,y0]=_wbS(wx0,wy0),[x1,y1]=_wbS(wx1,wy1);
     wbCtx.save();
     wbCtx.strokeStyle=color;wbCtx.lineWidth=m?w*3:w;wbCtx.lineCap='round';wbCtx.lineJoin='round';
     if(m)wbCtx.globalAlpha=.35;
-    wbCtx.beginPath();wbCtx.moveTo(x0*c.width,y0*c.height);wbCtx.lineTo(x1*c.width,y1*c.height);wbCtx.stroke();
+    wbCtx.beginPath();wbCtx.moveTo(x0,y0);wbCtx.lineTo(x1,y1);wbCtx.stroke();
     wbCtx.restore();
   });
 }
@@ -4685,6 +4706,13 @@ function initWb(){
   };
   const down=e=>{
     const[x,y]=getXY(e);
+    // Панорамирование бесконечной доски
+    if(wbTool==='pan'){
+      wbDrawing=true;
+      _wbPanStart={mx:x,my:y,vx:wbView.x,vy:wbView.y};
+      c.style.cursor='grabbing';
+      return;
+    }
     // Перемещение текста/стикеров
     if(wbTool==='move'){
       const[nx,ny]=_wbN(x,y);
@@ -4711,6 +4739,12 @@ function initWb(){
   const move=e=>{
     if(!wbDrawing)return;
     const[x,y]=getXY(e);
+    if(wbTool==='pan'&&_wbPanStart){
+      wbView.x=+( _wbPanStart.vx-(x-_wbPanStart.mx)/c.width ).toFixed(4);
+      wbView.y=+( _wbPanStart.vy-(y-_wbPanStart.my)/c.height ).toFixed(4);
+      wbRedraw();
+      return;
+    }
     if(wbTool==='move'&&_wbDragOp){
       const[nx,ny]=_wbN(x,y);
       _wbDragOp.x=+(nx-_wbDragDX).toFixed(4);
@@ -4740,6 +4774,7 @@ function initWb(){
   const up=e=>{
     if(!wbDrawing)return;
     wbDrawing=false;
+    if(wbTool==='pan'){_wbPanStart=null;c.style.cursor='grab';return;}
     if(wbTool==='move'&&_wbDragOp){
       wbSend('wbmove',{id:_wbDragOp.id,x:_wbDragOp.x,y:_wbDragOp.y});
       _wbDragOp=null;c.style.cursor='crosshair';
@@ -4768,6 +4803,8 @@ function setWbTool(tool){
   wbTool=tool;
   document.querySelectorAll('.wb-tool').forEach(b=>b.classList.remove('active'));
   const btn=C('wbt_'+tool);if(btn)btn.classList.add('active');
+  const c=C('wbCanvas');
+  if(c)c.style.cursor=tool==='pan'?'grab':(tool==='move'?'default':'crosshair');
 }
 function clearWb(fromRemote){
   window._wbOps=[];
@@ -7799,7 +7836,7 @@ function lvRender(){
       const m=(typeof BLOCK_META!=='undefined'&&BLOCK_META[ex.type])||{icon:'•',name:'',color:'var(--gray-light)'};
       return`<div style="margin-bottom:22px">
         <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
-          <span style="padding:2px 10px;border-radius:20px;font-size:.72rem;font-weight:700;background:${_escHtml(m.color||'#eee')}">${_escHtml(m.icon||'•')} ${_escHtml(m.name||'')}</span>
+          <span style="padding:2px 10px;border-radius:20px;font-size:.72rem;font-weight:700;background:${_escHtml(m.color||'#eee')};color:#3D3A50">${_escHtml(m.icon||'•')} ${_escHtml(m.name||'')}</span>
           <span style="font-size:.75rem;color:var(--text3)">${ei+1} ${t('из')} ${exs.length}</span>
         </div>
         ${renderBlockView(ex,`${LV.curSec}_${ei}`)}
@@ -8002,7 +8039,7 @@ function lvRenderAll(){
           const m=BLOCK_META[ex.type]||{icon:'?',name:_escHtml(ex.type||'unknown'),color:'#eee'};
           return`<div style="margin-bottom:20px">
             <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
-              <span style="padding:2px 10px;border-radius:20px;font-size:.72rem;font-weight:700;background:${_escHtml(m.color||'#eee')}">${_escHtml(m.icon||'?')} ${_escHtml(m.name||'')}</span>
+              <span style="padding:2px 10px;border-radius:20px;font-size:.72rem;font-weight:700;background:${_escHtml(m.color||'#eee')};color:#3D3A50">${_escHtml(m.icon||'?')} ${_escHtml(m.name||'')}</span>
               <span style="font-size:.75rem;color:var(--text3)">${ei+1} из ${exs.length}</span>
             </div>
             ${renderBlockView(ex,`${si}_${ei}`)}
