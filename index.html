@@ -1054,6 +1054,8 @@ body[data-theme="dark"] .vocab-back{color:#6ee7b7!important;background:rgba(16,1
   </div>
   <!-- Вертикальная панель инструментов (как в Miro/EdVibe) -->
   <div id="wbTools">
+    <button class="wb-tool" id="wbt_move" onclick="setWbTool('move')" title="Переместить">🖐</button>
+    <div class="wb-tool-sep"></div>
     <button class="wb-tool active" id="wbt_pen" onclick="setWbTool('pen')" title="Ручка">🖊</button>
     <button class="wb-tool" id="wbt_marker" onclick="setWbTool('marker')" title="Маркер">🖍</button>
     <button class="wb-tool" id="wbt_eraser" onclick="setWbTool('eraser')" title="Ластик">🧽</button>
@@ -1514,6 +1516,7 @@ body[data-theme="dark"] .vocab-back{color:#6ee7b7!important;background:rgba(16,1
         <button class="cv-action-row" id="cv_matBtn" onclick="toggleToolPanel('cv_materials')" style="display:none">📎 Материалы урока</button>
         <button class="cv-action-row" id="cv_switchBtn" onclick="cvOpenSwitchLesson()" style="display:none">🔄 Сменить урок</button>
         <button class="cv-action-row" onclick="openWb()">🖊 Доска</button>
+        <button class="cv-action-row" id="cv_laserBtn" onclick="toggleLaser()" style="display:none">🔴 Указка</button>
       </div>
       <!-- ── Lesson Chat ── -->
       <div class="cv-chat-section" id="cv_chatSection">
@@ -2334,6 +2337,8 @@ const TRANSLATIONS={
   'Обновить':'Update',
   'Текст:':'Text:',
   'Текст стикера:':'Sticky note text:',
+  'Указка включена — ученики видят твой курсор':'Pointer on — students see your cursor',
+  'Указка выключена':'Pointer off',
   'Подробнее о классе':'Class details',
   'Уроки пока не назначены. Попроси учителя!':'No lessons assigned yet. Ask your teacher!',
   'Сменить урок':'Switch lesson',
@@ -2844,6 +2849,8 @@ const TRANSLATIONS_GE={
   'Обновить':'განახლება',
   'Текст:':'ტექსტი:',
   'Текст стикера:':'სტიკერის ტექსტი:',
+  'Указка включена — ученики видят твой курсор':'მაჩვენებელი ჩართულია — მოსწავლეები ხედავენ შენს კურსორს',
+  'Указка выключена':'მაჩვენებელი გამორთულია',
   'Подробнее о классе':'კლასის დეტალები',
   'Уроки пока не назначены. Попроси учителя!':'გაკვეთილები ჯერ არ არის მინიჭებული. სთხოვე მასწავლებელს!',
   'Сменить урок':'გაკვეთილის შეცვლა',
@@ -4073,7 +4080,7 @@ sb.auth.onAuthStateChange((event,session)=>{if(((event==='SIGNED_OUT'||event==='
   }
 })();
 // ─── АВТООБНОВЛЕНИЕ (кэш GitHub Pages) ───────────────────────────────────────
-const APP_BUILD='2026.08.11-c'; // ⚠️ менять при каждом деплое
+const APP_BUILD='2026.08.11-d'; // ⚠️ менять при каждом деплое
 // Показываем номер сборки на логине — для диагностики версий
 setTimeout(()=>{const lb=document.getElementById('loginBuild');if(lb)lb.textContent='v '+APP_BUILD;},300);
 function checkAppUpdate(){
@@ -4471,6 +4478,59 @@ async function hangUp(){
 }
 function minimizeCall(){const b=C('callBody');b.style.display=b.style.display==='none'?'block':'none';}
 
+// ─── 🔴 ЛАЗЕРНАЯ УКАЗКА (учитель показывает — ученик видит) ──────────────────
+let _laserOn=false,_laserEl=null,_laserHide=null,_laserLastSend=0;
+function _laserDot(){
+  if(!_laserEl){
+    _laserEl=document.createElement('div');
+    _laserEl.style.cssText='position:fixed;width:16px;height:16px;border-radius:50%;background:radial-gradient(circle,#ff6b6b 0%,#e02020 60%);box-shadow:0 0 14px 5px rgba(255,40,40,.55);z-index:640;pointer-events:none;display:none;transform:translate(-50%,-50%);transition:left .05s linear,top .05s linear';
+    document.body.appendChild(_laserEl);
+  }
+  return _laserEl;
+}
+function _laserShow(x,y){
+  const el=_laserDot();
+  el.style.left=x+'px';el.style.top=y+'px';el.style.display='block';
+  clearTimeout(_laserHide);_laserHide=setTimeout(()=>{el.style.display='none';},1800);
+}
+function toggleLaser(){
+  _laserOn=!_laserOn;
+  const btn=C('cv_laserBtn');
+  if(btn)btn.style.background=_laserOn?'var(--purple-light)':'';
+  const sc=document.querySelector('.cv-content-scroll');
+  if(sc)sc.style.cursor=_laserOn?'crosshair':'';
+  showToast(_laserOn?'🔴 '+t('Указка включена — ученики видят твой курсор'):t('Указка выключена'));
+  if(!_laserOn&&_laserEl)_laserEl.style.display='none';
+}
+function laserBind(){
+  const sc=document.querySelector('.cv-content-scroll');
+  if(!sc||sc._laserBound)return;
+  sc._laserBound=true;
+  sc.addEventListener('mousemove',e=>{
+    if(!_laserOn||!LV._syncCh)return;
+    const now=Date.now();if(now-_laserLastSend<45)return;_laserLastSend=now;
+    const r=sc.getBoundingClientRect();
+    const nx=(e.clientX-r.left)/r.width;
+    const ny=(e.clientY-r.top+sc.scrollTop)/Math.max(sc.scrollHeight,1);
+    _laserShow(e.clientX,e.clientY); // видно и учителю
+    lvSyncSend('laser','laser',nx.toFixed(4)+','+ny.toFixed(4));
+  });
+}
+function laserApply(val){
+  const sc=document.querySelector('.cv-content-scroll');
+  if(!sc||!C('classroomView').classList.contains('open'))return;
+  const[nx,ny]=String(val).split(',').map(Number);
+  if(isNaN(nx)||isNaN(ny))return;
+  const r=sc.getBoundingClientRect();
+  const x=r.left+nx*r.width;
+  const y=r.top+ny*sc.scrollHeight-sc.scrollTop;
+  // если точка вне видимой области — мягко подскроллим
+  if(y<r.top+20||y>r.bottom-20){
+    sc.scrollTo({top:ny*sc.scrollHeight-r.height/2,behavior:'smooth'});
+  }
+  _laserShow(x,Math.min(Math.max(y,r.top+8),r.bottom-8));
+}
+
 // ─── WHITEBOARD 2.0 (Miro-style, общая, синхронная, с undo) ──────────────────
 // Модель: window._wbOps — список операций в норм. координатах (0..1). Redraw = replay.
 let wbCtx,wbDrawing=false,wbTool='pen',wbLX=0,wbLY=0,wbInited=false;
@@ -4486,7 +4546,7 @@ function openWb(fromRemote){
 function closeWb(){C('wbOverlay').classList.remove('open');}
 function wbSend(kind,data){
   if(!LV._syncCh)return;
-  try{LV._syncCh.send({type:'broadcast',event:'ex',payload:{id:'wb',kind,segs:kind==='wb'?data:null,op:kind==='wbop'?data:null,from:S.profile?.id||''}});}catch(e){}
+  try{LV._syncCh.send({type:'broadcast',event:'ex',payload:{id:'wb',kind,segs:kind==='wb'?data:null,op:(kind==='wbop'||kind==='wbmove')?data:null,from:S.profile?.id||''}});}catch(e){}
 }
 // ── нормализация ──
 function _wbN(x,y){const c=C('wbCanvas');return[+(x/c.width).toFixed(4),+(y/c.height).toFixed(4)];}
@@ -4551,10 +4611,31 @@ function wbRedraw(){
   window._wbOps.forEach(wbDrawOp);
 }
 function wbCommitOp(op){
+  op.id=op.id||Math.random().toString(36).slice(2,9);
   window._wbOps.push(op);
   wbDrawOp(op);
   wbSend('wbop',op);
 }
+// ── хит-тест для перемещения (текст и стикеры) ──
+function _wbHitTest(nx,ny){
+  const c=C('wbCanvas');const W=c.width,H=c.height;
+  for(let i=window._wbOps.length-1;i>=0;i--){
+    const op=window._wbOps[i];
+    if(op.t==='n'){
+      const nw=.16,nh=Math.max(.1,34/H);
+      if(nx>=op.x&&nx<=op.x+nw&&ny>=op.y&&ny<=op.y+nh)return op;
+    } else if(op.t==='t'){
+      wbCtx.save();
+      wbCtx.font='700 '+Math.max(14,op.w*6)+'px '+getComputedStyle(document.body).fontFamily;
+      const tw=wbCtx.measureText(op.txt).width/W;
+      wbCtx.restore();
+      const fs=Math.max(14,op.w*6)/H;
+      if(nx>=op.x-0.01&&nx<=op.x+tw+0.01&&ny>=op.y-fs&&ny<=op.y+0.012)return op;
+    }
+  }
+  return null;
+}
+let _wbDragOp=null,_wbDragDX=0,_wbDragDY=0;
 function wbUndo(fromRemote){
   if(!window._wbOps.length)return;
   window._wbOps.pop();
@@ -4604,6 +4685,13 @@ function initWb(){
   };
   const down=e=>{
     const[x,y]=getXY(e);
+    // Перемещение текста/стикеров
+    if(wbTool==='move'){
+      const[nx,ny]=_wbN(x,y);
+      const hit=_wbHitTest(nx,ny);
+      if(hit){_wbDragOp=hit;_wbDragDX=nx-hit.x;_wbDragDY=ny-hit.y;wbDrawing=true;c.style.cursor='grabbing';}
+      return;
+    }
     // Текст и стикер — по клику
     if(wbTool==='text'||wbTool==='note'){
       const txt=prompt(wbTool==='text'?t('Текст:'):t('Текст стикера:'));
@@ -4623,6 +4711,13 @@ function initWb(){
   const move=e=>{
     if(!wbDrawing)return;
     const[x,y]=getXY(e);
+    if(wbTool==='move'&&_wbDragOp){
+      const[nx,ny]=_wbN(x,y);
+      _wbDragOp.x=+(nx-_wbDragDX).toFixed(4);
+      _wbDragOp.y=+(ny-_wbDragDY).toFixed(4);
+      wbRedraw();
+      return;
+    }
     if(wbTool==='pen'||wbTool==='marker'||wbTool==='eraser'){
       const color=_wbCurStroke.c,width=_wbCurStroke.w;
       wbCtx.save();
@@ -4645,6 +4740,11 @@ function initWb(){
   const up=e=>{
     if(!wbDrawing)return;
     wbDrawing=false;
+    if(wbTool==='move'&&_wbDragOp){
+      wbSend('wbmove',{id:_wbDragOp.id,x:_wbDragOp.x,y:_wbDragOp.y});
+      _wbDragOp=null;c.style.cursor='crosshair';
+      return;
+    }
     if(wbTool==='pen'||wbTool==='marker'||wbTool==='eraser'){
       if(_wbCurStroke&&_wbCurStroke.p.length){window._wbOps.push(_wbCurStroke);wbSend('wbop',_wbCurStroke);}
       _wbCurStroke=null;
@@ -7635,6 +7735,10 @@ function openClassroomView(title,sections,assignId,studentName,materials){
   // Кнопка смены урока — только учителю в контексте класса
   const _swBtn=C('cv_switchBtn');
   if(_swBtn)_swBtn.style.display=(['teacher','admin','owner'].includes(S.role)&&S.currentClassId)?'':'none';
+  // Указка — только учителю
+  const _lzBtn=C('cv_laserBtn');
+  if(_lzBtn)_lzBtn.style.display=['teacher','admin','owner'].includes(S.role)?'':'none';
+  laserBind();
   // reset tab
   C('cv_tabLesson').classList.add('active');C('cv_tabHomework').classList.remove('active');
   lvRender();
@@ -8054,8 +8158,13 @@ function lvSyncApply(p){
       wbApplySegs(p.segs);
     } else if(p.kind==='wbop'&&p.op){
       wbApplyOp(p.op);
+    } else if(p.kind==='wbmove'&&p.op){
+      const _mo=window._wbOps.find(o=>o.id===p.op.id);
+      if(_mo){_mo.x=p.op.x;_mo.y=p.op.y;if(wbCtx)wbRedraw();}
     } else if(p.kind==='wbundo'){
       wbUndo(true);
+    } else if(p.kind==='laser'&&p.value){
+      laserApply(p.value);
     } else if(p.kind==='wbopen'){
       if(!C('wbOverlay').classList.contains('open'))openWb(true);
     } else if(p.kind==='wbclear'){
