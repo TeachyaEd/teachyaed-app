@@ -4085,7 +4085,7 @@ sb.auth.onAuthStateChange((event,session)=>{if(event==='SIGNED_OUT'&&!session&&S
   }
 })();
 // ─── АВТООБНОВЛЕНИЕ (кэш GitHub Pages) ───────────────────────────────────────
-const APP_BUILD='2026.08.12-d'; // ⚠️ менять при каждом деплое
+const APP_BUILD='2026.08.12-e'; // ⚠️ менять при каждом деплое
 // Показываем номер сборки на логине — для диагностики версий
 setTimeout(()=>{const lb=document.getElementById('loginBuild');if(lb)lb.textContent='v '+APP_BUILD;},300);
 function checkAppUpdate(){
@@ -7793,8 +7793,9 @@ function openClassroomView(title,sections,assignId,studentName,materials,lessonI
   C('cv_tabLesson').classList.add('active');C('cv_tabHomework').classList.remove('active');
   lvRender();
   C('classroomView').classList.add('open');
-  // Init lesson chat — B16: комната на урок, а не общая на школу
-  const _chatRoom=assignId||(lessonId?('ls_'+String(lessonId).replace(/[^a-zA-Z0-9]/g,'').slice(0,16)+'_'+String(S.schoolId||'x').replace(/[^a-zA-Z0-9]/g,'').slice(0,8)):('lib_'+(S.schoolId||'x')));
+  // Init lesson chat — B16: единая комната ПО УРОКУ (учитель и ученики всегда вместе,
+  // независимо от того, вошли они через live-урок или через назначение)
+  const _chatRoom=lessonId?('ls_'+String(lessonId).replace(/[^a-zA-Z0-9]/g,'').slice(0,16)+'_'+String(S.schoolId||'x').replace(/[^a-zA-Z0-9]/g,'').slice(0,8)):(assignId||('lib_'+(S.schoolId||'x')));
   cvChatInit(_chatRoom);
   // Live-синхронизация упражнений: общий канал по назначению или live-комнате
   lvSyncInit(assignId?('as_'+assignId):(S._liveRoomId||null));
@@ -7809,12 +7810,12 @@ function openLessonView(assignId){
       const c=(window._assignCache||{})[assignId];
       if(!c){showToast('Урок не найден','error');return;}
       const{sections:_s,materials:_m}=_parseLessonContent(c.lesson?.content||[]);
-      openClassroomView(c.lesson?.title||'Урок',_s,assignId,null,_m);
+      openClassroomView(c.lesson?.title||'Урок',_s,assignId,null,_m,c.lesson?.id||null);
     }).catch(e=>showToast('Ошибка загрузки: '+(e?.message||e),'error'));
     return;
   }
   const{sections:_s,materials:_m}=_parseLessonContent(cached.lesson?.content||[]);
-  openClassroomView(cached.lesson?.title||'Урок',_s,assignId,null,_m);
+  openClassroomView(cached.lesson?.title||'Урок',_s,assignId,null,_m,cached.lesson?.id||null);
 }
 
 function lvRender(){
@@ -8354,8 +8355,9 @@ async function completeLessonView(){
   if(LV._completing)return;
   LV._completing=true;
   try{
-    // A3: учитель в классе — завершает урок программы для ВСЕХ учеников (атомарный RPC)
-    if(['teacher','admin','owner'].includes(S.role)&&S.currentClassId&&LV.lessonId){
+    // A3: учитель в классе — завершает урок программы для ВСЕХ учеников (атомарный RPC).
+    // !LV.assignId — при просмотре назначения конкретного ученика завершаем только его.
+    if(['teacher','admin','owner'].includes(S.role)&&S.currentClassId&&LV.lessonId&&!LV.assignId){
       const{data:_cr,error:_ce}=await sb.rpc('complete_lesson_for_class',{p_class_id:S.currentClassId,p_lesson_id:LV.lessonId});
       if(_ce||_cr?.error){showToast('❌ '+t('Ошибка завершения урока')+': '+(_cr?.error||_ce?.message),'error');return;}
       endLiveLesson();
