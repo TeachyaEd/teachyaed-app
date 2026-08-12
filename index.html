@@ -4085,7 +4085,7 @@ sb.auth.onAuthStateChange((event,session)=>{if(event==='SIGNED_OUT'&&!session&&S
   }
 })();
 // ─── АВТООБНОВЛЕНИЕ (кэш GitHub Pages) ───────────────────────────────────────
-const APP_BUILD='2026.08.12-c'; // ⚠️ менять при каждом деплое
+const APP_BUILD='2026.08.12-d'; // ⚠️ менять при каждом деплое
 // Показываем номер сборки на логине — для диагностики версий
 setTimeout(()=>{const lb=document.getElementById('loginBuild');if(lb)lb.textContent='v '+APP_BUILD;},300);
 function checkAppUpdate(){
@@ -8378,7 +8378,7 @@ async function completeLessonView(){
     // Учитель смотрит назначение конкретного ученика
     if(S.currentAssignId){
       const{error:_lvErr}=await sb.from('lesson_assignments')
-        .update({completed:true,progress:100})
+        .update({completed:true})
         .eq('id',S.currentAssignId)
         .eq('school_id',S.schoolId);
       if(_lvErr){showToast('Ошибка завершения урока: '+_lvErr.message,'error');return;}
