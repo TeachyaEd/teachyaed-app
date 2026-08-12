@@ -12,7 +12,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Noto+Sans+Georgian:wght@400;600;700&family=Noto+Color+Emoji&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/dist/umd/supabase.min.js" integrity="sha384-2zrRDgDHSYB/GN3nFW3fsZXoxEhKIr3N2h63Tc6DEOB9JJdFIu8xMJT2Cph/gBil" crossorigin="anonymous"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -4062,7 +4062,7 @@ async function doLogout(){
   // Clear localStorage
   try{Object.keys(localStorage).filter(k=>k.startsWith('teachya_notes_')).forEach(k=>localStorage.removeItem(k));localStorage.removeItem('teachya_dict');}catch(_){}
 }
-sb.auth.onAuthStateChange((event,session)=>{if(((event==='SIGNED_OUT'||event==='TOKEN_REFRESHED')&&!session)&&S.userId){
+sb.auth.onAuthStateChange((event,session)=>{if(event==='SIGNED_OUT'&&!session&&S.userId){
   // cleanup channels on external logout
   try{
     if(S.notifyChannel){sb.removeChannel(S.notifyChannel);S.notifyChannel=null;}
@@ -4097,7 +4097,7 @@ sb.auth.onAuthStateChange((event,session)=>{if(((event==='SIGNED_OUT'||event==='
   }
 })();
 // ─── АВТООБНОВЛЕНИЕ (кэш GitHub Pages) ───────────────────────────────────────
-const APP_BUILD='2026.08.11-f'; // ⚠️ менять при каждом деплое
+const APP_BUILD='2026.08.12-a'; // ⚠️ менять при каждом деплое
 // Показываем номер сборки на логине — для диагностики версий
 setTimeout(()=>{const lb=document.getElementById('loginBuild');if(lb)lb.textContent='v '+APP_BUILD;},300);
 function checkAppUpdate(){
@@ -4884,6 +4884,12 @@ const HWP={hwId:null,exercises:[],answers:{},hwData:null,_submitting:false};
 const HWR={hwId:null,grade:null,_saving:false};
 
 function _esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+// Экранирование для JS-строки ВНУТРИ HTML-атрибута (onclick="fn('...')").
+// Сначала JS-escape (\ и '), затем HTML-escape — &#39; больше не «оживает» в кавычку.
+function _escJS(s){
+  s=String(s==null?'':s).replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/\r?\n/g,' ');
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
 
 // ── TEACHER: HW EDITOR ──────────────────────────────────────────────────────
 async function openHWEditor(hwId,preStudentId,preStudentName){
@@ -5246,7 +5252,8 @@ async function renderStudentClasses(){
   const cards=classes.map((cl,ci)=>{
     const color=/^#[0-9a-fA-F]{3,8}$/.test(cl.color)?cl.color:COLORS[ci%COLORS.length];
     const teacher=cl.profiles;
-    const teacherName=teacher?`${_escHtml(teacher.first_name||'')} ${_escHtml(teacher.last_name||'')}`.trim():t('Не указан');
+    const _tnRaw=teacher?((teacher.first_name||'')+' '+(teacher.last_name||'')).trim():t('Не указан');
+    const teacherName=_escHtml(_tnRaw);
     const clEvents=(events||[]).filter(e=>e.class_id===cl.id).slice(0,3);
     const schedHtml=clEvents.length?clEvents.map(e=>`<div style="font-size:.82rem;padding:6px 10px;background:var(--gray-light);border-radius:6px;margin-bottom:4px">
       📅 <b>${_escHtml(e.event_date||'')}</b> ${_escHtml((e.event_time||'').slice(0,5))} — ${_escHtml(e.title||'')}
@@ -5269,7 +5276,7 @@ async function renderStudentClasses(){
         <button class="btn btn-outline" style="padding:9px 12px" title="${t('Подробнее о классе')}" onclick="event.stopPropagation();openStudentClass('${_clId}')">ℹ️</button>
       </div>
       <div style="font-size:.85rem;margin-bottom:10px">👤 <b>Учитель:</b> ${teacherName}
-        ${teacher&&S.profile?.id?`<button class="btn btn-sm btn-outline" style="margin-left:8px;padding:3px 8px;font-size:.75rem" onclick="event.stopPropagation();callContact('${_esc(cl.teacher_id)}','${teacherName}','teacher')">📞 Позвонить</button>`:''}
+        ${teacher&&S.profile?.id?`<button class="btn btn-sm btn-outline" style="margin-left:8px;padding:3px 8px;font-size:.75rem" onclick="event.stopPropagation();callContact('${_esc(cl.teacher_id)}','${_escJS(_tnRaw)}','teacher')">📞 Позвонить</button>`:''}
       </div>
       ${cl.description?`<div style="font-size:.82rem;color:var(--text3);margin-bottom:10px">${_escHtml(cl.description)}</div>`:''}
       <div style="font-weight:600;font-size:.82rem;margin-bottom:6px;color:var(--purple)">📅 Ближайшие занятия:</div>
@@ -5350,7 +5357,8 @@ async function openStudentClass(classId){
   ]);
   if(!cl){showToast(t('Класс не найден'),'error');renderStudentClasses();return;}
   const teacher=cl.profiles;
-  const teacherName=teacher?`${_escHtml(teacher.first_name||'')} ${_escHtml(teacher.last_name||'')}`.trim():t('Не указан');
+  const _tnRaw2=teacher?((teacher.first_name||'')+' '+(teacher.last_name||'')).trim():t('Не указан');
+  const teacherName=_escHtml(_tnRaw2);
   // Lessons: prefer assignments linked to this class; if none linked, show all student's assignments
   const allAssigns=(assigns||[]).filter(a=>a.lesson);
   const classAssigns=allAssigns.filter(a=>a.class_id===classId);
@@ -5474,7 +5482,7 @@ async function openStudentClass(classId){
           <div style="font-size:.85rem;color:var(--text3)">${_escHtml(cl.language||'')} · ${_escHtml(cl.level||'')} · ${t(cl.type==='group'?'Групповой':'Индивидуальный')}</div>
           <div style="font-size:.9rem;margin-top:6px">👤 <b>${t('Учитель')}:</b> ${teacherName}</div>
         </div>
-        ${teacher&&cl.teacher_id?`<button class="btn btn-green" onclick="callContact('${_esc(cl.teacher_id)}','${teacherName}','teacher')">📞 ${isEn?'Call teacher':'Позвонить учителю'}</button>`:''}
+        ${teacher&&cl.teacher_id?`<button class="btn btn-green" onclick="callContact('${_esc(cl.teacher_id)}','${_escJS(_tnRaw2)}','teacher')">📞 ${isEn?'Call teacher':'Позвонить учителю'}</button>`:''}
       </div>
       ${cl.description?`<div style="font-size:.82rem;color:var(--text3);margin-top:10px">${_escHtml(cl.description)}</div>`:''}
     </div>
@@ -5511,7 +5519,7 @@ async function renderTeacherStudents(){
     return q;
   });
   if(S.screen!==_tsSnap)return;
-  const rows=(sts||[]).map(s=>{const sName=(_esc(s.first_name||'')+' '+_esc(s.last_name||'')).replace(/'/g,'&#39;');const sId=_esc(s.id).replace(/'/g,"&#39;");return`<tr>
+  const rows=(sts||[]).map(s=>{const sName=_escJS((s.first_name||'')+' '+(s.last_name||''));const sId=_esc(s.id).replace(/'/g,"&#39;");return`<tr>
     <td><div style="display:flex;align-items:center;gap:10px">${avHTML(s.first_name,s.last_name)}<div><div style="font-weight:600;cursor:pointer" onclick="openStudentCard('${sId}')">${_esc(s.first_name)} ${_esc(s.last_name)}</div><div style="font-size:.75rem;color:var(--text3)">${_esc(s.email||'—')}</div></div></div></td>
     <td>${_escHtml(s.language||'—')}</td><td><span class="badge badge-purple">${_escHtml(s.level||'—')}</span></td><td>${_escHtml(s.phone||'—')}</td>
     <td class="td-actions">
@@ -5712,7 +5720,7 @@ async function renderAdminStudents(){
   const _adsSnap=S.screen;showSkel();
   const{data:sts}=await sb.from('students').select('*').eq('school_id',S.schoolId).order('last_name');
   if(S.screen!==_adsSnap)return;
-  const rows=(sts||[]).map(s=>{const sName=(_esc(s.first_name||'')+' '+_esc(s.last_name||'')).replace(/'/g,'&#39;');const sId=_esc(s.id).replace(/'/g,"&#39;");return`<tr>
+  const rows=(sts||[]).map(s=>{const sName=_escJS((s.first_name||'')+' '+(s.last_name||''));const sId=_esc(s.id).replace(/'/g,"&#39;");return`<tr>
     <td><div style="display:flex;align-items:center;gap:10px">${avHTML(s.first_name,s.last_name)}<div><div style="font-weight:600;cursor:pointer" onclick="openStudentCard('${sId}')">${_esc(s.first_name)} ${_esc(s.last_name)}</div><div style="font-size:.75rem;color:var(--text3)">${_esc(s.email||'—')}</div></div></div></td>
     <td>${_escHtml(s.language||'—')}</td>
     <td><span class="badge badge-purple">${_escHtml(s.level||'—')}</span></td>
@@ -5735,7 +5743,7 @@ async function renderAdminTeachers(){
   const _adtSnap=S.screen;showSkel();
   const{data:ts}=await sb.from('profiles').select('*').eq('school_id',S.schoolId).eq('role','teacher');
   if(S.screen!==_adtSnap)return;
-  const rows=(ts||[]).map(tc=>{const tcName=(_esc(tc.first_name||'')+' '+_esc(tc.last_name||'')).replace(/'/g,'&#39;');const tcId=_esc(tc.id).replace(/'/g,"&#39;");return`<tr><td><div style="display:flex;align-items:center;gap:10px">${avHTML(tc.first_name,tc.last_name)}<div><div style="font-weight:600">${_esc(tc.first_name)} ${_esc(tc.last_name)}</div><div style="font-size:.75rem;color:var(--text3)">${_esc(tc.email||'—')}</div></div></div></td>
+  const rows=(ts||[]).map(tc=>{const tcName=_escJS((tc.first_name||'')+' '+(tc.last_name||''));const tcId=_esc(tc.id).replace(/'/g,"&#39;");return`<tr><td><div style="display:flex;align-items:center;gap:10px">${avHTML(tc.first_name,tc.last_name)}<div><div style="font-weight:600">${_esc(tc.first_name)} ${_esc(tc.last_name)}</div><div style="font-size:.75rem;color:var(--text3)">${_esc(tc.email||'—')}</div></div></div></td>
     <td><span class="badge badge-green">${t('Учитель')}</span></td>
     <td class="td-actions">
       <button class="btn btn-sm btn-outline" style="font-size:.73rem;padding:4px 8px" onclick="openSetSalary('${tcId}','${tcName}')">💰 ${t('Ставка')}</button>
@@ -5757,7 +5765,7 @@ async function renderOwnerUsers(){
   const{data:users}=await sb.from('profiles').select('*').eq('school_id',S.schoolId).order('role');
   if(S.screen!==_ouSnap)return;
   const canDelete=S.role==='owner'||S.role==='admin';
-  const rows=(users||[]).map(u=>{const uName=(_esc(u.first_name||'')+' '+_esc(u.last_name||'')).replace(/'/g,'&#39;');const uId=_esc(u.id).replace(/'/g,"&#39;");const uRole=_esc(u.role||'').replace(/'/g,"&#39;");return`<tr>
+  const rows=(users||[]).map(u=>{const uName=_escJS((u.first_name||'')+' '+(u.last_name||''));const uId=_esc(u.id).replace(/'/g,"&#39;");const uRole=_esc(u.role||'').replace(/'/g,"&#39;");return`<tr>
     <td><div style="display:flex;align-items:center;gap:10px">${avHTML(u.first_name,u.last_name)}<div><div style="font-weight:600">${_esc(u.first_name)} ${_esc(u.last_name)}</div><div style="font-size:.75rem;color:var(--text3)">${_esc(u.email||'—')}</div></div></div></td>
     <td><span class="badge ${u.role==='owner'?'badge-pink':u.role==='admin'?'badge-yellow':u.role==='teacher'?'badge-green':'badge-purple'}">${_esc(ROLE_L[u.role]||u.role)}</span></td>
     <td class="td-actions">
@@ -5897,8 +5905,8 @@ async function renderOwnerStudents(){
     <td><div style="display:flex;align-items:center;gap:10px">${avHTML(s.first_name,s.last_name)}<div><div style="font-weight:600;cursor:pointer" onclick="openStudentCard('${_sId}')">${_esc(s.first_name)} ${_esc(s.last_name)}</div><div style="font-size:.75rem;color:var(--text3)">${_esc(s.email||'—')}</div></div></div></td>
     <td>${_escHtml(s.language||'—')}</td><td><span class="badge badge-purple">${_escHtml(s.level||'—')}</span></td><td>${_escHtml(s.phone||'—')}</td>
     <td class="td-actions">
-      <button class="btn btn-sm btn-green" style="font-size:.73rem;padding:4px 8px" onclick="callContact('stu_${_sId}','${(_esc(s.first_name||'')+' '+_esc(s.last_name||'')).replace(/'/g,"&#39;")}','student')">📞</button>
-      <button class="btn-danger" onclick="confirmDeleteStudent('${_sId}','${(_esc(s.first_name||'')+' '+_esc(s.last_name||'')).replace(/'/g,"&#39;")}')">🗑</button>
+      <button class="btn btn-sm btn-green" style="font-size:.73rem;padding:4px 8px" onclick="callContact('stu_${_sId}','${_escJS((s.first_name||'')+' '+(s.last_name||''))}','student')">📞</button>
+      <button class="btn-danger" onclick="confirmDeleteStudent('${_sId}','${_escJS((s.first_name||'')+' '+(s.last_name||''))}')">🗑</button>
     </td></tr>`}).join('')||`<tr><td colspan="5" style="text-align:center;color:var(--text3)">${t('Нет учеников')}</td></tr>`;
   setContent(`<div class="section-header"><h2>🎓 ${t('Ученики')}</h2><button class="btn btn-purple" onclick="openAddStudent()">+ ${t('Добавить')}</button></div>
     <div class="card" style="padding:0;overflow:hidden"><table><thead><tr><th>${t('Ученик')}</th><th>${t('Язык')}</th><th>${t('Уровень')}</th><th>${t('Телефон')}</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>`);
@@ -6000,7 +6008,7 @@ async function renderSalaries(){
     const sal=(sals||[]).find(s=>s.teacher_id===tc.id);
     const rate=sal?.rate_per_lesson||0,cur=sal?.currency||'GEL';
     const cnt=(logs||[]).filter(l=>l.teacher_id===tc.id&&l.lesson_date&&l.lesson_date>=`${start.getFullYear()}-${String(start.getMonth()+1).padStart(2,'0')}-${String(start.getDate()).padStart(2,'0')}`).length;
-    const safeTname=(_esc(tc.first_name||'')+' '+_esc(tc.last_name||'')).replace(/'/g,'&#39;');
+    const safeTname=_escJS((tc.first_name||'')+' '+(tc.last_name||''));
     const safeTcId=_esc(tc.id).replace(/'/g,"&#39;");
     return`<tr>
       <td><div style="display:flex;align-items:center;gap:10px">${avHTML(tc.first_name,tc.last_name)}<div style="font-weight:600">${_esc(tc.first_name)} ${_esc(tc.last_name)}</div></div></td>
@@ -6802,7 +6810,7 @@ async function loadClassTab(tab){
       const total=stuAssigns.length;
       const pct=total>0?Math.round(done/total*100):0;
       const _csId=_esc(c.student_id).replace(/'/g,"&#39;");
-      const _csName=_esc(((c.student?.first_name||'')+' '+(c.student?.last_name||'')).trim()).replace(/'/g,"&#39;");
+      const _csName=_escJS(((c.student?.first_name||'')+' '+(c.student?.last_name||'')).trim());
       return`<tr>
         <td><div style="display:flex;align-items:center;gap:10px">${avHTML(c.student?.first_name,c.student?.last_name)}<div style="font-weight:600">${_esc(c.student?.first_name||'—')} ${_esc(c.student?.last_name||'')}</div></div></td>
         <td>${done}/${total}</td>
@@ -6942,7 +6950,7 @@ async function openStudentAnswers(sid,name){
           <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:center">
             <span style="font-size:.78rem;font-weight:600;color:var(--text3)">${TYPE_L[a.ex_type]||_escHtml(a.ex_type||'')}</span>
             <div style="display:flex;gap:8px;align-items:center">${badge}<span style="font-size:.7rem;color:var(--text3)">${when}</span>
-              <button class="btn btn-sm btn-outline" style="padding:2px 8px;font-size:.72rem" onclick="editStudentAnswer('${_aid}','${_esc(sid).replace(/'/g,"&#39;")}','${_esc(name||'').replace(/'/g,"&#39;")}')">✏️</button>
+              <button class="btn btn-sm btn-outline" style="padding:2px 8px;font-size:.72rem" onclick="editStudentAnswer('${_aid}','${_esc(sid).replace(/'/g,"&#39;")}','${_escJS(name||'')}')">✏️</button>
             </div>
           </div>
           <div style="font-size:.9rem;margin-top:6px;white-space:pre-wrap">${_escHtml(a.answer||'—')}</div>
@@ -7928,12 +7936,14 @@ async function cvChatInit(roomId){
   const msgs=C('cv_chatMsgs');
   msgs.innerHTML='<div class="cv-chat-empty">Загрузка...</div>';
   // Load last 60 messages
-  const{data,error}=await sb.from('lesson_chat')
+  // Последние 60 сообщений (не первые!) — desc + reverse
+  const{data:_descData,error}=await sb.from('lesson_chat')
     .select('id,user_id,user_name,user_role,message,created_at')
     .eq('room_id',roomId)
     .eq('school_id',S.schoolId)
-    .order('created_at',{ascending:true})
+    .order('created_at',{ascending:false})
     .limit(60);
+  const data=(_descData||[]).slice().reverse();
   // Guard: if classroom was closed or room changed while fetching, abort
   if(LV.chatRoomId!==roomId){cvChatInit._pending=null;return;}
   msgs.innerHTML='';
