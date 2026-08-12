@@ -3544,6 +3544,20 @@ function saveToolNotes(){
 function isRussian(w){return /[а-яёА-ЯЁ]/.test(w);}
 let _lwAbortCtrl=null;
 
+// Словарные API (бесплатные) часто роняют ПЕРВЫЙ запрос (холодный старт) — ретраим тихо
+async function _dictFetch(url,signal){
+  let lastErr;
+  for(let i=0;i<3;i++){
+    try{const r=await fetch(url,{signal});return await r.json();}
+    catch(e){
+      if(e.name==='AbortError')throw e;
+      lastErr=e;
+      await new Promise(rs=>setTimeout(rs,500*(i+1)));
+      if(signal&&signal.aborted)throw e;
+    }
+  }
+  throw lastErr;
+}
 async function lookupWord(){
   const w=(document.getElementById('dictSearch')?.value||'').trim();
   if(!w)return;
@@ -3551,18 +3565,18 @@ async function lookupWord(){
   res.innerHTML=`<div style="color:var(--text3)">🔍 ${_esc(t('Ищем...'))}</div>`;
   if(typeof _lwAbortCtrl!=='undefined'&&_lwAbortCtrl){try{_lwAbortCtrl.abort();}catch(e){}}
   _lwAbortCtrl=new AbortController();
-  const _lwTimer=setTimeout(()=>_lwAbortCtrl.abort(),8000);
+  const _lwTimer=setTimeout(()=>_lwAbortCtrl.abort(),15000);
   try{
   if(isRussian(w)){
     // Russian word → translate RU→EN via MyMemory, then look up EN definition
     try{
       // Step 1: translate to English
-      const tr=await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(w)}&langpair=ru|en`,{signal:_lwAbortCtrl.signal}).then(r=>r.json());
+      const tr=await _dictFetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(w)}&langpair=ru|en`,_lwAbortCtrl.signal);
       const enWord=(tr.responseData?.translatedText||'').trim();
       if(!enWord){res.innerHTML=`<div style="color:var(--pink)">${t('Перевод не найден')}</div>`;return;}
 
       // Step 2: get EN definition
-      const data=await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(enWord.toLowerCase())}`,{signal:_lwAbortCtrl.signal}).then(r=>r.json());
+      const data=await _dictFetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(enWord.toLowerCase())}`,_lwAbortCtrl.signal);
       const entry=Array.isArray(data)&&data[0];
       const phonetic=_escHtml(entry?.phonetics?.find(p=>p.text)?.text||'');
       const meanings=entry?(entry.meanings||[]).slice(0,2).map(m=>`
@@ -3586,10 +3600,10 @@ async function lookupWord(){
   } else {
     // English word → direct lookup
     try{
-      const data=await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(w.toLowerCase())}`,{signal:_lwAbortCtrl.signal}).then(r=>r.json());
+      const data=await _dictFetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(w.toLowerCase())}`,_lwAbortCtrl.signal);
       if(!Array.isArray(data)||!data[0]){
         // fallback: translate EN→RU
-        const tr=await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(w)}&langpair=en|ru`,{signal:_lwAbortCtrl.signal}).then(r=>r.json());
+        const tr=await _dictFetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(w)}&langpair=en|ru`,_lwAbortCtrl.signal);
         const ruWord=tr.responseData?.translatedText||'—';
         const saveKey=`${w} → ${ruWord}`;
         res.innerHTML=`<div style="background:var(--purple-light);border-radius:8px;padding:8px 12px;margin-bottom:10px">
@@ -3601,7 +3615,7 @@ async function lookupWord(){
       const entry=data[0];
       const phonetic=_escHtml(entry.phonetics?.find(p=>p.text)?.text||'');
       // Also get RU translation
-      const tr=await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(w)}&langpair=en|ru`,{signal:_lwAbortCtrl.signal}).then(r=>r.json());
+      const tr=await _dictFetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(w)}&langpair=en|ru`,_lwAbortCtrl.signal);
       const ruWord=tr.responseData?.translatedText||'';
       const meanings=(entry.meanings||[]).slice(0,2).map(m=>`
         <div style="margin-bottom:8px">
@@ -4085,7 +4099,7 @@ sb.auth.onAuthStateChange((event,session)=>{if(event==='SIGNED_OUT'&&!session&&S
   }
 })();
 // ─── АВТООБНОВЛЕНИЕ (кэш GitHub Pages) ───────────────────────────────────────
-const APP_BUILD='2026.08.12-f'; // ⚠️ менять при каждом деплое
+const APP_BUILD='2026.08.12-g'; // ⚠️ менять при каждом деплое
 // Показываем номер сборки на логине — для диагностики версий
 setTimeout(()=>{const lb=document.getElementById('loginBuild');if(lb)lb.textContent='v '+APP_BUILD;},300);
 function checkAppUpdate(){
