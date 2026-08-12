@@ -4085,7 +4085,7 @@ sb.auth.onAuthStateChange((event,session)=>{if(event==='SIGNED_OUT'&&!session&&S
   }
 })();
 // ─── АВТООБНОВЛЕНИЕ (кэш GitHub Pages) ───────────────────────────────────────
-const APP_BUILD='2026.08.12-e'; // ⚠️ менять при каждом деплое
+const APP_BUILD='2026.08.12-f'; // ⚠️ менять при каждом деплое
 // Показываем номер сборки на логине — для диагностики версий
 setTimeout(()=>{const lb=document.getElementById('loginBuild');if(lb)lb.textContent='v '+APP_BUILD;},300);
 function checkAppUpdate(){
@@ -7956,6 +7956,11 @@ async function cvChatInit(roomId){
         cvChatAddMsg(m);
         cvChatScrollBottom();
       }
+    })
+    .on('postgres_changes',{event:'DELETE',schema:'public',table:'lesson_chat',filter:'room_id=eq.'+roomId},()=>{
+      // Учитель завершил урок → чат очищен для всех
+      const box=C('cv_chatMsgs');
+      if(box&&!box.querySelector('.cv-chat-empty')){box.innerHTML='<div class="cv-chat-empty">'+t('Урок завершён — чат очищен')+' ✨</div>';}
     }).subscribe();
   if(cvChatInit._pending===roomId)cvChatInit._pending=null;
 }
@@ -8361,6 +8366,8 @@ async function completeLessonView(){
       const{data:_cr,error:_ce}=await sb.rpc('complete_lesson_for_class',{p_class_id:S.currentClassId,p_lesson_id:LV.lessonId});
       if(_ce||_cr?.error){showToast('❌ '+t('Ошибка завершения урока')+': '+(_cr?.error||_ce?.message),'error');return;}
       endLiveLesson();
+      // Чистим чат урока для всех (realtime DELETE разошлётся ученикам)
+      if(LV.chatRoomId){try{await sb.from('lesson_chat').delete().eq('room_id',LV.chatRoomId).eq('school_id',S.schoolId);}catch(_ce2){console.warn('[chat clear]',_ce2);}}
       window._assignCache={};
       showToast('✅ '+t('Урок завершён для класса')+(typeof _cr?.updated==='number'?' ('+_cr.updated+')':''));
       closeClassroomView();
