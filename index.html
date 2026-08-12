@@ -4,6 +4,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="object-src 'none'; base-uri 'self'; form-action 'self'"><!-- B21: базовый CSP -->
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
@@ -984,7 +985,7 @@ body[data-theme="dark"] .vocab-back{color:#6ee7b7!important;background:rgba(16,1
     <h3 id="inviteTitle" style="text-align:center;margin-bottom:6px;font-size:1.05rem">Создайте пароль</h3>
     <p id="inviteSubtitle" style="text-align:center;font-size:.83rem;color:var(--text3);margin-bottom:16px">Вас пригласили в TeachyaED. Придумайте пароль для входа.</p>
     <div class="inv-email" id="inv_email"></div>
-    <input type="password" id="inv_pass1" placeholder="Новый пароль (мин. 6 символов)" autocomplete="new-password" onkeydown="if(event.key==='Enter')document.getElementById('inv_pass2').focus();">
+    <input type="password" id="inv_pass1" placeholder="Новый пароль (мин. 8 символов)" autocomplete="new-password" onkeydown="if(event.key==='Enter')document.getElementById('inv_pass2').focus();">
     <input type="password" id="inv_pass2" placeholder="Повторите пароль" autocomplete="new-password" onkeydown="if(event.key==='Enter')setInvitePassword()">
     <button class="btn-login" onclick="setInvitePassword()" id="inv_btn">Войти в систему →</button>
     <div id="inviteErr"></div>
@@ -1137,7 +1138,7 @@ body[data-theme="dark"] .vocab-back{color:#6ee7b7!important;background:rgba(16,1
     <button class="modal-close" onclick="closeM('mChangeRole')">✕</button>
     <h3>Изменить роль</h3>
     <div id="changeRoleUserInfo" style="font-weight:600;margin-bottom:14px;color:var(--purple)"></div>
-    <div class="form-group"><label>Новая роль</label><select id="newRole"><option value="student">Ученик</option><option value="teacher">Учитель</option><option value="admin">Администратор</option><option value="owner">Владелец</option></select></div>
+    <div class="form-group"><label>Новая роль</label><select id="newRole"><option value="teacher">Учитель</option><option value="admin">Администратор</option><option value="owner">Владелец</option></select></div><!-- B27: роль «ученик» назначается только через приглашение -->
     <div class="btn-row"><button class="btn btn-purple" onclick="applyRoleChange()">Сохранить</button><button class="btn btn-outline" onclick="closeM('mChangeRole')">Отмена</button></div>
   </div>
 </div>
@@ -1875,12 +1876,12 @@ const TRANSLATIONS={
   'Вас пригласили в TeachyaED. Придумайте пароль для входа.':'You have been invited to TeachyaED. Create a password to log in.',
   'Создайте пароль':'Create a password',
   'Пароли не совпадают':'Passwords do not match',
-  'Пароль должен быть не менее 6 символов':'Password must be at least 6 characters',
+  'Пароль должен быть не менее 8 символов':'Password must be at least 8 characters',
   'Пароль изменён ✓':'Password changed ✓',
   'Профиль не найден. Обратитесь к администратору.':'Profile not found. Contact your administrator.',
   'Профиль создан ✓':'Profile created ✓',
   'Профиль сохранён ✓':'Profile saved ✓',
-  'минимум 6 символов':'minimum 6 characters',
+  'минимум 8 символов':'minimum 8 characters',
   'повтори пароль':'repeat password',
   'новый@email.com':'new@email.com',
   'Проверь почту для подтверждения нового email':'Check your email to confirm the new address',
@@ -2233,7 +2234,7 @@ const TRANSLATIONS={
 
   // ── PLACEHOLDERS ──────────────────────────────────────────────────────────
   'Пароль':'Password',
-  'Новый пароль (мин. 6 символов)':'New password (min. 6 characters)',
+  'Новый пароль (мин. 8 символов)':'New password (min. 8 characters)',
   'Повторите пароль':'Confirm password',
   'Меню':'Menu',
   'Тема задания':'Assignment topic',
@@ -2538,11 +2539,11 @@ const TRANSLATIONS_GE={
   'Вас пригласили в TeachyaED. Придумайте пароль для входа.':'თქვენ მოწვეული ხართ TeachyaED-ში. შექმენი პაროლი.',
   'Создайте пароль':'შექმენი პაროლი',
   'Пароли не совпадают':'პაროლები არ ემთხვევა',
-  'Пароль должен быть не менее 6 символов':'პაროლი მინ. 6 სიმბოლო',
+  'Пароль должен быть не менее 8 символов':'პაროლი მინ. 8 სიმბოლო',
   'Пароль изменён ✓':'პაროლი შეიცვალა ✓',
   'Профиль не найден. Обратитесь к администратору.':'პროფილი ვერ მოიძებნა. დაუკავშირდი ადმინს.',
   'Профиль создан ✓':'პროფილი შეიქმნა ✓','Профиль сохранён ✓':'პროფილი შენახულია ✓',
-  'минимум 6 символов':'მინ. 6 სიმბოლო','повтори пароль':'გაიმეორე პაროლი',
+  'минимум 8 символов':'მინ. 8 სიმბოლო','повтори пароль':'გაიმეორე პაროლი',
   'новый@email.com':'ახალი@email.com',
   'Проверь почту для подтверждения нового email':'შეამოწმე ფოსტა ახალი email-ის დასადასტურებლად',
   // Homework
@@ -2742,7 +2743,7 @@ const TRANSLATIONS_GE={
   // Form labels
   'Название класса':'კლასის სახელი','С даты':'-დან','По дату':'-მდე','Время':'დრო',
   // Placeholders
-  'Пароль':'პაროლი','Новый пароль (мин. 6 символов)':'ახალი პაროლი (მინ. 6 სიმბ.)',
+  'Пароль':'პაროლი','Новый пароль (мин. 8 символов)':'ახალი პაროლი (მინ. 8 სიმბ.)',
   'Повторите пароль':'გაიმეორეთ პაროლი','Меню':'მენიუ',
   'Тема задания':'დავალების თემა','Подробности...':'დეტალები...',
   'Напиши ответ...':'დაწერე პასუხი...','Занятие по английскому':'ინგლისური გაკვეთილი',
@@ -3220,7 +3221,7 @@ function _renderProfileModal(){
     <div class="form-group"><label>Новый email</label><input id="sec_new_email" type="email" placeholder="новый@email.com"></div>
     <div class="btn-row" style="margin-bottom:20px"><button class="btn btn-purple" onclick="changeEmail()">Изменить email</button></div>
     <hr class="divider">
-    <div class="form-group"><label>Новый пароль</label><div style="position:relative"><input id="sec_new_pass" type="password" placeholder="минимум 6 символов" style="padding-right:40px;width:100%;box-sizing:border-box"><button type="button" onclick="togglePassVis('sec_new_pass',this)" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--text3);font-size:18px;padding:0;line-height:1">👁</button></div></div>
+    <div class="form-group"><label>Новый пароль</label><div style="position:relative"><input id="sec_new_pass" type="password" placeholder="минимум 8 символов" style="padding-right:40px;width:100%;box-sizing:border-box"><button type="button" onclick="togglePassVis('sec_new_pass',this)" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--text3);font-size:18px;padding:0;line-height:1">👁</button></div></div>
     <div class="form-group"><label>Подтвердить пароль</label><div style="position:relative"><input id="sec_conf_pass" type="password" placeholder="повтори пароль" style="padding-right:40px;width:100%;box-sizing:border-box"><button type="button" onclick="togglePassVis('sec_conf_pass',this)" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--text3);font-size:18px;padding:0;line-height:1">👁</button></div></div>
     <div class="btn-row"><button class="btn btn-purple" onclick="changePassword()">Изменить пароль</button></div>`;
 
@@ -3399,7 +3400,7 @@ async function changePassword(){
   try{
     const np=(C('sec_new_pass')?.value||'');
     const cp=(C('sec_conf_pass')?.value||'');
-    if(!np||np.length<6){showToast('Пароль должен быть не менее 6 символов');return;}
+    if(!np||np.length<8){showToast('Пароль должен быть не менее 8 символов');return;}
     if(np!==cp){showToast('Пароли не совпадают');return;}
     const{error}=await sb.auth.updateUser({password:np});
     if(error){showToast(t('Ошибка')+': '+error.message);return;}
@@ -3881,7 +3882,7 @@ async function setInvitePassword(){
   const p1=C('inv_pass1').value,p2=C('inv_pass2').value;
   const errEl=C('inviteErr');
   errEl.style.display='none';
-  if(!p1||p1.length<6){errEl.textContent=t('Пароль должен быть не менее 6 символов');errEl.style.display='block';return;}
+  if(!p1||p1.length<8){errEl.textContent=t('Пароль должен быть не менее 8 символов');errEl.style.display='block';return;}
   if(p1!==p2){errEl.textContent=t('Пароли не совпадают');errEl.style.display='block';return;}
   const inv_btn=C('inv_btn');
   inv_btn.textContent=t('Сохраняем...');inv_btn.disabled=true;
@@ -4084,7 +4085,7 @@ sb.auth.onAuthStateChange((event,session)=>{if(event==='SIGNED_OUT'&&!session&&S
   }
 })();
 // ─── АВТООБНОВЛЕНИЕ (кэш GitHub Pages) ───────────────────────────────────────
-const APP_BUILD='2026.08.12-b'; // ⚠️ менять при каждом деплое
+const APP_BUILD='2026.08.12-c'; // ⚠️ менять при каждом деплое
 // Показываем номер сборки на логине — для диагностики версий
 setTimeout(()=>{const lb=document.getElementById('loginBuild');if(lb)lb.textContent='v '+APP_BUILD;},300);
 function checkAppUpdate(){
@@ -4213,9 +4214,12 @@ const _DC={};
 async function dc(key,fn){
   const now=Date.now();
   if(_DC[key]&&now-_DC[key].ts<30000)return _DC[key].v;
-  const v=await fn();
-  _DC[key]={v,ts:now};
-  return v;
+  // B11: in-flight lock — параллельные вызовы получают один и тот же запрос
+  dc._inflight=dc._inflight||{};
+  if(dc._inflight[key])return dc._inflight[key];
+  const p=(async()=>{const v=await fn();_DC[key]={v,ts:Date.now()};return v;})();
+  dc._inflight[key]=p;
+  try{return await p;}finally{delete dc._inflight[key];}
 }
 function dcInval(key){delete _DC[key];}
 function dcInvalAll(){Object.keys(_DC).forEach(k=>delete _DC[k]);}
@@ -4258,14 +4262,10 @@ async function loadContacts(){
 }
 
 // ─── WEBRTC ──────────────────────────────────────────────────────────────────
+// B26: legacy WebRTC ICE удалён (звонки через Daily.co); TURN-credentials убраны из бандла
 const ICE={iceServers:[
   {urls:'stun:stun.l.google.com:19302'},
-  {urls:'stun:stun1.l.google.com:19302'},
-  {urls:'stun:stun.cloudflare.com:3478'},
-  {urls:'turn:openrelay.metered.ca:80',username:'openrelayproject',credential:'openrelayproject'},
-  {urls:'turn:openrelay.metered.ca:443',username:'openrelayproject',credential:'openrelayproject'},
-  {urls:'turns:openrelay.metered.ca:443?transport=tcp',username:'openrelayproject',credential:'openrelayproject'},
-  {urls:'turn:openrelay.metered.ca:80?transport=tcp',username:'openrelayproject',credential:'openrelayproject'}
+  {urls:'stun:stun.cloudflare.com:3478'}
 ]};
 function getRoomId(a,b){const clean=id=>String(id||'x').replace('stu_','').replace(/[^a-zA-Z0-9]/g,'').slice(0,12)||'x';const ids=[clean(a),clean(b)].sort();return`ty-${ids[0]}-${ids[1]}`;}
 // ─── RING TONE ─────────────────────────────────────────────────────────────────
@@ -5048,7 +5048,7 @@ async function openHWPlayer(hwId){
   if(!hw){showToast('ДЗ не найдено');return;}
   if(S.role==='student'){
     if(!S.studentRowId&&S.profile?.email){
-      const{data:_stuRow}=await sb.from('students').select('id').eq('email',S.profile.email).eq('school_id',S.schoolId).single();
+      const{data:_stuRow}=await sb.from('students').select('id').ilike('email',S.profile.email).eq('school_id',S.schoolId).single();
       if(_stuRow)S.studentRowId=_stuRow.id;
     }
     if(!S.studentRowId||hw.student_id!==S.studentRowId){showToast('Доступ запрещён','error');return;}
@@ -5629,7 +5629,7 @@ async function renderStudentHw(){
   const _sthwSnap=S.screen;
   showSkel();
   if(!S.profile?.email){setContent('<p>Ошибка: профиль не загружен</p>');return;}
-  const{data:stu}=await sb.from('students').select('id').eq('email',S.profile.email).eq('school_id',S.schoolId).single();
+  const{data:stu}=await sb.from('students').select('id').ilike('email',S.profile.email).eq('school_id',S.schoolId).single();
   if(S.screen!==_sthwSnap)return;
   if(!stu?.id){C('content').innerHTML='<div class="empty-state"><div class="ei">📭</div><p>Профиль ученика не найден.</p></div>';return;}
   if(!S.studentRowId)S.studentRowId=stu.id;
@@ -5819,7 +5819,7 @@ async function doDeleteUser(){
   showToast('⏳ Удаляем...');
   try{
     const{data,error}=await sb.rpc('delete_school_user',{target_user_id:uid});
-    console.log('[deleteUser] uid=',uid,'data=',data,'error=',error);
+    if(error)console.warn('[deleteUser] failed');// B23: без UUID в консоли
     if(error||data?.error){
       const msg=data?.error||error?.message||'Неизвестная ошибка';
       console.error('[deleteUser] FAIL:',msg,'fullError=',error,'fullData=',data);
@@ -5901,7 +5901,8 @@ async function renderPayments(){
   if(renderPayments._loading)return;renderPayments._loading=true;
   try{
   const _paySnap=S.screen;showSkel();
-  const{data:pays}=await sb.from('payments').select('*,student:student_id(first_name,last_name)').eq('school_id',S.schoolId).order('created_at',{ascending:false});
+  const{data:pays,error:_payLoadErr}=await sb.from('payments').select('*,student:student_id(first_name,last_name)').eq('school_id',S.schoolId).order('created_at',{ascending:false});
+  if(_payLoadErr){showToast(t('Ошибка загрузки')+': '+_payLoadErr.message,'error');}// B10
   if(S.screen!==_paySnap)return;
   const{data:sts}=await sb.from('students').select('id,first_name,last_name').eq('school_id',S.schoolId);
   if(S.screen!==_paySnap)return;
@@ -5978,11 +5979,12 @@ async function renderSalaries(){
   try{
   if(!['owner','admin'].includes(S.role)){showToast(t('Нет прав'),'error');return;}
   const _salSnap=S.screen;showSkel();
-  const[{data:ts},{data:sals},{data:logs}]=await Promise.all([
+  const[{data:ts,error:_salE1},{data:sals,error:_salE2},{data:logs,error:_salE3}]=await Promise.all([
     sb.from('profiles').select('*').eq('school_id',S.schoolId).eq('role','teacher'),
     sb.from('teacher_salaries').select('*').eq('school_id',S.schoolId),
     sb.from('lessons_log').select('*').eq('school_id',S.schoolId).eq('status','completed')
   ]);
+  if(_salE1||_salE2||_salE3){showToast(t('Ошибка загрузки')+': '+(_salE1||_salE2||_salE3).message,'error');}// B10
   const now=new Date();
   function periodStart(p){const d=new Date();if(p==='week')d.setDate(d.getDate()-7);else if(p==='biweek')d.setDate(d.getDate()-14);else d.setDate(1);d.setHours(0,0,0,0);return d;}
   const start=periodStart(salPeriod);
@@ -6569,7 +6571,7 @@ function cdpPickLesson(id){
   if(!l){showToast('Ошибка: урок не найден в кэше','error');return;}
   const className=S._currentClassData?.name||'Класс';
   const{sections:_s,materials:_m}=_parseLessonContent(l.content);
-  openClassroomView(l.title,_s,null,className,_m);
+  openClassroomView(l.title,_s,null,className,_m,l.id);
   LV.lessonId=l.id; // A3: для complete_lesson_for_class
   startLiveLesson(l.id,l.title); // 🔴 live: ученики увидят баннер «Урок идёт»
 }
@@ -6608,7 +6610,7 @@ async function joinLiveLesson(liveId){
       const{data:l}=await sb.from('lessons').select('*').eq('id',live.lesson_id).eq('school_id',S.schoolId).maybeSingle();
       if(l){_title=l.title;const p=_parseLessonContent(l.content);_secs=p.sections;_mats=p.materials;}
     }
-    openClassroomView(_title,_secs,null,null,_mats);
+    openClassroomView(_title,_secs,null,null,_mats,live.lesson_id||null);
     LV.lessonId=live.lesson_id||null;
     lvSyncInit(live.room_id); // общий канал с учителем
     if(!S.inCall)await initCall(live.room_id,live.teacher_name||t('Учитель'),true);
@@ -7373,7 +7375,7 @@ function ceEditorHTML(b){
     <div class="form-group" style="margin:0 0 10px"><label>URL картинки</label>${ci(b.url,'url','https://...')}</div>
     <div class="form-group" style="margin:0 0 10px">
       <label>Или загрузи файл (JPG, PNG, GIF, WebP, SVG)</label>
-      <input type="file" accept="image/jpeg,image/png,image/gif,image/webp,image/svg+xml" style="width:100%;padding:8px;border:2px dashed var(--gray-border);border-radius:8px;font-family:var(--font);font-size:.82rem;cursor:pointer;background:#fafafa" onchange="ceUploadImage(this)">
+      <input type="file" accept="image/jpeg,image/png,image/gif,image/webp" style="width:100%;padding:8px;border:2px dashed var(--gray-border);border-radius:8px;font-family:var(--font);font-size:.82rem;cursor:pointer;background:#fafafa" onchange="ceUploadImage(this)">
     </div>
     ${(()=>{const safeUrl=(b.url||'').match(/^https?:\/\//)?b.url:'';return safeUrl?`<div style="margin-bottom:10px;text-align:center"><img src="${_escHtml(safeUrl)}" style="max-width:100%;max-height:180px;object-fit:contain;border-radius:8px;border:1px solid var(--gray-border)"></div>`:''})()}
     <div class="form-group" style="margin:0"><label>Подпись (необяз.)</label>${ci(b.caption,'caption','Подпись к картинке...')}</div>`;
@@ -7547,13 +7549,16 @@ async function assignLesson(){
     let _ins={school_id:S.schoolId,lesson_id:S.assignLessonId,student_id:sid,completed:false};
     const _cid=S._assignLessonClassId||S.currentClassId||null;
     if(_cid)_ins.class_id=_cid;
-    // Progressive retry: strip any column not yet in Supabase schema cache
+    // B4: retry только для необязательных колонок — назначение БЕЗ ученика невозможно
     let{error}=await sb.from('lesson_assignments').insert(_ins);
-    for(const _col of ['class_id','teacher_id','student_id']){
+    for(const _col of ['class_id','teacher_id']){
       if(error&&error.message&&(error.message.includes(`'${_col}'`)||error.message.includes(`"${_col}"`))){
         delete _ins[_col];
         ({error}=await sb.from('lesson_assignments').insert(_ins));
       }
+    }
+    if(error&&error.message&&(error.message.includes("'student_id'")||error.message.includes('"student_id"'))){
+      showToast('❌ Ошибка схемы БД (student_id). Обратитесь к администратору.','error');return;
     }
     if(error){showToast('Ошибка назначения: '+error.message,'error');console.error('assignLesson error',error);return;}
     // Invalidate student's assignment cache so they see the new lesson immediately
@@ -7582,7 +7587,7 @@ async function renderLibrary(){
   showSkel();
   const[{data:lessons},{data:myLikes}]=await Promise.all([
     sb.from('lessons')
-      .select('id,title,language,level,content,shared_by,shared_at,school_id')
+      .select('id,title,language,level,shared_by,shared_at,school_id')/* B18: без content — лёгкий каталог */
       .eq('is_shared',true)
       .eq('published',true)
       .limit(500)
@@ -7684,6 +7689,11 @@ async function copyFromLibrary(lessonId,btn){
   try{
     const lesson=(window._libLessons||[]).find(l=>l.id===lessonId);
     if(!lesson){showToast(t('Урок не найден'));return;}
+    // B18: content подгружаем по запросу
+    if(lesson.content===undefined){
+      const{data:_fullL}=await sb.from('lessons').select('content').eq('id',lessonId).maybeSingle();
+      lesson.content=_fullL?.content??null;
+    }
     const{error}=await sb.from('lessons').insert({
       school_id:S.schoolId,
       title:lesson.title+' (копия)',
@@ -7734,10 +7744,15 @@ async function toggleLibraryLike(lessonId,btn){
 async function previewLibLesson(lessonId){
   const lesson=(window._libLessons||[]).find(l=>l.id===lessonId);
   if(!lesson)return;
-  const raw=lesson.content;
+  // B18: содержимое урока грузится по запросу, а не со списком
+  let raw=lesson.content;
+  if(raw===undefined){
+    const{data:_full}=await sb.from('lessons').select('content').eq('id',lessonId).maybeSingle();
+    raw=_full?.content;lesson.content=raw;
+  }
   const secs=(raw&&raw.sections)?raw.sections:Array.isArray(raw)?[{title:'Урок',exercises:raw}]:[{title:'Урок',exercises:[]}];
   const mats=Array.isArray(raw?.materials)?raw.materials:[];
-  openClassroomView(lesson.title,secs,null,null,mats);
+  openClassroomView(lesson.title,secs,null,null,mats,lessonId);
 }
 
 function _escHtml(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
@@ -7755,8 +7770,8 @@ function _parseLessonContent(content){
   return{sections:secs,materials:Array.isArray(raw?.materials)?raw.materials:[]};
 }
 
-function openClassroomView(title,sections,assignId,studentName,materials){
-  LV.sections=sections;LV.materials=Array.isArray(materials)?materials:[];LV.curSec=0;LV.curEx=0;LV.assignId=assignId;LV.lessonId=null;LV.viewAll=false;
+function openClassroomView(title,sections,assignId,studentName,materials,lessonId){
+  LV.sections=sections;LV.materials=Array.isArray(materials)?materials:[];LV.curSec=0;LV.curEx=0;LV.assignId=assignId;LV.lessonId=lessonId||null;LV.viewAll=false;
   const matBtn=C('cv_matBtn');if(matBtn)matBtn.style.display=LV.materials.length?'':'none';
   S.currentAssignId=assignId||null;
   S._cvStudentId=(window._assignCache||{})[assignId]?.student_id||null;
@@ -7778,8 +7793,8 @@ function openClassroomView(title,sections,assignId,studentName,materials){
   C('cv_tabLesson').classList.add('active');C('cv_tabHomework').classList.remove('active');
   lvRender();
   C('classroomView').classList.add('open');
-  // Init lesson chat
-  const _chatRoom=assignId||('lib_'+(S.schoolId||'x'));
+  // Init lesson chat — B16: комната на урок, а не общая на школу
+  const _chatRoom=assignId||(lessonId?('ls_'+String(lessonId).replace(/[^a-zA-Z0-9]/g,'').slice(0,16)+'_'+String(S.schoolId||'x').replace(/[^a-zA-Z0-9]/g,'').slice(0,8)):('lib_'+(S.schoolId||'x')));
   cvChatInit(_chatRoom);
   // Live-синхронизация упражнений: общий канал по назначению или live-комнате
   lvSyncInit(assignId?('as_'+assignId):(S._liveRoomId||null));
@@ -8057,7 +8072,7 @@ function lvRenderAll(){
 
 function renderBlockView(b,i){
   if(b.type==='text') return`<div class="lesson-view-block">
-    ${b.image?`<img src="${_escHtml(b.image)}" style="max-width:100%;border-radius:8px;margin-bottom:10px">`:''}
+    ${b.image&&/^https:\/\//i.test(b.image)?`<img src="${_escHtml(b.image)}" style="max-width:100%;border-radius:8px;margin-bottom:10px">`:''}
     <div style="font-size:.95rem;line-height:1.8">${_escHtml(b.text||'').replace(/\n/g,'<br>')}</div>
   </div>`;
   if(b.type==='vocab') return`<div class="lesson-view-block">
@@ -8137,7 +8152,7 @@ function renderBlockView(b,i){
       ${S.role==='student'?`<button class="btn btn-purple btn-sm" style="margin-top:8px" onclick="saveOpenAnswer('${i}','vq')">💾 ${t('Сохранить ответ')}</button><div id="vq_res_${i}" style="margin-top:6px;font-size:.85rem"></div>`:''}`:''}
     </div>`;
   }
-  if(b.type==='image'){const _iUrl=_escHtml(b.url||'');return`<div class="lesson-view-block">
+  if(b.type==='image'){const _iUrl=/^https:\/\//i.test(b.url||'')?_escHtml(b.url):'';return`<div class="lesson-view-block">
     ${_iUrl?`<img src="${_iUrl}" style="max-width:100%;border-radius:10px;display:block;margin:0 auto 8px">`:`<div style="text-align:center;padding:30px;color:var(--text3);border:2px dashed var(--gray-border);border-radius:10px">🖼 Изображение не добавлено</div>`}
     ${b.caption?`<p style="font-size:.85rem;color:var(--text3);text-align:center;margin:0">${_escHtml(b.caption)}</p>`:''}
   </div>`;}
@@ -8377,15 +8392,15 @@ async function completeLessonView(){
   } finally { LV._completing=false; }
 }
 // Teacher preview — no assignment needed
-function openLessonPreview(title,content){
+function openLessonPreview(title,content,lessonId){
   // content = raw object/array (no encoding needed)
   const{sections:_s,materials:_m}=_parseLessonContent(content);
-  openClassroomView(title,_s,null,null,_m);
+  openClassroomView(title,_s,null,null,_m,lessonId||null);
 }
 function previewLessonById(id){
   const l=(window._lessonCache||{})[id];
   if(!l){showToast('Урок не найден');return;}
-  openLessonPreview(l.title,l.content||[]);
+  openLessonPreview(l.title,l.content||[],l.id);
 }
 function editLessonById(id){
   const l=(window._lessonCache||{})[id];
@@ -8576,7 +8591,7 @@ async function loadConvs(){
   const convIds=members.map(m=>m.conversation_id);
   const[{data:convs},{data:lastMsgs},{data:profs}]=await Promise.all([
     sb.from('conversations').select('*').in('id',convIds).eq('school_id',S.schoolId),
-    sb.from('messages').select('*').in('conversation_id',convIds).eq('school_id',S.schoolId).order('created_at',{ascending:false}).limit(convIds.length*10),
+    sb.from('messages').select('*').in('conversation_id',convIds).eq('school_id',S.schoolId).order('created_at',{ascending:false}).limit(Math.min(1000,Math.max(200,convIds.length*30))),/* B8: активный чат не «съедает» лимит */
     sb.from('profiles').select('id,first_name,last_name,role').eq('school_id',S.schoolId)
   ]);
   MS.profiles=profs||[];
@@ -8645,7 +8660,7 @@ function fmtMsgTime(iso){
 async function openConv(convId){
   if(MS._loadingConvs)return;
   if(!S.profile?.id)return;
-  if(MS.convs&&MS.convs.length>0&&!MS.convs.find(cv=>cv.id===convId)){showToast(t('Нет прав'),'error');return;}
+  if(!MS.convs||!MS.convs.length||!MS.convs.find(cv=>cv.id===convId)){showToast(t('Нет прав'),'error');return;}// B5: чат нельзя открыть до загрузки списка
   if(MS._openingConv)return;MS._openingConv=convId;
   try{
   MS.convId=convId;
@@ -9135,12 +9150,11 @@ async function checkTaskReminders(){
   if(checkTaskReminders._busy)return;checkTaskReminders._busy=true;
   try{
   // Fetch due reminders from DB
-  const now=new Date();
-  const from=new Date(now.getTime()-130000).toISOString();
-  const to=now.toISOString();
+  // B9: догоняем ВСЕ просроченные напоминания (после сна ПК / офлайна)
+  const to=new Date().toISOString();
   const{data:due}=await sb.from('tasks').select('*')
     .eq('school_id',S.schoolId).eq('user_id',S.profile.id)
-    .eq('reminded',false).lte('remind_at',to).gte('remind_at',from);
+    .eq('reminded',false).lte('remind_at',to).not('remind_at','is',null);
   if(!due||!due.length)return;
   for(const tk of due){
     showTaskNotification(tk);
@@ -9319,7 +9333,7 @@ async function renderStudentVocab(){
   if(!S.studentRowId){
     // Try to get studentRowId
     if(!S.profile?.email){setContent('<div class="empty-state"><p>'+t('Ошибка загрузки')+'</p></div>');S._loadingVocab=false;return;}
-    const{data:stuRow}=await sb.from('students').select('id').eq('email',S.profile.email).eq('school_id',S.schoolId).single();
+    const{data:stuRow}=await sb.from('students').select('id').ilike('email',S.profile.email).eq('school_id',S.schoolId).single();
     if(stuRow?.id)S.studentRowId=stuRow.id;
   }
   const{data:assigns}=await sb.from('lesson_assignments').select('lesson_id').eq('student_id',S.studentRowId||'').eq('school_id',S.schoolId);
@@ -9451,7 +9465,7 @@ async function openPlacementTestPlayer(hwId){
   C('ptpQuestions').innerHTML='<div style="text-align:center;padding:20px;color:var(--text3)">'+(isEn?'Loading...':'Загрузка...')+'</div>';
   openM('mPlacementTestPlayer');
   if(S.role==='student'&&!S.studentRowId&&S.profile?.email){
-    const{data:_stuRow}=await sb.from('students').select('id').eq('email',S.profile.email).eq('school_id',S.schoolId).maybeSingle();
+    const{data:_stuRow}=await sb.from('students').select('id').ilike('email',S.profile.email).eq('school_id',S.schoolId).maybeSingle();
     if(_stuRow)S.studentRowId=_stuRow.id;
   }
   const{data:hw}=await sb.from('homeworks').select('*').eq('id',hwId).eq('school_id',S.schoolId).single();
