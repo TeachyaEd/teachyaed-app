@@ -4062,22 +4062,9 @@ async function doLogout(){
   // Clear localStorage
   try{Object.keys(localStorage).filter(k=>k.startsWith('teachya_notes_')).forEach(k=>localStorage.removeItem(k));localStorage.removeItem('teachya_dict');}catch(_){}
 }
-sb.auth.onAuthStateChange((event,session)=>{if(event==='SIGNED_OUT'&&!session&&S.userId){
-  // cleanup channels on external logout
-  try{
-    if(S.notifyChannel){sb.removeChannel(S.notifyChannel);S.notifyChannel=null;}
-    if(typeof MS!=='undefined'&&MS.rtSub){sb.removeChannel(MS.rtSub);MS.rtSub=null;}
-    if(typeof cvChatChannel!=='undefined'&&cvChatChannel){sb.removeChannel(cvChatChannel);cvChatChannel=null;}
-    if(typeof TK!=='undefined'&&TK.rtSub){sb.removeChannel(TK.rtSub);TK.rtSub=null;}
-    if(typeof TK!=='undefined'&&TK._pollInterval){clearInterval(TK._pollInterval);TK._pollInterval=null;}
-    if(typeof _taskReminderInterval!=='undefined'&&_taskReminderInterval){clearInterval(_taskReminderInterval);_taskReminderInterval=null;}
-    if(typeof checkTaskReminders!=='undefined')checkTaskReminders._busy=false;
-  }catch(e){}
-  // Clear data cache on external logout
-  Object.keys(_DC).forEach(k=>delete _DC[k]);
-  // Clear localStorage session data
-  try{Object.keys(localStorage).filter(k=>k.startsWith('teachya_notes_')).forEach(k=>localStorage.removeItem(k));localStorage.removeItem('teachya_dict');}catch(_){}
-  S.userId=null;S.profile=null;S.role=null;S.schoolId=null;if(C('app'))C('app').style.display='none';if(C('dialBtn'))C('dialBtn').style.display='none';if(C('loginScreen'))C('loginScreen').style.display='flex';}});
+// A11 (аудит): внешний разлогин (истёкший токен) выполняет ПОЛНЫЙ сброс —
+// тот же путь, что и кнопка «Выйти» (повторный signOut внутри безвреден).
+sb.auth.onAuthStateChange((event,session)=>{if(event==='SIGNED_OUT'&&!session&&S.userId){doLogout();}});
 (async()=>{
   try{
     // First check if this is an invite/password-reset redirect
@@ -4097,7 +4084,7 @@ sb.auth.onAuthStateChange((event,session)=>{if(event==='SIGNED_OUT'&&!session&&S
   }
 })();
 // ─── АВТООБНОВЛЕНИЕ (кэш GitHub Pages) ───────────────────────────────────────
-const APP_BUILD='2026.08.12-a'; // ⚠️ менять при каждом деплое
+const APP_BUILD='2026.08.12-b'; // ⚠️ менять при каждом деплое
 // Показываем номер сборки на логине — для диагностики версий
 setTimeout(()=>{const lb=document.getElementById('loginBuild');if(lb)lb.textContent='v '+APP_BUILD;},300);
 function checkAppUpdate(){
@@ -5879,14 +5866,9 @@ async function confirmDeleteStudent(sid,name){
       if(_dsSess){await fetch(DELETE_USER_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+_dsSess.access_token},body:JSON.stringify({user_id:_profId})});}
     }catch(_de){console.warn('[deleteStudent] auth.users cleanup:',_de);}
   } else {
-    // Нет аккаунта — удаляем только CRM-запись и связанные данные
-    await sb.from('class_students').delete().eq('student_id',sid).eq('school_id',S.schoolId);
-    await sb.from('homeworks').delete().eq('student_id',sid).eq('school_id',S.schoolId);
-    await sb.from('lesson_assignments').delete().eq('student_id',sid).eq('school_id',S.schoolId);
-    await sb.from('payments').delete().eq('student_id',sid).eq('school_id',S.schoolId);
-    await sb.from('schedule_events').delete().eq('student_id',sid).eq('school_id',S.schoolId);
-    const{error}=await sb.from('students').delete().eq('id',sid).eq('school_id',S.schoolId);
-    if(error){showToast('❌ '+error.message,'error');console.error('[deleteStudent]',error);return;}
+    // Нет аккаунта — A5: атомарное каскадное удаление одним RPC (ничего не «повисает»)
+    const{data:_dcData,error:_dcErr}=await sb.rpc('delete_student_cascade',{p_student_id:sid});
+    if(_dcErr||_dcData?.error){showToast('❌ '+t('Ошибка удаления')+': '+(_dcData?.error||_dcErr?.message),'error');console.error('[deleteStudent]',_dcErr||_dcData);return;}
   }
   showToast('✅ '+name+' удалён');
   dcInval('students_'+S.schoolId);dcInval('students_full_'+S.schoolId);dcInval('students_full_'+S.profile.id);
@@ -6432,16 +6414,9 @@ async function cdpDeleteClass(){
     if(!confirm(t(`Удалить класс «${cl.name}»?\nУченики останутся, но будут убраны из класса. Расписание класса тоже удалится.`)))return;
     showToast('⏳ Удаляем...');
     const cid=cl.id;
-    const{error:_cde1}=await sb.from('class_students').delete().eq('class_id',cid).eq('school_id',S.schoolId);
-    if(_cde1){showToast('Ошибка удаления учеников: '+_cde1.message,'error');return;}
-    const{error:_cde2}=await sb.from('schedule_events').delete().eq('class_id',cid).eq('school_id',S.schoolId);
-    if(_cde2){showToast('Ошибка удаления расписания: '+_cde2.message,'error');return;}
-    const{error:_cde3}=await sb.from('lesson_assignments').delete().eq('class_id',cid).eq('school_id',S.schoolId);
-    if(_cde3){showToast('Ошибка удаления назначений: '+_cde3.message,'error');return;}
-    const{error:_hwDelErr}=await sb.from('homeworks').delete().eq('class_id',cid).eq('school_id',S.schoolId);
-    if(_hwDelErr)console.error('homeworks delete:',_hwDelErr);
-    const{error}=await sb.from('classes').delete().eq('id',cid).eq('school_id',S.schoolId);
-    if(error){showToast('❌ '+error.message);return;}
+    // A6: атомарное каскадное удаление класса одним RPC
+    const{data:_dcRes,error:_dcErr2}=await sb.rpc('delete_class_cascade',{p_class_id:cid});
+    if(_dcErr2||_dcRes?.error){showToast('❌ '+(_dcRes?.error||_dcErr2?.message),'error');return;}
     showToast('✅ Класс «'+_esc(cl.name)+'» удалён');
     dcInval('classes_'+S.schoolId);dcInval('classes_light_'+S.schoolId);
     closeClassDetail();
@@ -6567,7 +6542,7 @@ async function cvSwitchTo(lessonId){
   if(!l){showToast(t('Урок не найден'),'error');return;}
   window._lessonCache=window._lessonCache||{};window._lessonCache[l.id]=l;
   const{sections:_s,materials:_m}=_parseLessonContent(l.content);
-  LV.sections=_s;LV.materials=Array.isArray(_m)?_m:[];LV.curSec=0;LV.curEx=0;window._matchState={};
+  LV.sections=_s;LV.materials=Array.isArray(_m)?_m:[];LV.curSec=0;LV.curEx=0;LV.lessonId=l.id;window._matchState={};
   const matBtn=C('cv_matBtn');if(matBtn)matBtn.style.display=LV.materials.length?'':'none';
   C('cv_lessonName').textContent=l.title;
   lvRender();
@@ -6595,6 +6570,7 @@ function cdpPickLesson(id){
   const className=S._currentClassData?.name||'Класс';
   const{sections:_s,materials:_m}=_parseLessonContent(l.content);
   openClassroomView(l.title,_s,null,className,_m);
+  LV.lessonId=l.id; // A3: для complete_lesson_for_class
   startLiveLesson(l.id,l.title); // 🔴 live: ученики увидят баннер «Урок идёт»
 }
 
@@ -6633,6 +6609,7 @@ async function joinLiveLesson(liveId){
       if(l){_title=l.title;const p=_parseLessonContent(l.content);_secs=p.sections;_mats=p.materials;}
     }
     openClassroomView(_title,_secs,null,null,_mats);
+    LV.lessonId=live.lesson_id||null;
     lvSyncInit(live.room_id); // общий канал с учителем
     if(!S.inCall)await initCall(live.room_id,live.teacher_name||t('Учитель'),true);
   }catch(e){console.warn('[live] join:',e);showToast(t('Ошибка загрузки'),'error');}
@@ -7766,7 +7743,7 @@ async function previewLibLesson(lessonId){
 function _escHtml(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 
 // ─── CLASSROOM VIEW (EdVibe-style lesson viewer) ──────────────────────────────
-const LV={sections:[],materials:[],curSec:0,curEx:0,assignId:null,viewAll:false,_completing:false,_chatSending:false,chatRoomId:null};
+const LV={sections:[],materials:[],curSec:0,curEx:0,assignId:null,lessonId:null,viewAll:false,_completing:false,_chatSending:false,chatRoomId:null};
 
 function _parseLessonContent(content){
   // Accepts: encoded string (legacy), plain object, or array — never breaks on large content
@@ -7779,7 +7756,7 @@ function _parseLessonContent(content){
 }
 
 function openClassroomView(title,sections,assignId,studentName,materials){
-  LV.sections=sections;LV.materials=Array.isArray(materials)?materials:[];LV.curSec=0;LV.curEx=0;LV.assignId=assignId;LV.viewAll=false;
+  LV.sections=sections;LV.materials=Array.isArray(materials)?materials:[];LV.curSec=0;LV.curEx=0;LV.assignId=assignId;LV.lessonId=null;LV.viewAll=false;
   const matBtn=C('cv_matBtn');if(matBtn)matBtn.style.display=LV.materials.length?'':'none';
   S.currentAssignId=assignId||null;
   S._cvStudentId=(window._assignCache||{})[assignId]?.student_id||null;
@@ -8236,7 +8213,7 @@ function lvSyncApply(p){
           const{data:l}=await sb.from('lessons').select('*').eq('id',p.value).eq('school_id',S.schoolId).maybeSingle();
           if(!l)return;
           const{sections:_ns,materials:_nm}=_parseLessonContent(l.content);
-          LV.sections=_ns;LV.materials=Array.isArray(_nm)?_nm:[];LV.curSec=0;LV.curEx=0;window._matchState={};
+          LV.sections=_ns;LV.materials=Array.isArray(_nm)?_nm:[];LV.curSec=0;LV.curEx=0;LV.lessonId=l.id;window._matchState={};
           const _mb=C('cv_matBtn');if(_mb)_mb.style.display=LV.materials.length?'':'none';
           C('cv_lessonName').textContent=l.title;
           lvRender();
@@ -8359,37 +8336,44 @@ function checkWordOrder(i){
   saveLessonAnswer(i,'word_order',answer,_woOk);
 }
 async function completeLessonView(){
-  if(S.role==='student'&&!S.studentRowId){showToast(t('Ошибка: ID ученика не загружен'),'error');return;}
   if(LV._completing)return;
   LV._completing=true;
   try{
-    if(S.currentAssignId){
-      const{error:_lvErr}=await sb.from('lesson_assignments')
-        .update({completed:true})
-        .eq('id',S.currentAssignId)
-        .eq('school_id',S.schoolId)
-        .eq('student_id',S.studentRowId);
-      if(_lvErr){showToast('Ошибка завершения урока: '+_lvErr.message,'error');return;}
-      if(!_lvErr&&S.studentRowId){
-        await sb.from('lessons_log').insert({
-          school_id:S.schoolId,
-          student_id:S.studentRowId,
-          lesson_id:(window._assignCache||{})[S.currentAssignId]?.lesson_id||S.currentAssignId,
-          teacher_id:(window._assignCache||{})[S.currentAssignId]?.teacher_id||null,
-          status:'completed',
-          lesson_date:new Date().toISOString().split('T')[0]
-        });
-        // ignore error (non-fatal)
-      }
+    // A3: учитель в классе — завершает урок программы для ВСЕХ учеников (атомарный RPC)
+    if(['teacher','admin','owner'].includes(S.role)&&S.currentClassId&&LV.lessonId){
+      const{data:_cr,error:_ce}=await sb.rpc('complete_lesson_for_class',{p_class_id:S.currentClassId,p_lesson_id:LV.lessonId});
+      if(_ce||_cr?.error){showToast('❌ '+t('Ошибка завершения урока')+': '+(_cr?.error||_ce?.message),'error');return;}
+      endLiveLesson();
+      window._assignCache={};
+      showToast('✅ '+t('Урок завершён для класса')+(typeof _cr?.updated==='number'?' ('+_cr.updated+')':''));
+      closeClassroomView();
+      return;
+    }
+    // A4: ученик — идемпотентный RPC (assignment + lessons_log в одной транзакции)
+    if(S.role==='student'&&S.currentAssignId){
+      const{data:_sr,error:_se}=await sb.rpc('complete_my_assignment',{p_assignment_id:S.currentAssignId});
+      if(_se||_sr?.error){showToast('Ошибка завершения урока: '+(_sr?.error||_se?.message),'error');return;}
       dcInval('stu_assigns_'+S.studentRowId);
       window._assignCache={};
       showToast('Урок завершён! 🎉');
       closeClassroomView();
-      if(S.role==='student')await renderStudentLessons();
-    } else {
-      showToast('Просмотр завершён ✓');
-      closeClassroomView();
+      await renderStudentLessons();
+      return;
     }
+    // Учитель смотрит назначение конкретного ученика
+    if(S.currentAssignId){
+      const{error:_lvErr}=await sb.from('lesson_assignments')
+        .update({completed:true,progress:100})
+        .eq('id',S.currentAssignId)
+        .eq('school_id',S.schoolId);
+      if(_lvErr){showToast('Ошибка завершения урока: '+_lvErr.message,'error');return;}
+      window._assignCache={};
+      showToast('Урок завершён! 🎉');
+      closeClassroomView();
+      return;
+    }
+    showToast('Просмотр завершён ✓');
+    closeClassroomView();
   } finally { LV._completing=false; }
 }
 // Teacher preview — no assignment needed
@@ -8410,6 +8394,29 @@ function editLessonById(id){
 }
 
 // ─── MATERIAL PREVIEW ─────────────────────────────────────────────────────────
+// A1: приватные бакеты — подписанные ссылки вместо публичных
+const _STORAGE_PUB_RE=/\/storage\/v1\/object\/(?:public|sign)\/(materials|chat-files)\/([^?]+)/;
+async function resolveStorageUrl(url){
+  if(!url)return url;
+  const m=_STORAGE_PUB_RE.exec(url);
+  if(!m)return url; // внешняя ссылка — как есть
+  try{
+    const{data,error}=await sb.storage.from(m[1]).createSignedUrl(decodeURIComponent(m[2]),3600);
+    if(error||!data?.signedUrl)return url;
+    return data.signedUrl;
+  }catch(_e){return url;}
+}
+async function openStorageFile(u){
+  const s=await resolveStorageUrl(u);
+  if(/^https?:\/\//i.test(s))window.open(s,'_blank','noopener,noreferrer');
+  else showToast('Небезопасный URL','error');
+}
+function _hydrateChatImgs(root){
+  (root||document).querySelectorAll('img[data-fsrc]').forEach(async img=>{
+    const u=img.dataset.fsrc;img.removeAttribute('data-fsrc');
+    try{img.src=await resolveStorageUrl(u);}catch(_e){}
+  });
+}
 function _matEmbedUrl(url,type){
   if(!url)return null;
   if(!/^https?:\/\//i.test(url))return null;
@@ -8438,8 +8445,9 @@ function _matEmbedUrl(url,type){
   }
   return null;
 }
-function openMaterialPreview(url,title,type,lang,level){
+async function openMaterialPreview(url,title,type,lang,level){
   const icon=MICONS[type]||'📎'; // MICONS is a hardcoded constant of emoji strings — safe to use in innerHTML
+  url=await resolveStorageUrl(url); // A1: приватный бакет → подписанная ссылка
   const embedUrl=_matEmbedUrl(url,type);
   C('mp_icon').textContent=icon;
   C('mp_title').textContent=title||t('Материал');
@@ -8673,6 +8681,7 @@ function renderMsgMain(conv){
       <textarea id="msgInput" placeholder="Написать сообщение..." rows="1" maxlength="4000" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMsg()}" oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight,110)+'px'"></textarea>
       <button class="msg-compose-btn" style="background:var(--purple);color:#fff" onclick="sendMsg()" title="Отправить">➤</button>
     </div>`;
+  _hydrateChatImgs(main);
   scrollThread();
 }
 
@@ -8691,9 +8700,10 @@ function renderMsgs(){
     let content=m.body?`<span>${_escHtml(m.body).replace(/\n/g,'<br>')}</span>`:'';
     if(m.file_url){
       const isImg=/\.(jpg|jpeg|png|gif|webp)$/i.test(m.file_name||'');
+      const _furl=_escJS(m.file_url);
       content+= isImg
-        ?`<a href="${_escHtml(m.file_url)}" target="_blank" class="msg-file-card"><img src="${_escHtml(m.file_url)}" style="max-width:200px;max-height:150px;border-radius:8px;display:block"></a>`
-        :`<a href="${_escHtml(m.file_url)}" target="_blank" download="${_escHtml(m.file_name||'file')}" class="msg-file-card">📎 ${_escHtml(m.file_name||'Файл')} ${m.file_size?'('+fmtFileSize(m.file_size)+')':''}</a>`;
+        ?`<a href="#" onclick="openStorageFile('${_furl}');return false" class="msg-file-card"><img data-fsrc="${_escHtml(m.file_url)}" alt="" style="max-width:200px;max-height:150px;border-radius:8px;display:block"></a>`
+        :`<a href="#" onclick="openStorageFile('${_furl}');return false" class="msg-file-card">📎 ${_escHtml(m.file_name||'Файл')} ${m.file_size?'('+fmtFileSize(m.file_size)+')':''}</a>`;
     }
     return`${dateSep}<div class="msg-row ${mine?'mine':'theirs'}">
       ${!mine&&MS.convs.find(c=>c.id===MS.convId)?.type==='group'?`<span class="msg-sender">${senderName}</span>`:''}
@@ -8763,6 +8773,7 @@ function refreshMsgThread(){
   const t=document.getElementById('msgThread');
   if(!t)return;
   t.innerHTML=renderMsgs();
+  _hydrateChatImgs(t);
   scrollThread();
 }
 
