@@ -4099,7 +4099,7 @@ sb.auth.onAuthStateChange((event,session)=>{if(event==='SIGNED_OUT'&&!session&&S
   }
 })();
 // ─── АВТООБНОВЛЕНИЕ (кэш GitHub Pages) ───────────────────────────────────────
-const APP_BUILD='2026.08.12-j'; // ⚠️ менять при каждом деплое
+const APP_BUILD='2026.08.12-k'; // ⚠️ менять при каждом деплое
 // Показываем номер сборки на логине — для диагностики версий
 setTimeout(()=>{const lb=document.getElementById('loginBuild');if(lb)lb.textContent='v '+APP_BUILD;},300);
 function checkAppUpdate(){
@@ -6494,7 +6494,7 @@ async function cdpStartLesson(){
   const[{data:prog},{data:assigns},{data:cs}]=await Promise.all([
     sb.from('class_lessons').select('lesson_id,position').eq('class_id',S.currentClassId).eq('school_id',S.schoolId).order('position'),
     sb.from('lesson_assignments').select('lesson_id,completed').eq('school_id',S.schoolId).eq('class_id',S.currentClassId),
-    sb.from('class_students').select('id').eq('class_id',S.currentClassId).eq('school_id',S.schoolId)
+    sb.from('class_students').select('id,student_id').eq('class_id',S.currentClassId).eq('school_id',S.schoolId)
   ]);
   if(prog&&prog.length){
     const stuCount=(cs||[]).length||1;
@@ -6510,6 +6510,22 @@ async function cdpStartLesson(){
       showToast('▶️ '+t('Урок программы')+' '+(idx+1)+'/'+prog.length+': '+l.title);
       cdpPickLesson(l.id);
       return;
+    }
+  }
+  // Программы нет, но ученикам класса уже назначены уроки напрямую — берём следующий непройденный
+  var _stuIds=(cs||[]).map(function(c){return c.student_id;}).filter(Boolean);
+  if(_stuIds.length){
+    var _sa=await sb.from('lesson_assignments').select('lesson_id,completed,assigned_at').eq('school_id',S.schoolId).in('student_id',_stuIds).order('assigned_at',{ascending:true});
+    var _list=_sa.data||[];
+    var _next=_list.find(function(a){return !a.completed;})||_list[_list.length-1];
+    if(_next&&_next.lesson_id){
+      var _lr=await sb.from('lessons').select('*').eq('id',_next.lesson_id).eq('school_id',S.schoolId).maybeSingle();
+      if(_lr.data){
+        window._lessonCache=window._lessonCache||{};window._lessonCache[_lr.data.id]=_lr.data;
+        showToast('▶️ '+t('Назначенный урок')+': '+_lr.data.title);
+        cdpPickLesson(_lr.data.id);
+        return;
+      }
     }
   }
   // Программы нет — показываем выбор из всех уроков
@@ -7613,7 +7629,11 @@ async function assignLesson(){
     const{data:existing}=await sb.from('lesson_assignments').select('id').eq('lesson_id',S.assignLessonId).eq('student_id',sid).eq('school_id',S.schoolId).maybeSingle();
     if(existing){showToast('ℹ️ '+t('Урок уже назначен — ученик видит его в «Мои уроки»'));closeM('mAssignLesson');return;}
     let _ins={school_id:S.schoolId,lesson_id:S.assignLessonId,student_id:sid,completed:false};
-    const _cid=S._assignLessonClassId||S.currentClassId||null;
+    let _cid=S._assignLessonClassId||S.currentClassId||null;
+    if(!_cid){
+      var _csRow=await sb.from('class_students').select('class_id').eq('student_id',sid).eq('school_id',S.schoolId).limit(1);
+      _cid=(_csRow.data&&_csRow.data[0]&&_csRow.data[0].class_id)||null;
+    }
     if(_cid)_ins.class_id=_cid;
     // B4: retry только для необязательных колонок — назначение БЕЗ ученика невозможно
     let{error}=await sb.from('lesson_assignments').insert(_ins);
