@@ -4101,7 +4101,7 @@ sb.auth.onAuthStateChange((event,session)=>{if(event==='SIGNED_OUT'&&!session&&S
   }
 })();
 // ─── АВТООБНОВЛЕНИЕ (кэш GitHub Pages) ───────────────────────────────────────
-const APP_BUILD='2026.08.12-q'; // ⚠️ менять при каждом деплое
+const APP_BUILD='2026.08.12-r'; // ⚠️ менять при каждом деплое
 // Показываем номер сборки на логине — для диагностики версий
 setTimeout(()=>{const lb=document.getElementById('loginBuild');if(lb)lb.textContent='v '+APP_BUILD;},300);
 function checkAppUpdate(){
@@ -4914,9 +4914,60 @@ async function openHWEditor(hwId,preStudentId,preStudentName){
   }
   hweRenderExercises();
   openM('mHWEditor');
+  if(!hwId)hweRestoreDraft();
+  ['hwe_title','hwe_deadline','hwe_student'].forEach(function(id){var el=C(id);if(el&&!el._draftBound){el._draftBound=true;el.addEventListener('input',hweSaveDraft);el.addEventListener('change',hweSaveDraft);}});
 }
 function prefillHwForStudent(id,name){openHWEditor(null,id,name);}
 
+function _hweDraftKey(){return 'ty_hw_draft_'+((S.profile&&S.profile.id)||'x');}
+function hweSaveDraft(){
+  try{
+    if(!document.getElementById('hwe_title'))return;
+    localStorage.setItem(_hweDraftKey(),JSON.stringify({ts:Date.now(),hwId:HWE.hwId,
+      title:C('hwe_title').value,deadline:C('hwe_deadline').value,student:C('hwe_student').value,exercises:HWE.exercises}));
+  }catch(e){}
+}
+function hweRestoreDraft(){
+  try{
+    var raw=localStorage.getItem(_hweDraftKey());if(!raw)return false;
+    var d=JSON.parse(raw);if(!d)return false;
+    if(Date.now()-(d.ts||0)>24*3600*1000){localStorage.removeItem(_hweDraftKey());return false;}
+    if(!d.exercises||!d.exercises.length)return false;
+    if(d.hwId)return false;
+    C('hwe_title').value=d.title||'';
+    C('hwe_deadline').value=d.deadline||'';
+    if(d.student)C('hwe_student').value=d.student;
+    HWE.exercises=d.exercises;
+    hweRenderExercises();
+    showToast('📝 '+t('Восстановлен черновик ДЗ'));
+    return true;
+  }catch(e){return false;}
+}
+// Создание ДЗ без кликов по форме (для скриптов): tySaveHomework({student_id|student_name,title,deadline,exercises:[...]})
+window.tySaveHomework=async function(o){
+  try{
+    if(typeof o==='string')o=JSON.parse(o);
+    if(!o)return{ok:false,error:'нет данных'};
+    if(!['teacher','admin','owner'].includes(S.role))return{ok:false,error:'нужна роль преподавателя'};
+    var sid=o.student_id||null;
+    if(!sid&&o.student_name){
+      var q=await sb.from('students').select('id,first_name,last_name').eq('school_id',S.schoolId);
+      var nm=String(o.student_name).toLowerCase();
+      var f=(q.data||[]).find(function(s){return ((s.first_name||'')+' '+(s.last_name||'')).toLowerCase().indexOf(nm)>=0;});
+      sid=f&&f.id;
+    }
+    if(!sid)return{ok:false,error:'ученик не найден — укажи student_id или student_name'};
+    var ex=Array.isArray(o.exercises)?o.exercises:[];
+    if(!ex.length)return{ok:false,error:'нужно хотя бы одно упражнение'};
+    var pl={school_id:S.schoolId,teacher_id:S.profile.id,student_id:sid,title:String(o.title||'ДЗ'),
+      description:JSON.stringify(ex),deadline:o.deadline||null,status:'pending'};
+    var ins=await sb.from('homeworks').insert(pl).select('id').single();
+    if(ins.error)return{ok:false,error:ins.error.message};
+    dcInval('homeworks_'+S.schoolId);
+    showToast('✅ '+t('ДЗ создано')+': '+pl.title);
+    return{ok:true,id:ins.data&&ins.data.id,student_id:sid,exercises:ex.length};
+  }catch(e){return{ok:false,error:String((e&&e.message)||e)};}
+};
 function hweRenderExercises(){
   const el=C('hweExList');
   if(!HWE.exercises.length){
@@ -5035,10 +5086,10 @@ async function saveHWEditor(){
   if(!title){showToast(t('Введи тему урока'),'error');return;}
   if(!HWE.exercises.length){showToast(t('Добавь хотя бы одно упражнение'),'error');return;}
   if(HWE._saving)return;HWE._saving=true;
-  const btn=document.querySelector('#mHWEditor .btn-purple');
-  if(btn){btn.disabled=true;btn.textContent='Сохранение...';}
-  const payload={school_id:S.schoolId,teacher_id:S.profile.id,student_id:sid,title,description:JSON.stringify(HWE.exercises),deadline:dl||null};
+  var btn=document.querySelector('#mHWEditor .btn-purple');
   try{
+    if(btn){btn.disabled=true;btn.textContent='Сохранение...';}
+    var payload={school_id:S.schoolId,teacher_id:S.profile.id,student_id:sid,title:title,description:JSON.stringify(HWE.exercises),deadline:dl||null};
     if(HWE.hwId){
       const{error}=await sb.from('homeworks').update(payload).eq('id',HWE.hwId).eq('school_id',S.schoolId).eq('teacher_id',S.profile?.id);
       if(error){showToast('Ошибка сохранения: '+error.message,'error');return;}
@@ -5049,6 +5100,7 @@ async function saveHWEditor(){
       showToast('✅ ДЗ отправлено!');
     }
     dcInval('homeworks_'+S.schoolId);
+    try{localStorage.removeItem(_hweDraftKey());}catch(_dz){}
     closeM('mHWEditor');
     if(S.screen==='t_homework')renderTeacherHw();
   } finally {
