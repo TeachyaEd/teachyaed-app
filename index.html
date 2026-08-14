@@ -4101,7 +4101,7 @@ sb.auth.onAuthStateChange((event,session)=>{if(event==='SIGNED_OUT'&&!session&&S
   }
 })();
 // ─── АВТООБНОВЛЕНИЕ (кэш GitHub Pages) ───────────────────────────────────────
-const APP_BUILD='2026.08.12-r'; // ⚠️ менять при каждом деплое
+const APP_BUILD='2026.08.12-s'; // ⚠️ менять при каждом деплое
 // Показываем номер сборки на логине — для диагностики версий
 setTimeout(()=>{const lb=document.getElementById('loginBuild');if(lb)lb.textContent='v '+APP_BUILD;},300);
 function checkAppUpdate(){
@@ -7024,7 +7024,7 @@ async function progMove(progId,dir){
   }finally{progMove._busy=false;}
 }
 async function progRemove(progId){
-  if(!confirm(t('Убрать урок из программы? Назначения учеников сохранятся.')))return;
+  if(!await tyConfirm(t('Убрать урок из программы? Назначения учеников сохранятся.')))return;
   const{error}=await sb.from('class_lessons').delete().eq('id',progId).eq('school_id',S.schoolId);
   if(error){showToast('❌ '+error.message,'error');return;}
   await loadClassTab('program');
@@ -7398,7 +7398,7 @@ function ceExercise(){
         <span style="padding:3px 10px;border-radius:20px;font-size:.72rem;font-weight:700;background:${m.color};flex-shrink:0">${m.icon} ${m.name}</span>
         <span style="flex:1;font-size:.84rem;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${_escHtml(prev||'—')}</span>
         <button class="btn btn-sm btn-outline" style="font-size:.7rem;padding:2px 8px;flex-shrink:0" onclick="event.stopPropagation();setCEViewAll(false);CE.curEx=${ei};ceRenderAll()">✎ Ред.</button>
-        <button class="btn btn-sm btn-red" style="font-size:.7rem;padding:2px 8px;flex-shrink:0" onclick="event.stopPropagation();CE.curEx=${ei};if(confirm(t('Удалить упражнение?'))){CE.sections[CE.curSec].exercises.splice(CE.curEx,1);CE.curEx=Math.max(0,CE.curEx-1);ceRenderAll();}">✕</button>
+        <button class="btn btn-sm btn-red" style="font-size:.7rem;padding:2px 8px;flex-shrink:0" onclick="event.stopPropagation();ceRemoveExAt(${ei})">✕</button>
       </div>`;
     }).join('');
     wrap.innerHTML=`${secTitle}
@@ -7458,8 +7458,39 @@ function ceAddEx(type){
   CE.curEx=CE.sections[CE.curSec].exercises.length-1;
   ceRenderAll();
 }
-function ceRemoveEx(){
-  if(!confirm(t('Удалить упражнение?')))return;
+function tyConfirm(msg){
+  return new Promise(function(resolve){
+    var old=document.getElementById('tyConfOv');if(old)old.remove();
+    var ov=document.createElement('div');
+    ov.id='tyConfOv';
+    ov.style.cssText='position:fixed;inset:0;background:rgba(15,14,25,.55);z-index:99999;display:flex;align-items:center;justify-content:center';
+    ov.innerHTML='<div class="card" style="padding:20px;width:min(92vw,420px);border-radius:14px">'
+      +'<div id="tyConfMsg" style="font-weight:600;margin-bottom:16px;font-size:.95rem;white-space:pre-line"></div>'
+      +'<div style="display:flex;gap:8px;justify-content:flex-end">'
+      +'<button id="tyConfNo" class="btn btn-outline" style="padding:8px 14px">'+t('Отмена')+'</button>'
+      +'<button id="tyConfYes" class="btn btn-red" style="padding:8px 14px">'+t('Удалить')+'</button></div></div>';
+    document.body.appendChild(ov);
+    ov.querySelector('#tyConfMsg').textContent=msg||'';
+    var done=function(v){ov.remove();resolve(v);};
+    ov.querySelector('#tyConfYes').onclick=function(){done(true);};
+    ov.querySelector('#tyConfNo').onclick=function(){done(false);};
+    ov.addEventListener('mousedown',function(e){if(e.target===ov)done(false);});
+    document.addEventListener('keydown',function esc(e){if(e.key==='Escape'){document.removeEventListener('keydown',esc);done(false);}});
+  });
+}
+// Удаление упражнения по индексу (из общего списка раздела)
+async function ceRemoveExAt(ei){
+  if(!await tyConfirm(t('Удалить упражнение?')))return;
+  var exs=CE.sections[CE.curSec]&&CE.sections[CE.curSec].exercises;
+  if(!exs||ei<0||ei>=exs.length)return;
+  exs.splice(ei,1);
+  CE.curEx=Math.max(0,Math.min(CE.curEx,exs.length-1));
+  ceRenderAll();
+}
+// Перерисовать редактор после программных правок CE.sections
+window.tyRenderEditor=function(){try{ceRenderAll();return{ok:true,sections:CE.sections.length,exercises:CE.sections.reduce(function(a,s){return a+((s&&s.exercises)||[]).length;},0)};}catch(e){return{ok:false,error:String(e.message||e)};}};
+async function ceRemoveEx(){
+  if(!await tyConfirm(t('Удалить упражнение?')))return;
   CE.sections[CE.curSec].exercises.splice(CE.curEx,1);
   CE.curEx=Math.max(0,CE.curEx-1);
   ceRenderAll();
