@@ -1531,6 +1531,7 @@ body[data-theme="dark"] .vocab-back{color:#6ee7b7!important;background:rgba(16,1
         <button class="cv-action-row" onclick="toggleToolPanel('notes')">📝 Заметки к уроку</button>
         <button class="cv-action-row" id="cv_matBtn" onclick="toggleToolPanel('cv_materials')" style="display:none">📎 Материалы урока</button>
         <button class="cv-action-row" id="cv_switchBtn" onclick="cvOpenSwitchLesson()" style="display:none">🔄 Сменить урок</button>
+        <button class="cv-action-row" id="cv_pinBtn" onclick="cvPinLessonToClass()" style="display:none">📌 Закрепить за классом</button>
         <button class="cv-action-row" onclick="openWb()">🖊 Доска</button>
         <button class="cv-action-row" id="cv_laserBtn" onclick="toggleLaser()" style="display:none">🔴 Указка</button>
       </div>
@@ -4099,7 +4100,7 @@ sb.auth.onAuthStateChange((event,session)=>{if(event==='SIGNED_OUT'&&!session&&S
   }
 })();
 // ─── АВТООБНОВЛЕНИЕ (кэш GitHub Pages) ───────────────────────────────────────
-const APP_BUILD='2026.08.12-l'; // ⚠️ менять при каждом деплое
+const APP_BUILD='2026.08.12-m'; // ⚠️ менять при каждом деплое
 // Показываем номер сборки на логине — для диагностики версий
 setTimeout(()=>{const lb=document.getElementById('loginBuild');if(lb)lb.textContent='v '+APP_BUILD;},300);
 function checkAppUpdate(){
@@ -6570,6 +6571,39 @@ async function cvOpenSwitchLesson(){
     openM('mLessonPicker');
   }finally{cvOpenSwitchLesson._busy=false;}
 }
+// Закрепить текущий открытый урок за классом: в программу + назначить всем ученикам
+async function cvPinLessonToClass(){
+  if(!['teacher','admin','owner'].includes(S.role)){showToast(t('Нет прав'),'error');return;}
+  if(!S.currentClassId){showToast(t('Открой урок из класса'),'error');return;}
+  if(!LV.lessonId){showToast(t('Урок не определён'),'error');return;}
+  if(cvPinLessonToClass._busy)return;cvPinLessonToClass._busy=true;
+  var _b=C('cv_pinBtn');if(_b)_b.disabled=true;
+  try{
+    var _lid=LV.lessonId,_cid=S.currentClassId;
+    var _alr=await sb.from('class_lessons').select('id').eq('class_id',_cid).eq('lesson_id',_lid).eq('school_id',S.schoolId).maybeSingle();
+    var _already=_alr.data;
+    if(!_already){
+      var _lastR=await sb.from('class_lessons').select('position').eq('class_id',_cid).eq('school_id',S.schoolId).order('position',{ascending:false}).limit(1);
+      var _pos=((_lastR.data&&_lastR.data[0]&&_lastR.data[0].position)!=null?_lastR.data[0].position:-1)+1;
+      var _ins=await sb.from('class_lessons').insert({school_id:S.schoolId,class_id:_cid,lesson_id:_lid,position:_pos});
+      if(_ins.error){showToast('X '+_ins.error.message,'error');return;}
+    }
+    var _csR=await sb.from('class_students').select('student_id').eq('class_id',_cid).eq('school_id',S.schoolId);
+    var _n=0,_list=_csR.data||[];
+    for(var _i=0;_i<_list.length;_i++){
+      var c=_list[_i];
+      var _exR=await sb.from('lesson_assignments').select('id').eq('lesson_id',_lid).eq('student_id',c.student_id).eq('school_id',S.schoolId).maybeSingle();
+      if(!_exR.data){
+        var _aR=await sb.from('lesson_assignments').insert({school_id:S.schoolId,lesson_id:_lid,student_id:c.student_id,class_id:_cid,completed:false});
+        if(!_aR.error){_n++;dcInval('stu_assigns_'+c.student_id);}
+      }
+    }
+    var _el=C('cv_lessonName');var _title=_el?_el.textContent:'';
+    try{feedEvent(_cid,'📌 '+t('Урок закреплён за классом')+(_title?': «'+_title+'»':''));}catch(_fe){}
+    showToast('✅ '+(_already?t('Урок уже в программе'):t('Урок закреплён за классом'))+(_n?' · '+t('назначен ученикам')+': '+_n:''));
+  }catch(e){showToast('X '+((e&&e.message)||e),'error');}
+  finally{cvPinLessonToClass._busy=false;var b2=C('cv_pinBtn');if(b2)b2.disabled=false;}
+}
 async function cvSwitchTo(lessonId){
   closeM('mLessonPicker');
   const{data:l}=await sb.from('lessons').select('*').eq('id',lessonId).eq('school_id',S.schoolId).maybeSingle();
@@ -7871,6 +7905,8 @@ function openClassroomView(title,sections,assignId,studentName,materials,lessonI
   // Кнопка смены урока — только учителю в контексте класса
   const _swBtn=C('cv_switchBtn');
   if(_swBtn)_swBtn.style.display=['teacher','admin','owner'].includes(S.role)?'':'none';
+  var _pinBtn=C('cv_pinBtn');
+  if(_pinBtn)_pinBtn.style.display=(['teacher','admin','owner'].includes(S.role)&&S.currentClassId)?'':'none';
   // Указка — только учителю
   const _lzBtn=C('cv_laserBtn');
   if(_lzBtn)_lzBtn.style.display=['teacher','admin','owner'].includes(S.role)?'':'none';
