@@ -4102,7 +4102,7 @@ sb.auth.onAuthStateChange((event,session)=>{if(event==='SIGNED_OUT'&&!session&&S
   }
 })();
 // ─── АВТООБНОВЛЕНИЕ (кэш GitHub Pages) ───────────────────────────────────────
-const APP_BUILD='2026.08.12-n'; // ⚠️ менять при каждом деплое
+const APP_BUILD='2026.08.12-o'; // ⚠️ менять при каждом деплое
 // Показываем номер сборки на логине — для диагностики версий
 setTimeout(()=>{const lb=document.getElementById('loginBuild');if(lb)lb.textContent='v '+APP_BUILD;},300);
 function checkAppUpdate(){
@@ -5266,7 +5266,7 @@ async function renderStudentClasses(){
     </div>`).join(''):`<div style="font-size:.82rem;color:var(--text3)">Нет ближайших занятий</div>`;
     const _clId=_esc(cl.id).replace(/'/g,"&#39;");
     const _lv=_liveMap[cl.id];
-    const _lvBanner=_lv?`<div style="background:linear-gradient(135deg,#EF4444,#EC4899);color:#fff;border-radius:10px;padding:10px 14px;margin-bottom:10px;display:flex;align-items:center;gap:10px">
+    const _lvBanner=false?`<div style="background:linear-gradient(135deg,#EF4444,#EC4899);color:#fff;border-radius:10px;padding:10px 14px;margin-bottom:10px;display:flex;align-items:center;gap:10px">
         <span style="animation:pulse 1.2s infinite">🔴</span><b style="flex:1">${t('Урок идёт прямо сейчас!')}</b>
         <button class="btn btn-sm" style="background:#fff;color:#EF4444;font-weight:800" onclick="event.stopPropagation();joinLiveLesson('${_esc(_lv.id)}')">▶️ ${t('Войти в урок')}</button>
       </div>`:'';
@@ -5300,7 +5300,7 @@ async function enterStudentClassLesson(classId){
     // 1) Идёт живой урок → присоединяемся к нему (контент + видео)
     const{data:liveRows}=await sb.from('class_live').select('*').eq('class_id',classId).eq('school_id',S.schoolId).eq('active',true).order('started_at',{ascending:false}).limit(1);
     const live=(liveRows||[])[0];
-    if(live&&Date.now()-new Date(live.started_at).getTime()<3*3600*1000){await joinLiveLesson(live.id);return;}
+    // Ученик заходит в свой урок в любое время, независимо от учителя (live не блокирует)
     // 2) Следующий непройденный урок программы
     if(!S.studentRowId&&S.profile?.email){
       const{data:_sr}=await sb.from('students').select('id').ilike('email',S.profile.email).eq('school_id',S.schoolId).limit(1);
@@ -5397,7 +5397,7 @@ async function openStudentClass(classId){
   // 🔴 Live-баннер
   const _live=(liveRows||[])[0];
   const _liveFresh=_live&&(Date.now()-new Date(_live.started_at).getTime()<3*3600*1000);
-  const liveBanner=_liveFresh?`<div class="card" style="margin-bottom:16px;background:linear-gradient(135deg,#EF4444,#EC4899);color:#fff;border:none;display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+  const liveBanner=false?`<div class="card" style="margin-bottom:16px;background:linear-gradient(135deg,#EF4444,#EC4899);color:#fff;border:none;display:flex;align-items:center;gap:14px;flex-wrap:wrap">
       <div style="font-size:1.6rem;animation:pulse 1.2s infinite">🔴</div>
       <div style="flex:1;min-width:180px">
         <div style="font-weight:800;font-size:1.05rem">${isEn?'Lesson is live now!':'Урок идёт прямо сейчас!'}</div>
