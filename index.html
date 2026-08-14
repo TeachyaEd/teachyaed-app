@@ -4099,7 +4099,7 @@ sb.auth.onAuthStateChange((event,session)=>{if(event==='SIGNED_OUT'&&!session&&S
   }
 })();
 // ─── АВТООБНОВЛЕНИЕ (кэш GitHub Pages) ───────────────────────────────────────
-const APP_BUILD='2026.08.12-h'; // ⚠️ менять при каждом деплое
+const APP_BUILD='2026.08.12-i'; // ⚠️ менять при каждом деплое
 // Показываем номер сборки на логине — для диагностики версий
 setTimeout(()=>{const lb=document.getElementById('loginBuild');if(lb)lb.textContent='v '+APP_BUILD;},300);
 function checkAppUpdate(){
@@ -4736,13 +4736,15 @@ function initWb(){
     }
     // Текст и стикер — по клику
     if(wbTool==='text'||wbTool==='note'){
-      const txt=prompt(wbTool==='text'?t('Текст:'):t('Текст стикера:'));
-      if(txt&&txt.trim()){
-        const[nx,ny]=_wbN(x,y);
-        wbCommitOp(wbTool==='text'
-          ?{t:'t',x:nx,y:ny,txt:txt.trim().slice(0,120),c:C('wbColor').value,w:parseInt(C('wbSz').value)}
-          :{t:'n',x:nx,y:ny,txt:txt.trim().slice(0,160)});
-      }
+      const[nx,ny]=_wbN(x,y);
+      const _wbToolSnap=wbTool;
+      tyPrompt(_wbToolSnap==='text'?t('Текст:'):t('Текст стикера:'),'').then(txt=>{
+        if(txt&&txt.trim()){
+          wbCommitOp(_wbToolSnap==='text'
+            ?{t:'t',x:nx,y:ny,txt:txt.trim().slice(0,120),c:C('wbColor').value,w:parseInt(C('wbSz').value)}
+            :{t:'n',x:nx,y:ny,txt:txt.trim().slice(0,160)});
+        }
+      });
       return;
     }
     wbDrawing=true;[wbLX,wbLY]=[x,y];[wbStartX,wbStartY]=[x,y];
@@ -6049,7 +6051,7 @@ async function saveSalary(){
 async function logLessonFor(tid,tname){
   if(S._logLessonSaving)return;S._logLessonSaving=true;
   try{
-    const rawTopic=prompt(`Тема урока (${tname}):`);
+    const rawTopic=await tyPrompt(`Тема урока (${tname}):`,'');
     if(rawTopic===null)return;
     const topic=rawTopic.trim();
     if(!topic){showToast(t('Введи тему урока'),'error');return;}
@@ -6967,7 +6969,7 @@ async function openStudentAnswers(sid,name){
 async function editStudentAnswer(aid,sid,name){
   if(!['teacher','admin','owner'].includes(S.role)){showToast(t('Нет прав'),'error');return;}
   const{data:a}=await sb.from('lesson_answers').select('answer').eq('id',aid).eq('school_id',S.schoolId).maybeSingle();
-  const nv=prompt(t('Изменить ответ ученика:'),a?.answer||'');
+  const nv=await tyPrompt(t('Изменить ответ ученика:'),a?.answer||'');
   if(nv===null)return;
   const{error}=await sb.from('lesson_answers').update({answer:nv.slice(0,2000)}).eq('id',aid).eq('school_id',S.schoolId);
   if(error){showToast('❌ '+error.message,'error');return;}
@@ -7182,6 +7184,32 @@ function ceSidebar(){
     </div>`).join('');
 }
 function ceGoSec(si){CE.curSec=si;CE.curEx=0;ceRenderAll();}
+// Замена браузерного prompt(): работает при автоматизации, поддерживает тёмную тему
+function tyPrompt(title,defVal){
+  return new Promise(resolve=>{
+    const old=document.getElementById('tyPromptOv');if(old)old.remove();
+    const ov=document.createElement('div');
+    ov.id='tyPromptOv';
+    ov.style.cssText='position:fixed;inset:0;background:rgba(15,14,25,.55);z-index:99999;display:flex;align-items:center;justify-content:center';
+    ov.innerHTML=`<div class="card" style="padding:20px;width:min(92vw,420px);box-shadow:0 20px 60px rgba(0,0,0,.35);border-radius:14px">
+      <div style="font-weight:700;margin-bottom:10px;font-size:.95rem" id="tyPromptTitle"></div>
+      <input id="tyPromptInp" maxlength="2000" style="width:100%;box-sizing:border-box;padding:10px 12px;border:2px solid var(--gray-border);border-radius:10px;font-family:var(--font);font-size:.9rem;outline:none;background:transparent;color:inherit">
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px">
+        <button id="tyPromptCancel" class="btn btn-outline" style="padding:8px 14px">${t('Отмена')}</button>
+        <button id="tyPromptOk" class="btn btn-purple" style="padding:8px 14px">OK</button>
+      </div></div>`;
+    document.body.appendChild(ov);
+    const inp=ov.querySelector('#tyPromptInp');
+    ov.querySelector('#tyPromptTitle').textContent=title||'';
+    inp.value=defVal||'';
+    const done=v=>{ov.remove();resolve(v);};
+    ov.querySelector('#tyPromptOk').onclick=()=>done(inp.value);
+    ov.querySelector('#tyPromptCancel').onclick=()=>done(null);
+    ov.addEventListener('mousedown',e=>{if(e.target===ov)done(null);});
+    inp.addEventListener('keydown',e=>{if(e.key==='Enter')done(inp.value);if(e.key==='Escape')done(null);});
+    setTimeout(()=>{inp.focus();inp.select();},60);
+  });
+}
 function ceAddSection(){
   // Без prompt(): браузерные диалоги блокируются при автоматизации и иногда самим Chrome.
   // Раздел создаётся сразу с дефолтным именем — оно редактируется в шапке раздела.
