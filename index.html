@@ -4101,7 +4101,7 @@ sb.auth.onAuthStateChange((event,session)=>{if(event==='SIGNED_OUT'&&!session&&S
   }
 })();
 // ─── АВТООБНОВЛЕНИЕ (кэш GitHub Pages) ───────────────────────────────────────
-const APP_BUILD='2026.08.12-p'; // ⚠️ менять при каждом деплое
+const APP_BUILD='2026.08.12-q'; // ⚠️ менять при каждом деплое
 // Показываем номер сборки на логине — для диагностики версий
 setTimeout(()=>{const lb=document.getElementById('loginBuild');if(lb)lb.textContent='v '+APP_BUILD;},300);
 function checkAppUpdate(){
@@ -8025,13 +8025,69 @@ function lvFinishSection(){
   if(LV.curSec<LV.sections.length-1){LV.curSec++;LV.curEx=0;window._matchState={};lvRender();}
 }
 
+// Вкладка «Домашняя работа» внутри урока: список + создание + перенос срока
+async function cvLoadHomework(){
+  var box=C('cv_exerciseContent');
+  var isT=['teacher','admin','owner'].includes(S.role);
+  box.innerHTML='<div style="padding:24px;color:var(--text3)">'+t('Загрузка...')+'</div>';
+  try{
+    var hws=[];
+    if(isT){
+      var ids=[];
+      if(S.currentClassId){
+        var csr=await sb.from('class_students').select('student_id').eq('class_id',S.currentClassId).eq('school_id',S.schoolId);
+        ids=(csr.data||[]).map(function(c){return c.student_id;});
+      } else if(S._cvStudentId){ ids=[S._cvStudentId]; }
+      if(ids.length){
+        var hr=await sb.from('homeworks').select('*,student:student_id(first_name,last_name)').eq('school_id',S.schoolId).in('student_id',ids).order('created_at',{ascending:false}).limit(50);
+        hws=hr.data||[];
+      }
+    } else if(S.studentRowId){
+      var sr=await sb.from('homeworks').select('*').eq('school_id',S.schoolId).eq('student_id',S.studentRowId).order('created_at',{ascending:false}).limit(50);
+      hws=sr.data||[];
+    }
+    var sMap={pending:t('Ожидает'),submitted:t('Сдано'),reviewed:t('Проверено')};
+    var bMap={pending:'badge-purple',submitted:'badge-yellow',reviewed:'badge-green'};
+    var rows=hws.map(function(hw){
+      var id=_escJS(hw.id);
+      var who=isT?('👤 '+_escHtml((hw.student&&hw.student.first_name)||'')+' '+_escHtml((hw.student&&hw.student.last_name)||'')+' · '):'';
+      var acts=isT
+        ? '<button class="btn btn-sm btn-outline" style="font-size:.75rem" onclick="openHWEditor(\''+id+'\')">✏️ '+t('Изменить')+'</button>'
+          +'<button class="btn btn-sm btn-outline" style="font-size:.75rem" onclick="cvPostponeHW(\''+id+'\')">📅 '+t('Перенести')+'</button>'
+          +(hw.status==='submitted'?'<button class="btn btn-sm btn-yellow" style="font-size:.75rem" onclick="openHWReview(\''+id+'\')">🔍 '+t('Проверить')+'</button>':'')
+          +(hw.status==='reviewed'?'<button class="btn btn-sm btn-green" style="font-size:.75rem" onclick="openHWReview(\''+id+'\')">✅</button>':'')
+        : '<button class="btn btn-sm btn-purple" style="font-size:.75rem" onclick="openHWPlayer(\''+id+'\')">▶️ '+t('Открыть')+'</button>';
+      return '<div class="card" style="margin-bottom:8px;padding:12px 16px"><div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">'
+        +'<div><div style="font-weight:700">'+_escHtml(hw.title||'ДЗ')+' <span class="badge '+(bMap[hw.status]||'badge-purple')+'">'+_escHtml(sMap[hw.status]||hw.status||'')+'</span></div>'
+        +'<div style="font-size:.78rem;color:var(--text3)">'+who+'📅 '+fmtDate(hw.deadline)+'</div></div>'
+        +'<div style="display:flex;gap:6px;flex-wrap:wrap">'+acts+'</div></div></div>';
+    }).join('');
+    var addBtn=isT?'<button class="btn btn-purple" onclick="openHWEditor()">+ '+t('Новое ДЗ')+'</button>':'';
+    box.innerHTML='<div class="section-header" style="margin-bottom:12px"><span style="font-weight:700">📝 '+t('Домашняя работа')+'</span>'+addBtn+'</div>'
+      +(rows||'<div class="empty-state" style="padding:40px 0"><div class="ei">📋</div><p>'+t('Домашних заданий нет')+'</p></div>');
+  }catch(e){box.innerHTML='<div style="padding:24px;color:var(--pink)">'+t('Ошибка загрузки')+': '+_escHtml(e.message||'')+'</div>';}
+}
+// Перенести срок сдачи
+async function cvPostponeHW(hwId){
+  if(!['teacher','admin','owner'].includes(S.role))return;
+  var cur=await sb.from('homeworks').select('deadline').eq('id',hwId).eq('school_id',S.schoolId).maybeSingle();
+  var old=(cur.data&&cur.data.deadline)||'';
+  var nv=await tyPrompt(t('Новый срок сдачи')+' (ГГГГ-ММ-ДД):',old);
+  if(nv===null)return;
+  nv=String(nv).trim();
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(nv)){showToast(t('Формат даты: ГГГГ-ММ-ДД'),'error');return;}
+  var up=await sb.from('homeworks').update({deadline:nv}).eq('id',hwId).eq('school_id',S.schoolId);
+  if(up.error){showToast('❌ '+up.error.message,'error');return;}
+  showToast('✅ '+t('Срок перенесён')+': '+nv);
+  cvLoadHomework();
+}
 function switchCVTab(tab,el){
   document.querySelectorAll('.cv-tab').forEach(t=>t.classList.remove('active'));
   el.classList.add('active');
   if(tab==='homework'){
     C('cv_sectionTitle').textContent=t('Домашняя работа');
-    C('cv_exerciseContent').innerHTML=`<div class="empty-state" style="padding:60px 0"><div class="ei">📋</div><p>${t('Домашних заданий нет')}</p></div>`;
     C('cv_btnBack').style.display='none';C('cv_btnNext').style.display='none';C('cv_btnFinishSec').style.display='none';
+    cvLoadHomework();
   } else {
     C('cv_btnBack').style.display='';C('cv_btnNext').style.display='';
     lvRender();
