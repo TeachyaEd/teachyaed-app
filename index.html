@@ -4099,7 +4099,7 @@ sb.auth.onAuthStateChange((event,session)=>{if(event==='SIGNED_OUT'&&!session&&S
   }
 })();
 // ─── АВТООБНОВЛЕНИЕ (кэш GitHub Pages) ───────────────────────────────────────
-const APP_BUILD='2026.08.12-i'; // ⚠️ менять при каждом деплое
+const APP_BUILD='2026.08.12-j'; // ⚠️ менять при каждом деплое
 // Показываем номер сборки на логине — для диагностики версий
 setTimeout(()=>{const lb=document.getElementById('loginBuild');if(lb)lb.textContent='v '+APP_BUILD;},300);
 function checkAppUpdate(){
@@ -7176,14 +7176,36 @@ function closeCE(){
 function ceRenderAll(){ceSidebar();ceExercise();ceProgress();if(S.lang==='en')applyEN(C('classroomEditor'));else if(S.lang==='ge')applyGE(C('classroomEditor'));}
 
 function ceSidebar(){
-  C('ce_secList').innerHTML=CE.sections.map((s,si)=>`
+  C('ce_secList').innerHTML=(CE.sections||[]).map((s,si)=>`
     <div class="ce-sec-item ${si===CE.curSec?'active':''}" onclick="ceGoSec(${si})">
       <span class="ce-sec-num">${si+1}</span>
-      <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${_esc(s.title||'Раздел '+(si+1))}</span>
-      <span class="ce-sec-cnt">${s.exercises.length} упр.</span>
+      <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${_esc((s&&s.title)||'Раздел '+(si+1))}</span>
+      <span class="ce-sec-cnt">${((s&&s.exercises)||[]).length} упр.</span>
     </div>`).join('');
 }
 function ceGoSec(si){CE.curSec=si;CE.curEx=0;ceRenderAll();}
+
+// Массовая загрузка урока (для скриптов/интеграций): весь урок одним вызовом.
+// tyImportSections([{title:'2 · Quick review',exercises:[{type:'text',text:'...'}]}], {append:true})
+window.CE=CE;
+window.tyImportSections=function(data,opts){
+  opts=opts||{};
+  try{
+    var payload=data;
+    if(typeof payload==='string'){payload=JSON.parse(payload);}
+    var secs=Array.isArray(payload)?payload:(payload&&Array.isArray(payload.sections)?payload.sections:null);
+    if(!secs)return{ok:false,error:'Ожидается массив разделов или {sections:[...]}'};
+    var clean=secs.map(function(s,i){return{title:String((s&&s.title)||('Раздел '+(i+1))),exercises:Array.isArray(s&&s.exercises)?s.exercises:[]};});
+    if(!opts.append)CE.sections=[];
+    CE.sections=CE.sections.concat(clean);
+    if(payload&&Array.isArray(payload.materials))CE.materials=(CE.materials||[]).concat(payload.materials);
+    CE.curSec=Math.max(0,CE.sections.length-1);CE.curEx=0;CE.viewAll=false;
+    ceRenderAll();
+    var total=CE.sections.reduce(function(a,s){return a+s.exercises.length;},0);
+    showToast('✅ Загружено разделов: '+clean.length+' ('+total+' упр.)');
+    return{ok:true,sections:CE.sections.length,exercises:total,titles:CE.sections.map(function(s){return s.title;}),hint:'Нажми Сохранить в редакторе, чтобы записать урок в базу'};
+  }catch(e){return{ok:false,error:String(e&&e.message||e)};}
+};
 // Замена браузерного prompt(): работает при автоматизации, поддерживает тёмную тему
 function tyPrompt(title,defVal){
   return new Promise(resolve=>{
