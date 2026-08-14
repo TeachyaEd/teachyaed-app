@@ -4099,7 +4099,7 @@ sb.auth.onAuthStateChange((event,session)=>{if(event==='SIGNED_OUT'&&!session&&S
   }
 })();
 // ─── АВТООБНОВЛЕНИЕ (кэш GitHub Pages) ───────────────────────────────────────
-const APP_BUILD='2026.08.12-g'; // ⚠️ менять при каждом деплое
+const APP_BUILD='2026.08.12-h'; // ⚠️ менять при каждом деплое
 // Показываем номер сборки на логине — для диагностики версий
 setTimeout(()=>{const lb=document.getElementById('loginBuild');if(lb)lb.textContent='v '+APP_BUILD;},300);
 function checkAppUpdate(){
@@ -7183,10 +7183,12 @@ function ceSidebar(){
 }
 function ceGoSec(si){CE.curSec=si;CE.curEx=0;ceRenderAll();}
 function ceAddSection(){
-  const secName=prompt('Название раздела:','Раздел '+(CE.sections.length+1));
-  if(secName===null)return;
-  CE.sections.push({title:secName||'Раздел '+(CE.sections.length+1),exercises:[]});
+  // Без prompt(): браузерные диалоги блокируются при автоматизации и иногда самим Chrome.
+  // Раздел создаётся сразу с дефолтным именем — оно редактируется в шапке раздела.
+  CE.sections.push({title:'Раздел '+(CE.sections.length+1),exercises:[]});
   CE.curSec=CE.sections.length-1;CE.curEx=0;ceRenderAll();
+  showToast('✅ '+t('Раздел добавлен')+' — '+t('название можно изменить в шапке'));
+  setTimeout(()=>{const h=document.querySelector('.ce-sec-heading');if(h){h.focus();h.select();}},150);
 }
 
 function ceProgress(){
