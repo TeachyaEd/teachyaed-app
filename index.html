@@ -4099,7 +4099,7 @@ sb.auth.onAuthStateChange((event,session)=>{if(event==='SIGNED_OUT'&&!session&&S
   }
 })();
 // ─── АВТООБНОВЛЕНИЕ (кэш GitHub Pages) ───────────────────────────────────────
-const APP_BUILD='2026.08.12-k'; // ⚠️ менять при каждом деплое
+const APP_BUILD='2026.08.12-l'; // ⚠️ менять при каждом деплое
 // Показываем номер сборки на логине — для диагностики версий
 setTimeout(()=>{const lb=document.getElementById('loginBuild');if(lb)lb.textContent='v '+APP_BUILD;},300);
 function checkAppUpdate(){
@@ -7870,7 +7870,7 @@ function openClassroomView(title,sections,assignId,studentName,materials,lessonI
   C('cv_callPanel').style.display=studentName?'':'none';
   // Кнопка смены урока — только учителю в контексте класса
   const _swBtn=C('cv_switchBtn');
-  if(_swBtn)_swBtn.style.display=(['teacher','admin','owner'].includes(S.role)&&S.currentClassId)?'':'none';
+  if(_swBtn)_swBtn.style.display=['teacher','admin','owner'].includes(S.role)?'':'none';
   // Указка — только учителю
   const _lzBtn=C('cv_laserBtn');
   if(_lzBtn)_lzBtn.style.display=['teacher','admin','owner'].includes(S.role)?'':'none';
