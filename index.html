@@ -1532,6 +1532,7 @@ body[data-theme="dark"] .vocab-back{color:#6ee7b7!important;background:rgba(16,1
         <button class="cv-action-row" id="cv_matBtn" onclick="toggleToolPanel('cv_materials')" style="display:none">📎 Материалы урока</button>
         <button class="cv-action-row" id="cv_switchBtn" onclick="cvOpenSwitchLesson()" style="display:none">🔄 Сменить урок</button>
         <button class="cv-action-row" id="cv_pinBtn" onclick="cvPinLessonToClass()" style="display:none">📌 Закрепить за классом</button>
+        <button class="cv-action-row" id="cv_pushSecBtn" onclick="cvPushSection()" style="display:none">👥 Показать раздел ученику</button>
         <button class="cv-action-row" onclick="openWb()">🖊 Доска</button>
         <button class="cv-action-row" id="cv_laserBtn" onclick="toggleLaser()" style="display:none">🔴 Указка</button>
       </div>
@@ -3643,7 +3644,8 @@ function saveDictWord(w){
   let saved;try{saved=JSON.parse(localStorage.getItem('teachya_dict')||'[]');}catch(e){saved=[];}
   if(!saved.includes(w))saved.push(w);
   localStorage.setItem('teachya_dict',JSON.stringify(saved));
-  renderDictSaved();showToast('Слово сохранено!');
+  renderDictSaved();
+  if(['teacher','admin','owner'].includes(S.role)&&LV.lessonId){dictAddToLesson(w);}else{showToast('Слово сохранено!');}
 }
 
 function renderDictSaved(){
@@ -4100,7 +4102,7 @@ sb.auth.onAuthStateChange((event,session)=>{if(event==='SIGNED_OUT'&&!session&&S
   }
 })();
 // ─── АВТООБНОВЛЕНИЕ (кэш GitHub Pages) ───────────────────────────────────────
-const APP_BUILD='2026.08.12-m'; // ⚠️ менять при каждом деплое
+const APP_BUILD='2026.08.12-n'; // ⚠️ менять при каждом деплое
 // Показываем номер сборки на логине — для диагностики версий
 setTimeout(()=>{const lb=document.getElementById('loginBuild');if(lb)lb.textContent='v '+APP_BUILD;},300);
 function checkAppUpdate(){
@@ -6654,7 +6656,7 @@ async function startLiveLesson(lessonId,lessonTitle){
     const{data:live,error}=await sb.from('class_live').insert({school_id:S.schoolId,class_id:classId,lesson_id:lessonId||null,teacher_id:S.profile?.id||null,teacher_name:_tname,room_id:room,active:true}).select().single();
     if(error){console.warn('[live] insert:',error);return;}
     S._liveId=live?.id||null;S._liveRoomId=room;
-    lvSyncInit(room); // синхронизация упражнений в live-комнате
+    lvSyncInit(lessonId?('ls_'+String(lessonId).replace(/[^a-zA-Z0-9]/g,'').slice(0,20)):room);
     try{await sb.from('class_feed').insert({school_id:S.schoolId,class_id:classId,author_id:S.profile?.id||null,author_name:_tname,type:'system',text:'🔴 '+t('Урок начался')+(lessonTitle?': «'+lessonTitle+'»':'')});}catch(_e){}
     showToast('🔴 '+t('Живой урок запущен — ученики видят «Войти в урок»'));
   }catch(e){console.warn('[live] start:',e);}
@@ -6678,7 +6680,7 @@ async function joinLiveLesson(liveId){
     }
     openClassroomView(_title,_secs,null,null,_mats,live.lesson_id||null);
     LV.lessonId=live.lesson_id||null;
-    lvSyncInit(live.room_id); // общий канал с учителем
+    lvSyncInit(live.lesson_id?('ls_'+String(live.lesson_id).replace(/[^a-zA-Z0-9]/g,'').slice(0,20)):live.room_id);
     if(!S.inCall)await initCall(live.room_id,live.teacher_name||t('Учитель'),true);
   }catch(e){console.warn('[live] join:',e);showToast(t('Ошибка загрузки'),'error');}
   finally{joinLiveLesson._busy=false;}
@@ -7907,6 +7909,8 @@ function openClassroomView(title,sections,assignId,studentName,materials,lessonI
   if(_swBtn)_swBtn.style.display=['teacher','admin','owner'].includes(S.role)?'':'none';
   var _pinBtn=C('cv_pinBtn');
   if(_pinBtn)_pinBtn.style.display=(['teacher','admin','owner'].includes(S.role)&&S.currentClassId)?'':'none';
+  var _pshBtn=C('cv_pushSecBtn');
+  if(_pshBtn)_pshBtn.style.display=['teacher','admin','owner'].includes(S.role)?'':'none';
   // Указка — только учителю
   const _lzBtn=C('cv_laserBtn');
   if(_lzBtn)_lzBtn.style.display=['teacher','admin','owner'].includes(S.role)?'':'none';
@@ -7920,7 +7924,7 @@ function openClassroomView(title,sections,assignId,studentName,materials,lessonI
   const _chatRoom=lessonId?('ls_'+String(lessonId).replace(/[^a-zA-Z0-9]/g,'').slice(0,16)+'_'+String(S.schoolId||'x').replace(/[^a-zA-Z0-9]/g,'').slice(0,8)):(assignId||('lib_'+(S.schoolId||'x')));
   cvChatInit(_chatRoom);
   // Live-синхронизация упражнений: общий канал по назначению или live-комнате
-  lvSyncInit(assignId?('as_'+assignId):(S._liveRoomId||null));
+  lvSyncInit(lessonId?('ls_'+String(lessonId).replace(/[^a-zA-Z0-9]/g,'').slice(0,20)):(assignId?('as_'+assignId):(S._liveRoomId||null)));
 }
 
 function openLessonView(assignId){
@@ -8293,6 +8297,58 @@ function renderBlockView(b,i){
 }
 
 // ─── LIVE-СИНХРОНИЗАЦИЯ УПРАЖНЕНИЙ (учитель ↔ ученик видят один ввод) ────────
+// Учитель переключает раздел у учеников
+function cvPushSection(){
+  if(!['teacher','admin','owner'].includes(S.role))return;
+  lvSyncSend('section','section',LV.curSec||0);
+  showToast('👥 '+t('Ученики переключены на этот раздел'));
+}
+// Ответ ученика прилетел из базы — показываем его учителю прямо в упражнении
+function lvApplyStudentAnswer(row){
+  try{
+    if(!row||!row.ex_key)return;
+    var k=String(row.ex_key);
+    var ids=['fb_'+k,'oq_'+k,'vq_'+k];
+    var hit=null;
+    for(var i=0;i<ids.length;i++){var el=document.getElementById(ids[i]);if(el){hit=el;break;}}
+    if(hit&&document.activeElement!==hit){hit.value=row.answer||'';hit.style.outline='2px solid var(--purple)';setTimeout(function(){hit.style.outline='';},1200);}
+    var mark=(row.correct===true?'✅ ':(row.correct===false?'❌ ':''));
+    showToast('✍️ '+t('Ответ ученика')+': '+mark+String(row.answer||'').slice(0,60));
+  }catch(e){console.warn('[ans apply]',e);}
+}
+// Слово из словаря → в словарь урока (ученик увидит его у себя)
+async function dictAddToLesson(pair){
+  if(!['teacher','admin','owner'].includes(S.role))return false;
+  if(!LV.lessonId)return false;
+  try{
+    var parts=String(pair).split('→');
+    var w=(parts[0]||'').trim(), tr=(parts[1]||'').trim();
+    if(!w)return false;
+    var lr=await sb.from('lessons').select('content').eq('id',LV.lessonId).eq('school_id',S.schoolId).maybeSingle();
+    if(!lr.data)return false;
+    var raw=lr.data.content;
+    if(typeof raw==='string'){try{raw=JSON.parse(raw);}catch(e){raw=null;}}
+    if(Array.isArray(raw))raw={sections:[{title:'Урок',exercises:raw}]};
+    if(!raw||typeof raw!=='object')raw={sections:[]};
+    if(!Array.isArray(raw.sections))raw.sections=[];
+    if(!raw.sections.length)raw.sections.push({title:'Словарь',exercises:[]});
+    var si=Math.max(0,Math.min(LV.curSec||0,raw.sections.length-1));
+    var sec=raw.sections[si];
+    if(!Array.isArray(sec.exercises))sec.exercises=[];
+    var vb=null;
+    for(var i=0;i<sec.exercises.length;i++){if(sec.exercises[i]&&sec.exercises[i].type==='vocab'){vb=sec.exercises[i];break;}}
+    if(!vb){vb={type:'vocab',words:[]};sec.exercises.push(vb);}
+    if(!Array.isArray(vb.words))vb.words=[];
+    for(var j=0;j<vb.words.length;j++){if(String(vb.words[j].word||'').toLowerCase()===w.toLowerCase()){showToast('ℹ️ '+t('Слово уже в словаре урока'));return true;}}
+    vb.words.push({word:w,trans:tr});
+    var up=await sb.from('lessons').update({content:raw}).eq('id',LV.lessonId).eq('school_id',S.schoolId);
+    if(up.error){showToast('❌ '+up.error.message,'error');return false;}
+    LV.sections=raw.sections;lvRender();
+    lvSyncSend('lesson','lesson',LV.lessonId);
+    showToast('✅ '+t('Слово добавлено в словарь урока'));
+    return true;
+  }catch(e){console.warn('[dict lesson]',e);return false;}
+}
 function lvSyncInit(roomKey){
   try{
     if(!roomKey)return;
@@ -8300,6 +8356,12 @@ function lvSyncInit(roomKey){
     LV._syncCh=sb.channel('exsync-'+roomKey)
       .on('broadcast',{event:'ex'},({payload})=>lvSyncApply(payload))
       .subscribe();
+    if(['teacher','admin','owner'].includes(S.role)&&LV.lessonId){
+      if(LV._ansCh){try{sb.removeChannel(LV._ansCh);}catch(e){}LV._ansCh=null;}
+      LV._ansCh=sb.channel('la-'+roomKey)
+        .on('postgres_changes',{event:'*',schema:'public',table:'lesson_answers',filter:'lesson_id=eq.'+LV.lessonId},function(p){lvApplyStudentAnswer(p.new);})
+        .subscribe();
+    }
     const cont=C('cv_exerciseContent');
     if(cont&&!cont._syncBound){
       cont._syncBound=true;
@@ -8349,6 +8411,8 @@ function lvSyncApply(p){
       if(!C('wbOverlay').classList.contains('open'))openWb(true);
     } else if(p.kind==='wbclear'){
       clearWb(true);
+    } else if(p.kind==='section'&&typeof p.value==='number'){
+      if(S.role==='student'){LV.curSec=Math.max(0,Math.min(p.value,((LV.sections||[]).length-1)));LV.curEx=0;lvRender();showToast('👥 '+t('Учитель переключил раздел'));}
     } else if(p.kind==='lesson'&&p.value){
       // Учитель сменил урок — подтягиваем новый контент
       (async()=>{
