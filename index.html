@@ -938,6 +938,60 @@ body[data-theme="dark"] #toolPanel{background:var(--white)!important;border-colo
 body[data-theme="dark"] #timerPopup{background:var(--white)!important;box-shadow:0 8px 32px rgba(0,0,0,.45)!important;}
 body[data-theme="dark"] .vocab-back{color:#6ee7b7!important;background:rgba(16,185,129,.25)!important}
 </style>
+<style id="tyDarkPremium">
+/* ── Премиальная тёмная тема · одинаково на macOS, Windows, Linux ── */
+body[data-theme="dark"]{
+  color-scheme:dark;accent-color:#8B7BF7;
+  background:radial-gradient(1100px 650px at 12% -10%,rgba(124,92,255,.10),transparent 60%),
+             radial-gradient(900px 600px at 100% 0%,rgba(236,72,153,.06),transparent 55%),#0F0D1C!important;
+  color:#F2EEFF;
+  --white:#171430;--text:#F2EEFF;--text2:#BEB6E6;--text3:#8B84B4;
+  --gray-light:#201C3C;--gray-border:rgba(255,255,255,.09);
+  --purple-light:#241A52;--pink-light:#33162A;--green-light:#0C2A20;--yellow-light:#2A2206;--blue-light:#0E1838;
+  --shadow:0 10px 34px rgba(0,0,0,.55);
+}
+body[data-theme="dark"] ::selection{background:rgba(139,123,247,.35);color:#fff}
+body[data-theme="dark"] *{scrollbar-color:rgba(255,255,255,.16) transparent}
+body[data-theme="dark"] ::-webkit-scrollbar-thumb{background:rgba(255,255,255,.14)!important;border-radius:8px}
+body[data-theme="dark"] ::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,.26)!important}
+/* Поверхности: тонкая подсветка сверху + мягкая глубокая тень */
+body[data-theme="dark"] .card,body[data-theme="dark"] .stat-card,body[data-theme="dark"] .modal,
+body[data-theme="dark"] .login-box,body[data-theme="dark"] .invite-box{
+  background:linear-gradient(180deg,rgba(255,255,255,.05),rgba(255,255,255,0) 42%),#171430!important;
+  border:1px solid rgba(255,255,255,.075)!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.06),0 10px 34px rgba(0,0,0,.5)!important;
+}
+body[data-theme="dark"] #topBar,body[data-theme="dark"] #sidebar{
+  background:rgba(20,17,42,.92)!important;
+  -webkit-backdrop-filter:saturate(140%) blur(10px);backdrop-filter:saturate(140%) blur(10px);
+  border-color:rgba(255,255,255,.07)!important;
+}
+/* Поля ввода — одинаковые на всех ОС (без нативной подсветки Windows) */
+body[data-theme="dark"] input,body[data-theme="dark"] select,body[data-theme="dark"] textarea{
+  background:#1C1838!important;border:1.5px solid rgba(255,255,255,.10)!important;color:#F2EEFF!important;
+}
+body[data-theme="dark"] input::placeholder,body[data-theme="dark"] textarea::placeholder{color:#7C769E!important}
+body[data-theme="dark"] input:focus,body[data-theme="dark"] select:focus,body[data-theme="dark"] textarea:focus{
+  border-color:#8B7BF7!important;box-shadow:0 0 0 3px rgba(139,123,247,.22)!important;outline:none!important;
+}
+/* Кнопки */
+body[data-theme="dark"] .btn-purple{background:linear-gradient(180deg,#8B7BF7,#6D5AE0)!important;border:none!important;color:#fff!important;box-shadow:0 6px 18px rgba(109,90,224,.32)!important}
+body[data-theme="dark"] .btn-purple:hover{filter:brightness(1.07)}
+body[data-theme="dark"] .btn-outline{background:rgba(255,255,255,.04)!important;border:1px solid rgba(255,255,255,.14)!important;color:#D9D3F7!important}
+body[data-theme="dark"] .btn-outline:hover{background:rgba(255,255,255,.09)!important}
+/* Таблицы и навигация */
+body[data-theme="dark"] th{background:rgba(255,255,255,.035)!important;color:#A7A0CE!important}
+body[data-theme="dark"] td{border-bottom-color:rgba(255,255,255,.06)!important}
+body[data-theme="dark"] tr:hover td{background:rgba(255,255,255,.035)!important}
+body[data-theme="dark"] .nav-item:hover{background:rgba(255,255,255,.06)!important}
+body[data-theme="dark"] .nav-item.active{background:linear-gradient(90deg,rgba(139,123,247,.22),rgba(139,123,247,.04))!important;box-shadow:inset 3px 0 0 #8B7BF7;color:#fff!important}
+/* Бейджи — читаемые на тёмном */
+body[data-theme="dark"] .badge-purple{background:rgba(139,123,247,.18)!important;color:#C9BFFF!important;border:1px solid rgba(139,123,247,.28)!important}
+body[data-theme="dark"] .badge-green{background:rgba(16,185,129,.15)!important;color:#6EE7B7!important;border:1px solid rgba(16,185,129,.28)!important}
+body[data-theme="dark"] .badge-yellow{background:rgba(245,158,11,.15)!important;color:#FCD34D!important;border:1px solid rgba(245,158,11,.28)!important}
+body[data-theme="dark"] .badge-pink{background:rgba(236,72,153,.15)!important;color:#F9A8D4!important;border:1px solid rgba(236,72,153,.28)!important}
+body[data-theme="dark"] .badge-gray{background:rgba(255,255,255,.07)!important;color:#B9B2DC!important;border:1px solid rgba(255,255,255,.12)!important}
+</style>
 </head>
 <body>
 <!-- Сплэш при загрузке: показывается пока проверяем сессию, чтобы логин не мигал -->
@@ -4101,7 +4155,7 @@ sb.auth.onAuthStateChange((event,session)=>{if(event==='SIGNED_OUT'&&!session&&S
   }
 })();
 // ─── АВТООБНОВЛЕНИЕ (кэш GitHub Pages) ───────────────────────────────────────
-const APP_BUILD='2026.08.12-v'; // ⚠️ менять при каждом деплое
+const APP_BUILD='2026.08.12-w'; // ⚠️ менять при каждом деплое
 // Показываем номер сборки на логине — для диагностики версий
 setTimeout(()=>{const lb=document.getElementById('loginBuild');if(lb)lb.textContent='v '+APP_BUILD;},300);
 function checkAppUpdate(){
