@@ -939,9 +939,9 @@ body[data-theme="dark"] #timerPopup{background:var(--white)!important;box-shadow
 body[data-theme="dark"] .vocab-back{color:#6ee7b7!important;background:rgba(16,185,129,.25)!important}
 </style>
 <style id="tyDarkPremium">
-#hwSidePanel{width:auto;max-height:42vh;overflow:auto;background:rgba(139,123,247,.07);border:1px solid var(--gray-border);border-radius:14px;padding:8px;margin:0 0 14px}
+#hwSidePanel{flex:0 0 auto;width:auto;max-height:42vh;min-height:64px;overflow:auto;background:rgba(139,123,247,.07);border:1px solid var(--gray-border);border-radius:14px;padding:8px;margin:0 0 14px}
 .hw-side-hd{display:flex;align-items:center;font-weight:800;font-size:.78rem;text-transform:uppercase;letter-spacing:.04em;color:var(--text3);padding:4px 6px 10px}
-.hw-side-row{display:flex;align-items:center;gap:10px;padding:8px;border-radius:12px;cursor:pointer}
+.hw-side-row{display:flex;align-items:center;gap:10px;padding:8px;border-radius:12px;cursor:pointer;flex:0 0 auto}
 .hw-side-row:hover{background:rgba(139,123,247,.10)}
 .hw-side-row.act{background:rgba(139,123,247,.14)}
 .hw-side-ini{width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:.8rem;flex:0 0 auto}
@@ -4169,7 +4169,7 @@ sb.auth.onAuthStateChange((event,session)=>{if(event==='SIGNED_OUT'&&!session&&S
   }
 })();
 // ─── АВТООБНОВЛЕНИЕ (кэш GitHub Pages) ───────────────────────────────────────
-const APP_BUILD='2026.08.13-g'; // ⚠️ менять при каждом деплое
+const APP_BUILD='2026.08.13-h'; // ⚠️ менять при каждом деплое
 // Показываем номер сборки на логине — для диагностики версий
 setTimeout(()=>{const lb=document.getElementById('loginBuild');if(lb)lb.textContent='v '+APP_BUILD;},300);
 function checkAppUpdate(){
