@@ -939,6 +939,8 @@ body[data-theme="dark"] #timerPopup{background:var(--white)!important;box-shadow
 body[data-theme="dark"] .vocab-back{color:#6ee7b7!important;background:rgba(16,185,129,.25)!important}
 </style>
 <style id="tyDarkPremium">
+.hw-group-hdr{font-size:.82rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--purple);margin:18px 0 8px;padding-bottom:6px;border-bottom:1px solid var(--gray-border)}
+
 /* ── Премиальная тёмная тема · одинаково на macOS, Windows, Linux ── */
 body[data-theme="dark"]{
   color-scheme:dark;accent-color:#8B7BF7;
@@ -4157,7 +4159,7 @@ sb.auth.onAuthStateChange((event,session)=>{if(event==='SIGNED_OUT'&&!session&&S
   }
 })();
 // ─── АВТООБНОВЛЕНИЕ (кэш GitHub Pages) ───────────────────────────────────────
-const APP_BUILD='2026.08.13-c'; // ⚠️ менять при каждом деплое
+const APP_BUILD='2026.08.13-d'; // ⚠️ менять при каждом деплое
 // Показываем номер сборки на логине — для диагностики версий
 setTimeout(()=>{const lb=document.getElementById('loginBuild');if(lb)lb.textContent='v '+APP_BUILD;},300);
 function checkAppUpdate(){
@@ -4956,8 +4958,8 @@ function _escJS(s){
 // ДЗ ↔ урок: описание может быть массивом (старый формат) или {lesson_id,exercises}
 function hwParse(hw){
   var o=null;try{o=JSON.parse(hw&&hw.description);}catch(e){o=null;}
-  if(Array.isArray(o))return{exercises:o,lesson_id:null,lesson_title:''};
-  if(o&&typeof o==='object')return{exercises:Array.isArray(o.exercises)?o.exercises:[],lesson_id:o.lesson_id||null,lesson_title:o.lesson_title||''};
+  if(Array.isArray(o))return{exercises:o,lesson_id:(hw&&hw.lesson_id)||null,lesson_title:''};
+  if(o&&typeof o==='object')return{exercises:Array.isArray(o.exercises)?o.exercises:[],lesson_id:o.lesson_id||(hw&&hw.lesson_id)||null,lesson_title:o.lesson_title||''};
   return{exercises:[],lesson_id:null,lesson_title:''};
 }
 // Кнопка «Для домашней работы» внутри урока
@@ -5162,7 +5164,7 @@ async function saveHWEditor(){
   var btn=document.querySelector('#mHWEditor .btn-purple');
   try{
     if(btn){btn.disabled=true;btn.textContent='Сохранение...';}
-    var payload={school_id:S.schoolId,teacher_id:S.profile.id,student_id:sid,title:title,description:JSON.stringify({v:2,lesson_id:HWE.lessonId||null,lesson_title:HWE.lessonTitle||'',exercises:HWE.exercises}),deadline:dl||null};
+    var payload={school_id:S.schoolId,teacher_id:S.profile.id,student_id:sid,title:title,lesson_id:HWE.lessonId||null,description:JSON.stringify({v:2,lesson_id:HWE.lessonId||null,lesson_title:HWE.lessonTitle||'',exercises:HWE.exercises}),deadline:dl||null};
     if(HWE.hwId){
       const{error}=await sb.from('homeworks').update(payload).eq('id',HWE.hwId).eq('school_id',S.schoolId).eq('teacher_id',S.profile?.id);
       if(error){showToast('Ошибка сохранения: '+error.message,'error');return;}
@@ -5778,13 +5780,15 @@ async function renderStudentHw(){
   if(!S.studentRowId)S.studentRowId=stu.id;
   const{data:hws}=await sb.from('homeworks').select('*,teacher:teacher_id(first_name,last_name)').eq('student_id',stu.id).eq('school_id',S.schoolId).order('created_at',{ascending:false});
   if(S.screen!==_sthwSnap)return;
-  const cards=(hws||[]).map(hw=>{
-    var _hp=hwParse(hw);var exCount=_hp.exercises.length;
+  var _lastLes='\u0000';
+  const _hwSorted=(hws||[]).slice().sort(function(a,b){var pa=hwParse(a),pb=hwParse(b);var la=(pa.lesson_title||pa.lesson_id||'\uffff'),lb=(pb.lesson_title||pb.lesson_id||'\uffff');return String(la).localeCompare(String(lb));});
+  const cards=_hwSorted.map(hw=>{
+    var _hp=hwParse(hw);var exCount=_hp.exercises.length;var _lesKey=String(_hp.lesson_title||_hp.lesson_id||'');var _hdr='';if(_lesKey!==_lastLes){_lastLes=_lesKey;_hdr='<div class="hw-group-hdr">'+(_lesKey?('&#127968; '+_escHtml(_lesKey)):_escHtml(t('Без урока')))+'</div>';}
     const comment=hw.teacher_comment||'';
     const sMap={pending:'Новое',submitted:'Сдано',reviewed:'Проверено'};
     const bMap={pending:'badge-purple',submitted:'badge-yellow',reviewed:'badge-green'};
     const _hId=_esc(hw.id).replace(/'/g,"&#39;");
-    return`<div class="hw-card ${['pending','submitted','reviewed'].includes(hw.status)?hw.status:'pending'}">
+    return _hdr+`<div class="hw-card ${['pending','submitted','reviewed'].includes(hw.status)?hw.status:'pending'}">
       <div class="hw-title">${_esc(hw.title)} <span class="badge ${bMap[hw.status]||'badge-purple'}">${_escHtml(sMap[hw.status]||hw.status)}</span></div>
       <div class="hw-meta">👨‍🏫 ${_esc(hw.teacher?.first_name||'')} ${_esc(hw.teacher?.last_name||'')} · 📅 ${fmtDate(hw.deadline)} · 📝 ${exCount} упр.</div>
       ${_hp.lesson_title?`<div style="font-size:.78rem;color:var(--purple);font-weight:600;margin-top:2px">🏠 ${t('По уроку')}: ${_escHtml(_hp.lesson_title)}</div>`:''}
@@ -8193,7 +8197,7 @@ async function cvGiveSectionAsHW(){
   var n=0;
   for(var i=0;i<ids.length;i++){
     var ins=await sb.from("homeworks").insert({school_id:S.schoolId,teacher_id:S.profile.id,student_id:ids[i],
-      title:title,description:payloadDesc,deadline:null,status:"pending"});
+      title:title,lesson_id:LV.lessonId||null,description:payloadDesc,deadline:null,status:"pending"});
     if(!ins.error)n++;
   }
   dcInval("homeworks_"+S.schoolId);
