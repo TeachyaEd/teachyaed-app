@@ -939,7 +939,7 @@ body[data-theme="dark"] #timerPopup{background:var(--white)!important;box-shadow
 body[data-theme="dark"] .vocab-back{color:#6ee7b7!important;background:rgba(16,185,129,.25)!important}
 </style>
 <style id="tyDarkPremium">
-#hwSidePanel{position:fixed;right:14px;top:96px;width:264px;max-height:66vh;overflow:auto;background:var(--white);border:1px solid var(--gray-border);border-radius:16px;padding:10px;z-index:900;box-shadow:0 12px 34px rgba(0,0,0,.18)}
+#hwSidePanel{width:auto;max-height:42vh;overflow:auto;background:rgba(139,123,247,.07);border:1px solid var(--gray-border);border-radius:14px;padding:8px;margin:0 0 14px}
 .hw-side-hd{display:flex;align-items:center;font-weight:800;font-size:.78rem;text-transform:uppercase;letter-spacing:.04em;color:var(--text3);padding:4px 6px 10px}
 .hw-side-row{display:flex;align-items:center;gap:10px;padding:8px;border-radius:12px;cursor:pointer}
 .hw-side-row:hover{background:rgba(139,123,247,.10)}
@@ -947,7 +947,7 @@ body[data-theme="dark"] .vocab-back{color:#6ee7b7!important;background:rgba(16,1
 .hw-side-ini{width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:.8rem;flex:0 0 auto}
 .hw-side-lbl{font-size:.66rem;font-weight:700}
 .hw-side-tt{font-size:.88rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-@media(max-width:900px){#hwSidePanel{display:none}}
+
 
 .hw-group-hdr{font-size:.82rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--purple);margin:18px 0 8px;padding-bottom:6px;border-bottom:1px solid var(--gray-border)}
 
@@ -4169,7 +4169,7 @@ sb.auth.onAuthStateChange((event,session)=>{if(event==='SIGNED_OUT'&&!session&&S
   }
 })();
 // ─── АВТООБНОВЛЕНИЕ (кэш GitHub Pages) ───────────────────────────────────────
-const APP_BUILD='2026.08.13-f'; // ⚠️ менять при каждом деплое
+const APP_BUILD='2026.08.13-g'; // ⚠️ менять при каждом деплое
 // Показываем номер сборки на логине — для диагностики версий
 setTimeout(()=>{const lb=document.getElementById('loginBuild');if(lb)lb.textContent='v '+APP_BUILD;},300);
 function checkAppUpdate(){
@@ -8806,7 +8806,8 @@ async function hwSidePanel(){
         +'<div class="hw-side-tt">'+_escHtml(h.title||'ДЗ')+'</div></div>'
         +'<span style="margin-left:auto;width:8px;height:8px;border-radius:50%;flex:0 0 auto;background:'+st+'"></span></div>';
     }).join('');
-    document.body.insertAdjacentHTML('beforeend','<div id="hwSidePanel"><div class="hw-side-hd">'+t('Домашняя работа')+'<span onclick="var e=document.getElementById(\'hwSidePanel\');if(e)e.remove();" style="cursor:pointer;margin-left:auto;opacity:.6">&#10005;</span></div>'+rows+'</div>');
+    var _host=document.getElementById('cvRightSidebar')||document.body;
+    _host.insertAdjacentHTML('afterbegin','<div id="hwSidePanel"><div class="hw-side-hd">'+t('Домашняя работа')+'<span onclick="var e=document.getElementById(\'hwSidePanel\');if(e)e.remove();" style="cursor:pointer;margin-left:auto;opacity:.6">&#10005;</span></div>'+rows+'</div>');
   }catch(e){}
 }
 async function openHWAsLesson(hwId){
