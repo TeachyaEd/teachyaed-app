@@ -4156,7 +4156,7 @@ sb.auth.onAuthStateChange((event,session)=>{if(event==='SIGNED_OUT'&&!session&&S
   }
 })();
 // ─── АВТООБНОВЛЕНИЕ (кэш GitHub Pages) ───────────────────────────────────────
-const APP_BUILD='2026.08.12-z'; // ⚠️ менять при каждом деплое
+const APP_BUILD='2026.08.13-a'; // ⚠️ менять при каждом деплое
 // Показываем номер сборки на логине — для диагностики версий
 setTimeout(()=>{const lb=document.getElementById('loginBuild');if(lb)lb.textContent='v '+APP_BUILD;},300);
 function checkAppUpdate(){
@@ -8186,45 +8186,59 @@ function lvFinishSection(){
 
 // Вкладка «Домашняя работа» внутри урока: список + создание + перенос срока
 async function cvLoadHomework(){
-  var box=C('cv_exerciseContent');
-  var isT=['teacher','admin','owner'].includes(S.role);
-  box.innerHTML='<div style="padding:24px;color:var(--text3)">'+t('Загрузка...')+'</div>';
+  var box=C("cv_exerciseContent");
+  var isT=["teacher","admin","owner"].includes(S.role);
+  box.innerHTML='<div style="padding:24px;color:var(--text3)">'+t("Загрузка...")+'</div>';
   try{
     var hws=[];
     if(isT){
       var ids=[];
-      if(S.currentClassId){
-        var csr=await sb.from('class_students').select('student_id').eq('class_id',S.currentClassId).eq('school_id',S.schoolId);
+      if(S._cvStudentId){ids=[S._cvStudentId];}
+      else if(S.currentClassId){
+        var csr=await sb.from("class_students").select("student_id").eq("class_id",S.currentClassId).eq("school_id",S.schoolId);
         ids=(csr.data||[]).map(function(c){return c.student_id;});
-      } else if(S._cvStudentId){ ids=[S._cvStudentId]; }
+      }
       if(ids.length){
-        var hr=await sb.from('homeworks').select('*,student:student_id(first_name,last_name)').eq('school_id',S.schoolId).in('student_id',ids).order('created_at',{ascending:false}).limit(50);
+        var hr=await sb.from("homeworks").select("*,student:student_id(first_name,last_name)").eq("school_id",S.schoolId).in("student_id",ids).order("created_at",{ascending:false}).limit(60);
         hws=hr.data||[];
       }
     } else if(S.studentRowId){
-      var sr=await sb.from('homeworks').select('*').eq('school_id',S.schoolId).eq('student_id',S.studentRowId).order('created_at',{ascending:false}).limit(50);
+      var sr=await sb.from("homeworks").select("*").eq("school_id",S.schoolId).eq("student_id",S.studentRowId).order("created_at",{ascending:false}).limit(60);
       hws=sr.data||[];
     }
-    var sMap={pending:t('Ожидает'),submitted:t('Сдано'),reviewed:t('Проверено')};
-    var bMap={pending:'badge-purple',submitted:'badge-yellow',reviewed:'badge-green'};
-    var rows=hws.map(function(hw){
-      var id=_escJS(hw.id);
-      var who=isT?('👤 '+_escHtml((hw.student&&hw.student.first_name)||'')+' '+_escHtml((hw.student&&hw.student.last_name)||'')+' · '):'';
+    var sMap={pending:t("Ожидает"),submitted:t("Сдано"),reviewed:t("Проверено")};
+    var bMap={pending:"badge-purple",submitted:"badge-yellow",reviewed:"badge-green"};
+    var cur=[],other=[];
+    hws.forEach(function(hw){var p=hwParse(hw);hw._p=p;
+      if(LV.lessonId&&p.lesson_id===LV.lessonId)cur.push(hw);else other.push(hw);});
+    var card=function(hw){
+      var id=_escJS(hw.id);var p=hw._p;
+      var who=isT?("👤 "+_escHtml((hw.student&&hw.student.first_name)||"")+" "+_escHtml((hw.student&&hw.student.last_name)||"")+" · "):"";
       var acts=isT
-        ? '<button class="btn btn-sm btn-outline" style="font-size:.75rem" onclick="openHWEditor(\''+id+'\')">✏️ '+t('Изменить')+'</button>'
-          +'<button class="btn btn-sm btn-outline" style="font-size:.75rem" onclick="cvPostponeHW(\''+id+'\')">📅 '+t('Перенести')+'</button>'
-          +(hw.status==='submitted'?'<button class="btn btn-sm btn-yellow" style="font-size:.75rem" onclick="openHWReview(\''+id+'\')">🔍 '+t('Проверить')+'</button>':'')
-          +(hw.status==='reviewed'?'<button class="btn btn-sm btn-green" style="font-size:.75rem" onclick="openHWReview(\''+id+'\')">✅</button>':'')
-        : '<button class="btn btn-sm btn-purple" style="font-size:.75rem" onclick="openHWPlayer(\''+id+'\')">▶️ '+t('Открыть')+'</button>';
+        ? '<button class="btn btn-sm btn-outline" style="font-size:.75rem" onclick="openHWAsLesson(\''+id+'\')">👁 '+t("Смотреть")+'</button>'
+          +'<button class="btn btn-sm btn-outline" style="font-size:.75rem" onclick="openHWEditor(\''+id+'\')">✏️ '+t("Изменить")+'</button>'
+          +'<button class="btn btn-sm btn-outline" style="font-size:.75rem" onclick="cvPostponeHW(\''+id+'\')">📅 '+t("Перенести")+'</button>'
+        : '<button class="btn btn-sm btn-purple" style="font-size:.75rem" onclick="openHWAsLesson(\''+id+'\')">▶️ '+t("Открыть")+'</button>';
       return '<div class="card" style="margin-bottom:8px;padding:12px 16px"><div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">'
-        +'<div><div style="font-weight:700">'+_escHtml(hw.title||'ДЗ')+' <span class="badge '+(bMap[hw.status]||'badge-purple')+'">'+_escHtml(sMap[hw.status]||hw.status||'')+'</span></div>'
-        +'<div style="font-size:.78rem;color:var(--text3)">'+who+'📅 '+fmtDate(hw.deadline)+'</div></div>'
-        +'<div style="display:flex;gap:6px;flex-wrap:wrap">'+acts+'</div></div></div>';
-    }).join('');
-    var addBtn=isT?'<button class="btn btn-purple" onclick="openHWEditor()">+ '+t('Новое ДЗ')+'</button>':'';
-    box.innerHTML='<div class="section-header" style="margin-bottom:12px"><span style="font-weight:700">📝 '+t('Домашняя работа')+'</span>'+addBtn+'</div>'
-      +(rows||'<div class="empty-state" style="padding:40px 0"><div class="ei">📋</div><p>'+t('Домашних заданий нет')+'</p></div>');
-  }catch(e){box.innerHTML='<div style="padding:24px;color:var(--pink)">'+t('Ошибка загрузки')+': '+_escHtml(e.message||'')+'</div>';}
+        +'<div><div style="font-weight:700">'+_escHtml(hw.title||"ДЗ")+' <span class="badge '+(bMap[hw.status]||"badge-purple")+'">'+_escHtml(sMap[hw.status]||hw.status||"")+'</span></div>'
+        +'<div style="font-size:.78rem;color:var(--text3)">'+who+"📅 "+fmtDate(hw.deadline)+" · 📝 "+p.exercises.length+" "+t("упр.")+'</div>'
+        +(p.lesson_title?'<div style="font-size:.76rem;color:var(--purple);font-weight:600">🏠 '+t("По уроку")+": "+_escHtml(p.lesson_title)+'</div>':"")
+        +'</div><div style="display:flex;gap:6px;flex-wrap:wrap">'+acts+'</div></div></div>';
+    };
+    // Баннер как на Edvibe
+    var banner="";
+    if(cur.length){
+      var pend=cur.filter(function(h){return h.status==="pending";});
+      if(isT&&pend.length){banner='<div class="card" style="margin-bottom:14px;border-left:4px solid var(--purple);font-size:.88rem">🏠 '+t("Ученик ещё не отправлял эту домашнюю работу учителю на проверку")+'</div>';}
+      else if(!isT&&pend.length){banner='<div class="card" style="margin-bottom:14px;border-left:4px solid var(--purple);font-size:.88rem">🏠 '+t("Ты ещё не отправлял эту работу на проверку")+'</div>';}
+    }
+    var addBtn=isT?'<button class="btn btn-purple" onclick="openLessonHW()">+ '+t("Новое ДЗ")+'</button>':"";
+    var html='<div class="section-header" style="margin-bottom:12px"><span style="font-weight:700">📋 '+t("Домашнее задание")+'</span>'+addBtn+'</div>'+banner;
+    if(cur.length){html+='<div style="font-size:.75rem;font-weight:700;color:var(--purple);text-transform:uppercase;margin:10px 0 6px">'+t("По текущему уроку")+'</div>'+cur.map(card).join("");}
+    if(other.length){html+='<div style="font-size:.75rem;font-weight:700;color:var(--text3);text-transform:uppercase;margin:14px 0 6px">'+t("По другим урокам")+'</div>'+other.map(card).join("");}
+    if(!cur.length&&!other.length){html+='<div class="empty-state" style="padding:40px 0"><div class="ei">📋</div><p>'+t("Домашних заданий нет")+'</p></div>';}
+    box.innerHTML=html;
+  }catch(e){box.innerHTML='<div style="padding:24px;color:var(--pink)">'+t("Ошибка загрузки")+": "+_escHtml(e.message||"")+'</div>';}
 }
 // Перенести срок сдачи
 async function cvPostponeHW(hwId){
