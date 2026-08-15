@@ -1586,6 +1586,7 @@ body[data-theme="dark"] .badge-gray{background:rgba(255,255,255,.07)!important;c
         <button class="cv-action-row" id="cv_matBtn" onclick="toggleToolPanel('cv_materials')" style="display:none">📎 Материалы урока</button>
         <button class="cv-action-row" id="cv_switchBtn" onclick="cvOpenSwitchLesson()" style="display:none">🔄 Сменить урок</button>
         <button class="cv-action-row" id="cv_pushSecBtn" onclick="cvPushSection()" style="display:none">👥 Показать раздел ученику</button>
+        <button class="cv-action-row" id="cv_hwBtn" onclick="openLessonHW()" style="display:none">🏠 Для домашней работы</button>
         <button class="cv-action-row" onclick="openWb()">🖊 Доска</button>
         <button class="cv-action-row" id="cv_laserBtn" onclick="toggleLaser()" style="display:none">🔴 Указка</button>
       </div>
@@ -4155,7 +4156,7 @@ sb.auth.onAuthStateChange((event,session)=>{if(event==='SIGNED_OUT'&&!session&&S
   }
 })();
 // ─── АВТООБНОВЛЕНИЕ (кэш GitHub Pages) ───────────────────────────────────────
-const APP_BUILD='2026.08.12-y'; // ⚠️ менять при каждом деплое
+const APP_BUILD='2026.08.12-z'; // ⚠️ менять при каждом деплое
 // Показываем номер сборки на логине — для диагностики версий
 setTimeout(()=>{const lb=document.getElementById('loginBuild');if(lb)lb.textContent='v '+APP_BUILD;},300);
 function checkAppUpdate(){
@@ -4951,8 +4952,25 @@ function _escJS(s){
 }
 
 // ── TEACHER: HW EDITOR ──────────────────────────────────────────────────────
+// ДЗ ↔ урок: описание может быть массивом (старый формат) или {lesson_id,exercises}
+function hwParse(hw){
+  var o=null;try{o=JSON.parse(hw&&hw.description);}catch(e){o=null;}
+  if(Array.isArray(o))return{exercises:o,lesson_id:null,lesson_title:''};
+  if(o&&typeof o==='object')return{exercises:Array.isArray(o.exercises)?o.exercises:[],lesson_id:o.lesson_id||null,lesson_title:o.lesson_title||''};
+  return{exercises:[],lesson_id:null,lesson_title:''};
+}
+// Кнопка «Для домашней работы» внутри урока
+async function openLessonHW(){
+  if(!['teacher','admin','owner'].includes(S.role)){showToast(t('Нет прав'),'error');return;}
+  if(!LV.lessonId){showToast(t('Открой урок'),'error');return;}
+  HWE.lessonId=LV.lessonId;
+  HWE.lessonTitle=(C('cv_lessonName')&&C('cv_lessonName').textContent)||'';
+  await openHWEditor(null,S._cvStudentId||null);
+  var ti=C('hwe_title');if(ti&&!ti.value)ti.value=HWE.lessonTitle;
+  showToast('🏠 '+t('Домашнее задание будет привязано к этому уроку'));
+}
 async function openHWEditor(hwId,preStudentId,preStudentName){
-  HWE.hwId=hwId||null;HWE.exercises=[];
+  HWE.hwId=hwId||null;HWE.exercises=[];if(!hwId&&!HWE.lessonId){HWE.lessonTitle='';}
   C('hweTitle').textContent=hwId?'✏️ Редактировать ДЗ':'📋 Новое ДЗ';
   C('hwe_title').value='';C('hwe_deadline').value='';
   const{data:sts}=await sb.from('students').select('id,first_name,last_name').eq('school_id',S.schoolId).order('last_name');
@@ -4963,7 +4981,7 @@ async function openHWEditor(hwId,preStudentId,preStudentName){
       C('hwe_title').value=hw.title||'';
       C('hwe_deadline').value=hw.deadline||'';
       C('hwe_student').value=hw.student_id||'';
-      try{HWE.exercises=JSON.parse(hw.description)||[];}catch(e){HWE.exercises=[];}
+      var _p=hwParse(hw);HWE.exercises=_p.exercises;HWE.lessonId=_p.lesson_id;HWE.lessonTitle=_p.lesson_title;
     }
   }
   hweRenderExercises();
@@ -5143,7 +5161,7 @@ async function saveHWEditor(){
   var btn=document.querySelector('#mHWEditor .btn-purple');
   try{
     if(btn){btn.disabled=true;btn.textContent='Сохранение...';}
-    var payload={school_id:S.schoolId,teacher_id:S.profile.id,student_id:sid,title:title,description:JSON.stringify(HWE.exercises),deadline:dl||null};
+    var payload={school_id:S.schoolId,teacher_id:S.profile.id,student_id:sid,title:title,description:JSON.stringify({v:2,lesson_id:HWE.lessonId||null,lesson_title:HWE.lessonTitle||'',exercises:HWE.exercises}),deadline:dl||null};
     if(HWE.hwId){
       const{error}=await sb.from('homeworks').update(payload).eq('id',HWE.hwId).eq('school_id',S.schoolId).eq('teacher_id',S.profile?.id);
       if(error){showToast('Ошибка сохранения: '+error.message,'error');return;}
@@ -5651,7 +5669,7 @@ async function renderTeacherHw(){
   if(S.screen!==_thwSnap)return;
   if(hwsErr){setContent('<div class="empty-state"><div class="ei">⚠️</div><p>Ошибка загрузки: '+_esc(hwsErr.message)+'</p></div>');return;}
   const cards=(hws||[]).map(hw=>{
-    let exCount=0;try{exCount=(JSON.parse(hw.description)||[]).length;}catch(e){}
+    var _hp=hwParse(hw);var exCount=_hp.exercises.length;
     const sMap={pending:'Ожидает',submitted:'Сдано',reviewed:'Проверено'};
     const bMap={pending:'badge-purple',submitted:'badge-yellow',reviewed:'badge-green'};
     const _hwId=_esc(hw.id).replace(/'/g,"&#39;");
@@ -5760,7 +5778,7 @@ async function renderStudentHw(){
   const{data:hws}=await sb.from('homeworks').select('*,teacher:teacher_id(first_name,last_name)').eq('student_id',stu.id).eq('school_id',S.schoolId).order('created_at',{ascending:false});
   if(S.screen!==_sthwSnap)return;
   const cards=(hws||[]).map(hw=>{
-    let exCount=0;try{exCount=(JSON.parse(hw.description)||[]).length;}catch(e){}
+    var _hp=hwParse(hw);var exCount=_hp.exercises.length;
     const comment=hw.teacher_comment||'';
     const sMap={pending:'Новое',submitted:'Сдано',reviewed:'Проверено'};
     const bMap={pending:'badge-purple',submitted:'badge-yellow',reviewed:'badge-green'};
@@ -5768,6 +5786,7 @@ async function renderStudentHw(){
     return`<div class="hw-card ${['pending','submitted','reviewed'].includes(hw.status)?hw.status:'pending'}">
       <div class="hw-title">${_esc(hw.title)} <span class="badge ${bMap[hw.status]||'badge-purple'}">${_escHtml(sMap[hw.status]||hw.status)}</span></div>
       <div class="hw-meta">👨‍🏫 ${_esc(hw.teacher?.first_name||'')} ${_esc(hw.teacher?.last_name||'')} · 📅 ${fmtDate(hw.deadline)} · 📝 ${exCount} упр.</div>
+      ${_hp.lesson_title?`<div style="font-size:.78rem;color:var(--purple);font-weight:600;margin-top:2px">🏠 ${t('По уроку')}: ${_escHtml(_hp.lesson_title)}</div>`:''}
       ${comment?`<div class="hw-comment">💬 ${_esc(comment)}</div>`:''}
       ${hw.status==='pending'?((hw.title||'').startsWith('🎯 Тест на уровень')?`<button class="btn btn-purple" style="margin-top:10px" onclick="openPlacementTestPlayer('${_hId}')">▶️ Пройти тест</button>`:`<button class="btn btn-green" style="margin-top:10px" onclick="openHWPlayer('${_hId}')">▶️ Начать задание</button>`):''}
       ${hw.status==='submitted'?`<div style="margin-top:8px;font-size:.84rem;color:var(--text3)">⏳ Ожидает проверки учителя</div>`:''}
@@ -8048,6 +8067,8 @@ function openClassroomView(title,sections,assignId,studentName,materials,lessonI
   if(_pinBtn)_pinBtn.style.display=(['teacher','admin','owner'].includes(S.role)&&S.currentClassId)?'':'none';
   var _pshBtn=C('cv_pushSecBtn');
   if(_pshBtn)_pshBtn.style.display=['teacher','admin','owner'].includes(S.role)?'':'none';
+  var _hwB=C('cv_hwBtn');
+  if(_hwB)_hwB.style.display=(['teacher','admin','owner'].includes(S.role)&&lessonId)?'':'none';
   // Указка — только учителю
   const _lzBtn=C('cv_laserBtn');
   if(_lzBtn)_lzBtn.style.display=['teacher','admin','owner'].includes(S.role)?'':'none';
@@ -8633,8 +8654,7 @@ async function openHWAsLesson(hwId){
     var q=await sb.from('homeworks').select('*,student:student_id(first_name,last_name)').eq('id',hwId).eq('school_id',S.schoolId).maybeSingle();
     var hw=q.data;
     if(!hw){showToast(t('ДЗ не найдено'),'error');return;}
-    var exs=[];try{exs=JSON.parse(hw.description)||[];}catch(e){exs=[];}
-    if(!Array.isArray(exs))exs=[];
+    var exs=hwParse(hw).exercises;
     var who=hw.student?((hw.student.first_name||'')+' '+(hw.student.last_name||'')).trim():'';
     openClassroomView('📋 '+(hw.title||'ДЗ'),[{title:t('Домашняя работа'),exercises:exs}],null,
       (['teacher','admin','owner'].includes(S.role)&&who)?who:null,[],null);
