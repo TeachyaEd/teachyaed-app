@@ -1586,7 +1586,8 @@ body[data-theme="dark"] .badge-gray{background:rgba(255,255,255,.07)!important;c
         <button class="cv-action-row" id="cv_matBtn" onclick="toggleToolPanel('cv_materials')" style="display:none">📎 Материалы урока</button>
         <button class="cv-action-row" id="cv_switchBtn" onclick="cvOpenSwitchLesson()" style="display:none">🔄 Сменить урок</button>
         <button class="cv-action-row" id="cv_pushSecBtn" onclick="cvPushSection()" style="display:none">👥 Показать раздел ученику</button>
-        <button class="cv-action-row" id="cv_hwBtn" onclick="openLessonHW()" style="display:none">🏠 Для домашней работы</button>
+        <button class="cv-action-row" id="cv_hwBtn" onclick="cvOpenSpecial('hw')" style="display:none">🏠 Для домашней работы</button>
+        <button class="cv-action-row" id="cv_extraBtn" onclick="cvOpenSpecial('extra')" style="display:none">📄 Дополнительно</button>
         <button class="cv-action-row" onclick="openWb()">🖊 Доска</button>
         <button class="cv-action-row" id="cv_laserBtn" onclick="toggleLaser()" style="display:none">🔴 Указка</button>
       </div>
@@ -4156,7 +4157,7 @@ sb.auth.onAuthStateChange((event,session)=>{if(event==='SIGNED_OUT'&&!session&&S
   }
 })();
 // ─── АВТООБНОВЛЕНИЕ (кэш GitHub Pages) ───────────────────────────────────────
-const APP_BUILD='2026.08.13-a'; // ⚠️ менять при каждом деплое
+const APP_BUILD='2026.08.13-b'; // ⚠️ менять при каждом деплое
 // Показываем номер сборки на логине — для диагностики версий
 setTimeout(()=>{const lb=document.getElementById('loginBuild');if(lb)lb.textContent='v '+APP_BUILD;},300);
 function checkAppUpdate(){
@@ -6736,7 +6737,7 @@ async function cvSwitchTo(lessonId){
   if(!l){showToast(t('Урок не найден'),'error');return;}
   window._lessonCache=window._lessonCache||{};window._lessonCache[l.id]=l;
   const{sections:_s,materials:_m}=_parseLessonContent(l.content);
-  LV.sections=_s;LV.materials=Array.isArray(_m)?_m:[];LV.curSec=0;LV.curEx=0;LV.lessonId=l.id;window._matchState={};
+  LV.sections=_s;LV.materials=Array.isArray(_m)?_m:[];LV.curSec=0;LV.curEx=0;LV.lessonId=l.id;window._matchState={};lvFilterForStudent();
   const matBtn=C('cv_matBtn');if(matBtn)matBtn.style.display=LV.materials.length?'':'none';
   C('cv_lessonName').textContent=l.title;
   lvRender();
@@ -8050,6 +8051,7 @@ function _parseLessonContent(content){
 function openClassroomView(title,sections,assignId,studentName,materials,lessonId){
   LV.sections=sections;LV.materials=Array.isArray(materials)?materials:[];LV.curSec=0;LV.curEx=0;LV.assignId=assignId;LV.lessonId=lessonId||null;LV.viewAll=false;
   LV.hwId=null;LV.hwAnswers={};if(LV._hwCh){try{sb.removeChannel(LV._hwCh);}catch(e){}LV._hwCh=null;}
+  lvFilterForStudent();
   const matBtn=C('cv_matBtn');if(matBtn)matBtn.style.display=LV.materials.length?'':'none';
   S.currentAssignId=assignId||null;
   S._cvStudentId=(window._assignCache||{})[assignId]?.student_id||null;
@@ -8069,6 +8071,8 @@ function openClassroomView(title,sections,assignId,studentName,materials,lessonI
   if(_pshBtn)_pshBtn.style.display=['teacher','admin','owner'].includes(S.role)?'':'none';
   var _hwB=C('cv_hwBtn');
   if(_hwB)_hwB.style.display=(['teacher','admin','owner'].includes(S.role)&&lessonId)?'':'none';
+  var _exB=C('cv_extraBtn');
+  if(_exB)_exB.style.display=(['teacher','admin','owner'].includes(S.role)&&lessonId)?'':'none';
   // Указка — только учителю
   const _lzBtn=C('cv_laserBtn');
   if(_lzBtn)_lzBtn.style.display=['teacher','admin','owner'].includes(S.role)?'':'none';
@@ -8102,6 +8106,97 @@ function openLessonView(assignId){
   openClassroomView(cached.lesson?.title||'Урок',_s,assignId,null,_m,cached.lesson?.id||null);
 }
 
+// ── Служебные разделы урока: «Для домашней работы» и «Дополнительно» ──
+function lvFilterForStudent(){
+  if(S.role!=="student")return;
+  LV.sections=(LV.sections||[]).filter(function(s){
+    if(!s)return false;
+    if(s.hw)return false;
+    if(s.extra&&!((s.exercises||[]).length))return false;
+    return true;
+  });
+  if(LV.curSec>=LV.sections.length)LV.curSec=Math.max(0,LV.sections.length-1);
+}
+async function lvPersistSections(){
+  if(!LV.lessonId||!["teacher","admin","owner"].includes(S.role))return false;
+  try{
+    var q=await sb.from("lessons").select("content").eq("id",LV.lessonId).eq("school_id",S.schoolId).maybeSingle();
+    var raw=q.data?q.data.content:null;
+    if(typeof raw==="string"){try{raw=JSON.parse(raw);}catch(e){raw=null;}}
+    if(Array.isArray(raw))raw={sections:[],materials:[]};
+    if(!raw||typeof raw!=="object")raw={};
+    raw.sections=LV.sections;
+    if(Array.isArray(LV.materials))raw.materials=LV.materials;
+    var up=await sb.from("lessons").update({content:raw}).eq("id",LV.lessonId).eq("school_id",S.schoolId);
+    if(up.error){showToast("❌ "+up.error.message,"error");return false;}
+    return true;
+  }catch(e){console.warn("[persist]",e);return false;}
+}
+async function cvOpenSpecial(kind){
+  if(!["teacher","admin","owner"].includes(S.role)){showToast(t("Нет прав"),"error");return;}
+  if(!LV.lessonId){showToast(t("Открой урок"),"error");return;}
+  LV.sections=LV.sections||[];
+  var idx=-1;
+  for(var i=0;i<LV.sections.length;i++){if(LV.sections[i]&&LV.sections[i][kind]){idx=i;break;}}
+  if(idx<0){
+    var sec={title:kind==="hw"?t("Для домашней работы"):t("Дополнительно"),exercises:[]};
+    sec[kind]=true;
+    LV.sections.push(sec);idx=LV.sections.length-1;
+    await lvPersistSections();
+  }
+  LV.curSec=idx;LV.curEx=0;LV.viewAll=false;
+  lvRender();
+  setTimeout(cvSpecialNote,120);
+}
+// Пояснение и действия внутри служебного раздела
+function cvSpecialNote(){
+  try{
+    var sec=(LV.sections||[])[LV.curSec];
+    var box=C("cv_exerciseContent");
+    var old=document.getElementById("cvSpecNote");if(old)old.remove();
+    if(!sec||!box)return;
+    if(!sec.hw&&!sec.extra)return;
+    if(!["teacher","admin","owner"].includes(S.role))return;
+    var txt=sec.hw
+      ? t("Это раздел с упражнениями, которые можно выдать как домашнее задание. Ученикам он не виден.")
+      : t("Здесь можно собрать дополнительные упражнения к уроку. Ученики увидят раздел, только когда в нём появятся задания.");
+    var btns='<button class="btn btn-sm btn-outline" style="margin-top:10px" onclick="cvEditInBuilder()">✏️ '+t("Редактировать в конструкторе")+'</button>';
+    if(sec.hw)btns+=' <button class="btn btn-sm btn-purple" style="margin-top:10px" onclick="cvGiveSectionAsHW()">📤 '+t("Выдать как ДЗ")+'</button>';
+    box.insertAdjacentHTML("afterbegin",'<div id="cvSpecNote" class="card" style="margin-bottom:14px;border-left:4px solid var(--purple)"><div style="font-size:.88rem">🙈 '+txt+'</div>'+btns+'</div>');
+  }catch(e){console.warn("[spec note]",e);}
+}
+function cvEditInBuilder(){
+  if(!LV.lessonId)return;
+  var l=(window._lessonCache||{})[LV.lessonId];
+  closeClassroomView();
+  if(l&&typeof openLessonEditor==="function"){openLessonEditor(l.id,l.title,l.language||"Английский",l.level||"A1",l.content||[]);return;}
+  sb.from("lessons").select("*").eq("id",LV.lessonId).eq("school_id",S.schoolId).maybeSingle().then(function(q){
+    if(q.data&&typeof openLessonEditor==="function")openLessonEditor(q.data.id,q.data.title,q.data.language||"Английский",q.data.level||"A1",q.data.content||[]);
+  });
+}
+// Выдать упражнения раздела как ДЗ всем ученикам класса
+async function cvGiveSectionAsHW(){
+  if(!["teacher","admin","owner"].includes(S.role))return;
+  var sec=(LV.sections||[])[LV.curSec];
+  if(!sec||!(sec.exercises||[]).length){showToast(t("Сначала добавь упражнения в раздел"),"error");return;}
+  var ids=[];
+  if(S._cvStudentId){ids=[S._cvStudentId];}
+  else if(S.currentClassId){
+    var cs=await sb.from("class_students").select("student_id").eq("class_id",S.currentClassId).eq("school_id",S.schoolId);
+    ids=(cs.data||[]).map(function(c){return c.student_id;});
+  }
+  if(!ids.length){showToast(t("Нет учеников для выдачи"),"error");return;}
+  var title=(C("cv_lessonName")&&C("cv_lessonName").textContent)||t("Домашнее задание");
+  var payloadDesc=JSON.stringify({v:2,lesson_id:LV.lessonId,lesson_title:title,exercises:sec.exercises});
+  var n=0;
+  for(var i=0;i<ids.length;i++){
+    var ins=await sb.from("homeworks").insert({school_id:S.schoolId,teacher_id:S.profile.id,student_id:ids[i],
+      title:title,description:payloadDesc,deadline:null,status:"pending"});
+    if(!ins.error)n++;
+  }
+  dcInval("homeworks_"+S.schoolId);
+  showToast("✅ "+t("Выдано ДЗ")+": "+n);
+}
 function lvRender(){
   // Просмотр по разделам: все упражнения текущего раздела на одной странице
   if(!LV.sections||LV.sections.length===0){
@@ -8142,6 +8237,7 @@ function lvRender(){
     }).join('');
   }
   const sc=C('cv_exerciseContent').closest('.cv-content-scroll');if(sc)sc.scrollTop=0;
+  try{cvSpecialNote();}catch(_sn){}
   lvRenderSections();
   if(S.lang==='en')applyEN(C('classroomView'));else if(S.lang==='ge')applyGE(C('classroomView'));
 }
@@ -8232,7 +8328,7 @@ async function cvLoadHomework(){
       if(isT&&pend.length){banner='<div class="card" style="margin-bottom:14px;border-left:4px solid var(--purple);font-size:.88rem">🏠 '+t("Ученик ещё не отправлял эту домашнюю работу учителю на проверку")+'</div>';}
       else if(!isT&&pend.length){banner='<div class="card" style="margin-bottom:14px;border-left:4px solid var(--purple);font-size:.88rem">🏠 '+t("Ты ещё не отправлял эту работу на проверку")+'</div>';}
     }
-    var addBtn=isT?'<button class="btn btn-purple" onclick="openLessonHW()">+ '+t("Новое ДЗ")+'</button>':"";
+    var addBtn=isT?'<button class="btn btn-purple" onclick="cvOpenSpecial('hw')">+ '+t("Новое ДЗ")+'</button>':"";
     var html='<div class="section-header" style="margin-bottom:12px"><span style="font-weight:700">📋 '+t("Домашнее задание")+'</span>'+addBtn+'</div>'+banner;
     if(cur.length){html+='<div style="font-size:.75rem;font-weight:700;color:var(--purple);text-transform:uppercase;margin:10px 0 6px">'+t("По текущему уроку")+'</div>'+cur.map(card).join("");}
     if(other.length){html+='<div style="font-size:.75rem;font-weight:700;color:var(--text3);text-transform:uppercase;margin:14px 0 6px">'+t("По другим урокам")+'</div>'+other.map(card).join("");}
@@ -8648,7 +8744,7 @@ function lvSyncApply(p){
           const{data:l}=await sb.from('lessons').select('*').eq('id',p.value).eq('school_id',S.schoolId).maybeSingle();
           if(!l)return;
           const{sections:_ns,materials:_nm}=_parseLessonContent(l.content);
-          LV.sections=_ns;LV.materials=Array.isArray(_nm)?_nm:[];LV.curSec=0;LV.curEx=0;LV.lessonId=l.id;window._matchState={};
+          LV.sections=_ns;LV.materials=Array.isArray(_nm)?_nm:[];LV.curSec=0;LV.curEx=0;LV.lessonId=l.id;window._matchState={};lvFilterForStudent();
           const _mb=C('cv_matBtn');if(_mb)_mb.style.display=LV.materials.length?'':'none';
           C('cv_lessonName').textContent=l.title;
           lvRender();
