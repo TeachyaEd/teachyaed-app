@@ -939,6 +939,16 @@ body[data-theme="dark"] #timerPopup{background:var(--white)!important;box-shadow
 body[data-theme="dark"] .vocab-back{color:#6ee7b7!important;background:rgba(16,185,129,.25)!important}
 </style>
 <style id="tyDarkPremium">
+#hwSidePanel{position:fixed;right:14px;top:96px;width:264px;max-height:66vh;overflow:auto;background:var(--white);border:1px solid var(--gray-border);border-radius:16px;padding:10px;z-index:900;box-shadow:0 12px 34px rgba(0,0,0,.18)}
+.hw-side-hd{display:flex;align-items:center;font-weight:800;font-size:.78rem;text-transform:uppercase;letter-spacing:.04em;color:var(--text3);padding:4px 6px 10px}
+.hw-side-row{display:flex;align-items:center;gap:10px;padding:8px;border-radius:12px;cursor:pointer}
+.hw-side-row:hover{background:rgba(139,123,247,.10)}
+.hw-side-row.act{background:rgba(139,123,247,.14)}
+.hw-side-ini{width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:.8rem;flex:0 0 auto}
+.hw-side-lbl{font-size:.66rem;font-weight:700}
+.hw-side-tt{font-size:.88rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+@media(max-width:900px){#hwSidePanel{display:none}}
+
 .hw-group-hdr{font-size:.82rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--purple);margin:18px 0 8px;padding-bottom:6px;border-bottom:1px solid var(--gray-border)}
 
 /* ── Премиальная тёмная тема · одинаково на macOS, Windows, Linux ── */
@@ -4159,7 +4169,7 @@ sb.auth.onAuthStateChange((event,session)=>{if(event==='SIGNED_OUT'&&!session&&S
   }
 })();
 // ─── АВТООБНОВЛЕНИЕ (кэш GitHub Pages) ───────────────────────────────────────
-const APP_BUILD='2026.08.13-e'; // ⚠️ менять при каждом деплое
+const APP_BUILD='2026.08.13-f'; // ⚠️ менять при каждом деплое
 // Показываем номер сборки на логине — для диагностики версий
 setTimeout(()=>{const lb=document.getElementById('loginBuild');if(lb)lb.textContent='v '+APP_BUILD;},300);
 function checkAppUpdate(){
@@ -8054,7 +8064,7 @@ function _parseLessonContent(content){
 
 function openClassroomView(title,sections,assignId,studentName,materials,lessonId){
   LV.sections=sections;LV.materials=Array.isArray(materials)?materials:[];LV.curSec=0;LV.curEx=0;LV.assignId=assignId;LV.lessonId=lessonId||null;LV.viewAll=false;
-  LV.hwId=null;LV.hwAnswers={};if(LV._hwCh){try{sb.removeChannel(LV._hwCh);}catch(e){}LV._hwCh=null;}
+  LV.hwId=null;LV.hwAnswers={};try{var _hsp=document.getElementById('hwSidePanel');if(_hsp)_hsp.remove();}catch(e){}if(LV._hwCh){try{sb.removeChannel(LV._hwCh);}catch(e){}LV._hwCh=null;}
   lvFilterForStudent();
   const matBtn=C('cv_matBtn');if(matBtn)matBtn.style.display=LV.materials.length?'':'none';
   S.currentAssignId=assignId||null;
@@ -8321,6 +8331,7 @@ async function cvLoadHomework(){
     var cur=[],other=[];
     hws.forEach(function(hw){var p=hwParse(hw);hw._p=p;
       if(LV.lessonId&&p.lesson_id===LV.lessonId)cur.push(hw);else other.push(hw);});
+    if(cur.length&&!cvLoadHomework._auto){cvLoadHomework._auto=true;setTimeout(function(){cvLoadHomework._auto=false;},2000);return openHWAsLesson(cur[0].id);}
     var card=function(hw){
       var id=_escJS(hw.id);var p=hw._p;
       var who=isT?("👤 "+_escHtml((hw.student&&hw.student.first_name)||"")+" "+_escHtml((hw.student&&hw.student.last_name)||"")+" · "):"";
@@ -8772,6 +8783,32 @@ function lvSyncApply(p){
 
 // ─── СОХРАНЕНИЕ ОТВЕТОВ УЧЕНИКА (учитель видит их в классе) ──────────────────
 // ── ДЗ КАК УРОК: те же упражнения, ответы ученика в реальном времени ──
+async function hwSidePanel(){
+  try{
+    var old=document.getElementById('hwSidePanel');if(old)old.remove();
+    if(!LV.hwId)return;
+    var isT=['teacher','admin','owner'].includes(S.role);
+    var sid=isT?LV.hwStudentId:S.studentRowId;
+    if(!sid)return;
+    var q=await sb.from('homeworks').select('id,title,status,description,lesson_id').eq('school_id',S.schoolId).eq('student_id',sid).order('created_at',{ascending:false}).limit(40);
+    var list=(q&&q.data)||[];if(list.length<1)return;
+    var cur=LV._hwFromLesson||null;
+    var rows=list.map(function(h){
+      var p=hwParse(h);
+      var isCur=!!(cur&&p.lesson_id===cur);
+      var act=(h.id===LV.hwId);
+      var lbl=isCur?t('По текущему уроку'):(p.lesson_title?t('По уроку'):t('Без урока'));
+      var ini=String(h.title||'?').trim().slice(0,2).toUpperCase();
+      var st=h.status==='reviewed'?'#22c55e':(h.status==='submitted'?'#eab308':'#8B7BF7');
+      return '<div class="hw-side-row'+(act?' act':'')+'" onclick="openHWAsLesson(\''+_escJS(h.id)+'\')">'
+        +'<div class="hw-side-ini" style="background:'+(act?'#8B7BF7':'rgba(139,123,247,.18)')+';color:'+(act?'#fff':'var(--purple)')+'">'+_escHtml(ini)+'</div>'
+        +'<div style="min-width:0"><div class="hw-side-lbl" style="color:'+(isCur?'var(--purple)':'var(--text3)')+'">'+_escHtml(lbl)+'</div>'
+        +'<div class="hw-side-tt">'+_escHtml(h.title||'ДЗ')+'</div></div>'
+        +'<span style="margin-left:auto;width:8px;height:8px;border-radius:50%;flex:0 0 auto;background:'+st+'"></span></div>';
+    }).join('');
+    document.body.insertAdjacentHTML('beforeend','<div id="hwSidePanel"><div class="hw-side-hd">'+t('Домашняя работа')+'<span onclick="var e=document.getElementById(\'hwSidePanel\');if(e)e.remove();" style="cursor:pointer;margin-left:auto;opacity:.6">&#10005;</span></div>'+rows+'</div>');
+  }catch(e){}
+}
 async function openHWAsLesson(hwId){
   if(openHWAsLesson._busy)return;openHWAsLesson._busy=true;
   try{
@@ -8780,9 +8817,10 @@ async function openHWAsLesson(hwId){
     if(!hw){showToast(t('ДЗ не найдено'),'error');return;}
     var exs=hwParse(hw).exercises;
     var who=hw.student?((hw.student.first_name||'')+' '+(hw.student.last_name||'')).trim():'';
+    var _prevLes=LV.lessonId||LV._hwFromLesson||null;
     openClassroomView('📋 '+(hw.title||'ДЗ'),[{title:t('Домашняя работа'),exercises:exs}],null,
       (['teacher','admin','owner'].includes(S.role)&&who)?who:null,[],null);
-    LV.hwId=hwId;LV.hwStudentId=hw.student_id||null;
+    LV.hwId=hwId;LV.hwStudentId=hw.student_id||null;LV._hwFromLesson=_prevLes;setTimeout(hwSidePanel,220);
     try{LV.hwAnswers=hw.student_answer?JSON.parse(hw.student_answer):{};}catch(e){LV.hwAnswers={};}
     lvSyncInit('hw_'+String(hwId).replace(/[^a-zA-Z0-9]/g,'').slice(0,20));
     setTimeout(function(){var box=C('cv_exerciseContent');if(box&&!box._hwBound){box._hwBound=true;box.addEventListener('input',function(e){var el=e.target;if(!el||!el.id||S.role!=='student'||!LV.hwId)return;var m=String(el.id).match(/^fb_(\d+_\d+)_\d+$/);if(m){var subs=Array.prototype.slice.call(document.querySelectorAll('[id^="fb_'+m[1]+'_"]'));hwSaveAnswer(m[1],subs.map(function(x){return x.value.trim();}).join(' '),null);return;}var m2=String(el.id).match(/^(?:oq|vq)_(\d+_\d+)$/);if(m2)hwSaveAnswer(m2[1],el.value,null);});}},300);
