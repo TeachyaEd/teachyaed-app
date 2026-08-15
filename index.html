@@ -1586,8 +1586,8 @@ body[data-theme="dark"] .badge-gray{background:rgba(255,255,255,.07)!important;c
         <button class="cv-action-row" id="cv_matBtn" onclick="toggleToolPanel('cv_materials')" style="display:none">📎 Материалы урока</button>
         <button class="cv-action-row" id="cv_switchBtn" onclick="cvOpenSwitchLesson()" style="display:none">🔄 Сменить урок</button>
         <button class="cv-action-row" id="cv_pushSecBtn" onclick="cvPushSection()" style="display:none">👥 Показать раздел ученику</button>
-        <button class="cv-action-row" id="cv_hwBtn" onclick="cvOpenSpecial('hw')" style="display:none">🏠 Для домашней работы</button>
-        <button class="cv-action-row" id="cv_extraBtn" onclick="cvOpenSpecial('extra')" style="display:none">📄 Дополнительно</button>
+        <button class="cv-action-row" id="cv_hwBtn" onclick="cvOpenHWSection()" style="display:none">🏠 Для домашней работы</button>
+        <button class="cv-action-row" id="cv_extraBtn" onclick="cvOpenExtraSection()" style="display:none">📄 Дополнительно</button>
         <button class="cv-action-row" onclick="openWb()">🖊 Доска</button>
         <button class="cv-action-row" id="cv_laserBtn" onclick="toggleLaser()" style="display:none">🔴 Указка</button>
       </div>
@@ -4157,7 +4157,7 @@ sb.auth.onAuthStateChange((event,session)=>{if(event==='SIGNED_OUT'&&!session&&S
   }
 })();
 // ─── АВТООБНОВЛЕНИЕ (кэш GitHub Pages) ───────────────────────────────────────
-const APP_BUILD='2026.08.13-b'; // ⚠️ менять при каждом деплое
+const APP_BUILD='2026.08.13-c'; // ⚠️ менять при каждом деплое
 // Показываем номер сборки на логине — для диагностики версий
 setTimeout(()=>{const lb=document.getElementById('loginBuild');if(lb)lb.textContent='v '+APP_BUILD;},300);
 function checkAppUpdate(){
@@ -8132,6 +8132,8 @@ async function lvPersistSections(){
     return true;
   }catch(e){console.warn("[persist]",e);return false;}
 }
+function cvOpenHWSection(){return cvOpenSpecial("hw");}
+function cvOpenExtraSection(){return cvOpenSpecial("extra");}
 async function cvOpenSpecial(kind){
   if(!["teacher","admin","owner"].includes(S.role)){showToast(t("Нет прав"),"error");return;}
   if(!LV.lessonId){showToast(t("Открой урок"),"error");return;}
@@ -8328,7 +8330,7 @@ async function cvLoadHomework(){
       if(isT&&pend.length){banner='<div class="card" style="margin-bottom:14px;border-left:4px solid var(--purple);font-size:.88rem">🏠 '+t("Ученик ещё не отправлял эту домашнюю работу учителю на проверку")+'</div>';}
       else if(!isT&&pend.length){banner='<div class="card" style="margin-bottom:14px;border-left:4px solid var(--purple);font-size:.88rem">🏠 '+t("Ты ещё не отправлял эту работу на проверку")+'</div>';}
     }
-    var addBtn=isT?'<button class="btn btn-purple" onclick="cvOpenSpecial('hw')">+ '+t("Новое ДЗ")+'</button>':"";
+    var addBtn=isT?'<button class="btn btn-purple" onclick="cvOpenHWSection()">+ '+t("Новое ДЗ")+'</button>':"";
     var html='<div class="section-header" style="margin-bottom:12px"><span style="font-weight:700">📋 '+t("Домашнее задание")+'</span>'+addBtn+'</div>'+banner;
     if(cur.length){html+='<div style="font-size:.75rem;font-weight:700;color:var(--purple);text-transform:uppercase;margin:10px 0 6px">'+t("По текущему уроку")+'</div>'+cur.map(card).join("");}
     if(other.length){html+='<div style="font-size:.75rem;font-weight:700;color:var(--text3);text-transform:uppercase;margin:14px 0 6px">'+t("По другим урокам")+'</div>'+other.map(card).join("");}
