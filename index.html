@@ -4155,7 +4155,7 @@ sb.auth.onAuthStateChange((event,session)=>{if(event==='SIGNED_OUT'&&!session&&S
   }
 })();
 // ─── АВТООБНОВЛЕНИЕ (кэш GitHub Pages) ───────────────────────────────────────
-const APP_BUILD='2026.08.12-x'; // ⚠️ менять при каждом деплое
+const APP_BUILD='2026.08.12-y'; // ⚠️ менять при каждом деплое
 // Показываем номер сборки на логине — для диагностики версий
 setTimeout(()=>{const lb=document.getElementById('loginBuild');if(lb)lb.textContent='v '+APP_BUILD;},300);
 function checkAppUpdate(){
@@ -8641,6 +8641,7 @@ async function openHWAsLesson(hwId){
     LV.hwId=hwId;LV.hwStudentId=hw.student_id||null;
     try{LV.hwAnswers=hw.student_answer?JSON.parse(hw.student_answer):{};}catch(e){LV.hwAnswers={};}
     lvSyncInit('hw_'+String(hwId).replace(/[^a-zA-Z0-9]/g,'').slice(0,20));
+    setTimeout(function(){var box=C('cv_exerciseContent');if(box&&!box._hwBound){box._hwBound=true;box.addEventListener('input',function(e){var el=e.target;if(!el||!el.id||S.role!=='student'||!LV.hwId)return;var m=String(el.id).match(/^fb_(\d+_\d+)_\d+$/);if(m){var subs=Array.prototype.slice.call(document.querySelectorAll('[id^="fb_'+m[1]+'_"]'));hwSaveAnswer(m[1],subs.map(function(x){return x.value.trim();}).join(' '),null);return;}var m2=String(el.id).match(/^(?:oq|vq)_(\d+_\d+)$/);if(m2)hwSaveAnswer(m2[1],el.value,null);});}},300);
     setTimeout(hwApplyAnswers,220);
     if(['teacher','admin','owner'].includes(S.role))hwWatchAnswers(hwId);
   }catch(e){showToast(t('Ошибка загрузки')+': '+((e&&e.message)||e),'error');}
@@ -8649,29 +8650,44 @@ async function openHWAsLesson(hwId){
 function hwApplyAnswers(){
   try{
     var a=LV.hwAnswers||{};var keys=Object.keys(a);
+    // Подставляем ответы: у пропусков поля имеют вид fb_<раздел>_<номер>_<подномер>
     keys.forEach(function(k){
-      var v=a[k];var val=(v&&typeof v==='object')?v.answer:v;
-      ['fb_'+k,'oq_'+k,'vq_'+k].forEach(function(id){
+      var v=a[k];var val=(v&&typeof v==="object")?v.answer:v;
+      var sval=(val==null)?"":String(val);
+      var direct=["oq_"+k,"vq_"+k];
+      direct.forEach(function(id){
         var el=document.getElementById(id);
-        if(el&&document.activeElement!==el){el.value=val==null?'':String(val);}
+        if(el&&document.activeElement!==el)el.value=sval;
       });
+      var subs=Array.prototype.slice.call(document.querySelectorAll('[id^="fb_'+k+'_"]'));
+      if(subs.length){
+        var parts=sval.split(" ");
+        subs.forEach(function(el,bi){
+          if(document.activeElement===el)return;
+          el.value=(subs.length===1)?sval:(parts[bi]||"");
+        });
+      }
     });
-    if(['teacher','admin','owner'].includes(S.role)&&LV.hwId){
-      var box=C('cv_exerciseContent');if(!box)return;
-      var old=document.getElementById('hwAnsSummary');if(old)old.remove();
+    if(["teacher","admin","owner"].includes(S.role)&&LV.hwId){
+      var box=C("cv_exerciseContent");if(!box)return;
+      var old=document.getElementById("hwAnsSummary");if(old)old.remove();
       var html='<div id="hwAnsSummary" class="card" style="margin-top:14px;border-left:4px solid var(--purple)">'
-        +'<div style="font-weight:700;margin-bottom:8px">✍️ '+t('Ответы ученика')+'</div>';
-      if(!keys.length){html+='<div style="font-size:.85rem;color:var(--text3)">'+t('Ученик ещё не отвечал')+'</div>';}
-      keys.sort(function(x,y){return Number(x)-Number(y);}).forEach(function(k){
-        var v=a[k];var val=(v&&typeof v==='object')?v.answer:v;
-        var ok=(v&&typeof v==='object')?v.correct:null;
-        var mark=ok===true?'✅ ':(ok===false?'❌ ':'• ');
-        html+='<div style="font-size:.85rem;margin-bottom:4px">'+mark+'<b>'+(Number(k)+1)+'.</b> '+_escHtml(String(val==null?'':val).slice(0,300))+'</div>';
+        +'<div style="font-weight:700;margin-bottom:8px">✍️ '+t("Ответы ученика")+'</div>';
+      if(!keys.length){html+='<div style="font-size:.85rem;color:var(--text3)">'+t("Ученик ещё не отвечал")+'</div>';}
+      var ord=function(k){var p=String(k).split("_");var s=Number(p[0]),e=Number(p[1]);
+        if(isFinite(s)&&isFinite(e))return (s+1)+"."+(e+1);
+        return isFinite(Number(k))?String(Number(k)+1):String(k);};
+      keys.sort(function(x,y){var px=String(x).split("_").map(Number),py=String(y).split("_").map(Number);
+        return (px[0]-py[0])||(px[1]-py[1]);}).forEach(function(k){
+        var v=a[k];var val=(v&&typeof v==="object")?v.answer:v;
+        var ok=(v&&typeof v==="object")?v.correct:null;
+        var mark=ok===true?"✅ ":(ok===false?"❌ ":"• ");
+        html+='<div style="font-size:.85rem;margin-bottom:4px">'+mark+'<b>'+ord(k)+'</b> '+_escHtml(String(val==null?"":val).slice(0,300))+'</div>';
       });
-      html+='<button class="btn btn-sm btn-green" style="margin-top:10px" onclick="hwMarkReviewed()">✅ '+t('Отметить проверенным')+'</button></div>';
-      box.insertAdjacentHTML('beforeend',html);
+      html+='<button class="btn btn-sm btn-green" style="margin-top:10px" onclick="hwMarkReviewed()">✅ '+t("Отметить проверенным")+'</button></div>';
+      box.insertAdjacentHTML("beforeend",html);
     }
-  }catch(e){console.warn('[hw answers]',e);}
+  }catch(e){console.warn("[hw answers]",e);}
 }
 function hwWatchAnswers(hwId){
   try{
