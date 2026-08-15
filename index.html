@@ -3416,13 +3416,13 @@ async function changePassword(){
 const NAV={
   student:[
     {sec:'Учёба'},
-    {id:'s_home',icon:'🏠',l:'Кабинет'},{id:'s_classes',icon:'🎓',l:'Мой класс'},{id:'s_lessons',icon:'📖',l:'Уроки'},{id:'s_homework',icon:'📋',l:'Задания'},{id:'s_vocab',icon:'📚',l:'Словарь'},{id:'s_materials',icon:'📁',l:'Материалы'}
+    {id:'s_home',icon:'🏠',l:'Кабинет'},{id:'s_classes',icon:'🎓',l:'Мой класс'},{id:'s_lessons',icon:'📖',l:'Уроки'},{id:'s_homework',icon:'📋',l:'Домашняя работа'},{id:'s_vocab',icon:'📚',l:'Словарь'},{id:'s_materials',icon:'📁',l:'Материалы'}
   ],
   teacher:[
     {sec:'Классы'},
     {id:'t_classes',icon:'🎓',l:'Мои классы'},{id:'t_schedule',icon:'📅',l:'Расписание'},
     {sec:'Учёба'},
-    {id:'t_lessons',icon:'📖',l:'Уроки'},{id:'t_homework',icon:'📋',l:'Задания'},{id:'t_students',icon:'👥',l:'Ученики'},{id:'t_materials',icon:'📁',l:'Материалы'},
+    {id:'t_lessons',icon:'📖',l:'Уроки'},{id:'t_homework',icon:'📋',l:'Домашняя работа'},{id:'t_students',icon:'👥',l:'Ученики'},{id:'t_materials',icon:'📁',l:'Материалы'},
     {sec:'Инструменты'},
     {id:'t_messages',icon:'💬',l:'Сообщения'},{id:'t_tasks',icon:'✅',l:'Задачи'},{id:'t_library',icon:'🌐',l:'Библиотека'}
   ],
@@ -3440,7 +3440,7 @@ const NAV={
     {sec:'Управление'},
     {id:'o_home',icon:'📊',l:'Дашборд'},{id:'o_users',icon:'👥',l:'Пользователи'},{id:'o_students',icon:'🎓',l:'Ученики'},{id:'o_payments',icon:'💳',l:'Оплата'},{id:'o_salaries',icon:'💰',l:'Зарплаты'},{id:'o_materials',icon:'📁',l:'Материалы'},
     {sec:'Преподавание'},
-    {id:'t_lessons',icon:'📖',l:'Уроки'},{id:'t_homework',icon:'📋',l:'Задания'},{id:'t_students',icon:'👥',l:'Мои ученики'},
+    {id:'t_lessons',icon:'📖',l:'Уроки'},{id:'t_homework',icon:'📋',l:'Домашняя работа'},{id:'t_students',icon:'👥',l:'Мои ученики'},
     {sec:'Инструменты'},
     {id:'o_messages',icon:'💬',l:'Сообщения'},{id:'o_tasks',icon:'✅',l:'Задачи'},{id:'o_library',icon:'🌐',l:'Библиотека'}
   ]
@@ -4101,7 +4101,7 @@ sb.auth.onAuthStateChange((event,session)=>{if(event==='SIGNED_OUT'&&!session&&S
   }
 })();
 // ─── АВТООБНОВЛЕНИЕ (кэш GitHub Pages) ───────────────────────────────────────
-const APP_BUILD='2026.08.12-t'; // ⚠️ менять при каждом деплое
+const APP_BUILD='2026.08.12-u'; // ⚠️ менять при каждом деплое
 // Показываем номер сборки на логине — для диагностики версий
 setTimeout(()=>{const lb=document.getElementById('loginBuild');if(lb)lb.textContent='v '+APP_BUILD;},300);
 function checkAppUpdate(){
