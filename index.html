@@ -1589,7 +1589,7 @@ body[data-theme="dark"] .badge-gray{background:rgba(255,255,255,.07)!important;c
         <button class="cv-action-row" id="cv_switchBtn" onclick="cvOpenSwitchLesson()" style="display:none">🔄 Сменить урок</button>
         <button class="cv-action-row" id="cv_pushSecBtn" onclick="cvPushSection()" style="display:none">👥 Показать раздел ученику</button>
         <button class="cv-action-row" id="cv_hwBtn" onclick="cvOpenHWSection()" style="display:none">🏠 Для домашней работы</button>
-        <button class="cv-action-row" id="cv_extraBtn" onclick="cvOpenExtraSection()" style="display:none">📄 Дополнительно</button>
+        <button class="cv-action-row" id="cv_extraBtn" onclick="cvOpenExtraSection()" style="display:none">📄 Дополнительно</button><button class="cv-action-row" id="cv_vocabBtn" onclick="cvOpenVocabSection()">&#128218; Словарь</button><button class="cv-action-row" id="cv_reflectBtn" onclick="cvOpenReflectSection()">&#128172; Рефлексия</button>
         <button class="cv-action-row" onclick="openWb()">🖊 Доска</button>
         <button class="cv-action-row" id="cv_laserBtn" onclick="toggleLaser()" style="display:none">🔴 Указка</button>
       </div>
@@ -4159,7 +4159,7 @@ sb.auth.onAuthStateChange((event,session)=>{if(event==='SIGNED_OUT'&&!session&&S
   }
 })();
 // ─── АВТООБНОВЛЕНИЕ (кэш GitHub Pages) ───────────────────────────────────────
-const APP_BUILD='2026.08.13-d'; // ⚠️ менять при каждом деплое
+const APP_BUILD='2026.08.13-e'; // ⚠️ менять при каждом деплое
 // Показываем номер сборки на логине — для диагностики версий
 setTimeout(()=>{const lb=document.getElementById('loginBuild');if(lb)lb.textContent='v '+APP_BUILD;},300);
 function checkAppUpdate(){
@@ -8077,6 +8077,10 @@ function openClassroomView(title,sections,assignId,studentName,materials,lessonI
   if(_hwB)_hwB.style.display=(['teacher','admin','owner'].includes(S.role)&&lessonId)?'':'none';
   var _exB=C('cv_extraBtn');
   if(_exB)_exB.style.display=(['teacher','admin','owner'].includes(S.role)&&lessonId)?'':'none';
+  var _vcB=C('cv_vocabBtn');
+  if(_vcB)_vcB.style.display=(['teacher','admin','owner'].includes(S.role)&&lessonId)?'':'none';
+  var _rfB=C('cv_reflectBtn');
+  if(_rfB)_rfB.style.display=(['teacher','admin','owner'].includes(S.role)&&lessonId)?'':'none';
   // Указка — только учителю
   const _lzBtn=C('cv_laserBtn');
   if(_lzBtn)_lzBtn.style.display=['teacher','admin','owner'].includes(S.role)?'':'none';
@@ -8116,7 +8120,7 @@ function lvFilterForStudent(){
   LV.sections=(LV.sections||[]).filter(function(s){
     if(!s)return false;
     if(s.hw)return false;
-    if(s.extra&&!((s.exercises||[]).length))return false;
+    if((s.extra||s.vocab||s.reflect)&&!((s.exercises||[]).length))return false;
     return true;
   });
   if(LV.curSec>=LV.sections.length)LV.curSec=Math.max(0,LV.sections.length-1);
@@ -8138,6 +8142,8 @@ async function lvPersistSections(){
 }
 function cvOpenHWSection(){return cvOpenSpecial("hw");}
 function cvOpenExtraSection(){return cvOpenSpecial("extra");}
+function cvOpenVocabSection(){return cvOpenSpecial("vocab");}
+function cvOpenReflectSection(){return cvOpenSpecial("reflect");}
 async function cvOpenSpecial(kind){
   if(!["teacher","admin","owner"].includes(S.role)){showToast(t("Нет прав"),"error");return;}
   if(!LV.lessonId){showToast(t("Открой урок"),"error");return;}
@@ -8145,7 +8151,7 @@ async function cvOpenSpecial(kind){
   var idx=-1;
   for(var i=0;i<LV.sections.length;i++){if(LV.sections[i]&&LV.sections[i][kind]){idx=i;break;}}
   if(idx<0){
-    var sec={title:kind==="hw"?t("Для домашней работы"):t("Дополнительно"),exercises:[]};
+    var _tt={hw:"Для домашней работы",extra:"Дополнительно",vocab:"Словарь",reflect:"Рефлексия"};var sec={title:t(_tt[kind]||"Раздел"),exercises:[]};
     sec[kind]=true;
     LV.sections.push(sec);idx=LV.sections.length-1;
     await lvPersistSections();
@@ -8161,11 +8167,13 @@ function cvSpecialNote(){
     var box=C("cv_exerciseContent");
     var old=document.getElementById("cvSpecNote");if(old)old.remove();
     if(!sec||!box)return;
-    if(!sec.hw&&!sec.extra)return;
+    if(!sec.hw&&!sec.extra&&!sec.vocab&&!sec.reflect)return;
     if(!["teacher","admin","owner"].includes(S.role))return;
     var txt=sec.hw
       ? t("Это раздел с упражнениями, которые можно выдать как домашнее задание. Ученикам он не виден.")
       : t("Здесь можно собрать дополнительные упражнения к уроку. Ученики увидят раздел, только когда в нём появятся задания.");
+    if(sec.vocab)txt=t("Словарь урока: собери сюда слова и выражения. Ученик видит раздел, когда в нём есть задания.");
+    if(sec.reflect)txt=t("Рефлексия и отзыв преподавателя: итоги урока — что получилось и над чем работать.");
     var btns='<button class="btn btn-sm btn-outline" style="margin-top:10px" onclick="cvEditInBuilder()">✏️ '+t("Редактировать в конструкторе")+'</button>';
     if(sec.hw)btns+=' <button class="btn btn-sm btn-purple" style="margin-top:10px" onclick="cvGiveSectionAsHW()">📤 '+t("Выдать как ДЗ")+'</button>';
     box.insertAdjacentHTML("afterbegin",'<div id="cvSpecNote" class="card" style="margin-bottom:14px;border-left:4px solid var(--purple)"><div style="font-size:.88rem">🙈 '+txt+'</div>'+btns+'</div>');
