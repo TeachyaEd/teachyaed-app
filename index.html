@@ -1752,7 +1752,7 @@ const TRANSLATIONS={
   '🎓 Классы':'🎓 Classes','📅 Расписание':'📅 Schedule',
   '📊 Дашборд':'📊 Dashboard','💳 Оплата':'💳 Payments',
   '💰 Зарплаты':'💰 Salaries','📁 Материалы':'📁 Materials',
-  '📋 Задания':'📋 Assignments','📖 Уроки':'📖 Lessons',
+  '📋 Домашнее задание':'📋 Homework','📖 Уроки':'📖 Lessons',
   '🏠 Кабинет':'🏠 My Workspace',
   // Screens/sections (nouns used in headings)
   'Классы':'Classes','Материалы':'Materials','Задания':'Assignments',
@@ -2443,7 +2443,7 @@ const TRANSLATIONS_GE={
   '🎓 Классы':'🎓 კლასები','📅 Расписание':'📅 განრიგი',
   '📊 Дашборд':'📊 მთავარი','💳 Оплата':'💳 გადახდა',
   '💰 Зарплаты':'💰 ხელფასები','📁 Материалы':'📁 მასალები',
-  '📋 Задания':'📋 დავალებები','📖 Уроки':'📖 გაკვეთილები',
+  '📋 Домашнее задание':'📋 საშინაო დავალება','📖 Уроки':'📖 გაკვეთილები',
   '🏠 Кабинет':'🏠 კაბინეტი',
   // Screens/sections
   'Классы':'კლასები','Материалы':'მასალები','Задания':'დავალებები','Уроки':'გაკვეთილები',
@@ -4155,7 +4155,7 @@ sb.auth.onAuthStateChange((event,session)=>{if(event==='SIGNED_OUT'&&!session&&S
   }
 })();
 // ─── АВТООБНОВЛЕНИЕ (кэш GitHub Pages) ───────────────────────────────────────
-const APP_BUILD='2026.08.12-w'; // ⚠️ менять при каждом деплое
+const APP_BUILD='2026.08.12-x'; // ⚠️ менять при каждом деплое
 // Показываем номер сборки на логине — для диагностики версий
 setTimeout(()=>{const lb=document.getElementById('loginBuild');if(lb)lb.textContent='v '+APP_BUILD;},300);
 function checkAppUpdate(){
@@ -5666,7 +5666,7 @@ async function renderTeacherHw(){
     </div>`;
   }).join('')||'<div class="empty-state"><div class="ei">📋</div><p>Нет заданий</p></div>';
   if(S.screen!==_thwSnap)return;
-  setContent(`<div class="section-header"><h2>📋 Задания</h2><button class="btn btn-purple" onclick="openHWEditor()">+ Новое ДЗ</button></div>${cards}`);
+  setContent(`<div class="section-header"><h2>📋 Домашнее задание</h2><button class="btn btn-purple" onclick="openHWEditor()">+ Новое ДЗ</button></div>${cards}`);
   }finally{renderTeacherHw._loading=false;}
 }
 
@@ -5774,7 +5774,7 @@ async function renderStudentHw(){
     </div>`;
   }).join('')||'<div class="empty-state"><div class="ei">✅</div><p>Нет заданий</p></div>';
   if(S.screen!==_sthwSnap)return;
-  setContent(`<div class="section-header"><h2>📋 Задания</h2></div>${cards}`);
+  setContent(`<div class="section-header"><h2>📋 Домашнее задание</h2></div>${cards}`);
   }finally{renderStudentHw._loading=false;}
 }
 
