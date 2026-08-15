@@ -4169,7 +4169,7 @@ sb.auth.onAuthStateChange((event,session)=>{if(event==='SIGNED_OUT'&&!session&&S
   }
 })();
 // ─── АВТООБНОВЛЕНИЕ (кэш GitHub Pages) ───────────────────────────────────────
-const APP_BUILD='2026.08.13-i'; // ⚠️ менять при каждом деплое
+const APP_BUILD='2026.08.13-j'; // ⚠️ менять при каждом деплое
 // Показываем номер сборки на логине — для диагностики версий
 setTimeout(()=>{const lb=document.getElementById('loginBuild');if(lb)lb.textContent='v '+APP_BUILD;},300);
 function checkAppUpdate(){
@@ -8384,7 +8384,7 @@ function switchCVTab(tab,el){
     cvLoadHomework();
   } else {
     C('cv_btnBack').style.display='';C('cv_btnNext').style.display='';
-    lvRender();
+    if(!cvRestoreLesson())lvRender();
   }
 }
 
@@ -8783,6 +8783,12 @@ function lvSyncApply(p){
 
 // ─── СОХРАНЕНИЕ ОТВЕТОВ УЧЕНИКА (учитель видит их в классе) ──────────────────
 // ── ДЗ КАК УРОК: те же упражнения, ответы ученика в реальном времени ──
+function cvRestoreLesson(){
+  var b=LV._lesBackup;if(!b)return false;
+  LV._lesBackup=null;LV._hwFromLesson=null;
+  try{openClassroomView(b.title,b.sections,b.assignId,b.studentName,b.materials,b.lessonId);}catch(e){return false;}
+  return true;
+}
 async function hwSidePanel(){
   try{
     var old=document.getElementById('hwSidePanel');if(old)old.remove();
@@ -8819,6 +8825,7 @@ async function openHWAsLesson(hwId){
     var exs=hwParse(hw).exercises;
     var who=hw.student?((hw.student.first_name||'')+' '+(hw.student.last_name||'')).trim():'';
     var _prevLes=LV.lessonId||LV._hwFromLesson||null;
+    if(!LV.hwId&&LV.lessonId){LV._lesBackup={title:((C('cv_lessonName')&&C('cv_lessonName').textContent)||''),sections:LV.sections,assignId:LV.assignId,studentName:((C('cv_studentBadge')&&C('cv_studentBadge').textContent)||null),materials:LV.materials,lessonId:LV.lessonId};}
     openClassroomView('📋 '+(hw.title||'ДЗ'),[{title:t('Домашняя работа'),exercises:exs}],null,
       (['teacher','admin','owner'].includes(S.role)&&who)?who:null,[],null);
     LV.hwId=hwId;LV.hwStudentId=hw.student_id||null;LV._hwFromLesson=_prevLes;setTimeout(hwSidePanel,220);
