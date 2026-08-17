@@ -3572,7 +3572,7 @@ function toggleToolPanel(type){
   panel.style.flexDirection='column';
   // Restore notes
   if(type==='notes'){
-    const saved=localStorage.getItem('teachya_notes_'+(LV.assignId||'general'));
+    const saved=localStorage.getItem(tyNotesKey());
     if(saved&&document.getElementById('toolNotes'))document.getElementById('toolNotes').value=saved;
   }
   if(type==='dict')renderDictSaved();
@@ -3603,9 +3603,14 @@ function renderTasksPanel(){
 
 function closeToolPanel(){document.getElementById('toolPanel').style.display='none';}
 
+function tyNotesKey(){
+  var les=LV.lessonId||LV._hwFromLesson||'nolesson';
+  var who=S._cvStudentId||LV.hwStudentId||S.currentClassId||'all';
+  return 'teachya_notes_'+(LV.assignId||(les+'_'+who));
+}
 function saveToolNotes(){
   const val=document.getElementById('toolNotes')?.value||'';
-  localStorage.setItem('teachya_notes_'+(LV.assignId||'general'),val);
+  localStorage.setItem(tyNotesKey(),val);
   showToast('Заметки сохранены ✓');
 }
 
@@ -4169,7 +4174,7 @@ sb.auth.onAuthStateChange((event,session)=>{if(event==='SIGNED_OUT'&&!session&&S
   }
 })();
 // ─── АВТООБНОВЛЕНИЕ (кэш GitHub Pages) ───────────────────────────────────────
-const APP_BUILD='2026.08.13-k'; // ⚠️ менять при каждом деплое
+const APP_BUILD='2026.08.13-l'; // ⚠️ менять при каждом деплое
 // Показываем номер сборки на логине — для диагностики версий
 setTimeout(()=>{const lb=document.getElementById('loginBuild');if(lb)lb.textContent='v '+APP_BUILD;},300);
 function checkAppUpdate(){
@@ -8834,7 +8839,7 @@ async function openHWAsLesson(hwId){
     var exs=hwParse(hw).exercises;
     var who=hw.student?((hw.student.first_name||'')+' '+(hw.student.last_name||'')).trim():'';
     var _prevLes=LV.lessonId||LV._hwFromLesson||null;
-    if(!LV.hwId&&LV.lessonId){LV._lesBackup={title:((C('cv_lessonName')&&C('cv_lessonName').textContent)||''),sections:LV.sections,assignId:LV.assignId,studentName:((C('cv_studentBadge')&&C('cv_studentBadge').textContent)||null),materials:LV.materials,lessonId:LV.lessonId};}
+    if(!LV.hwId&&LV.lessonId){LV._lesBackup={title:((C('cv_lessonName')&&C('cv_lessonName').textContent)||''),sections:LV.sections,assignId:LV.assignId,studentName:(((C('cv_studentBadge')&&C('cv_studentBadge').textContent)||'').replace(/[\u{1F300}-\u{1FAFF}\u2600-\u27BF]/gu,'').trim()||null),materials:LV.materials,lessonId:LV.lessonId};}
     openClassroomView('📋 '+(hw.title||'ДЗ'),[{title:t('Домашняя работа'),exercises:exs}],null,
       (['teacher','admin','owner'].includes(S.role)&&who)?who:null,[],null);
     LV.hwId=hwId;LV.hwStudentId=hw.student_id||null;LV._hwFromLesson=_prevLes;setTimeout(hwSidePanel,220);cvMarkTab('hw');setTimeout(function(){cvMarkTab('hw');},260);
