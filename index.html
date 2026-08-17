@@ -3571,10 +3571,7 @@ function toggleToolPanel(type){
   panel.style.display='flex';
   panel.style.flexDirection='column';
   // Restore notes
-  if(type==='notes'){
-    const saved=localStorage.getItem(tyNotesKey());
-    if(saved&&document.getElementById('toolNotes'))document.getElementById('toolNotes').value=saved;
-  }
+  if(type==='notes'){notesLoad();}
   if(type==='dict')renderDictSaved();
   if(type==='tasks')renderTasksPanel();
   if(type==='ce_materials')renderCEMaterialsPanel();
@@ -3608,10 +3605,52 @@ function tyNotesKey(){
   var who=S._cvStudentId||LV.hwStudentId||S.currentClassId||'all';
   return 'teachya_notes_'+(LV.assignId||(les+'_'+who));
 }
-function saveToolNotes(){
-  const val=document.getElementById('toolNotes')?.value||'';
-  localStorage.setItem(tyNotesKey(),val);
-  showToast('Заметки сохранены ✓');
+function notesCtx(){
+  var stu=S._cvStudentId||LV.hwStudentId||((S.role==='student')?S.studentRowId:null)||null;
+  return {school_id:S.schoolId,lesson_id:(LV.lessonId||LV._hwFromLesson||null),student_id:stu};
+}
+function notesQ(c){
+  var q=sb.from('lesson_notes').select('id,body,updated_at').eq('school_id',c.school_id);
+  q=c.lesson_id?q.eq('lesson_id',c.lesson_id):q.is('lesson_id',null);
+  q=c.student_id?q.eq('student_id',c.student_id):q.is('student_id',null);
+  return q;
+}
+async function notesLoad(){
+  var el=document.getElementById('toolNotes');if(!el)return;
+  var isT=['teacher','admin','owner'].includes(S.role);
+  el.readOnly=!isT;
+  try{document.querySelectorAll('#toolPanelBody button').forEach(function(b){b.style.display=isT?'':'none';});}catch(e){}
+  var c=notesCtx();
+  try{
+    var r=await notesQ(c).maybeSingle();
+    if(r.error){el.value=localStorage.getItem(tyNotesKey())||'';}
+    else{el.value=(r.data&&r.data.body)||'';}
+  }catch(e){el.value=localStorage.getItem(tyNotesKey())||'';}
+  notesWatch(c);
+}
+function notesWatch(c){
+  try{
+    if(LV._notesCh){sb.removeChannel(LV._notesCh);LV._notesCh=null;}
+    LV._notesCh=sb.channel('nt_'+String(c.lesson_id||'none').replace(/[^a-zA-Z0-9]/g,'').slice(0,18)).on('postgres_changes',{event:'*',schema:'public',table:'lesson_notes'},function(p){
+      var n=p.new;if(!n)return;
+      if((n.lesson_id||null)!==(c.lesson_id||null))return;
+      if((n.student_id||null)!==(c.student_id||null))return;
+      var el=document.getElementById('toolNotes');
+      if(el&&document.activeElement!==el)el.value=n.body||'';
+    }).subscribe();
+  }catch(e){}
+}
+async function saveToolNotes(){
+  var el=document.getElementById('toolNotes');var val=(el&&el.value)||'';
+  var c=notesCtx();
+  try{localStorage.setItem(tyNotesKey(),val);}catch(e){}
+  try{
+    var f=await notesQ(c).maybeSingle();
+    var row={school_id:c.school_id,lesson_id:c.lesson_id,student_id:c.student_id,teacher_id:(S.profile&&S.profile.id)||null,body:val,updated_at:new Date().toISOString()};
+    var r=(f.data&&f.data.id)?await sb.from('lesson_notes').update(row).eq('id',f.data.id):await sb.from('lesson_notes').insert(row);
+    if(r.error){showToast('Сохранено только на этом устройстве: '+r.error.message,'error');return;}
+    showToast(t('Заметки сохранены')+' \u2713');
+  }catch(e){showToast('Сохранено только на этом устройстве','error');}
 }
 
 // Dictionary — auto-detects RU or EN
@@ -4174,7 +4213,7 @@ sb.auth.onAuthStateChange((event,session)=>{if(event==='SIGNED_OUT'&&!session&&S
   }
 })();
 // ─── АВТООБНОВЛЕНИЕ (кэш GitHub Pages) ───────────────────────────────────────
-const APP_BUILD='2026.08.13-l'; // ⚠️ менять при каждом деплое
+const APP_BUILD='2026.08.13-m'; // ⚠️ менять при каждом деплое
 // Показываем номер сборки на логине — для диагностики версий
 setTimeout(()=>{const lb=document.getElementById('loginBuild');if(lb)lb.textContent='v '+APP_BUILD;},300);
 function checkAppUpdate(){
