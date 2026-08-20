@@ -4213,7 +4213,7 @@ sb.auth.onAuthStateChange((event,session)=>{if(event==='SIGNED_OUT'&&!session&&S
   }
 })();
 // ─── АВТООБНОВЛЕНИЕ (кэш GitHub Pages) ───────────────────────────────────────
-const APP_BUILD='2026.08.13-m'; // ⚠️ менять при каждом деплое
+const APP_BUILD='2026.08.13-n'; // ⚠️ менять при каждом деплое
 // Показываем номер сборки на логине — для диагностики версий
 setTimeout(()=>{const lb=document.getElementById('loginBuild');if(lb)lb.textContent='v '+APP_BUILD;},300);
 function checkAppUpdate(){
@@ -6760,11 +6760,11 @@ async function cvOpenSwitchLesson(){
 async function cvPinLessonToClass(_argLid,_argTitle,_argBtn){
   if(!['teacher','admin','owner'].includes(S.role)){showToast(t('Нет прав'),'error');return;}
   if(!S.currentClassId){showToast(t('Открой урок из класса'),'error');return;}
-  if(!_argLid&&!LV.lessonId){showToast(t('Урок не определён'),'error');return;}
+  if(!_argLid&&!LV.lessonId&&!LV._hwFromLesson){showToast(t('Урок не определён'),'error');return;}
   if(cvPinLessonToClass._busy)return;cvPinLessonToClass._busy=true;
   var _b=_argBtn||C('cv_pinBtn');if(_b)_b.disabled=true;
   try{
-    var _lid=_argLid||LV.lessonId,_cid=S.currentClassId;
+    var _lid=_argLid||LV.lessonId||LV._hwFromLesson,_cid=S.currentClassId;
     var _alr=await sb.from('class_lessons').select('id').eq('class_id',_cid).eq('lesson_id',_lid).eq('school_id',S.schoolId).maybeSingle();
     var _already=_alr.data;
     if(!_already){
@@ -6773,6 +6773,10 @@ async function cvPinLessonToClass(_argLid,_argTitle,_argBtn){
       var _ins=await sb.from('class_lessons').insert({school_id:S.schoolId,class_id:_cid,lesson_id:_lid,position:_pos});
       if(_ins.error){showToast('X '+_ins.error.message,'error');return;}
     }
+    try{var _mnR=await sb.from('class_lessons').select('position').eq('class_id',_cid).eq('school_id',S.schoolId).order('position',{ascending:true}).limit(1);
+      var _mn=(_mnR.data&&_mnR.data[0]&&_mnR.data[0].position!=null)?_mnR.data[0].position:0;
+      await sb.from('class_lessons').update({position:_mn-1}).eq('class_id',_cid).eq('lesson_id',_lid).eq('school_id',S.schoolId);
+    }catch(_pe){}
     var _csR=await sb.from('class_students').select('student_id').eq('class_id',_cid).eq('school_id',S.schoolId);
     var _n=0,_list=_csR.data||[];
     for(var _i=0;_i<_list.length;_i++){
@@ -8108,7 +8112,7 @@ function _parseLessonContent(content){
 
 function openClassroomView(title,sections,assignId,studentName,materials,lessonId){
   LV.sections=sections;LV.materials=Array.isArray(materials)?materials:[];LV.curSec=0;LV.curEx=0;LV.assignId=assignId;LV.lessonId=lessonId||null;LV.viewAll=false;
-  LV.hwId=null;LV.hwAnswers={};try{var _hsp=document.getElementById('hwSidePanel');if(_hsp)_hsp.remove();}catch(e){}if(LV._hwCh){try{sb.removeChannel(LV._hwCh);}catch(e){}LV._hwCh=null;}
+  LV.hwId=null;LV.hwAnswers={};if(lessonId){LV._hwFromLesson=null;LV._lesBackup=null;}try{var _hsp=document.getElementById('hwSidePanel');if(_hsp)_hsp.remove();}catch(e){}if(LV._hwCh){try{sb.removeChannel(LV._hwCh);}catch(e){}LV._hwCh=null;}
   lvFilterForStudent();
   const matBtn=C('cv_matBtn');if(matBtn)matBtn.style.display=LV.materials.length?'':'none';
   S.currentAssignId=assignId||null;
