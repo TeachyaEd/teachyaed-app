@@ -4229,7 +4229,7 @@ sb.auth.onAuthStateChange((event,session)=>{if(event==='SIGNED_OUT'&&!session&&S
   }
 })();
 // ─── АВТООБНОВЛЕНИЕ (кэш GitHub Pages) ───────────────────────────────────────
-const APP_BUILD='2026.08.13-s'; // ⚠️ менять при каждом деплое
+const APP_BUILD='2026.08.13-t'; // ⚠️ менять при каждом деплое
 // Показываем номер сборки на логине — для диагностики версий
 setTimeout(()=>{const lb=document.getElementById('loginBuild');if(lb)lb.textContent='v '+APP_BUILD;},300);
 function checkAppUpdate(){
@@ -9128,6 +9128,7 @@ function matchRight(i,ri){
     C(`mr_${i}_${ri}`).classList.add('matched');
     st.matched[`l${li}`]=true;st.matched[`r${ri}`]=true;
     const done=Object.keys(st.matched).length/2;
+    try{var _mp=[];st.pairs.forEach(function(p,ix){if(st.matched['l'+ix])_mp.push(p.left+' \u2192 '+p.right);});saveLessonAnswer(i,'matching',_mp.join('; ')+' ('+_mp.length+'/'+st.pairs.length+')',(done===st.pairs.length)?true:null);}catch(_me){}
     if(done===st.pairs.length){C(`match_res_${i}`).innerHTML=`<span style="color:var(--green)">🎉 ${t('Все совпадения верны!')}</span>`;saveLessonAnswer(i,'matching',st.pairs.map(p=>p.left+' → '+p.right).join('; '),true);}
   } else {
     C(`ml_${i}_${li}`).classList.add('wrong-match');C(`mr_${i}_${ri}`).classList.add('wrong-match');
