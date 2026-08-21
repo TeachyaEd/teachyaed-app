@@ -939,6 +939,15 @@ body[data-theme="dark"] #timerPopup{background:var(--white)!important;box-shadow
 body[data-theme="dark"] .vocab-back{color:#6ee7b7!important;background:rgba(16,185,129,.25)!important}
 </style>
 <style id="tyDarkPremium">
+.add-stu-wrap{background:rgba(139,123,247,.07);border:1px solid var(--gray-border);border-radius:14px;padding:12px;margin-bottom:16px}
+.add-stu-hd{font-weight:800;font-size:.78rem;text-transform:uppercase;letter-spacing:.04em;color:var(--text3);margin-bottom:8px}
+.add-stu-find{width:100%;box-sizing:border-box;padding:8px 12px;border:2px solid var(--gray-border);border-radius:10px;font-family:var(--font);margin-bottom:10px}
+.add-stu-list{display:flex;flex-wrap:wrap;gap:8px}
+.add-stu-chip{display:inline-flex;align-items:center;gap:8px;padding:8px 14px 8px 10px;border-radius:999px;border:1px solid var(--gray-border);background:var(--white);color:inherit;font-family:var(--font);font-size:.9rem;font-weight:600;cursor:pointer;transition:.15s}
+.add-stu-chip:hover{border-color:var(--purple);background:rgba(139,123,247,.12)}
+.add-stu-chip[disabled]{opacity:.45;cursor:default}
+.add-stu-plus{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:var(--purple);color:#fff;font-weight:800;font-size:.95rem;line-height:1}
+
 #lvAnsBoard{flex:0 0 auto;box-sizing:border-box;width:100%;max-height:40vh;overflow:auto;background:rgba(34,197,94,.07);border:1px solid var(--gray-border);border-radius:14px;padding:8px;margin:0 0 14px}
 .lv-ans-row{padding:8px;border-radius:10px}
 .lv-ans-row+.lv-ans-row{margin-top:4px;border-top:1px solid var(--gray-border)}
@@ -4220,7 +4229,7 @@ sb.auth.onAuthStateChange((event,session)=>{if(event==='SIGNED_OUT'&&!session&&S
   }
 })();
 // ─── АВТООБНОВЛЕНИЕ (кэш GitHub Pages) ───────────────────────────────────────
-const APP_BUILD='2026.08.13-r'; // ⚠️ менять при каждом деплое
+const APP_BUILD='2026.08.13-s'; // ⚠️ менять при каждом деплое
 // Показываем номер сборки на логине — для диагностики версий
 setTimeout(()=>{const lb=document.getElementById('loginBuild');if(lb)lb.textContent='v '+APP_BUILD;},300);
 function checkAppUpdate(){
@@ -6903,11 +6912,10 @@ async function loadClassTab(tab){
       <td><button class="btn btn-sm btn-red" style="font-size:.7rem;padding:3px 8px" onclick="removeFromClass('${_esc(c.id)}',this)">✕ Убрать</button></td>
     </tr>`).join('');
     C('classDetailContent').innerHTML=`
-      <div style="display:flex;gap:10px;margin-bottom:16px;align-items:center">
-        <select id="addStuSel" style="flex:1;padding:8px 12px;border:2px solid var(--gray-border);border-radius:8px;font-family:var(--font)">
-          ${available.map(s=>`<option value="${_esc(s.id)}">${_esc(s.first_name)} ${_esc(s.last_name)}</option>`).join('')||'<option disabled>Все ученики уже в классе</option>'}
-        </select>
-        <button class="btn btn-purple" onclick="addToClass()">+ Добавить ученика</button>
+            <div class="add-stu-wrap">
+        <div class="add-stu-hd">${t("Кого добавить в класс")} <span style="opacity:.55;font-weight:400">${available.length}</span></div>
+        <input id="addStuFind" class="add-stu-find" placeholder="${t("Поиск по имени")}" oninput="addStuFilter(this.value)">
+        <div id="addStuList" class="add-stu-list">${available.map(s=>`<button class="add-stu-chip" data-nm="${_esc(((s.first_name||"")+" "+(s.last_name||"")).toLowerCase())}" onclick="addToClass('${_esc(s.id)}',this)"><span class="add-stu-plus">+</span><span>${_esc(s.first_name||"")} ${_esc(s.last_name||"")}</span></button>`).join("")||`<div style="color:var(--text3);padding:10px">${t("Все ученики уже в классе")}</div>`}</div>
       </div>
       <div class="card" style="padding:0;overflow:hidden">
         <table><thead><tr><th>Ученик</th><th>Уровень</th><th>Добавлен</th><th></th></tr></thead>
@@ -7063,13 +7071,22 @@ async function loadClassTab(tab){
   }
   }finally{loadClassTab._busy=false;}
 }
-async function addToClass(){
+function addStuFilter(q){
+  try{q=String(q||"").trim().toLowerCase();
+  var list=document.getElementById("addStuList");if(!list)return;
+  Array.prototype.slice.call(list.querySelectorAll(".add-stu-chip")).forEach(function(b){
+    var nm=b.getAttribute("data-nm")||"";
+    b.style.display=(!q||nm.indexOf(q)>=0)?"":"none";});
+  }catch(e){}
+}
+async function addToClass(_argSid,_argBtn){
   if(!['teacher','admin','owner'].includes(S.role)){showToast(t('Нет прав'),'error');return;}
   if(S._addingToClass)return;S._addingToClass=true;
-  const btn=document.querySelector('[onclick="addToClass()"]');
+  const btn=_argBtn||document.querySelector('[onclick="addToClass()"]');
   if(btn){btn.disabled=true;}
   try{
-    const sel=C('addStuSel');if(!sel||!sel.value)return;const sid=sel.value;
+    var sid=(typeof _argSid==='string'&&_argSid)?_argSid:((C('addStuSel')&&C('addStuSel').value)||'');if(!sid)return;
+    if(_argBtn){_argBtn.disabled=true;_argBtn.innerHTML='<span class="add-stu-plus">\u2713</span><span>'+_argBtn.textContent.replace(/^\+\s*/,'')+'</span>';}
     const{error}=await sb.from('class_students').insert({school_id:S.schoolId,class_id:S.currentClassId,student_id:sid});
     if(error){showToast('Ошибка: '+error.message,'error');return;}
     dcInval('classes_'+S.schoolId);
