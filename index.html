@@ -1167,7 +1167,7 @@ body[data-theme="dark"] .badge-gray{background:rgba(255,255,255,.07)!important;c
     <h3>Новый ученик</h3>
     <div class="form-row">
       <div class="form-group"><label>Имя</label><input id="st_first" placeholder="Имя"></div>
-      <div class="form-group"><label>Фамилия</label><input id="st_last" placeholder="Фамилия"></div>
+      <div class="form-group"><label>Фамилия <span style="opacity:.55;font-weight:400">(необязательно)</span></label><input id="st_last" placeholder="Фамилия"></div>
     </div>
     <div class="form-group"><label>Email</label><input id="st_email" type="email" placeholder="email@..."></div>
     <div class="form-group"><label>Телефон</label><input type="tel" id="st_phone" placeholder="+995..."></div>
@@ -4220,7 +4220,7 @@ sb.auth.onAuthStateChange((event,session)=>{if(event==='SIGNED_OUT'&&!session&&S
   }
 })();
 // ─── АВТООБНОВЛЕНИЕ (кэш GitHub Pages) ───────────────────────────────────────
-const APP_BUILD='2026.08.13-q'; // ⚠️ менять при каждом деплое
+const APP_BUILD='2026.08.13-r'; // ⚠️ менять при каждом деплое
 // Показываем номер сборки на логине — для диагностики версий
 setTimeout(()=>{const lb=document.getElementById('loginBuild');if(lb)lb.textContent='v '+APP_BUILD;},300);
 function checkAppUpdate(){
@@ -6458,7 +6458,7 @@ async function saveStudent(){
   try{
     const f=C('st_first').value.trim(),l=C('st_last').value.trim();
     const email=C('st_email').value.trim();
-    if(!f||!l){showToast('Введи имя и фамилию!');return;}
+    if(!f){showToast('Введи имя!');return;}
     if(!email){showToast('Введи email для приглашения!');return;}
     if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){showToast(t('Некорректный email'),'error');return;}
     // Insert student record
@@ -6490,7 +6490,7 @@ async function saveInviteStaff(){
     const email=C('inv_email_inp').value.trim();
     const role=C('inv_role').value;
     if(role==='owner'&&S.role!=='owner'){showToast('Только владелец может назначать владельцев','error');return;}
-    if(!f||!l){showToast('Введи имя и фамилию!');return;}
+    if(!f){showToast('Введи имя!');return;}
     if(!email){showToast('Введи email!');return;}
     if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){showToast(t('Некорректный email'),'error');return;}
     try{
