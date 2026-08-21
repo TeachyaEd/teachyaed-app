@@ -4213,7 +4213,7 @@ sb.auth.onAuthStateChange((event,session)=>{if(event==='SIGNED_OUT'&&!session&&S
   }
 })();
 // ─── АВТООБНОВЛЕНИЕ (кэш GitHub Pages) ───────────────────────────────────────
-const APP_BUILD='2026.08.13-n'; // ⚠️ менять при каждом деплое
+const APP_BUILD='2026.08.13-o'; // ⚠️ менять при каждом деплое
 // Показываем номер сборки на логине — для диагностики версий
 setTimeout(()=>{const lb=document.getElementById('loginBuild');if(lb)lb.textContent='v '+APP_BUILD;},300);
 function checkAppUpdate(){
@@ -8914,6 +8914,12 @@ function hwApplyAnswers(){
           el.value=(subs.length===1)?sval:(parts[bi]||"");
         });
       }
+      var _ok=(v&&typeof v==="object")?v.correct:null;
+      if(_ok===true||_ok===false){
+        var _r=document.getElementById("fb_res_"+k);
+        if(_r)_r.innerHTML=_ok?('<span style="color:var(--green)">\u2705 '+t('Правильно!')+'</span>'):('<span style="color:var(--red)">\u274C '+t('Неверно.')+'</span>');
+        subs.forEach(function(el){el.classList.toggle('correct',_ok);el.classList.toggle('wrong',!_ok);});
+      }
     });
     if(["teacher","admin","owner"].includes(S.role)&&LV.hwId){
       var box=C("cv_exerciseContent");if(!box)return;
@@ -8941,7 +8947,7 @@ function hwWatchAnswers(hwId){
     if(LV._hwCh){try{sb.removeChannel(LV._hwCh);}catch(e){}LV._hwCh=null;}
     LV._hwCh=sb.channel('hww-'+hwId)
       .on('postgres_changes',{event:'UPDATE',schema:'public',table:'homeworks',filter:'id=eq.'+hwId},function(p){
-        var row=p.new;if(!row)return;
+        var row=p.new;if(!row)return;if(S.role==='student')return;
         try{LV.hwAnswers=row.student_answer?JSON.parse(row.student_answer):{};}catch(e){return;}
         hwApplyAnswers();
         showToast('✍️ '+t('Ученик обновил ответы'));
@@ -8979,11 +8985,21 @@ async function hwMarkReviewed(){
 // Открытие ДЗ везде ведёт в урочный вид
 try{openHWPlayer=function(id){return openHWAsLesson(id);};}catch(e){}
 try{openHWReview=function(id){return openHWAsLesson(id);};}catch(e){}
+async function lvSaveAnswerNoAssign(exKey,exType,answer,correct){
+  try{
+    if(!LV.lessonId||!S.studentRowId)return;
+    var q=await sb.from('lesson_answers').select('id').eq('school_id',S.schoolId).eq('lesson_id',LV.lessonId).eq('student_id',S.studentRowId).eq('ex_key',String(exKey)).is('assignment_id',null).maybeSingle();
+    var row={school_id:S.schoolId,assignment_id:null,lesson_id:LV.lessonId,student_id:S.studentRowId,ex_key:String(exKey),ex_type:exType||'',answer:String(answer==null?'':answer).slice(0,2000),correct:(correct==null)?null:!!correct,answered_at:new Date().toISOString()};
+    if(q.data&&q.data.id){await sb.from('lesson_answers').update(row).eq('id',q.data.id);}
+    else{await sb.from('lesson_answers').insert(row);}
+  }catch(e){console.warn('[answers-na]',e);}
+}
 function saveLessonAnswer(exKey,exType,answer,correct){
   try{
     if(LV._syncApplying)return; // не сохраняем чужие (синхронизированные) действия
     if(LV.hwId){hwSaveAnswer(exKey,answer,correct);return;}
-    if(S.role!=='student'||!S.currentAssignId||!S.studentRowId)return;
+    if(S.role!=='student'||!S.studentRowId)return;
+    if(!S.currentAssignId){lvSaveAnswerNoAssign(exKey,exType,answer,correct);return;}
     const a=(window._assignCache||{})[S.currentAssignId];
     sb.from('lesson_answers').upsert({
       school_id:S.schoolId,assignment_id:S.currentAssignId,lesson_id:a?.lesson_id||null,
