@@ -4220,7 +4220,7 @@ sb.auth.onAuthStateChange((event,session)=>{if(event==='SIGNED_OUT'&&!session&&S
   }
 })();
 // ─── АВТООБНОВЛЕНИЕ (кэш GitHub Pages) ───────────────────────────────────────
-const APP_BUILD='2026.08.13-p'; // ⚠️ менять при каждом деплое
+const APP_BUILD='2026.08.13-q'; // ⚠️ менять при каждом деплое
 // Показываем номер сборки на логине — для диагностики версий
 setTimeout(()=>{const lb=document.getElementById('loginBuild');if(lb)lb.textContent='v '+APP_BUILD;},300);
 function checkAppUpdate(){
@@ -8717,7 +8717,7 @@ async function lvAnsBoard(){
     if(!LV.lessonId||LV.hwId)return;
     var ids=[];
     if(S._cvStudentId){ids=[S._cvStudentId];}
-    else if(S.currentClassId){var cs=await sb.from('class_students').select('student_id').eq('class_id',S.currentClassId).eq('school_id',S.schoolId);ids=(cs.data||[]).map(function(c){return c.student_id;});}
+    else if(S.currentClassId){var _own=await sb.from('class_lessons').select('id').eq('class_id',S.currentClassId).eq('lesson_id',LV.lessonId).eq('school_id',S.schoolId).maybeSingle();if(!_own.data)return;var cs=await sb.from('class_students').select('student_id').eq('class_id',S.currentClassId).eq('school_id',S.schoolId);ids=(cs.data||[]).map(function(c){return c.student_id;});}
     if(ids.length<1)return;
     var st=await sb.from('students').select('id,first_name,last_name').in('id',ids);
     var an=await sb.from('lesson_answers').select('student_id,ex_key,answer,correct').eq('school_id',S.schoolId).eq('lesson_id',LV.lessonId).in('student_id',ids);
