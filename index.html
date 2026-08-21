@@ -939,6 +939,13 @@ body[data-theme="dark"] #timerPopup{background:var(--white)!important;box-shadow
 body[data-theme="dark"] .vocab-back{color:#6ee7b7!important;background:rgba(16,185,129,.25)!important}
 </style>
 <style id="tyDarkPremium">
+#lvAnsBoard{flex:0 0 auto;box-sizing:border-box;width:100%;max-height:40vh;overflow:auto;background:rgba(34,197,94,.07);border:1px solid var(--gray-border);border-radius:14px;padding:8px;margin:0 0 14px}
+.lv-ans-row{padding:8px;border-radius:10px}
+.lv-ans-row+.lv-ans-row{margin-top:4px;border-top:1px solid var(--gray-border)}
+.lv-ans-nm{font-weight:700;font-size:.88rem}
+.lv-ans-st{font-size:.74rem;color:var(--text3);margin-top:2px}
+.lv-ans-cur{font-size:.8rem;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
 #hwSidePanel{flex:0 0 auto;box-sizing:border-box;width:100%;max-width:100%;min-width:0;max-height:42vh;min-height:64px;overflow:auto;background:rgba(139,123,247,.07);border:1px solid var(--gray-border);border-radius:14px;padding:8px;margin:0 0 14px}
 .hw-side-hd{display:flex;align-items:center;font-weight:800;font-size:.78rem;text-transform:uppercase;letter-spacing:.04em;color:var(--text3);padding:4px 6px 10px}
 .hw-side-row{display:flex;align-items:center;gap:10px;padding:8px;border-radius:12px;cursor:pointer;flex:0 0 auto;min-width:0;box-sizing:border-box}
@@ -4213,7 +4220,7 @@ sb.auth.onAuthStateChange((event,session)=>{if(event==='SIGNED_OUT'&&!session&&S
   }
 })();
 // ─── АВТООБНОВЛЕНИЕ (кэш GitHub Pages) ───────────────────────────────────────
-const APP_BUILD='2026.08.13-o'; // ⚠️ менять при каждом деплое
+const APP_BUILD='2026.08.13-p'; // ⚠️ менять при каждом деплое
 // Показываем номер сборки на логине — для диагностики версий
 setTimeout(()=>{const lb=document.getElementById('loginBuild');if(lb)lb.textContent='v '+APP_BUILD;},300);
 function checkAppUpdate(){
@@ -8270,6 +8277,7 @@ async function cvGiveSectionAsHW(){
   showToast("✅ "+t("Выдано ДЗ")+": "+n);
 }
 function lvRender(){
+  try{lvAnsBoardSoon();}catch(_ab){}
   // Просмотр по разделам: все упражнения текущего раздела на одной странице
   if(!LV.sections||LV.sections.length===0){
     C('cv_sectionTitle').textContent=t('Урок');
@@ -8701,6 +8709,35 @@ function cvPushSection(){
   showToast('👥 '+t('Ученики переключены на этот раздел'));
 }
 // Ответ ученика прилетел из базы — показываем его учителю прямо в упражнении
+function lvAnsBoardSoon(){try{clearTimeout(window._ansBoardT);window._ansBoardT=setTimeout(lvAnsBoard,400);}catch(e){}}
+async function lvAnsBoard(){
+  try{
+    var old=document.getElementById('lvAnsBoard');if(old)old.remove();
+    if(!['teacher','admin','owner'].includes(S.role))return;
+    if(!LV.lessonId||LV.hwId)return;
+    var ids=[];
+    if(S._cvStudentId){ids=[S._cvStudentId];}
+    else if(S.currentClassId){var cs=await sb.from('class_students').select('student_id').eq('class_id',S.currentClassId).eq('school_id',S.schoolId);ids=(cs.data||[]).map(function(c){return c.student_id;});}
+    if(ids.length<1)return;
+    var st=await sb.from('students').select('id,first_name,last_name').in('id',ids);
+    var an=await sb.from('lesson_answers').select('student_id,ex_key,answer,correct').eq('school_id',S.schoolId).eq('lesson_id',LV.lessonId).in('student_id',ids);
+    var all=an.data||[];
+    var curKey=String(LV.curSec)+'_'+String(LV.curEx);
+    var rows=(st.data||[]).map(function(s){
+      var mine=all.filter(function(a){return a.student_id===s.id;});
+      var ok=mine.filter(function(a){return a.correct===true;}).length;
+      var bad=mine.filter(function(a){return a.correct===false;}).length;
+      var cur=mine.filter(function(a){return String(a.ex_key)===curKey;})[0];
+      var nm=((s.first_name||'')+' '+(s.last_name||'')).trim()||'—';
+      var body=cur?((cur.correct===true?'\u2705 ':(cur.correct===false?'\u274C ':''))+_escHtml(String(cur.answer||'').slice(0,60))):('<span style="opacity:.5">'+t('нет ответа')+'</span>');
+      return '<div class="lv-ans-row"><div class="lv-ans-nm">'+_escHtml(nm)+'</div>'
+        +'<div class="lv-ans-st">\u2705 '+ok+' \u00b7 \u274C '+bad+' \u00b7 '+mine.length+'</div>'
+        +'<div class="lv-ans-cur">'+body+'</div></div>';
+    }).join('');
+    var host=document.getElementById('cvRightSidebar');if(!host)return;
+    host.insertAdjacentHTML('afterbegin','<div id="lvAnsBoard"><div class="hw-side-hd">'+t('Прогресс учеников')+'</div>'+rows+'</div>');
+  }catch(e){}
+}
 function lvApplyStudentAnswer(row){
   try{
     if(!row||!row.ex_key)return;
@@ -8708,7 +8745,8 @@ function lvApplyStudentAnswer(row){
     var ids=['fb_'+k,'oq_'+k,'vq_'+k];
     var hit=null;
     for(var i=0;i<ids.length;i++){var el=document.getElementById(ids[i]);if(el){hit=el;break;}}
-    if(hit&&document.activeElement!==hit){hit.value=row.answer||'';hit.style.outline='2px solid var(--purple)';setTimeout(function(){hit.style.outline='';},1200);}
+    if(hit&&S._cvStudentId&&document.activeElement!==hit){hit.value=row.answer||'';hit.style.outline='2px solid var(--purple)';setTimeout(function(){hit.style.outline='';},1200);}
+    lvAnsBoardSoon();
     var mark=(row.correct===true?'✅ ':(row.correct===false?'❌ ':''));
     showToast('✍️ '+t('Ответ ученика')+': '+mark+String(row.answer||'').slice(0,60));
   }catch(e){console.warn('[ans apply]',e);}
