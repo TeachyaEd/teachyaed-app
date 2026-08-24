@@ -4235,7 +4235,7 @@ sb.auth.onAuthStateChange((event,session)=>{if(event==='SIGNED_OUT'&&!session&&S
   }
 })();
 // ─── АВТООБНОВЛЕНИЕ (кэш GitHub Pages) ───────────────────────────────────────
-const APP_BUILD='2026.08.13-aa'; // ⚠️ менять при каждом деплое
+const APP_BUILD='2026.08.13-ab'; // ⚠️ менять при каждом деплое
 // Показываем номер сборки на логине — для диагностики версий
 setTimeout(()=>{const lb=document.getElementById('loginBuild');if(lb)lb.textContent='v '+APP_BUILD;},300);
 function checkAppUpdate(){
@@ -5517,15 +5517,14 @@ async function enterStudentClassLesson(classId){
     (assigns||[]).forEach(a=>{window._assignCache[a.id]=a;});
     const byLesson={};(assigns||[]).forEach(a=>{if(!byLesson[a.lesson_id]||!byLesson[a.lesson_id].completed&&a.completed===false)byLesson[a.lesson_id]=byLesson[a.lesson_id]||a;});
     let target=null;
-    for(const p of (prog||[])){const a=byLesson[p.lesson_id];if(a&&!a.completed){target=a;break;}}
+    if((prog||[]).length){target=byLesson[prog[0].lesson_id]||null;} // pin (position) is authoritative - open whatever the teacher pinned as current
     if(!target)target=(assigns||[]).find(a=>!a.completed&&a.class_id===classId)||(assigns||[]).find(a=>!a.completed);
-    if(!target&&(prog||[]).length){const last=byLesson[prog[prog.length-1].lesson_id];if(last)target=last;} // всё пройдено → последний
     if(target&&target.lesson){openLessonView(target.id);return;}
     // 3) Назначений нет — открываем последний урок программы класса
     try{
       var _pl=(prog||[]);
       if(_pl.length){
-        var _lid=_pl[_pl.length-1].lesson_id;
+        var _lid=_pl[0].lesson_id; // pin (position) is authoritative
         var _lr=await sb.from('lessons').select('id,title,content').eq('id',_lid).eq('school_id',S.schoolId).maybeSingle();
         if(_lr.data){
           var _pc=_parseLessonContent(_lr.data.content||[]);
