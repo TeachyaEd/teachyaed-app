@@ -329,6 +329,9 @@ tr:hover td{background:#FAFAFA}
 #callWindow{display:none;position:fixed;top:16px;right:16px;width:520px;background:#1a1a2e;border-radius:16px;box-shadow:0 8px 40px rgba(0,0,0,.5);z-index:500;overflow:hidden;border:2px solid var(--purple);transition:width .25s,height .25s,top .25s,left .25s,transform .25s}
 #callWindow.visible{display:block}
 #callWindow.expanded{top:50%;left:50%;right:auto;transform:translate(-50%,-50%);width:min(960px,92vw)}
+#callWindow{resize:both;min-width:300px;min-height:220px;max-width:96vw;max-height:92vh}
+#callWindow.call-locked{resize:none}
+#callWindow.call-locked #callHeader{cursor:default}
 #callHeader{background:linear-gradient(135deg,var(--purple),var(--pink));color:#fff;padding:10px 14px;display:flex;align-items:center;gap:8px;cursor:move;user-select:none}
 #callHeader .call-title{flex:1;font-weight:600;font-size:.9rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .chbtn{background:rgba(255,255,255,.2);border:none;color:#fff;width:28px;height:28px;border-radius:6px;cursor:pointer;font-size:.85rem;display:flex;align-items:center;justify-content:center}
@@ -389,6 +392,9 @@ body[data-theme="dark"] .wb-tool{color:var(--text2)}
 .vocab-card{perspective:600px;cursor:pointer;margin-bottom:8px}
 .vocab-inner{position:relative;width:100%;height:60px;transform-style:preserve-3d;transition:transform .5s}
 .vocab-card.flipped .vocab-inner{transform:rotateY(180deg)}
+.vocab-card-lesson{display:inline-block;width:180px;vertical-align:top;margin:0 8px 8px 0}
+.vocab-card-lesson .vocab-inner{height:70px}
+.vocab-card-lesson .vocab-front,.vocab-card-lesson .vocab-back{font-size:.85rem;padding:6px;text-align:center;word-break:break-word}
 .vocab-front,.vocab-back{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;border-radius:10px;font-weight:600;font-size:1rem;backface-visibility:hidden}
 .vocab-front{background:var(--purple-light);color:var(--purple)}
 .vocab-back{background:var(--green-light);color:var(--text);transform:rotateY(180deg)}
@@ -4229,7 +4235,7 @@ sb.auth.onAuthStateChange((event,session)=>{if(event==='SIGNED_OUT'&&!session&&S
   }
 })();
 // ─── АВТООБНОВЛЕНИЕ (кэш GitHub Pages) ───────────────────────────────────────
-const APP_BUILD='2026.08.13-v'; // ⚠️ менять при каждом деплое
+const APP_BUILD='2026.08.13-w'; // ⚠️ менять при каждом деплое
 // Показываем номер сборки на логине — для диагностики версий
 setTimeout(()=>{const lb=document.getElementById('loginBuild');if(lb)lb.textContent='v '+APP_BUILD;},300);
 function checkAppUpdate(){
@@ -8645,7 +8651,7 @@ function renderBlockView(b,i){
   </div>`;
   if(b.type==='vocab') return`<div class="lesson-view-block">
     <div style="font-weight:700;margin-bottom:10px">🃏 Карточки <small style="color:var(--text3)">(кликни чтобы перевернуть)</small></div>
-    ${(b.words||[]).map((w)=>`<div class="vocab-card" onclick="this.classList.toggle('flipped')">
+    ${(b.words||[]).map((w)=>`<div class="vocab-card vocab-card-lesson" onclick="this.classList.toggle('flipped')">
       <div class="vocab-inner"><div class="vocab-front">${_escHtml(w.word)}</div><div class="vocab-back">${_escHtml(w.trans)}</div></div>
     </div>`).join('')}
   </div>`;
@@ -10489,5 +10495,40 @@ async function exportICal(){
   </div>
 </div>
 
+
+<script>
+(function(){
+  function initCallLock(){
+    var cw=document.getElementById('callWindow');
+    var hdr=document.getElementById('callHeader');
+    if(!cw||!hdr||document.getElementById('callLockBtn'))return;
+    var b=document.createElement('button');
+    b.id='callLockBtn';
+    b.className='chbtn';
+    b.title='Закрепить/открепить окно звонка';
+    b.type='button';
+    b.innerHTML='🔓';
+    b.onclick=function(e){
+      e.stopPropagation();
+      var locked=cw.classList.toggle('call-locked');
+      b.innerHTML=locked?'🔒':'🔓';
+    };
+    hdr.appendChild(b);
+  }
+  if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',initCallLock);}else{initCallLock();}
+  var _mo=new MutationObserver(initCallLock);
+  _mo.observe(document.body,{childList:true,subtree:true});
+  document.addEventListener('mousedown',function(e){
+    var cw=document.getElementById('callWindow');
+    var hdr=document.getElementById('callHeader');
+    if(!cw||!hdr||!cw.classList.contains('call-locked'))return;
+    if(e.target===hdr||hdr.contains(e.target)){
+      if(e.target.id==='callLockBtn')return;
+      e.stopImmediatePropagation();
+      e.preventDefault();
+    }
+  },true);
+})();
+</script>
 </body>
 </html>
