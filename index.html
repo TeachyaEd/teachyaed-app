@@ -4229,7 +4229,7 @@ sb.auth.onAuthStateChange((event,session)=>{if(event==='SIGNED_OUT'&&!session&&S
   }
 })();
 // ─── АВТООБНОВЛЕНИЕ (кэш GitHub Pages) ───────────────────────────────────────
-const APP_BUILD='2026.08.13-t'; // ⚠️ менять при каждом деплое
+const APP_BUILD='2026.08.13-v'; // ⚠️ менять при каждом деплое
 // Показываем номер сборки на логине — для диагностики версий
 setTimeout(()=>{const lb=document.getElementById('loginBuild');if(lb)lb.textContent='v '+APP_BUILD;},300);
 function checkAppUpdate(){
@@ -5515,7 +5515,21 @@ async function enterStudentClassLesson(classId){
     if(!target)target=(assigns||[]).find(a=>!a.completed&&a.class_id===classId)||(assigns||[]).find(a=>!a.completed);
     if(!target&&(prog||[]).length){const last=byLesson[prog[prog.length-1].lesson_id];if(last)target=last;} // всё пройдено → последний
     if(target&&target.lesson){openLessonView(target.id);return;}
-    // 3) Уроков нет → детальный экран класса
+    // 3) Назначений нет — открываем последний урок программы класса
+    try{
+      var _pl=(prog||[]);
+      if(_pl.length){
+        var _lid=_pl[_pl.length-1].lesson_id;
+        var _lr=await sb.from('lessons').select('id,title,content').eq('id',_lid).eq('school_id',S.schoolId).maybeSingle();
+        if(_lr.data){
+          var _pc=_parseLessonContent(_lr.data.content||[]);
+          S.currentClassId=classId;
+          openClassroomView(_lr.data.title||'Урок',_pc.sections,null,null,_pc.materials,_lr.data.id);
+          lvSyncInit('ls_'+String(_lr.data.id).replace(/[^a-zA-Z0-9]/g,'').slice(0,20));
+          return;
+        }
+      }
+    }catch(_le){}
     openStudentClass(classId);
     showToast(t('Уроки пока не назначены. Попроси учителя!'));
   }catch(e){console.warn('[enterStudentClassLesson]',e);openStudentClass(classId);}
@@ -8863,8 +8877,8 @@ function lvSyncApply(p){
       if(!C('wbOverlay').classList.contains('open'))openWb(true);
     } else if(p.kind==='wbclear'){
       clearWb(true);
-    } else if(p.kind==='section'&&typeof p.value==='number'){
-      if(S.role==='student'){LV.curSec=Math.max(0,Math.min(p.value,((LV.sections||[]).length-1)));LV.curEx=0;lvRender();showToast('👥 '+t('Учитель переключил раздел'));}
+    } else if(p.kind==='section'&&p.value!==''&&isFinite(Number(p.value))){
+      if(S.role==='student'){LV.curSec=Math.max(0,Math.min(Number(p.value),((LV.sections||[]).length-1)));LV.curEx=0;lvRender();showToast('👥 '+t('Учитель переключил раздел'));}
     } else if(p.kind==='lesson'&&p.value){
       // Учитель сменил урок — подтягиваем новый контент
       (async()=>{
