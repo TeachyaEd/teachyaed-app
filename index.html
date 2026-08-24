@@ -4235,7 +4235,7 @@ sb.auth.onAuthStateChange((event,session)=>{if(event==='SIGNED_OUT'&&!session&&S
   }
 })();
 // ─── АВТООБНОВЛЕНИЕ (кэш GitHub Pages) ───────────────────────────────────────
-const APP_BUILD='2026.08.13-w'; // ⚠️ менять при каждом деплое
+const APP_BUILD='2026.08.13-x'; // ⚠️ менять при каждом деплое
 // Показываем номер сборки на логине — для диагностики версий
 setTimeout(()=>{const lb=document.getElementById('loginBuild');if(lb)lb.textContent='v '+APP_BUILD;},300);
 function checkAppUpdate(){
@@ -8785,7 +8785,7 @@ function lvApplyStudentAnswer(row){
     if(hit&&S._cvStudentId&&document.activeElement!==hit){hit.value=row.answer||'';hit.style.outline='2px solid var(--purple)';setTimeout(function(){hit.style.outline='';},1200);}
     lvAnsBoardSoon();
     var mark=(row.correct===true?'✅ ':(row.correct===false?'❌ ':''));
-    showToast('✍️ '+t('Ответ ученика')+': '+mark+String(row.answer||'').slice(0,60));
+    /*toast removed - inline badge used instead*/void 0;
   }catch(e){console.warn('[ans apply]',e);}
 }
 // Слово из словаря → в словарь урока (ученик увидит его у себя)
@@ -10528,6 +10528,76 @@ async function exportICal(){
       e.preventDefault();
     }
   },true);
+})();
+</script>
+
+<script>
+(function(){
+function tyExFindWrapper(exKey){
+  var root=document.getElementById('cv_exerciseContent');
+  if(!root)return null;
+  var kids=root.children;
+  for(var i=0;i<kids.length;i++){
+    var all=kids[i].querySelectorAll('[id]');
+    for(var j=0;j<all.length;j++){
+      var m=all[j].id.match(/_(\d+)_(\d+)(?:_|$)/);
+      if(m && (m[1]+'_'+m[2])===String(exKey))return kids[i];
+    }
+  }
+  return null;
+}
+window.tyExFindWrapper=tyExFindWrapper;
+async function tyInlineAnswerBoard(){
+  try{
+    if(typeof S==='undefined'||!S||!['teacher','admin','owner'].includes(S.role))return;
+    if(typeof LV==='undefined'||!LV||!LV.lessonId||LV.hwId)return;
+    var root=document.getElementById('cv_exerciseContent');
+    if(!root)return;
+    var ids=[];
+    if(S._cvStudentId){ids=[S._cvStudentId];}
+    else if(S.currentClassId){
+      var _own=await sb.from('class_lessons').select('id').eq('class_id',S.currentClassId).eq('lesson_id',LV.lessonId).eq('school_id',S.schoolId).maybeSingle();
+      if(!_own.data)return;
+      var cs=await sb.from('class_students').select('student_id').eq('class_id',S.currentClassId).eq('school_id',S.schoolId);
+      ids=(cs.data||[]).map(function(c){return c.student_id;});
+    }
+    if(!ids.length)return;
+    var st=await sb.from('students').select('id,first_name,last_name').in('id',ids);
+    var an=await sb.from('lesson_answers').select('student_id,ex_key,answer,correct').eq('school_id',S.schoolId).eq('lesson_id',LV.lessonId).in('student_id',ids);
+    var nameMap={};
+    (st.data||[]).forEach(function(s){nameMap[s.id]=(s.first_name||'')+(s.last_name?(' '+s.last_name[0]+'.'):'');});
+    var multi=ids.length>1;
+    (an.data||[]).forEach(function(row){
+      var wrap=tyExFindWrapper(row.ex_key);
+      if(!wrap)return;
+      var bid='tyAnsBadge_'+row.ex_key+'_'+row.student_id;
+      var el=document.getElementById(bid);
+      if(!el){el=document.createElement('div');el.id=bid;wrap.appendChild(el);}
+      var ok=row.correct;
+      var icon=ok===true?'✅':(ok===false?'❌':'✍️');
+      var bg=ok===true?'var(--green-light)':(ok===false?'#FEE2E2':'var(--purple-light)');
+      var color=ok===true?'#065F46':(ok===false?'#991B1B':'var(--purple-dark)');
+      el.style.cssText='margin-top:10px;padding:8px 12px;border-radius:10px;font-size:.85rem;line-height:1.4;background:'+bg+';color:'+color;
+      var nm=multi?(nameMap[row.student_id]||''):'';
+      var ans=String(row.answer==null?'':row.answer);
+      if(ans.length>220)ans=ans.slice(0,220)+'…';
+      el.innerHTML=icon+' '+(nm?'<b>'+_escHtml(nm)+':</b> ':'')+_escHtml(ans);
+    });
+  }catch(e){console.warn('tyInlineAnswerBoard',e);}
+}
+window.tyInlineAnswerBoard=tyInlineAnswerBoard;
+function tyWireAnsBoardPatch(){
+  if(typeof window.lvAnsBoard!=='function'||window.__tyAnsBoardPatched)return;
+  var _orig=window.lvAnsBoard;
+  window.lvAnsBoard=async function(){
+    try{await _orig.apply(this,arguments);}catch(e){console.warn(e);}
+    try{await tyInlineAnswerBoard();}catch(e){console.warn(e);}
+  };
+  window.__tyAnsBoardPatched=true;
+}
+if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',tyWireAnsBoardPatch);}else{tyWireAnsBoardPatch();}
+setTimeout(tyWireAnsBoardPatch,0);
+setTimeout(tyWireAnsBoardPatch,1000);
 })();
 </script>
 </body>
