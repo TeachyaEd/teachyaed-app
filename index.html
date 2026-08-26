@@ -4235,7 +4235,7 @@ sb.auth.onAuthStateChange((event,session)=>{if(event==='SIGNED_OUT'&&!session&&S
   }
 })();
 // ─── АВТООБНОВЛЕНИЕ (кэш GitHub Pages) ───────────────────────────────────────
-const APP_BUILD='2026.08.13-ac'; // ⚠️ менять при каждом деплое
+const APP_BUILD='2026.08.13-ad'; // ⚠️ менять при каждом деплое
 // Показываем номер сборки на логине — для диагностики версий
 setTimeout(()=>{const lb=document.getElementById('loginBuild');if(lb)lb.textContent='v '+APP_BUILD;},300);
 function checkAppUpdate(){
@@ -10546,12 +10546,16 @@ function tyExFindWrapper(exKey){
 window.tyExFindWrapper=tyExFindWrapper;
 async function tyInlineAnswerBoard(){
   try{
-    if(typeof S==='undefined'||!S||!['teacher','admin','owner'].includes(S.role))return;
+    if(typeof S==='undefined'||!S)return;
+    var isStaff=['teacher','admin','owner'].includes(S.role);
+    var isSelf=(S.role==='student'&&S.studentRowId);
+    if(!isStaff&&!isSelf)return;
     if(typeof LV==='undefined'||!LV||!LV.lessonId||LV.hwId)return;
     var root=document.getElementById('cv_exerciseContent');
     if(!root)return;
     var ids=[];
-    if(S._cvStudentId){ids=[S._cvStudentId];}
+    if(!isStaff){ids=[S.studentRowId];}
+    else if(S._cvStudentId){ids=[S._cvStudentId];}
     else if(S.currentClassId){
       var _own=await sb.from('class_lessons').select('id').eq('class_id',S.currentClassId).eq('lesson_id',LV.lessonId).eq('school_id',S.schoolId).maybeSingle();
       if(!_own.data)return;
@@ -10563,7 +10567,7 @@ async function tyInlineAnswerBoard(){
     var an=await sb.from('lesson_answers').select('student_id,ex_key,answer,correct').eq('school_id',S.schoolId).eq('lesson_id',LV.lessonId).in('student_id',ids);
     var nameMap={};
     (st.data||[]).forEach(function(s){nameMap[s.id]=(s.first_name||'')+(s.last_name?(' '+s.last_name[0]+'.'):'');});
-    var multi=ids.length>1;
+    var multi=isStaff&&ids.length>1;
     (an.data||[]).forEach(function(row){
       var wrap=tyExFindWrapper(row.ex_key);
       if(!wrap)return;
