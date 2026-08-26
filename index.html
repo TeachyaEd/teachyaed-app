@@ -4235,7 +4235,7 @@ sb.auth.onAuthStateChange((event,session)=>{if(event==='SIGNED_OUT'&&!session&&S
   }
 })();
 // ─── АВТООБНОВЛЕНИЕ (кэш GitHub Pages) ───────────────────────────────────────
-const APP_BUILD='2026.08.13-ab'; // ⚠️ менять при каждом деплое
+const APP_BUILD='2026.08.13-ac'; // ⚠️ менять при каждом деплое
 // Показываем номер сборки на логине — для диагностики версий
 setTimeout(()=>{const lb=document.getElementById('loginBuild');if(lb)lb.textContent='v '+APP_BUILD;},300);
 function checkAppUpdate(){
@@ -8429,7 +8429,7 @@ async function cvLoadHomework(){
           +'<button class="btn btn-sm btn-outline" style="font-size:.75rem" onclick="openHWEditor(\''+id+'\')">✏️ '+t("Изменить")+'</button>'
           +'<button class="btn btn-sm btn-outline" style="font-size:.75rem" onclick="cvPostponeHW(\''+id+'\')">📅 '+t("Перенести")+'</button>'
         : '<button class="btn btn-sm btn-purple" style="font-size:.75rem" onclick="openHWAsLesson(\''+id+'\')">▶️ '+t("Открыть")+'</button>';
-acts+'<button class="btn btn-sm btn-outline" style="font-size:.75rem;color:var(--red)" onclick="hwDeleteRow(\''+id+',\'cvLoadHomework\')">🗑 '+t("Удалить")+'</button>';
+acts+='<button class="btn btn-sm btn-outline" style="font-size:.75rem;color:var(--red)" onclick="hwDeleteRow(\''+id+'\',\'cvLoadHomework\')">🗑 '+t("Удалить")+'</button>';
       return '<div class="card" style="margin-bottom:8px;padding:12px 16px"><div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">'
         +'<div><div style="font-weight:700">'+_escHtml(hw.title||"ДЗ")+' <span class="badge '+(bMap[hw.status]||"badge-purple")+'">'+_escHtml(sMap[hw.status]||hw.status||"")+'</span></div>'
         +'<div style="font-size:.78rem;color:var(--text3)">'+who+"📅 "+fmtDate(hw.deadline)+" · 📝 "+p.exercises.length+" "+t("упр.")+'</div>'
