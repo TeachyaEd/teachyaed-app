@@ -4235,7 +4235,7 @@ sb.auth.onAuthStateChange((event,session)=>{if(event==='SIGNED_OUT'&&!session&&S
   }
 })();
 // ─── АВТООБНОВЛЕНИЕ (кэш GitHub Pages) ───────────────────────────────────────
-const APP_BUILD='2026.08.13-ae'; // ⚠️ менять при каждом деплое
+const APP_BUILD='2026.08.13-af'; // ⚠️ менять при каждом деплое
 // Показываем номер сборки на логине — для диагностики версий
 setTimeout(()=>{const lb=document.getElementById('loginBuild');if(lb)lb.textContent='v '+APP_BUILD;},300);
 function checkAppUpdate(){
@@ -8822,9 +8822,17 @@ function lvSyncInit(roomKey){
   try{
     if(!roomKey)return;
     if(LV._syncCh){try{sb.removeChannel(LV._syncCh);}catch(e){}LV._syncCh=null;}
+    LV._syncReady=false;
+    LV._syncRoomKey=roomKey;
     LV._syncCh=sb.channel('exsync-'+roomKey)
       .on('broadcast',{event:'ex'},({payload})=>lvSyncApply(payload))
-      .subscribe();
+      .subscribe(function(status){
+        LV._syncReady=(status==='SUBSCRIBED');
+        if(status==='CLOSED'||status==='CHANNEL_ERROR'||status==='TIMED_OUT'){
+          LV._syncReady=false;
+          setTimeout(function(){if(LV._syncRoomKey===roomKey)lvSyncInit(roomKey);},1500);
+        }
+      });
     if(['teacher','admin','owner'].includes(S.role)&&LV.lessonId){
       if(LV._ansCh){try{sb.removeChannel(LV._ansCh);}catch(e){}LV._ansCh=null;}
       LV._ansCh=sb.channel('la-'+roomKey)
@@ -8849,7 +8857,12 @@ function lvSyncSendDebounced(id,kind,value){
 }
 function lvSyncSend(id,kind,value,extra){
   if(LV._syncApplying||!LV._syncCh)return;
-  try{LV._syncCh.send({type:'broadcast',event:'ex',payload:{id,kind,value:String(value==null?'':value).slice(0,2000),from:S.profile?.id||'',extra:extra||null}});}catch(e){}
+  var _pl={type:'broadcast',event:'ex',payload:{id,kind,value:String(value==null?'':value).slice(0,2000),from:S.profile?.id||'',extra:extra||null}};
+  var _ch=LV._syncCh;
+  try{
+    if(LV._syncReady){_ch.send(_pl);}
+    else{setTimeout(function(){try{if(LV._syncCh===_ch)_ch.send(_pl);}catch(e){}},700);}
+  }catch(e){}
 }
 function lvSyncApply(p){
   if(!p||p.from===S.profile?.id)return;
