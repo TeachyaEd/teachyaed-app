@@ -4235,7 +4235,7 @@ sb.auth.onAuthStateChange((event,session)=>{if(event==='SIGNED_OUT'&&!session&&S
   }
 })();
 // ─── АВТООБНОВЛЕНИЕ (кэш GitHub Pages) ───────────────────────────────────────
-const APP_BUILD='2026.08.13-af'; // ⚠️ менять при каждом деплое
+const APP_BUILD='2026.08.13-ag'; // ⚠️ менять при каждом деплое
 // Показываем номер сборки на логине — для диагностики версий
 setTimeout(()=>{const lb=document.getElementById('loginBuild');if(lb)lb.textContent='v '+APP_BUILD;},300);
 function checkAppUpdate(){
@@ -4504,7 +4504,13 @@ function subscribeNotifications(){
           if(cf.type==='post')showToast('💬 '+_escHtml(cf.author_name||'')+': '+_escHtml((cf.text||'').slice(0,60)));
         }catch(_e){}
       })
-    .subscribe();
+    .subscribe(function(status){
+    S._notifyReady=(status==='SUBSCRIBED');
+    if(status==='CLOSED'||status==='CHANNEL_ERROR'||status==='TIMED_OUT'){
+      S._notifyReady=false;
+      setTimeout(function(){if(S.profile?.id)subscribeNotifications();},1500);
+    }
+  });
   // Проверяем pending сигналы (если пришли пока был офлайн)
   setTimeout(async()=>{
     const{data:sigs}=await sb.from('call_signals').select('*').eq('to_profile_id',S.profile.id).eq('school_id',S.schoolId).order('created_at',{ascending:false}).limit(1);
@@ -4514,6 +4520,15 @@ function subscribeNotifications(){
       sb.from('call_signals').delete().eq('to_profile_id',S.profile.id).eq('school_id',S.schoolId).then(()=>{});
     }
   },1500);
+  // Подстраховка: если вкладка была в фоне и соединение протухло — переподключаемся при возврате
+  if(!S._notifyVisBound){
+    S._notifyVisBound=true;
+    document.addEventListener('visibilitychange',function(){
+      if(!document.hidden&&S.profile?.id&&S.notifyChannel&&S.notifyChannel.state!=='joined'){
+        subscribeNotifications();
+      }
+    });
+  }
 }
 function toggleDialer(){if(S.inCall){hangUp();return;}const p=C('contactPicker');p.classList.toggle('open');if(p.classList.contains('open'))renderContacts();}
 function renderContacts(){
@@ -6958,7 +6973,6 @@ async function loadClassTab(tab){
             ${l.published?'<span class="badge badge-green">✓ Опубликован</span>':'<span class="badge badge-gray">Черновик</span>'}
             <button class="btn btn-sm btn-outline" style="font-size:.73rem;padding:4px 8px" onclick="previewLessonById('${_esc(l.id).replace(/'/g,"&#39;")}')">👁 Просмотр</button>
             <button class="btn btn-sm btn-outline" style="font-size:.73rem;padding:4px 8px" onclick="editLessonById('${_esc(l.id).replace(/'/g,"&#39;")}')">✎ Редактор</button>
-            <button class="btn btn-sm btn-purple" style="font-size:.73rem;padding:4px 8px" onclick="openAssignLesson('${_esc(l.id).replace(/'/g,"&#39;")}')">👤 Назначить</button>
           </div>
         </div>
       </div>`;}).join('');
@@ -7817,8 +7831,7 @@ async function renderTeacherLessons(){
         <div style="display:flex;gap:6px;flex-wrap:wrap">
           ${l.published?'<span class="badge badge-green">✓ Опубликован</span>':'<span class="badge badge-gray">Черновик</span>'}
           ${(()=>{const _lId=_esc(l.id).replace(/'/g,"&#39;");return`<button class="btn btn-sm btn-outline" style="font-size:.73rem;padding:4px 8px" onclick="previewLessonById('${_lId}')">👁 Просмотр</button>
-          <button class="btn btn-sm btn-outline" style="font-size:.73rem;padding:4px 8px" onclick="editLessonById('${_lId}')">✎ Редактор</button>
-          <button class="btn btn-sm btn-purple" style="font-size:.73rem;padding:4px 8px" onclick="openAssignLesson('${_lId}')">👤 Назначить</button>`;})()}
+          <button class="btn btn-sm btn-outline" style="font-size:.73rem;padding:4px 8px" onclick="editLessonById('${_lId}')">✎ Редактор</button>`;})()}
         </div>
       </div>
     </div>`;}).join('');
