@@ -1448,7 +1448,7 @@ body[data-theme="dark"] .badge-gray{background:rgba(255,255,255,.07)!important;c
         <button class="ce-mode-btn active" id="ceModeEdit" onclick="setCEMode('edit')">✎ Редактор</button>
         <button class="ce-mode-btn" id="ceModePreview" onclick="setCEMode('preview')">▶ Просмотр</button>
       </div>
-      <button class="ce-tbtn ce-tbtn-save" onclick="saveFromCE(false)">💾 Сохранить</button>
+      <button class="ce-tbtn ce-tbtn-save" onclick="saveFromCE(true)">💾 Сохранить</button>
       <button class="ce-tbtn ce-tbtn-pub" onclick="saveFromCE(true)">🚀 Опубликовать</button>
       <button class="ce-tbtn" id="ceShareBtn" onclick="shareToLibrary()" style="background:var(--purple-light);color:var(--purple);border:1.5px solid var(--purple);border-radius:8px;padding:6px 12px;font-size:.8rem;font-weight:600;cursor:pointer;font-family:var(--font)">🌐 В библиотеку</button>
     </div>
@@ -1488,7 +1488,7 @@ body[data-theme="dark"] .badge-gray{background:rgba(255,255,255,.07)!important;c
       </div>
       <div style="padding:12px;border-top:1px solid var(--gray-border)">
         <button onclick="saveFromCE(true)" style="width:100%;padding:10px;background:var(--purple);color:#fff;border:none;border-radius:10px;font-size:.88rem;font-weight:700;cursor:pointer;font-family:var(--font);margin-bottom:8px">🚀 Опубликовать</button>
-        <button onclick="saveFromCE(false)" style="width:100%;padding:9px;background:var(--gray-light);color:var(--text2);border:none;border-radius:10px;font-size:.85rem;font-weight:600;cursor:pointer;font-family:var(--font)">💾 Черновик</button>
+        <button onclick="saveFromCE(true)" style="width:100%;padding:9px;background:var(--gray-light);color:var(--text2);border:none;border-radius:10px;font-size:.85rem;font-weight:600;cursor:pointer;font-family:var(--font)">💾 Черновик</button>
         <button onclick="shareToLibrary()" id="ceShareBtnSide" style="width:100%;padding:9px;background:var(--purple-light);color:var(--purple);border:1.5px solid var(--purple);border-radius:10px;font-size:.82rem;font-weight:600;cursor:pointer;font-family:var(--font);margin-top:6px">🌐 Поделиться в библиотеку</button>
       </div>
       <div class="cv-ai-panel">
@@ -4235,7 +4235,7 @@ sb.auth.onAuthStateChange((event,session)=>{if(event==='SIGNED_OUT'&&!session&&S
   }
 })();
 // ─── АВТООБНОВЛЕНИЕ (кэш GitHub Pages) ───────────────────────────────────────
-const APP_BUILD='2026.08.13-ad'; // ⚠️ менять при каждом деплое
+const APP_BUILD='2026.08.13-ae'; // ⚠️ менять при каждом деплое
 // Показываем номер сборки на логине — для диагностики версий
 setTimeout(()=>{const lb=document.getElementById('loginBuild');if(lb)lb.textContent='v '+APP_BUILD;},300);
 function checkAppUpdate(){
@@ -7871,7 +7871,7 @@ async function aiGenerateLesson(){
       language:C('ai_lang')?.value||'Английский',
       level:C('ai_level')?.value||'A1',
       content,
-      published:false,
+      published:true,
       teacher_id:S.profile?.id||null
     }).select().single();
     if(error){showToast('❌ '+error.message,'error');return;}
@@ -10175,7 +10175,7 @@ async function renderStudentVocab(){
     setContent('<div class="empty-state"><div class="ei">📖</div><p>Нет назначенных уроков</p></div>');
     return;
   }
-  const{data:lessons}=await sb.from('lessons').select('title,content').in('id',lessonIds).eq('school_id',S.schoolId).eq('published',true);
+  const{data:lessons}=await sb.from('lessons').select('title,content').in('id',lessonIds).eq('school_id',S.schoolId);
   if(S.screen!==_svSnap)return;
   (lessons||[]).forEach(lesson=>{
     let cont;try{cont=typeof lesson.content==='string'?JSON.parse(lesson.content):lesson.content;}catch(e){return;}
