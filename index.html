@@ -4255,7 +4255,7 @@ setInterval(async function(){
   }
 })();
 // ─── АВТООБНОВЛЕНИЕ (кэш GitHub Pages) ───────────────────────────────────────
-const APP_BUILD='2026.08.13-ah'; // ⚠️ менять при каждом деплое
+const APP_BUILD='2026.08.13-ai'; // ⚠️ менять при каждом деплое
 // Показываем номер сборки на логине — для диагностики версий
 setTimeout(()=>{const lb=document.getElementById('loginBuild');if(lb)lb.textContent='v '+APP_BUILD;},300);
 function checkAppUpdate(){
@@ -8773,6 +8773,9 @@ function renderBlockView(b,i){
 function cvPushSection(){
   if(!['teacher','admin','owner'].includes(S.role))return;
   lvSyncSend('section','section',LV.curSec||0);
+  if(LV.lessonId&&S.currentClassId){
+    sb.from('class_live').update({cur_section:LV.curSec||0}).eq('lesson_id',LV.lessonId).eq('class_id',S.currentClassId).eq('school_id',S.schoolId).eq('active',true).then(function(r){if(r&&r.error)console.warn('[push section persist]',r.error);});
+  }
   showToast('👥 '+t('Ученики переключены на этот раздел'));
 }
 // Ответ ученика прилетел из базы — показываем его учителю прямо в упражнении
@@ -8866,6 +8869,22 @@ function lvSyncInit(roomKey){
           setTimeout(function(){if(LV._syncRoomKey===roomKey)lvSyncInit(roomKey);},1500);
         }
       });
+    // Резервный канал: раздел храним прямо в class_live.cur_section — переживает обрыв broadcast-канала
+    if(LV._liveCh){try{sb.removeChannel(LV._liveCh);}catch(e){}LV._liveCh=null;}
+    if(LV.lessonId){
+      LV._liveCh=sb.channel('cls-'+roomKey)
+        .on('postgres_changes',{event:'UPDATE',schema:'public',table:'class_live',filter:`lesson_id=eq.${LV.lessonId}`},function(p){
+          try{
+            var row=p.new;
+            if(!row||row.school_id!==S.schoolId||!row.active)return;
+            if(S.role==='student'&&typeof row.cur_section==='number'){
+              var _ns=Math.max(0,Math.min(row.cur_section,((LV.sections||[]).length-1)));
+              if(_ns!==LV.curSec){LV.curSec=_ns;LV.curEx=0;window._matchState={};lvRender();showToast('👥 '+t('Учитель переключил раздел'));}
+            }
+          }catch(_e){}
+        })
+        .subscribe();
+    }
     if(['teacher','admin','owner'].includes(S.role)&&LV.lessonId){
       if(LV._ansCh){try{sb.removeChannel(LV._ansCh);}catch(e){}LV._ansCh=null;}
       LV._ansCh=sb.channel('la-'+roomKey)
