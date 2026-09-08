@@ -4216,6 +4216,26 @@ async function doLogout(){
 // A11 (аудит): внешний разлогин (истёкший токен) выполняет ПОЛНЫЙ сброс —
 // тот же путь, что и кнопка «Выйти» (повторный signOut внутри безвреден).
 sb.auth.onAuthStateChange((event,session)=>{if(event==='SIGNED_OUT'&&!session&&S.userId){doLogout();}});
+function showSessionExpiredBanner(){
+  if(document.getElementById('sessionExpiredBanner'))return;
+  var b=document.createElement('div');
+  b.id='sessionExpiredBanner';
+  b.style.cssText='position:fixed;top:0;left:0;right:0;z-index:99999;background:#ef4444;color:#fff;padding:12px 16px;text-align:center;font-weight:600;font-size:.9rem;display:flex;align-items:center;justify-content:center;gap:12px;box-shadow:0 2px 8px rgba(0,0,0,.25)';
+  b.innerHTML="\u26A0\uFE0F \u0421\u0435\u0441\u0441\u0438\u044F \u0438\u0441\u0442\u0435\u043A\u043B\u0430 \u2014 \u043E\u0431\u043D\u043E\u0432\u0438 \u0441\u0442\u0440\u0430\u043D\u0438\u0446\u0443<button id='sessionExpiredReloadBtn' style='background:#fff;color:#ef4444;border:none;border-radius:6px;padding:6px 14px;font-weight:700;cursor:pointer;margin-left:8px'>\u041E\u0431\u043D\u043E\u0432\u0438\u0442\u044C</button>";
+  document.body.appendChild(b);
+  var _rb=document.getElementById('sessionExpiredReloadBtn');
+  if(_rb)_rb.onclick=function(){location.reload();};
+}
+setInterval(async function(){
+  try{
+    if(!S.userId)return;
+    if(document.getElementById('sessionExpiredBanner'))return;
+    const{data:{session}}=await sb.auth.getSession();
+    if(!session||(session.expires_at&&session.expires_at*1000<Date.now())){
+      showSessionExpiredBanner();
+    }
+  }catch(e){}
+},60000);
 (async()=>{
   try{
     // First check if this is an invite/password-reset redirect
@@ -4235,7 +4255,7 @@ sb.auth.onAuthStateChange((event,session)=>{if(event==='SIGNED_OUT'&&!session&&S
   }
 })();
 // ─── АВТООБНОВЛЕНИЕ (кэш GitHub Pages) ───────────────────────────────────────
-const APP_BUILD='2026.08.13-ag'; // ⚠️ менять при каждом деплое
+const APP_BUILD='2026.08.13-ah'; // ⚠️ менять при каждом деплое
 // Показываем номер сборки на логине — для диагностики версий
 setTimeout(()=>{const lb=document.getElementById('loginBuild');if(lb)lb.textContent='v '+APP_BUILD;},300);
 function checkAppUpdate(){
@@ -7779,7 +7799,7 @@ function ceEditorHTML(b){
 }
 
 async function saveFromCE(publish){
-  if(!S.profile?.id){showToast('Ошибка: профиль не загружен','error');return;}
+  if(!S.profile?.id){showSessionExpiredBanner();showToast('Ошибка: профиль не загружен','error');return;}
   if(CE._saving)return;
   CE._saving=true;
   try{
@@ -8075,7 +8095,7 @@ async function shareToLibrary(){
 }
 
 async function copyFromLibrary(lessonId,btn){
-  if(!S.profile?.id){showToast(t('Профиль не загружен'),'error');return;}
+  if(!S.profile?.id){showSessionExpiredBanner();showToast(t('Профиль не загружен'),'error');return;}
   if(!['teacher','admin','owner'].includes(S.role)){showToast('Доступ запрещён','error');return;}
   if(copyFromLibrary._busy===lessonId)return;copyFromLibrary._busy=lessonId;
   if(btn){btn.disabled=true;btn.textContent='Копирование...';}
@@ -9731,7 +9751,7 @@ async function createConv(){
   try{
     const type=document.getElementById('nc_type')?.value;
     if(!type)return;
-    if(!S.profile?.id){showToast('Ошибка: профиль не загружен','error');return;}
+    if(!S.profile?.id){showSessionExpiredBanner();showToast('Ошибка: профиль не загружен','error');return;}
     let members=[S.profile.id];
     let name=null;
     if(type==='direct'){
@@ -10385,7 +10405,7 @@ async function exportICal(){
   const isEn=S.lang==='en';
   let _icalQ=sb.from('schedule_events').select('*').eq('school_id',S.schoolId);
   if(S.role==='teacher')_icalQ=_icalQ.eq('teacher_id',S.profile.id);
-  else if(S.role==='student'){if(!S.studentRowId){showToast(t('Ошибка')+': '+t('Профиль не загружен'),'error');return;}
+  else if(S.role==='student'){if(!S.studentRowId){showSessionExpiredBanner();showToast(t('Ошибка')+': '+t('Профиль не загружен'),'error');return;}
   const{data:_icalEnrolled}=await sb.from('class_students').select('class_id').eq('student_id',S.studentRowId).eq('school_id',S.schoolId);
   const _icalCids=(_icalEnrolled||[]).map(r=>r.class_id).filter(Boolean);
   if(_icalCids.length) _icalQ=_icalQ.in('class_id',_icalCids);
