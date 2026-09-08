@@ -3967,13 +3967,24 @@ async function checkInviteToken(){
   const isInvite=type==='invite'||hash.includes('type=invite');
   const isRecovery=type==='recovery'||hash.includes('type=recovery');
   if(!isInvite&&!isRecovery)return false;
-  // Must have a token (hash) or auth code (search params — PKCE flow)
-  const hasToken=hash.includes('access_token')||_initSearch.includes('code=');
-  if(!hasToken)return false;
 
-  // Get session — Supabase already processed the token from URL
-  const{data:{session},error}=await sb.auth.getSession();
-  if(!session){return false;}
+  // Новый формат ссылок Supabase: ?token_hash=...&type=invite — нужен явный verifyOtp
+  const _sp=new URLSearchParams(_initSearch);
+  const _hp=new URLSearchParams(hash.replace(/^#/,''));
+  const _tokenHash=_sp.get('token_hash')||_hp.get('token_hash');
+  let session=null;
+  if(_tokenHash){
+    const{data:_vd,error:_vErr}=await sb.auth.verifyOtp({token_hash:_tokenHash,type:isRecovery?'recovery':'invite'});
+    if(_vErr||!_vd?.session)return false;
+    session=_vd.session;
+  } else {
+    // Старый формат: hash-токены или PKCE code — Supabase уже обработал их сам при инициализации
+    const hasToken=hash.includes('access_token')||_initSearch.includes('code=');
+    if(!hasToken)return false;
+    const{data:_gd}=await sb.auth.getSession();
+    if(!_gd.session)return false;
+    session=_gd.session;
+  }
   if(isRecovery){
     C('inviteTitle').textContent='Восстановление пароля';
     C('inviteSubtitle').textContent='Придумайте новый пароль для входа.';
@@ -4255,7 +4266,7 @@ setInterval(async function(){
   }
 })();
 // ─── АВТООБНОВЛЕНИЕ (кэш GitHub Pages) ───────────────────────────────────────
-const APP_BUILD='2026.08.13-ai'; // ⚠️ менять при каждом деплое
+const APP_BUILD='2026.08.13-aj'; // ⚠️ менять при каждом деплое
 // Показываем номер сборки на логине — для диагностики версий
 setTimeout(()=>{const lb=document.getElementById('loginBuild');if(lb)lb.textContent='v '+APP_BUILD;},300);
 function checkAppUpdate(){
