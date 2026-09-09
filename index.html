@@ -2127,9 +2127,9 @@ const TRANSLATIONS={
   'Материал добавлен':'Material added',
   'Добавь файл или URL!':'Add a file or URL!',
   '📁 Нажми или перетащи файл сюда':'📁 Click or drag file here',
-  'PDF до 50MB':'PDF up to 50MB',
-  'MP3, WAV, OGG, M4A, AAC — до 50MB':'MP3, WAV, OGG, M4A, AAC — up to 50MB',
-  'DOC, DOCX, TXT, PPTX, XLSX — до 50MB':'DOC, DOCX, TXT, PPTX, XLSX — up to 50MB',
+  'PDF до 500MB':'PDF up to 500MB',
+  'MP3, WAV, OGG, M4A, AAC — до 500MB':'MP3, WAV, OGG, M4A, AAC — up to 500MB',
+  'DOC, DOCX, TXT, PPTX, XLSX — до 500MB':'DOC, DOCX, TXT, PPTX, XLSX — up to 500MB',
   'MP4, WebM, MOV — или вставь ссылку ниже':'MP4, WebM, MOV — or paste a link below',
   'Или URL файла (необязательно)':'Or file URL (optional)',
   'Новый материал':'New Material','Название':'Title','Тип':'Type','Уровень':'Level','Язык':'Language',
@@ -2343,7 +2343,7 @@ const TRANSLATIONS={
   'Выбор ответа':'Multiple choice',
   'ДЗ не найдено':'Homework not found',
   'Добавь хотя бы одно упражнение':'Add at least one exercise',
-  'Максимум 50MB':'Maximum 50MB',
+  'Максимум 500MB':'Maximum 500MB',
   'Мои ученики':'My students',
   'Неизвестная ошибка':'Unknown error',
   'Нет уроков для импорта':'No lessons to import',
@@ -2729,7 +2729,7 @@ const TRANSLATIONS_GE={
   'Материал':'მასალა','Материал добавлен':'მასალა დამატებულია',
   'Добавь файл или URL!':'დაამატე ფაილი ან URL!',
   '📁 Нажми или перетащи файл сюда':'📁 დააჭირე ან გადმოაგდე ფაილი აქ',
-  'PDF до 50MB':'PDF 50MB-მდე',
+  'PDF до 500MB':'PDF 500MB-მდე',
   'Или URL файла (необязательно)':'ან ფაილის URL (სურვილისამებრ)',
   'Материал удалён':'მასალა წაიშალა','Нет материалов в библиотеке':'ბიბლიოთეკაში მასალები არ არის',
   'Загрузка материалов...':'მასალების ჩატვირთვა...',
@@ -2850,7 +2850,7 @@ const TRANSLATIONS_GE={
   'Выбор ответа':'პასუხის არჩევა',
   'ДЗ не найдено':'დ.დ. ვერ მოიძებნა',
   'Добавь хотя бы одно упражнение':'დაამატე მინიმუმ ერთი სავარჯიშო',
-  'Максимум 50MB':'მაქსიმუმ 50MB',
+  'Максимум 500MB':'მაქსიმუმ 500MB',
   'Мои ученики':'ჩემი მოსწავლეები',
   'Неизвестная ошибка':'უცნობი შეცდომა',
   'Неизвестный тип:':'უცნობი ტიპი:',
@@ -2873,8 +2873,8 @@ const TRANSLATIONS_GE={
   'Материалы урока':'გაკვეთილის მასალები',
   'Нет уроков':'გაკვეთილები არ არის',
   'Ссылка на видео (YouTube, Vimeo) — или загрузи файл выше':'ვიდეოს ბმული (YouTube, Vimeo) — ან ატვირთე ფაილი',
-  'DOC, DOCX, TXT, PPTX, XLSX — до 50MB':'DOC, DOCX, TXT, PPTX, XLSX — 50MB-მდე',
-  'MP3, WAV, OGG, M4A, AAC — до 50MB':'MP3, WAV, OGG, M4A, AAC — 50MB-მდე',
+  'DOC, DOCX, TXT, PPTX, XLSX — до 500MB':'DOC, DOCX, TXT, PPTX, XLSX — 500MB-მდე',
+  'MP3, WAV, OGG, M4A, AAC — до 500MB':'MP3, WAV, OGG, M4A, AAC — 500MB-მდე',
   'MP4, WebM, MOV — или вставь ссылку ниже':'MP4, WebM, MOV — ან ჩასვი ბმული ქვემოთ',
   'Библиотека':'ბიბლიოთეკა',
   'Мой урок':'ჩემი გაკვეთილი',
@@ -4266,7 +4266,7 @@ setInterval(async function(){
   }
 })();
 // ─── АВТООБНОВЛЕНИЕ (кэш GitHub Pages) ───────────────────────────────────────
-const APP_BUILD='2026.08.13-ak'; // ⚠️ менять при каждом деплое
+const APP_BUILD='2026.08.13-al'; // ⚠️ менять при каждом деплое
 // Показываем номер сборки на логине — для диагностики версий
 setTimeout(()=>{const lb=document.getElementById('loginBuild');if(lb)lb.textContent='v '+APP_BUILD;},300);
 function checkAppUpdate(){
@@ -6383,7 +6383,7 @@ function openMatCard(el){
 }
 // ─── MATERIAL UPLOAD HELPERS ──────────────────────────────────────────────────
 const MAT_ACCEPT={pdf:'.pdf',audio:'.mp3,.wav,.ogg,.m4a,.aac,.flac',doc:'.doc,.docx,.txt,.pptx,.xlsx,.ppt,.odp,.ods',video:'.mp4,.webm,.mov,.avi'};
-const MAT_ACCEPT_HINT={pdf:()=>t('PDF до 50MB'),audio:()=>t('MP3, WAV, OGG, M4A, AAC — до 50MB'),doc:()=>t('DOC, DOCX, TXT, PPTX, XLSX — до 50MB'),video:()=>t('MP4, WebM, MOV — или вставь ссылку ниже'),link:()=>''};
+const MAT_ACCEPT_HINT={pdf:()=>t('PDF до 500MB'),audio:()=>t('MP3, WAV, OGG, M4A, AAC — до 500MB'),doc:()=>t('DOC, DOCX, TXT, PPTX, XLSX — до 500MB'),video:()=>t('MP4, WebM, MOV — или вставь ссылку ниже'),link:()=>''};
 
 function openAddMaterial(){
   C('mat_name').value='';C('mat_url').value='';
@@ -6471,7 +6471,7 @@ async function saveMaterial(){
 
   if(!name){if(btn){btn.disabled=false;btn.textContent=t('Добавить');}showToast(t('Введи название!'));return;}
   if(!file&&!url){if(btn){btn.disabled=false;btn.textContent=t('Добавить');}showToast(t('Добавь файл или URL!'));return;}
-  if(file&&file.size>50*1024*1024){if(btn){btn.disabled=false;btn.textContent=t('Добавить');}showToastCard(t('Файл слишком большой'),'Максимум 50MB','error','❌');return;}
+  if(file&&file.size>500*1024*1024){if(btn){btn.disabled=false;btn.textContent=t('Добавить');}showToastCard(t('Файл слишком большой'),'Максимум 500MB','error','❌');return;}
   const _ALLOWED_MIME={
     pdf:['application/pdf'],
     audio:['audio/mpeg','audio/wav','audio/ogg','audio/mp4','audio/aac','audio/flac'],
