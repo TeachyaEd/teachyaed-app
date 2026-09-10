@@ -3804,15 +3804,18 @@ function ceAddExType(type){
 }
 
 // Upload image file → base64 data URL
-function ceUploadImage(input){
+async function ceUploadImage(input){
   const file=input.files[0];if(!file)return;
   if(file.size>5*1024*1024){showToast('Файл слишком большой (макс 5 МБ)');return;}
-  const reader=new FileReader();
-  reader.onload=e=>{
-    CE.sections[CE.curSec].exercises[CE.curEx].url=e.target.result;
+  try{
+    const ext=(file.name.split('.').pop()||'jpg').replace(/[^a-zA-Z0-9]/g,'').toLowerCase();
+    const path=`${S.schoolId}/exercise-images/${Date.now()}_${Math.random().toString(36).slice(2,8)}.${ext}`;
+    const{error:upErr}=await sb.storage.from('materials').upload(path,file,{upsert:true});
+    if(upErr){showToast('Ошибка загрузки: '+upErr.message);return;}
+    const{data:urlData}=sb.storage.from('materials').getPublicUrl(path);
+    CE.sections[CE.curSec].exercises[CE.curEx].url=urlData?.publicUrl||'';
     ceExercise();
-  };
-  reader.readAsDataURL(file);
+  }catch(e){showToast('Ошибка загрузки изображения');}
 }
 
 // ── TIMER ──────────────────────────────────────────────────────────────────────
@@ -4288,7 +4291,7 @@ setInterval(async function(){
   }
 })();
 // ─── АВТООБНОВЛЕНИЕ (кэш GitHub Pages) ───────────────────────────────────────
-const APP_BUILD='2026.08.13-am'; // ⚠️ менять при каждом деплое
+const APP_BUILD='2026.08.13-an'; // ⚠️ менять при каждом деплое
 // Показывае
 const MAX_FILE_MB=100; // единый лимит размера файла материалов (МБ) — меняется в одном местем номер сборки на логине — для диагностики версий
 setTimeout(()=>{const lb=document.getElementById('loginBuild');if(lb)lb.textContent='v '+APP_BUILD;},300);
@@ -7528,7 +7531,19 @@ function ceSidebar(){
       <span class="ce-sec-num">${si+1}</span>
       <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${_esc((s&&s.title)||'Раздел '+(si+1))}</span>
       <span class="ce-sec-cnt">${((s&&s.exercises)||[]).length} упр.</span>
+      <button type="button" onclick="event.stopPropagation();ceRemoveSection(${si})" title="Удалить раздел" style="background:none;border:none;color:var(--text3);cursor:pointer;padding:0 4px;font-size:.85rem;line-height:1">✕</button>
     </div>`).join('');
+}
+async function ceRemoveSection(si){
+  if((CE.sections||[]).length<=1){showToast(t('Нельзя удалить последний раздел'));return;}
+  const sec=CE.sections[si];
+  const hasEx=sec&&(sec.exercises||[]).length>0;
+  if(!await tyConfirm(hasEx?t('В разделе есть упражнения. Удалить раздел вместе с ними?'):t('Удалить раздел?')))return;
+  CE.sections.splice(si,1);
+  if(CE.curSec>=CE.sections.length)CE.curSec=CE.sections.length-1;
+  else if(CE.curSec>si)CE.curSec--;
+  CE.curEx=0;
+  ceRenderAll();
 }
 function ceGoSec(si){CE.curSec=si;CE.curEx=0;ceRenderAll();}
 
@@ -7775,7 +7790,9 @@ function ceEditorHTML(b){
     <button class="btn btn-outline" style="font-size:.8rem;margin-top:6px" onclick="${P}.words.push({word:'',trans:''});ceExercise()">+ Слово</button></div>`;
 
   if(b.type==='fill_blank')return`
-    <div class="form-group" style="margin:0 0 8px"><label>Предложение ({{blank}} = пропуск)</label>${ci(b.sentence,'sentence','I {{blank}} a student')}</div>
+    <div class="form-group" style="margin:0 0 8px"><label>Предложение (нажми кнопку ниже, чтобы вставить пропуск)</label>${ci(b.sentence,'sentence','I {{blank}} a student')}
+      <button type="button" class="btn btn-outline btn-sm" style="margin-top:6px" onclick="${P}.sentence=(${P}.sentence||'')+'{{blank}}';ceExercise()">+ Вставить пропуск</button>
+    </div>
     <div class="form-group" style="margin:0"><label>Правильный ответ</label>${ci(b.answer,'answer','am')}</div>`;
 
   if(b.type==='quiz')return`
