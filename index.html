@@ -4559,7 +4559,7 @@ setInterval(async function(){
   }
 })();
 // ─── АВТООБНОВЛЕНИЕ (кэш GitHub Pages) ───────────────────────────────────────
-const APP_BUILD='2026.08.13-ao'; // ⚠️ менять при каждом деплое
+const APP_BUILD='2026.08.13-ap'; // ⚠️ менять при каждом деплое
 // Показывае
 const MAX_FILE_MB=100; // единый лимит размера файла материалов (МБ) — меняется в одном местем номер сборки на логине — для диагностики версий
 setTimeout(()=>{const lb=document.getElementById('loginBuild');if(lb)lb.textContent='v '+APP_BUILD;},300);
@@ -7753,7 +7753,7 @@ const BLOCK_META={
   video:{icon:'🎬',name:'Видео',color:'#F3F4F6'},
   image:{icon:'🖼',name:'Картинка',color:'#E0F2FE'},
   openq:{icon:'💬',name:'Открытый вопрос',color:'#FCE7F3'}
-};
+,word_bank:{icon:'🧩',name:'Слова из списка',color:'#FDE68A'},sequence:{icon:'🔢',name:'Порядок действий',color:'#C7D2FE'}};
 const CE_DEFAULTS={
   text:{type:'text',text:'',image:''},
   vocab:{type:'vocab',words:[{word:'',trans:''}]},
@@ -7765,7 +7765,7 @@ const CE_DEFAULTS={
   video:{type:'video',url:'',question:'',note:''},
   image:{type:'image',url:'',caption:''},
   openq:{type:'openq',question:''}
-};
+,word_bank:{type:'word_bank',sentence:'I {{blank}} a student.',answer:'am',distractors:['is','are']},sequence:{type:'sequence',items:['Шаг 1','Шаг 2','Шаг 3']}};
 
 // ─── CLASSROOM EDITOR STATE ──────────────────────────────────────────────────
 const CE={lessonId:null,sections:[],materials:[],curSec:0,curEx:0,mode:'edit',viewAll:false,_saving:false};
@@ -8090,7 +8090,23 @@ function ceEditorHTML(b){
     </div>
     <div class="form-group" style="margin:0"><label>Объяснение (необяз.)</label>${ci(b.explanation,'explanation','Объяснение...')}</div>`;
 
-  if(b.type==='word_order')return`
+  if(b.type==='word_bank')return`
+    <div class="form-group" style="margin:0 0 8px"><label>Предложение (нажми кнопку ниже, чтобы вставить пропуск)</label>${ci(b.sentence,'sentence','I {{blank}} a student')}
+      <button type="button" class="btn btn-outline btn-sm" style="margin-top:6px" onclick="${P}.sentence=(${P}.sentence||'')+'{{blank}}';ceExercise()">+ Вставить пропуск</button>
+    </div>
+    <div class="form-group" style="margin:0 0 8px"><label>Правильное слово</label>${ci(b.answer,'answer','am')}</div>
+    <div class="form-group" style="margin:0"><label>Другие варианты в списке (через запятую)</label><input value="${_esc((b.distractors||[]).join(', '))}" oninput="${P}.distractors=this.value.split(',').map(s=>s.trim()).filter(Boolean)"></div>`;
+  if(b.type==='sequence')return`
+    <div class="form-group" style="margin:0 0 8px"><label>Пункты по порядку (как должно быть в правильном ответе)</label></div>
+    ${(b.items||[]).map((it,idx)=>`
+      <div style="display:flex;gap:6px;margin-bottom:6px;align-items:center">
+        <span style="opacity:.6;min-width:20px">${idx+1}.</span>
+        <input style="flex:1" value="${_esc(it)}" oninput="${P}.items[${idx}]=this.value">
+        ${(b.items||[]).length>2?`<button type="button" class="btn btn-outline btn-sm" onclick="${P}.items.splice(${idx},1);ceExercise()">✕</button>`:''}
+      </div>`).join('')}
+    <button type="button" class="btn btn-outline btn-sm" onclick="${P}.items.push('');ceExercise()">+ Добавить пункт</button>`;
+
+if(b.type==='word_order')return`
     <div class="form-group" style="margin:0 0 8px"><label>Слова (через пробел — будут перемешаны)</label>
     <input value="${(b.words||[]).join(' ').replace(/"/g,'&quot;')}" oninput="${P}.words=this.value.split(' ').filter(w=>w)" placeholder="I am a student" style="width:100%;padding:8px 10px;border:2px solid var(--gray-border);border-radius:6px;font-family:var(--font)"></div>
     <div class="form-group" style="margin:0"><label>Правильный порядок</label>${ci(b.correct,'correct','I am a student')}</div>`;
@@ -9039,7 +9055,39 @@ function renderBlockView(b,i){
       <div id="match_res_${i}" style="margin-top:8px;font-size:.85rem"></div>
     </div>`;
   }
-  if(b.type==='word_order'){
+  if(b.type==='word_bank'){
+    const distractors=(b.distractors||[]).filter(Boolean);
+    const bank=[b.answer||'',...distractors].filter(Boolean).sort(()=>Math.random()-.5);
+    window[`_wb_${i}`]={bank,chosen:null,correct:(b.answer||'').trim()};
+    const parts=(b.sentence||'').split('{{blank}}');
+    return`<div class="lesson-view-block">
+      <div style="font-weight:700;margin-bottom:10px">🧩 ${t('Заполни пропуск')}</div>
+      <div style="font-size:1.05rem;margin-bottom:14px">${_escHtml(parts[0]||'')}<span id="wb_blank_${i}" style="display:inline-block;min-width:60px;padding:2px 10px;border-bottom:2px solid var(--accent,#8b5cf6);text-align:center;font-weight:700">___</span>${_escHtml(parts[1]||'')}</div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px">
+        ${bank.map((w,wi)=>`<button type="button" class="btn btn-outline btn-sm" onclick="wbPick(${i},${wi})">${_escHtml(w)}</button>`).join('')}
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-purple" onclick="checkWordBank(${i})">${t('Проверить')}</button>
+        <button class="btn btn-outline" onclick="resetWordBank(${i})">${t('Сбросить')}</button>
+      </div>
+      <div id="wb_res_${i}" style="margin-top:8px"></div>
+    </div>`;
+  }
+  if(b.type==='sequence'){
+    const order=[...(b.items||[]).keys()].sort(()=>Math.random()-.5);
+    window[`_sq_${i}`]={order,items:b.items||[]};
+    return`<div class="lesson-view-block">
+      <div style="font-weight:700;margin-bottom:10px">🔢 ${t('Расставь по порядку')}</div>
+      <div id="sq_list_${i}">${sqRenderRows(i)}</div>
+      <div style="display:flex;gap:8px;margin-top:10px">
+        <button class="btn btn-purple" onclick="checkSequence(${i})">${t('Проверить')}</button>
+        <button class="btn btn-outline" onclick="resetSequence(${i})">${t('Сбросить')}</button>
+      </div>
+      <div id="sq_res_${i}" style="margin-top:8px"></div>
+    </div>`;
+  }
+
+if(b.type==='word_order'){
     const words=[...b.words||[]].sort(()=>Math.random()-.5);
     window[`_wo_${i}`]={words,chosen:[],correct:b.correct||''};
     return`<div class="lesson-view-block">
@@ -9562,6 +9610,58 @@ function checkWordOrder(i){
     `<span style="color:var(--red)">❌ ${t('Неверно.')} ${t('Правильно')}: <b>${_escHtml(correct)}</b></span>`;
   saveLessonAnswer(i,'word_order',answer,_woOk);
 }
+function sqRenderRows(i){
+  const st=window[`_sq_${i}`];if(!st)return'';
+  return st.order.map((origIdx,pos)=>`
+    <div style="display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.04);border-radius:8px;padding:8px 10px;margin-bottom:6px">
+      <span style="opacity:.6;min-width:20px">${pos+1}.</span>
+      <span style="flex:1">${_escHtml(st.items[origIdx]||'')}</span>
+      <button type="button" class="btn btn-outline btn-sm" ${pos===0?'disabled':''} onclick="sqMove(${i},${pos},-1)">↑</button>
+      <button type="button" class="btn btn-outline btn-sm" ${pos===st.order.length-1?'disabled':''} onclick="sqMove(${i},${pos},1)">↓</button>
+    </div>`).join('');
+}
+function sqMove(i,pos,dir){
+  const st=window[`_sq_${i}`];if(!st)return;
+  const j=pos+dir;if(j<0||j>=st.order.length)return;
+  [st.order[pos],st.order[j]]=[st.order[j],st.order[pos]];
+  const el=C(`sq_list_${i}`);if(el)el.innerHTML=sqRenderRows(i);
+}
+function checkSequence(i){
+  const st=window[`_sq_${i}`];if(!st)return;
+  const ok=st.order.every((v,idx)=>v===idx);
+  const answer=st.order.map(idx=>st.items[idx]).join(' → ');
+  C(`sq_res_${i}`).innerHTML=ok?
+    `<span style="color:var(--green)">✅ ${t('Правильно!')}</span>`:
+    `<span style="color:var(--red)">❌ ${t('Неверно, попробуй ещё раз')}</span>`;
+  saveLessonAnswer(i,'sequence',answer,ok);
+}
+function resetSequence(i){
+  const st=window[`_sq_${i}`];if(!st)return;
+  st.order=[...st.items.keys()].sort(()=>Math.random()-.5);
+  const el=C(`sq_list_${i}`);if(el)el.innerHTML=sqRenderRows(i);
+  const res=C(`sq_res_${i}`);if(res)res.innerHTML='';
+}
+function wbPick(i,wi){
+  const st=window[`_wb_${i}`];if(!st)return;
+  st.chosen=st.bank[wi];
+  const el=C(`wb_blank_${i}`);if(el)el.textContent=st.chosen;
+}
+function checkWordBank(i){
+  const st=window[`_wb_${i}`];if(!st)return;
+  if(st.chosen==null){showToast(t('Сначала выбери слово'));return;}
+  const ok=st.chosen.trim().toLowerCase()===st.correct.toLowerCase();
+  C(`wb_res_${i}`).innerHTML=ok?
+    `<span style="color:var(--green)">✅ ${t('Правильно!')}</span>`:
+    `<span style="color:var(--red)">❌ ${t('Неверно.')} ${t('Правильно')}: <b>${_escHtml(st.correct)}</b></span>`;
+  saveLessonAnswer(i,'word_bank',st.chosen,ok);
+}
+function resetWordBank(i){
+  const st=window[`_wb_${i}`];if(!st)return;
+  st.chosen=null;
+  const el=C(`wb_blank_${i}`);if(el)el.textContent='___';
+  const res=C(`wb_res_${i}`);if(res)res.innerHTML='';
+}
+
 async function completeLessonView(){
   if(LV._completing)return;
   if(LV.hwId&&S.role==='student'){await hwSubmit();return;}
