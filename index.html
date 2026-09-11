@@ -4323,6 +4323,7 @@ async function pdOpenMaterial(id){
 
 function pdRenderDetail(){
   const m=PD_STATE.material,qs=PD_STATE.questions,res=PD_STATE.result;
+  if(window._pdTimer){clearInterval(window._pdTimer);window._pdTimer=null;}
   let contentHtml='';
   if(m.content_type==='text')contentHtml=`<div class="pd-content-text">${_esc(m.content_text||'')}</div>`;
   else if(m.content_type==='video')contentHtml=`<div class="form-group"><a class="btn btn-outline" href="${_esc(m.content_url||'')}" target="_blank" rel="noopener">▶ ${t('Открыть видео')}</a></div>`;
@@ -4332,7 +4333,7 @@ function pdRenderDetail(){
   const quizHtml=res?`
     <div class="pd-result"><h3>${t('Результат')}: ${res.score} / ${res.total}</h3></div>
   `:`
-    <div class="pd-quiz">
+    <div class="pd-quiz">${m.time_limit_minutes?'<div id="pd_timer" style="font-weight:700;margin-bottom:10px;color:var(--text2)"></div>':''}${m.time_limit_minutes?'<img src="x" style="display:none" onerror="pdStartTimer('+m.time_limit_minutes+')">':''}
       ${qs.map((q,qi)=>`
         <div class="form-group pd-question">
           <label>${qi+1}. ${_esc(q.question)}</label>
@@ -4356,9 +4357,26 @@ function pdRenderDetail(){
   `);
 }
 
-async function pdSubmitAttempt(){
+function pdStartTimer(minutes){
+  if(window._pdTimer){clearInterval(window._pdTimer);window._pdTimer=null;}
+  let remain=Math.round(parseFloat(minutes)*60);
+  const render=()=>{const el=C('pd_timer');if(el){const mm=Math.floor(remain/60),ss=remain%60;el.textContent='⏱ '+mm+':'+(ss<10?'0':'')+ss;}};
+  render();
+  window._pdTimer=setInterval(()=>{
+    if(!C('pd_timer')){clearInterval(window._pdTimer);window._pdTimer=null;return;}
+    remain--;
+    if(remain<=0){
+      clearInterval(window._pdTimer);window._pdTimer=null;
+      pdSubmitAttempt(true);
+      return;
+    }
+    render();
+  },1000);
+}
+
+async function pdSubmitAttempt(force){
   const qs=PD_STATE.questions;
-  if(qs.some(q=>PD_STATE.answers[q.id]===undefined)){showToast(t('Ответь на все вопросы'));return;}
+  if(!force&&qs.some(q=>PD_STATE.answers[q.id]===undefined)){showToast(t('Ответь на все вопросы'));return;}
   const{data,error}=await sb.rpc('submit_pd_attempt',{p_material_id:PD_STATE.material.id,p_answers:PD_STATE.answers});
   if(error){showToast(t('Ошибка')+': '+error.message);return;}
   PD_STATE.result=data;
@@ -4414,14 +4432,14 @@ function pdOpenEditor(id){
     pdLoadForEdit(id,m);
     return;
   }
-  PD_EDIT={id:null,title:'',description:'',content_type:'text',content_url:'',content_text:'',questions:[{question:'',options:['',''],correct:0}]};
+  PD_EDIT={id:null,title:'',description:'',content_type:'text',time_limit_minutes:null,content_url:'',content_text:'',questions:[{question:'',options:['',''],correct:0}]};
   pdRenderEditor();
 }
 
 async function pdLoadForEdit(id,m){
   const{data:qs}=await sb.from('pd_questions').select('*, pd_answers(correct_index)').eq('pd_material_id',id).order('order_num');
   PD_EDIT={
-    id,title:m.title,description:m.description||'',content_type:m.content_type||'text',
+    id,title:m.title,description:m.description||'',content_type:m.content_type||'text',time_limit_minutes:m.time_limit_minutes||null,
     content_url:m.content_url||'',content_text:m.content_text||'',
     questions:(qs||[]).map(q=>({id:q.id,question:q.question,options:(q.options||['','']).slice(),correct:(q.pd_answers&&q.pd_answers.correct_index)||0}))
   };
@@ -4438,6 +4456,9 @@ function pdRenderEditor(){
     </div>
     <div class="form-group"><label>${t('Название')}</label>
       <input value="${_esc(e.title)}" oninput="PD_EDIT.title=this.value">
+      </div>
+      <div class="form-group"><label>${t('Лимит времени (мин, необязательно)')}</label>
+        <input type="number" min="1" value="${e.time_limit_minutes||''}" oninput="PD_EDIT.time_limit_minutes=this.value?parseInt(this.value):null">
     </div>
     <div class="form-group"><label>${t('Описание')}</label>
       <textarea oninput="PD_EDIT.description=this.value">${_esc(e.description)}</textarea>
@@ -4489,7 +4510,7 @@ async function pdSaveMaterial(){
     showToast(t('Заполните все вопросы и варианты ответа (минимум 2)'));return;
   }
   let matId=e.id;
-  const payload={title:e.title,description:e.description,content_type:e.content_type,content_url:e.content_url,content_text:e.content_text,school_id:S.schoolId,created_by:(S.profile&&S.profile.id)||S.userId};
+  const payload={title:e.title,description:e.description,content_type:e.content_type,content_url:e.content_url,content_text:e.content_text,time_limit_minutes:e.time_limit_minutes||null,school_id:S.schoolId,created_by:(S.profile&&S.profile.id)||S.userId};
   if(matId){
     const{error}=await sb.from('pd_materials').update(payload).eq('id',matId);
     if(error){showToast(t('Ошибка')+': '+error.message);return;}
@@ -4559,7 +4580,7 @@ setInterval(async function(){
   }
 })();
 // ─── АВТООБНОВЛЕНИЕ (кэш GitHub Pages) ───────────────────────────────────────
-const APP_BUILD='2026.08.13-ar'; // ⚠️ менять при каждом деплое
+const APP_BUILD='2026.08.13-as'; // ⚠️ менять при каждом деплое
 // Показывае
 const MAX_FILE_MB=100; // единый лимит размера файла материалов (МБ) — меняется в одном местем номер сборки на логине — для диагностики версий
 setTimeout(()=>{const lb=document.getElementById('loginBuild');if(lb)lb.textContent='v '+APP_BUILD;},300);
@@ -5518,7 +5539,7 @@ function _hweExCard(ex,i){
 function hweAddEx(type){
   const defs={
     fill_blank:{type:'fill_blank',sentence:'',answer:''},
-    quiz:{type:'quiz',question:'',options:['','',''],correct:0},
+    quiz:{type:'quiz',question:'',options:['','',''],correct:0,time_limit:null},
     matching:{type:'matching',pairs:[{left:'',right:''},{left:'',right:''}]},
     word_order:{type:'word_order',words:[],correct:''},
     openq:{type:'openq',question:''},
@@ -8074,7 +8095,8 @@ function ceEditorHTML(b){
       <input type="radio" name="ceq" ${b.correct===oi?'checked':''} onchange="${P}.correct=${oi}" style="accent-color:var(--green);width:16px;height:16px">
       <input value="${(o||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;')}" oninput="${P}.options[${oi}]=this.value" placeholder="Вариант ${oi+1}" style="flex:1;padding:8px 10px;border:2px solid var(--gray-border);border-radius:6px;font-family:var(--font)">
     </div>`).join('')}
-    <div style="font-size:.75rem;color:var(--text3)">● = правильный ответ</div>`;
+    <div style="font-size:.75rem;color:var(--text3)">● = правильный ответ</div>
+    <div class="form-group" style="margin-top:8px"><label>${t('Лимит времени (сек, необязательно)')}</label><input type="number" min="5" value="${b.time_limit||''}"  oninput="${P}.time_limit=this.value?parseInt(this.value):null" style="max-width:140px"></div>`;
 
   if(b.type==='matching')return`
     <div>${(b.pairs||[]).map((p,pi)=>`<div style="display:grid;grid-template-columns:1fr auto 1fr auto;gap:6px;align-items:center;margin-bottom:6px">
@@ -9034,6 +9056,28 @@ function ceWrapSel(id,marker){
   ta.selectionEnd=start+marker.length+sel.length;
 }
 
+function startQuizTimer(i,seconds,correct){
+  if(window['_qzTimer_'+i]){clearInterval(window['_qzTimer_'+i]);window['_qzTimer_'+i]=null;}
+  let remain=parseInt(seconds);
+  const render=()=>{const el=C('qz_timer_'+i);if(el)el.textContent='⏱ '+remain+'с';};
+  render();
+  window['_qzTimer_'+i]=setInterval(()=>{
+    const firstOpt=document.getElementById('qo_'+i+'_0');
+    if(!firstOpt||!firstOpt.onclick){clearInterval(window['_qzTimer_'+i]);window['_qzTimer_'+i]=null;const el=C('qz_timer_'+i);if(el)el.textContent='';return;}
+    remain--;
+    if(remain<=0){
+      clearInterval(window['_qzTimer_'+i]);window['_qzTimer_'+i]=null;
+      document.querySelectorAll(`[id^="qo_${i}_"]`).forEach(o=>o.onclick=null);
+      const correctEl=C('qo_'+i+'_'+correct);
+      if(correctEl)correctEl.classList.add('correct');
+      const el=C('qz_timer_'+i);if(el)el.textContent='⏰ Время вышло';
+      saveLessonAnswer(i,'quiz','(время вышло)',false);
+      return;
+    }
+    render();
+  },1000);
+}
+
 function renderBlockView(b,i){
   if(b.type==='text') return`<div class="lesson-view-block">
     ${b.image&&/^https:\/\//i.test(b.image)?`<img src="${_escHtml(b.image)}" style="max-width:100%;border-radius:8px;margin-bottom:10px">`:''}
@@ -9054,9 +9098,9 @@ function renderBlockView(b,i){
     <div id="fb_res_${i}" style="margin-top:6px;font-size:.85rem"></div>
   </div>`;}
   if(b.type==='quiz') return`<div class="lesson-view-block">
-    <div style="font-weight:700;margin-bottom:10px">🎯 ${_escHtml(b.question||'Вопрос')}</div>
+    <div style="font-weight:700;margin-bottom:10px">🎯 ${_escHtml(b.question||'Вопрос')}${b.time_limit?`<span id="qz_timer_${i}" style="float:right;font-weight:400;font-size:.85rem;color:var(--text3)"></span>`:''}</div>
     ${(b.options||[]).map((opt,oi)=>`<div class="quiz-opt" id="qo_${i}_${oi}" onclick="checkQuiz('${i}',${oi},${Number.isInteger(b.correct)?b.correct:parseInt(b.correct)||0})">${_escHtml(opt)}</div>`).join('')}
-  </div>`;
+  </div>${b.time_limit?`<img src="x" style="display:none" onerror="startQuizTimer(${i},${b.time_limit},${Number.isInteger(b.correct)?b.correct:parseInt(b.correct)||0})">`:''}`;
   if(b.type==='truefalse'){const _tfa=(b.answer===true||b.answer===false)?b.answer:true;return`<div class="lesson-view-block">
     <div style="font-weight:700;margin-bottom:12px">✅ Верно или Неверно?</div>
     <div style="font-size:1rem;margin-bottom:14px;padding:12px;background:var(--gray-light);border-radius:8px">"${_escHtml(b.statement||'')}"</div>
