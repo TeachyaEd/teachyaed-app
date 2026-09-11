@@ -4559,7 +4559,7 @@ setInterval(async function(){
   }
 })();
 // ─── АВТООБНОВЛЕНИЕ (кэш GitHub Pages) ───────────────────────────────────────
-const APP_BUILD='2026.08.13-aq'; // ⚠️ менять при каждом деплое
+const APP_BUILD='2026.08.13-ar'; // ⚠️ менять при каждом деплое
 // Показывае
 const MAX_FILE_MB=100; // единый лимит размера файла материалов (МБ) — меняется в одном местем номер сборки на логине — для диагностики версий
 setTimeout(()=>{const lb=document.getElementById('loginBuild');if(lb)lb.textContent='v '+APP_BUILD;},300);
@@ -4665,7 +4665,8 @@ function showScreen(id){
     o_home:renderOwnerHome,o_classes:renderClasses,o_schedule:renderSchedule,
     o_users:renderOwnerUsers,o_students:renderOwnerStudents,o_payments:renderPayments,o_salaries:renderSalaries,o_materials:renderMaterials,
     o_messages:renderMessenger,o_tasks:renderTasks,
-    t_library:renderLibrary,a_library:renderLibrary,o_library:renderLibrary
+    t_library:renderLibrary,a_library:renderLibrary,o_library:renderLibrary,
+    t_pd:renderPD,o_pd:renderPD
   };
   if(fn[id])fn[id]();
 }
