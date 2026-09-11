@@ -3226,7 +3226,7 @@ function _applyLang(prevLang){
     o_users:renderOwnerUsers,o_students:renderOwnerStudents,o_payments:renderPayments,o_salaries:renderSalaries,o_materials:renderMaterials,
     o_messages:renderMessenger,o_tasks:renderTasks,
     t_library:renderLibrary,a_library:renderLibrary,o_library:renderLibrary
-  };
+  ,t_pd:renderPD,o_pd:renderPD};
   if(S.screen&&fn[S.screen])fn[S.screen]();
   // Apply translation to static elements outside content (sidebar headers, modals, overlays, login)
   if(prevLang!=='ru')revertToRU(document.body);
@@ -3515,7 +3515,7 @@ const NAV={
     {id:'t_lessons',icon:'📖',l:'Уроки'},{id:'t_homework',icon:'📋',l:'Домашнее задание'},{id:'t_students',icon:'👥',l:'Ученики'},{id:'t_materials',icon:'📁',l:'Материалы'},
     {sec:'Инструменты'},
     {id:'t_messages',icon:'💬',l:'Сообщения'},{id:'t_tasks',icon:'✅',l:'Задачи'},{id:'t_library',icon:'🌐',l:'Библиотека'}
-  ],
+  ,{sec:'Обучение'},{id:'t_pd',icon:'🎓',l:'Повышение квалификации'}],
   admin:[
     {sec:'Классы'},
     {id:'a_classes',icon:'🎓',l:'Классы'},{id:'a_schedule',icon:'📅',l:'Расписание'},
@@ -3533,7 +3533,7 @@ const NAV={
     {id:'t_lessons',icon:'📖',l:'Уроки'},{id:'t_homework',icon:'📋',l:'Домашнее задание'},{id:'t_students',icon:'👥',l:'Мои ученики'},
     {sec:'Инструменты'},
     {id:'o_messages',icon:'💬',l:'Сообщения'},{id:'o_tasks',icon:'✅',l:'Задачи'},{id:'o_library',icon:'🌐',l:'Библиотека'}
-  ]
+  ,{sec:'Обучение'},{id:'o_pd',icon:'🎓',l:'Повышение квалификации'}]
 };
 const ROLE_L={owner:'Владелец',admin:'Администратор',teacher:'Учитель',student:'Ученик'};
 
@@ -4250,6 +4250,274 @@ setInterval(async function(){
     }
   }catch(e){}
 },60000);
+
+// ============================================================
+// PD (Повышение квалификации) — раздел для преподавателей.
+// Owner создаёт материалы+тесты, учитель проходит, правильные
+// ответы проверяются на сервере через RPC submit_pd_attempt(),
+// на клиент учителя никогда не попадают.
+// ============================================================
+let PD_STATE={answers:{},material:null,questions:null,result:null};
+let PD_EDIT=null;
+let PD_OWNER_DATA=null;
+
+async function renderPD(){
+  if(renderPD._loading)return;renderPD._loading=true;
+  try{
+    if(S.role==='owner')await pdRenderOwner();
+    else await pdRenderTeacher();
+  }catch(e){showToast(t('Ошибка')+': '+e.message);}
+  finally{renderPD._loading=false;}
+}
+
+function pdStyles(){
+  return `<style>
+.pd-card{background:var(--card,#1e1e2e);border-radius:12px;padding:16px;margin-bottom:12px;cursor:pointer;border:1px solid rgba(255,255,255,.08)}
+.pd-card:hover{border-color:#8b5cf6}
+.pd-card-title{font-weight:700;font-size:1.05rem;margin-bottom:4px}
+.pd-card-desc{opacity:.7;font-size:.85rem;margin-bottom:8px}
+.pd-card-status{font-size:.85rem;font-weight:600}
+.pd-option{display:flex;align-items:center;gap:8px;padding:6px 0;cursor:pointer}
+.pd-option-row{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.pd-option-row input:not([type=radio]){flex:1}
+.pd-q-editor{margin-bottom:16px}
+.pd-report-table{width:100%;border-collapse:collapse;margin-top:12px}
+.pd-report-table th,.pd-report-table td{border:1px solid rgba(255,255,255,.1);padding:8px 10px;text-align:center;font-size:.85rem}
+.pd-report-table th:first-child,.pd-report-table td:first-child{text-align:left}
+.pd-not-started{opacity:.4}
+.pd-result h3{color:#8b5cf6}
+.pd-content-text{white-space:pre-wrap;background:rgba(255,255,255,.04);border-radius:10px;padding:14px;margin-bottom:16px}
+</style>`;
+}
+
+// ---------- Teacher: list + take test ----------
+async function pdRenderTeacher(){
+  const{data:mats}=await sb.from('pd_materials').select('*').eq('school_id',S.schoolId).eq('status','published').order('created_at',{ascending:false});
+  const myId=(S.profile&&S.profile.id)||S.userId;
+  const{data:atts}=await sb.from('pd_attempts').select('pd_material_id,score,total,completed_at').eq('teacher_id',myId).order('completed_at',{ascending:false});
+  const best={};
+  (atts||[]).forEach(a=>{if(!best[a.pd_material_id]||a.score>best[a.pd_material_id].score)best[a.pd_material_id]=a;});
+  const html=`
+    ${pdStyles()}
+    <div class="page-header"><h2>🎓 ${t('Повышение квалификации')}</h2></div>
+    <div class="pd-list">
+      ${(mats||[]).map(m=>{
+        const a=best[m.id];
+        const status=a?`✅ ${t('Пройдено')}: ${a.score}/${a.total}`:`⏳ ${t('Не начато')}`;
+        return `<div class="pd-card" onclick="pdOpenMaterial('${m.id}')">
+          <div class="pd-card-title">${_esc(m.title)}</div>
+          <div class="pd-card-desc">${_esc(m.description||'')}</div>
+          <div class="pd-card-status">${status}</div>
+        </div>`;
+      }).join('')||`<div class="empty-state">${t('Пока нет материалов')}</div>`}
+    </div>`;
+  setContent(html);
+}
+
+async function pdOpenMaterial(id){
+  const{data:mat}=await sb.from('pd_materials').select('*').eq('id',id).single();
+  const{data:qs}=await sb.from('pd_questions').select('*').eq('pd_material_id',id).order('order_num');
+  PD_STATE={answers:{},material:mat,questions:qs||[],result:null};
+  pdRenderDetail();
+}
+
+function pdRenderDetail(){
+  const m=PD_STATE.material,qs=PD_STATE.questions,res=PD_STATE.result;
+  let contentHtml='';
+  if(m.content_type==='text')contentHtml=`<div class="pd-content-text">${_esc(m.content_text||'')}</div>`;
+  else if(m.content_type==='video')contentHtml=`<div class="form-group"><a class="btn btn-outline" href="${_esc(m.content_url||'')}" target="_blank" rel="noopener">▶ ${t('Открыть видео')}</a></div>`;
+  else if(m.content_type==='pdf')contentHtml=`<div class="form-group"><a class="btn btn-outline" href="${_esc(m.content_url||'')}" target="_blank" rel="noopener">📄 ${t('Открыть PDF')}</a></div>`;
+  else contentHtml=`<div class="form-group"><a class="btn btn-outline" href="${_esc(m.content_url||'')}" target="_blank" rel="noopener">🔗 ${t('Открыть материал')}</a></div>`;
+
+  const quizHtml=res?`
+    <div class="pd-result"><h3>${t('Результат')}: ${res.score} / ${res.total}</h3></div>
+  `:`
+    <div class="pd-quiz">
+      ${qs.map((q,qi)=>`
+        <div class="form-group pd-question">
+          <label>${qi+1}. ${_esc(q.question)}</label>
+          ${(q.options||[]).map((opt,oi)=>`
+            <label class="pd-option">
+              <input type="radio" name="pdq_${q.id}" onchange="PD_STATE.answers['${q.id}']=${oi}">
+              ${_esc(opt)}
+            </label>`).join('')}
+        </div>`).join('')}
+      <button class="btn btn-primary" onclick="pdSubmitAttempt()">${t('Отправить')}</button>
+    </div>`;
+
+  setContent(`
+    ${pdStyles()}
+    <div class="page-header">
+      <button class="btn btn-outline btn-sm" onclick="renderPD()">← ${t('Назад')}</button>
+      <h2>${_esc(m.title)}</h2>
+    </div>
+    ${contentHtml}
+    ${quizHtml}
+  `);
+}
+
+async function pdSubmitAttempt(){
+  const qs=PD_STATE.questions;
+  if(qs.some(q=>PD_STATE.answers[q.id]===undefined)){showToast(t('Ответь на все вопросы'));return;}
+  const{data,error}=await sb.rpc('submit_pd_attempt',{p_material_id:PD_STATE.material.id,p_answers:PD_STATE.answers});
+  if(error){showToast(t('Ошибка')+': '+error.message);return;}
+  PD_STATE.result=data;
+  pdRenderDetail();
+}
+
+// ---------- Owner: authoring + report ----------
+async function pdRenderOwner(){
+  const{data:mats}=await sb.from('pd_materials').select('*').eq('school_id',S.schoolId).order('created_at',{ascending:false});
+  const{data:atts}=await sb.from('pd_attempts').select('pd_material_id,teacher_id,score,total,completed_at').eq('school_id',S.schoolId);
+  const{data:teachers}=await sb.from('profiles').select('id,first_name,last_name').eq('school_id',S.schoolId).eq('role','teacher');
+  PD_OWNER_DATA={mats:mats||[],atts:atts||[],teachers:teachers||[]};
+  pdRenderOwnerView();
+}
+
+function pdRenderOwnerView(){
+  const{mats,atts,teachers}=PD_OWNER_DATA;
+  const rows=teachers.map(tc=>{
+    const cells=mats.map(m=>{
+      const a=atts.find(x=>x.teacher_id===tc.id&&x.pd_material_id===m.id);
+      return a?`<td>${a.score}/${a.total}</td>`:`<td class="pd-not-started">—</td>`;
+    }).join('');
+    return `<tr><td>${_esc(((tc.first_name||'')+' '+(tc.last_name||'')).trim()||t('Без имени'))}</td>${cells}</tr>`;
+  }).join('');
+
+  const html=`
+    ${pdStyles()}
+    <div class="page-header">
+      <h2>🎓 ${t('Повышение квалификации')}</h2>
+      <button class="btn btn-primary" onclick="pdOpenEditor()">+ ${t('Добавить материал')}</button>
+    </div>
+    <div class="pd-materials-list">
+      ${mats.map(m=>`
+        <div class="pd-card" style="cursor:default">
+          <div class="pd-card-title">${_esc(m.title)}</div>
+          <div class="pd-card-desc">${_esc(m.description||'')}</div>
+          <button class="btn btn-outline btn-sm" onclick="pdOpenEditor('${m.id}')">✎ ${t('Редактировать')}</button>
+          <button class="btn btn-outline btn-sm" onclick="pdDeleteMaterial('${m.id}')">✕ ${t('Удалить')}</button>
+        </div>`).join('')||`<div class="empty-state">${t('Пока нет материалов')}</div>`}
+    </div>
+    <h3>${t('Прогресс учителей')}</h3>
+    <table class="pd-report-table">
+      <thead><tr><th>${t('Учитель')}</th>${mats.map(m=>`<th>${_esc(m.title)}</th>`).join('')}</tr></thead>
+      <tbody>${rows||`<tr><td colspan="${mats.length+1}">${t('Пока нет учителей')}</td></tr>`}</tbody>
+    </table>
+  `;
+  setContent(html);
+}
+
+function pdOpenEditor(id){
+  if(id){
+    const m=PD_OWNER_DATA.mats.find(x=>x.id===id);
+    pdLoadForEdit(id,m);
+    return;
+  }
+  PD_EDIT={id:null,title:'',description:'',content_type:'text',content_url:'',content_text:'',questions:[{question:'',options:['',''],correct:0}]};
+  pdRenderEditor();
+}
+
+async function pdLoadForEdit(id,m){
+  const{data:qs}=await sb.from('pd_questions').select('*, pd_answers(correct_index)').eq('pd_material_id',id).order('order_num');
+  PD_EDIT={
+    id,title:m.title,description:m.description||'',content_type:m.content_type||'text',
+    content_url:m.content_url||'',content_text:m.content_text||'',
+    questions:(qs||[]).map(q=>({id:q.id,question:q.question,options:(q.options||['','']).slice(),correct:(q.pd_answers&&q.pd_answers.correct_index)||0}))
+  };
+  pdRenderEditor();
+}
+
+function pdRenderEditor(){
+  const e=PD_EDIT;
+  const html=`
+    ${pdStyles()}
+    <div class="page-header">
+      <button class="btn btn-outline btn-sm" onclick="renderPD()">← ${t('Назад')}</button>
+      <h2>${e.id?t('Редактировать материал'):t('Новый материал')}</h2>
+    </div>
+    <div class="form-group"><label>${t('Название')}</label>
+      <input value="${_esc(e.title)}" oninput="PD_EDIT.title=this.value">
+    </div>
+    <div class="form-group"><label>${t('Описание')}</label>
+      <textarea oninput="PD_EDIT.description=this.value">${_esc(e.description)}</textarea>
+    </div>
+    <div class="form-group"><label>${t('Тип материала')}</label>
+      <select onchange="PD_EDIT.content_type=this.value;pdRenderEditor()">
+        <option value="text" ${e.content_type==='text'?'selected':''}>${t('Текст')}</option>
+        <option value="video" ${e.content_type==='video'?'selected':''}>${t('Видео (ссылка)')}</option>
+        <option value="pdf" ${e.content_type==='pdf'?'selected':''}>${t('PDF (ссылка)')}</option>
+        <option value="link" ${e.content_type==='link'?'selected':''}>${t('Ссылка')}</option>
+      </select>
+    </div>
+    ${e.content_type==='text'
+      ?`<div class="form-group"><label>${t('Текст материала')}</label><textarea rows="6" oninput="PD_EDIT.content_text=this.value">${_esc(e.content_text)}</textarea></div>`
+      :`<div class="form-group"><label>URL</label><input value="${_esc(e.content_url)}" oninput="PD_EDIT.content_url=this.value" placeholder="https://..."></div>`
+    }
+    <h3>${t('Вопросы теста')}</h3>
+    ${e.questions.map((q,qi)=>`
+      <div class="pd-q-editor">
+        <div class="form-group"><label>${t('Вопрос')} ${qi+1}</label>
+          <input value="${_esc(q.question)}" oninput="PD_EDIT.questions[${qi}].question=this.value">
+        </div>
+        ${q.options.map((opt,oi)=>`
+          <div class="pd-option-row">
+            <input type="radio" name="pdcorrect_${qi}" ${q.correct===oi?'checked':''} onchange="PD_EDIT.questions[${qi}].correct=${oi}">
+            <input value="${_esc(opt)}" oninput="PD_EDIT.questions[${qi}].options[${oi}]=this.value" placeholder="${t('Вариант ответа')}">
+            ${q.options.length>2?`<button type="button" class="btn btn-outline btn-sm" onclick="pdRemoveOption(${qi},${oi})">✕</button>`:''}
+          </div>`).join('')}
+        <button type="button" class="btn btn-outline btn-sm" onclick="pdAddOption(${qi})">+ ${t('Вариант')}</button>
+        <button type="button" class="btn btn-outline btn-sm" onclick="pdRemoveQuestion(${qi})">✕ ${t('Удалить вопрос')}</button>
+      </div>`).join('')}
+    <button type="button" class="btn btn-outline" onclick="pdAddQuestion()">+ ${t('Добавить вопрос')}</button>
+    <div class="form-group">
+      <button class="btn btn-primary" onclick="pdSaveMaterial()">💾 ${t('Сохранить')}</button>
+    </div>
+  `;
+  setContent(html);
+}
+
+function pdAddQuestion(){PD_EDIT.questions.push({question:'',options:['',''],correct:0});pdRenderEditor();}
+function pdRemoveQuestion(qi){PD_EDIT.questions.splice(qi,1);if(!PD_EDIT.questions.length)PD_EDIT.questions.push({question:'',options:['',''],correct:0});pdRenderEditor();}
+function pdAddOption(qi){PD_EDIT.questions[qi].options.push('');pdRenderEditor();}
+function pdRemoveOption(qi,oi){const q=PD_EDIT.questions[qi];if(q.correct===oi)q.correct=0;else if(q.correct>oi)q.correct--;q.options.splice(oi,1);pdRenderEditor();}
+
+async function pdSaveMaterial(){
+  const e=PD_EDIT;
+  if(!e.title.trim()){showToast(t('Введите название'));return;}
+  if(!e.questions.length||e.questions.some(q=>!q.question.trim()||q.options.length<2||q.options.some(o=>!o.trim()))){
+    showToast(t('Заполните все вопросы и варианты ответа (минимум 2)'));return;
+  }
+  let matId=e.id;
+  const payload={title:e.title,description:e.description,content_type:e.content_type,content_url:e.content_url,content_text:e.content_text,school_id:S.schoolId,created_by:(S.profile&&S.profile.id)||S.userId};
+  if(matId){
+    const{error}=await sb.from('pd_materials').update(payload).eq('id',matId);
+    if(error){showToast(t('Ошибка')+': '+error.message);return;}
+    await sb.from('pd_questions').delete().eq('pd_material_id',matId);
+  }else{
+    const{data,error}=await sb.from('pd_materials').insert(payload).select('id').single();
+    if(error){showToast(t('Ошибка')+': '+error.message);return;}
+    matId=data.id;
+  }
+  for(let qi=0;qi<e.questions.length;qi++){
+    const q=e.questions[qi];
+    const{data:qRow,error:qErr}=await sb.from('pd_questions').insert({pd_material_id:matId,school_id:S.schoolId,question:q.question,options:q.options,order_num:qi}).select('id').single();
+    if(qErr){showToast(t('Ошибка')+': '+qErr.message);return;}
+    const{error:aErr}=await sb.from('pd_answers').insert({pd_question_id:qRow.id,correct_index:q.correct});
+    if(aErr){showToast(t('Ошибка')+': '+aErr.message);return;}
+  }
+  showToast(t('✅ Материал сохранён'));
+  PD_EDIT=null;
+  renderPD();
+}
+
+async function pdDeleteMaterial(id){
+  if(!await tyConfirm(t('Удалить материал вместе с вопросами и результатами?')))return;
+  await sb.from('pd_materials').delete().eq('id',id);
+  renderPD();
+}
+
+
 function showNewVersionBanner(){
   if(document.getElementById('newVersionBanner'))return;
   var b=document.createElement('div');
@@ -4291,7 +4559,7 @@ setInterval(async function(){
   }
 })();
 // ─── АВТООБНОВЛЕНИЕ (кэш GitHub Pages) ───────────────────────────────────────
-const APP_BUILD='2026.08.13-an'; // ⚠️ менять при каждом деплое
+const APP_BUILD='2026.08.13-ao'; // ⚠️ менять при каждом деплое
 // Показывае
 const MAX_FILE_MB=100; // единый лимит размера файла материалов (МБ) — меняется в одном местем номер сборки на логине — для диагностики версий
 setTimeout(()=>{const lb=document.getElementById('loginBuild');if(lb)lb.textContent='v '+APP_BUILD;},300);
