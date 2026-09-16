@@ -4153,7 +4153,7 @@ async function afterLogin(user){
   _updateLangBtn();
   C('dialBtn').style.display='flex';
   buildSidebar();
-  await loadContacts();
+  loadContacts();
   subscribeNotifications();
   if(['owner','admin','teacher'].includes(prof.role))initTaskReminders();
   // Восстанавливаем последний открытый экран (если он доступен этой роли)
@@ -4580,7 +4580,7 @@ setInterval(async function(){
   }
 })();
 // ─── АВТООБНОВЛЕНИЕ (кэш GitHub Pages) ───────────────────────────────────────
-const APP_BUILD='2026.09.17-cl'; // ⚠️ менять при каждом деплое
+const APP_BUILD='2026.09.17-pf'; // ⚠️ менять при каждом деплое
 // Показывае
 const MAX_FILE_MB=100; // единый лимит размера файла материалов (МБ) — меняется в одном местем номер сборки на логине — для диагностики версий
 setTimeout(()=>{const lb=document.getElementById('loginBuild');if(lb)lb.textContent='v '+APP_BUILD;},300);
@@ -4744,11 +4744,14 @@ function avHTML(f,l,size=36){const bg=avColor(f);return`<div class="avatar-circl
 
 // ─── CONTACTS ─────────────────────────────────────────────────────────────────
 async function loadContacts(){
-  const{data:profs}=await sb.from('profiles').select('id,first_name,last_name,role').eq('school_id',S.schoolId);
+  const isStaff=['teacher','admin','owner'].includes(S.role);
+  const[{data:profs},{data:sts}]=await Promise.all([
+    sb.from('profiles').select('id,first_name,last_name,role').eq('school_id',S.schoolId),
+    isStaff?sb.from('students').select('id,first_name,last_name').eq('school_id',S.schoolId):Promise.resolve({data:[]})
+  ]);
   const filtered=(profs||[]).filter(p=>p.id!==S.profile.id);
   let stuContacts=[];
-  if(['teacher','admin','owner'].includes(S.role)){
-    const{data:sts}=await sb.from('students').select('id,first_name,last_name').eq('school_id',S.schoolId);
+  if(isStaff){
     // Исключаем студентов, у которых уже есть аккаунт в profiles (чтобы не дублировать)
     const profNames=new Set((profs||[]).map(p=>(p.first_name||'').trim().toLowerCase()+'|'+(p.last_name||'').trim().toLowerCase()));
     stuContacts=(sts||[])
@@ -4860,7 +4863,7 @@ function subscribeNotifications(){
   });
   // Проверяем pending сигналы (если пришли пока был офлайн)
   setTimeout(async()=>{
-    const{data:sigs}=await sb.from('call_signals').select('*').eq('to_profile_id',S.profile.id).eq('school_id',S.schoolId).order('created_at',{ascending:false}).limit(1);
+    const{data:sigs}=await sb.from('call_signals').select('*').eq('to_profile_id',S.profile.id).order('created_at',{ascending:false}).limit(1);
     if(sigs?.length){
       const sig=sigs[0];
       if(Date.now()-new Date(sig.created_at).getTime()<30000)handleIncomingCall({from_name:sig.from_name,from_role:sig.from_role,room_id:sig.room_id});
