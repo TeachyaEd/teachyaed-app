@@ -4580,7 +4580,7 @@ setInterval(async function(){
   }
 })();
 // ─── АВТООБНОВЛЕНИЕ (кэш GitHub Pages) ───────────────────────────────────────
-const APP_BUILD='2026.09.17-lc'; // ⚠️ менять при каждом деплое
+const APP_BUILD='2026.09.17-ec'; // ⚠️ менять при каждом деплое
 // Показывае
 const MAX_FILE_MB=100; // единый лимит размера файла материалов (МБ) — меняется в одном местем номер сборки на логине — для диагностики версий
 setTimeout(()=>{const lb=document.getElementById('loginBuild');if(lb)lb.textContent='v '+APP_BUILD;},300);
@@ -8246,6 +8246,7 @@ async function aiGenerateLesson(){
       language:C('ai_lang')?.value||'Английский',
       level:C('ai_level')?.value||'A1',
       content,
+      exercise_count:sections.reduce((a,s)=>a+((s.exercises||[]).length),0),
       published:true,
       teacher_id:S.profile?.id||null
     }).select().single();
@@ -8455,6 +8456,7 @@ async function copyFromLibrary(lessonId,btn){
       language:lesson.language,
       level:lesson.level,
       content:lesson.content,
+      exercise_count:lesson.content?.sections?lesson.content.sections.reduce((a,s)=>a+((s.exercises||[]).length),0):Array.isArray(lesson.content)?lesson.content.length:0,
       published:false,
       is_shared:false,
       teacher_id:S.profile.id
@@ -8608,7 +8610,7 @@ async function lvPersistSections(){
     if(!raw||typeof raw!=="object")raw={};
     raw.sections=LV.sections;
     if(Array.isArray(LV.materials))raw.materials=LV.materials;
-    var up=await sb.from("lessons").update({content:raw}).eq("id",LV.lessonId).eq("school_id",S.schoolId);
+    var up=await sb.from("lessons").update({content:raw,exercise_count:(raw.sections||[]).reduce((a,s)=>a+((s.exercises||[]).length),0)}).eq("id",LV.lessonId).eq("school_id",S.schoolId);
     if(up.error){showToast("❌ "+up.error.message,"error");return false;}
     return true;
   }catch(e){console.warn("[persist]",e);return false;}
@@ -9262,7 +9264,7 @@ async function dictAddToLesson(pair){
     if(!Array.isArray(vb.words))vb.words=[];
     for(var j=0;j<vb.words.length;j++){if(String(vb.words[j].word||'').toLowerCase()===w.toLowerCase()){showToast('ℹ️ '+t('Слово уже в словаре урока'));return true;}}
     vb.words.push({word:w,trans:tr});
-    var up=await sb.from('lessons').update({content:raw}).eq('id',LV.lessonId).eq('school_id',S.schoolId);
+    var up=await sb.from('lessons').update({content:raw,exercise_count:(raw.sections||[]).reduce((a,s)=>a+((s.exercises||[]).length),0)}).eq('id',LV.lessonId).eq('school_id',S.schoolId);
     if(up.error){showToast('❌ '+up.error.message,'error');return false;}
     LV.sections=raw.sections;lvRender();
     lvSyncSend('lesson','lesson',LV.lessonId);
