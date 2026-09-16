@@ -4580,7 +4580,7 @@ setInterval(async function(){
   }
 })();
 // ─── АВТООБНОВЛЕНИЕ (кэш GitHub Pages) ───────────────────────────────────────
-const APP_BUILD='2026.09.17-pf'; // ⚠️ менять при каждом деплое
+const APP_BUILD='2026.09.17-lc'; // ⚠️ менять при каждом деплое
 // Показывае
 const MAX_FILE_MB=100; // единый лимит размера файла материалов (МБ) — меняется в одном местем номер сборки на логине — для диагностики версий
 setTimeout(()=>{const lb=document.getElementById('loginBuild');if(lb)lb.textContent='v '+APP_BUILD;},300);
@@ -8147,7 +8147,8 @@ async function saveFromCE(publish){
   const title=C('ce_title').value.trim();if(!title){showToast('Введи название урока!');return;}
   const data={school_id:S.schoolId,teacher_id:S.profile.id,title,
     language:C('ce_lang').value,level:C('ce_level').value,
-    content:{sections:CE.sections,materials:CE.materials},published:publish};
+    content:{sections:CE.sections,materials:CE.materials},published:publish,
+    exercise_count:(CE.sections||[]).reduce((a,s)=>a+((s.exercises||[]).length),0)};
   let err=null;
   if(CE.lessonId){
     const res=await sb.from('lessons').update(data).eq('id',CE.lessonId).eq('school_id',S.schoolId).select().single();
@@ -8174,7 +8175,7 @@ async function renderTeacherLessons(){
   showSkel();
   const _tlSnap=S.screen;
   const[{data:lessons},{data:sts}]=await Promise.all([
-    dc('lessons_'+S.schoolId,()=>sb.from('lessons').select('*').eq('school_id',S.schoolId).order('created_at',{ascending:false}).then(r=>r)),
+    dc('lessons_'+S.schoolId,()=>sb.from('lessons').select('id,title,language,level,published,exercise_count,created_at').eq('school_id',S.schoolId).order('created_at',{ascending:false}).then(r=>r)),
     dc('students_'+S.schoolId,()=>sb.from('students').select('id,first_name,last_name').eq('school_id',S.schoolId).then(r=>r))
   ]);
   if(S.screen!==_tlSnap){return;}
@@ -8182,7 +8183,7 @@ async function renderTeacherLessons(){
   window._lessonCache=window._lessonCache||{};
   (lessons||[]).forEach(l=>{window._lessonCache[l.id]=l;});
   const cards=(lessons||[]).map(l=>{
-    const cnt=l.content?.sections?l.content.sections.reduce((a,s)=>a+(s.exercises?.length||0),0):Array.isArray(l.content)?l.content.length:0;
+    const cnt=l.exercise_count??0;
     return`<div class="card" style="margin-bottom:12px">
       <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
         <div>
@@ -9761,13 +9762,21 @@ function openLessonPreview(title,content,lessonId){
   const{sections:_s,materials:_m}=_parseLessonContent(content);
   openClassroomView(title,_s,null,null,_m,lessonId||null);
 }
-function previewLessonById(id){
-  const l=(window._lessonCache||{})[id];
+async function previewLessonById(id){
+  let l=(window._lessonCache||{})[id];
+  if(!l||l.content===undefined){
+    const{data}=await sb.from('lessons').select('*').eq('id',id).single();
+    if(data){window._lessonCache=window._lessonCache||{};window._lessonCache[id]=data;l=data;}
+  }
   if(!l){showToast('Урок не найден');return;}
   openLessonPreview(l.title,l.content||[],l.id);
 }
-function editLessonById(id){
-  const l=(window._lessonCache||{})[id];
+async function editLessonById(id){
+  let l=(window._lessonCache||{})[id];
+  if(!l||l.content===undefined){
+    const{data}=await sb.from('lessons').select('*').eq('id',id).single();
+    if(data){window._lessonCache=window._lessonCache||{};window._lessonCache[id]=data;l=data;}
+  }
   if(!l){showToast('Урок не найден');return;}
   openLessonEditor(l.id,l.title,l.language||'Английский',l.level||'A1',l.content||[]);
 }
