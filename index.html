@@ -4580,7 +4580,7 @@ setInterval(async function(){
   }
 })();
 // ─── АВТООБНОВЛЕНИЕ (кэш GitHub Pages) ───────────────────────────────────────
-const APP_BUILD='2026.08.13-as'; // ⚠️ менять при каждом деплое
+const APP_BUILD='2026.09.16-cs'; // ⚠️ менять при каждом деплое
 // Показывае
 const MAX_FILE_MB=100; // единый лимит размера файла материалов (МБ) — меняется в одном местем номер сборки на логине — для диагностики версий
 setTimeout(()=>{const lb=document.getElementById('loginBuild');if(lb)lb.textContent='v '+APP_BUILD;},300);
@@ -4816,7 +4816,7 @@ function subscribeNotifications(){
       ({new:sig})=>{
         if(!sig||sig.school_id!==S.schoolId)return;
         handleIncomingCall({from_name:sig.from_name,from_role:sig.from_role,room_id:sig.room_id});
-        sb.from('call_signals').delete().eq('id',sig.id).eq('school_id',S.schoolId).then(()=>{});
+        sb.from('call_signals').delete().eq('id',sig.id).then(()=>{});
       })
     // 🔴 Live-урок: ученику приходит уведомление, что урок начался
     .on('postgres_changes',{event:'INSERT',schema:'public',table:'class_live'},
@@ -4913,7 +4913,7 @@ async function callContact(partnerId,partnerName,partnerRole){
   if(!ringId.startsWith('stu_')){
     const rPayload={from_name:`${S.profile.first_name} ${S.profile.last_name}`,from_role:S.role,room_id:roomId,from_id:S.profile?.id};
     // 1️⃣ Postgres Changes — надёжно (основной канал)
-    sb.from('call_signals').insert({to_profile_id:ringId,school_id:S.schoolId,...rPayload})
+    sb.from('call_signals').insert({to_profile_id:ringId,from_name:rPayload.from_name,from_role:rPayload.from_role,room_id:rPayload.room_id})
       .then(({error})=>{if(error)console.warn('call_signal insert:',error);});
     // 2️⃣ Broadcast — быстро (fire-and-forget, без await)
     const notifyCh=sb.channel(`notify-${ringId}`);
