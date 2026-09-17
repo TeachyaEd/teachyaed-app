@@ -4592,7 +4592,7 @@ setInterval(async function(){
   }
 })();
 // ─── АВТООБНОВЛЕНИЕ (кэш GitHub Pages) ───────────────────────────────────────
-const APP_BUILD='2026.09.18-ct'; // ⚠️ менять при каждом деплое
+const APP_BUILD='2026.09.18-cl'; // ⚠️ менять при каждом деплое
 // Показывае
 const MAX_FILE_MB=100; // единый лимит размера файла материалов (МБ) — меняется в одном местем номер сборки на логине — для диагностики версий
 setTimeout(()=>{const lb=document.getElementById('loginBuild');if(lb)lb.textContent='v '+APP_BUILD;},300);
@@ -8597,20 +8597,33 @@ function openClassroomView(title,sections,assignId,studentName,materials,lessonI
   lvSyncInit(lessonId?('ls_'+String(lessonId).replace(/[^a-zA-Z0-9]/g,'').slice(0,20)):(assignId?('as_'+assignId):(S._liveRoomId||null)));
 }
 
-function openLessonView(assignId){
+async function _resolveClassForLesson(lessonId){
+  if(!lessonId)return;
+  try{
+    const{data:_cls}=await sb.from('class_lessons').select('class_id').eq('lesson_id',lessonId).eq('school_id',S.schoolId);
+    if(!_cls||!_cls.length)return;
+    if(_cls.length===1){S.currentClassId=_cls[0].class_id;return;}
+    const _ids=_cls.map(c=>c.class_id);
+    const{data:_cs}=await sb.from('class_students').select('class_id').eq('student_id',S.studentRowId).eq('school_id',S.schoolId).in('class_id',_ids);
+    if(_cs&&_cs.length)S.currentClassId=_cs[0].class_id;
+  }catch(e){console.warn('_resolveClassForLesson',e);}
+}
+async function openLessonView(assignId){
   const cached=(window._assignCache||{})[assignId];
   if(!cached){
     // Cache miss — re-fetch then open
     showToast('Загрузка урока...');
-    renderStudentLessons().then(()=>{
+    renderStudentLessons().then(async()=>{
       const c=(window._assignCache||{})[assignId];
-      if(!c){showToast('Урок не найден','error');return;}
+      if(!c)return;
       const{sections:_s,materials:_m}=_parseLessonContent(c.lesson?.content||[]);
+      if(S.role==='student')await _resolveClassForLesson(c.lesson?.id||null);
       openClassroomView(c.lesson?.title||'Урок',_s,assignId,null,_m,c.lesson?.id||null);
     }).catch(e=>showToast('Ошибка загрузки: '+(e?.message||e),'error'));
     return;
   }
   const{sections:_s,materials:_m}=_parseLessonContent(cached.lesson?.content||[]);
+  if(S.role==='student')await _resolveClassForLesson(cached.lesson?.id||null);
   openClassroomView(cached.lesson?.title||'Урок',_s,assignId,null,_m,cached.lesson?.id||null);
 }
 
