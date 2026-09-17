@@ -3907,6 +3907,19 @@ async function sendAIMsg(prefix){
 }
 
 // Call student from lesson view
+async function cvCallTeacher(){
+  if(cvCallTeacher._busy)return;cvCallTeacher._busy=true;
+  try{
+  if(S.inCall){showToast(t('Уже идёт звонок'));return;}
+  if(!S.currentClassId){showToast(t('Класс не определён'),'error');return;}
+  const{data:_cl}=await sb.from('classes').select('teacher_id').eq('id',S.currentClassId).eq('school_id',S.schoolId).maybeSingle();
+  if(!_cl?.teacher_id){showToast(t('Учитель не найден'),'error');return;}
+  const{data:_tp}=await sb.from('profiles').select('first_name,last_name').eq('id',_cl.teacher_id).maybeSingle();
+  const _tName=((_tp?.first_name||'')+' '+(_tp?.last_name||'')).trim()||t('Учитель');
+  callContact(_cl.teacher_id,_tName,'teacher');
+  }catch(e){console.warn('cvCallTeacher',e);}
+  finally{cvCallTeacher._busy=false;}
+}
 async function cvCallStudent(){
   if(cvCallStudent._busy)return;cvCallStudent._busy=true;
   try{
@@ -4579,7 +4592,7 @@ setInterval(async function(){
   }
 })();
 // ─── АВТООБНОВЛЕНИЕ (кэш GitHub Pages) ───────────────────────────────────────
-const APP_BUILD='2026.09.17-nc'; // ⚠️ менять при каждом деплое
+const APP_BUILD='2026.09.18-ct'; // ⚠️ менять при каждом деплое
 // Показывае
 const MAX_FILE_MB=100; // единый лимит размера файла материалов (МБ) — меняется в одном местем номер сборки на логине — для диагностики версий
 setTimeout(()=>{const lb=document.getElementById('loginBuild');if(lb)lb.textContent='v '+APP_BUILD;},300);
@@ -8540,6 +8553,19 @@ function openClassroomView(title,sections,assignId,studentName,materials,lessonI
   else{badge.style.display='none';}
   // show call panel only in teacher+student classroom context
   C('cv_callPanel').style.display=studentName?'':'none';
+  const _isStuView=S.role==='student';
+  if(_isStuView&&S.currentClassId)C('cv_callPanel').style.display='';
+  const _cvCallText=document.querySelector('#cv_callPanel .cv-call-text');
+  const _cvCallBtn=document.querySelector('#cv_callPanel .cv-call-btn');
+  if(_cvCallText&&_cvCallBtn){
+    if(_isStuView){
+      _cvCallText.textContent=t('Позвоните учителю, если нужна помощь');
+      _cvCallBtn.setAttribute('onclick','cvCallTeacher()');
+    }else{
+      _cvCallText.textContent=t('Позвоните, когда урок начнётся');
+      _cvCallBtn.setAttribute('onclick','cvCallStudent()');
+    }
+  }
   // Кнопка смены урока — только учителю в контексте класса
   const _swBtn=C('cv_switchBtn');
   if(_swBtn)_swBtn.style.display=['teacher','admin','owner'].includes(S.role)?'':'none';
