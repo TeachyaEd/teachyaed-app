@@ -4151,8 +4151,7 @@ async function afterLogin(user){
   updateTopBarAvatar();
   C('roleChip').textContent=t(ROLE_L[prof.role]||prof.role);
   _updateLangBtn();
-  C('dialBtn').style.display='flex';
-  buildSidebar();
+    buildSidebar();
   loadContacts();
   subscribeNotifications();
   if(['owner','admin','teacher'].includes(prof.role))initTaskReminders();
@@ -4580,7 +4579,7 @@ setInterval(async function(){
   }
 })();
 // ─── АВТООБНОВЛЕНИЕ (кэш GitHub Pages) ───────────────────────────────────────
-const APP_BUILD='2026.09.17-ec'; // ⚠️ менять при каждом деплое
+const APP_BUILD='2026.09.17-nc'; // ⚠️ менять при каждом деплое
 // Показывае
 const MAX_FILE_MB=100; // единый лимит размера файла материалов (МБ) — меняется в одном местем номер сборки на логине — для диагностики версий
 setTimeout(()=>{const lb=document.getElementById('loginBuild');if(lb)lb.textContent='v '+APP_BUILD;},300);
@@ -5849,7 +5848,7 @@ async function renderStudentClasses(){
         <button class="btn btn-outline" style="padding:9px 12px" title="${t('Подробнее о классе')}" onclick="event.stopPropagation();openStudentClass('${_clId}')">ℹ️</button>
       </div>
       <div style="font-size:.85rem;margin-bottom:10px">👤 <b>Учитель:</b> ${teacherName}
-        ${teacher&&S.profile?.id?`<button class="btn btn-sm btn-outline" style="margin-left:8px;padding:3px 8px;font-size:.75rem" onclick="event.stopPropagation();callContact('${_esc(cl.teacher_id)}','${_escJS(_tnRaw)}','teacher')">📞 Позвонить</button>`:''}
+        
       </div>
       ${cl.description?`<div style="font-size:.82rem;color:var(--text3);margin-bottom:10px">${_escHtml(cl.description)}</div>`:''}
       <div style="font-weight:600;font-size:.82rem;margin-bottom:6px;color:var(--purple)">📅 Ближайшие занятия:</div>
@@ -6109,7 +6108,7 @@ async function renderTeacherStudents(){
     <td>${_escHtml(s.language||'—')}</td><td><span class="badge badge-purple">${_escHtml(s.level||'—')}</span></td><td>${_escHtml(s.phone||'—')}</td>
     <td class="td-actions">
       <button class="btn btn-sm btn-purple" style="font-size:.73rem;padding:4px 8px" onclick="prefillHwForStudent('${sId}','${sName}')">📋 ДЗ</button>
-      <button class="btn btn-sm btn-green" style="font-size:.73rem;padding:4px 8px" onclick="callContact('stu_${sId}','${sName}','student')">📞</button>
+      
     </td>
   </tr>`}).join('')||'<tr><td colspan="5" style="text-align:center;color:var(--text3)">Нет учеников</td></tr>';
   setContent(`<div class="section-header"><h2>👥 Ученики</h2></div>
@@ -6314,7 +6313,7 @@ async function renderAdminStudents(){
     <td><span class="badge badge-purple">${_escHtml(s.level||'—')}</span></td>
     <td>${_escHtml(s.phone||'—')}</td>
     <td class="td-actions">
-      <button class="btn btn-sm btn-green" style="font-size:.73rem;padding:4px 8px" onclick="callContact('stu_${sId}','${sName}','student')">📞</button>
+      
       <button class="btn-danger" onclick="confirmDeleteStudent('${sId}','${sName}')">🗑</button>
     </td></tr>`}).join('')||`<tr><td colspan="5" style="text-align:center;color:var(--text3)">${t('Нет учеников')}</td></tr>`;
   if(S.screen!==_adsSnap)return;
@@ -6335,7 +6334,7 @@ async function renderAdminTeachers(){
     <td><span class="badge badge-green">${t('Учитель')}</span></td>
     <td class="td-actions">
       <button class="btn btn-sm btn-outline" style="font-size:.73rem;padding:4px 8px" onclick="openSetSalary('${tcId}','${tcName}')">💰 ${t('Ставка')}</button>
-      <button class="btn btn-sm btn-green" style="font-size:.73rem;padding:4px 8px" onclick="callContact('${tcId}','${tcName}','teacher')">📞</button>
+      
       <button class="btn-danger" onclick="confirmDeleteUser('${tcId}','${tcName}','teacher')">🗑</button>
     </td></tr>`}).join('')||`<tr><td colspan="3" style="text-align:center;color:var(--text3)">${t('Нет учителей')}</td></tr>`;
   if(S.screen!==_adtSnap)return;
@@ -6360,7 +6359,7 @@ async function renderOwnerUsers(){
       ${u.id===S.profile.id
         ?`<span style="font-size:.75rem;color:var(--text3)">${t('Это вы')}</span>`
         :`<button class="btn btn-sm btn-outline" style="font-size:.73rem;padding:4px 8px" onclick="openChangeRole('${uId}','${uName}','${uRole}')">✎ ${t('Роль')}</button>
-        <button class="btn btn-sm btn-green" style="font-size:.73rem;padding:4px 8px" onclick="callContact('${uId}','${uName}','${uRole}')">📞</button>
+        
         ${canDelete&&!(S.role==='admin'&&u.role==='owner')?`<button class="btn-danger" onclick="confirmDeleteUser('${uId}','${uName}','${uRole}')">🗑</button>`:''}`}
     </td>
   </tr>`}).join('');
@@ -6488,7 +6487,7 @@ async function renderOwnerStudents(){
     <td><div style="display:flex;align-items:center;gap:10px">${avHTML(s.first_name,s.last_name)}<div><div style="font-weight:600;cursor:pointer" onclick="openStudentCard('${_sId}')">${_esc(s.first_name)} ${_esc(s.last_name)}</div><div style="font-size:.75rem;color:var(--text3)">${_esc(s.email||'—')}</div></div></div></td>
     <td>${_escHtml(s.language||'—')}</td><td><span class="badge badge-purple">${_escHtml(s.level||'—')}</span></td><td>${_escHtml(s.phone||'—')}</td>
     <td class="td-actions">
-      <button class="btn btn-sm btn-green" style="font-size:.73rem;padding:4px 8px" onclick="callContact('stu_${_sId}','${_escJS((s.first_name||'')+' '+(s.last_name||''))}','student')">📞</button>
+      
       <button class="btn-danger" onclick="confirmDeleteStudent('${_sId}','${_escJS((s.first_name||'')+' '+(s.last_name||''))}')">🗑</button>
     </td></tr>`}).join('')||`<tr><td colspan="5" style="text-align:center;color:var(--text3)">${t('Нет учеников')}</td></tr>`;
   setContent(`<div class="section-header"><h2>🎓 ${t('Ученики')}</h2><button class="btn btn-purple" onclick="openAddStudent()">+ ${t('Добавить')}</button></div>
