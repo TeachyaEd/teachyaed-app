@@ -1,0 +1,134 @@
+name: React app CI
+
+# This workflow lives at .github/workflows/ci-react.yml at the repo
+# root (GitHub only reads workflows from that exact path — not from
+# web/.github/workflows). It covers only the web/ React app; it does
+# not touch or redeploy the legacy index.html / GitHub Pages site.
+#
+# Mandatory jobs per docs/REACT_MIGRATION_PLAN.md PHASE 2: install,
+# typecheck, lint, unit tests, build, frontend security check.
+#
+# No package-lock.json is committed yet (this scaffold was produced
+# in an environment with no npm registry access, so `npm install`
+# could not be run to generate one — see docs/PHASE2_FOUNDATION.md).
+# Each job below runs its own `npm install` rather than relying on
+# `actions/setup-node`'s npm cache, which requires a lockfile to key
+# on. Add a committed package-lock.json and re-enable caching as a
+# follow-up once `npm install` has been run for real at least once.
+#
+# Deliberately excluded from every-PR CI: security/security_baseline.sql
+# (the production database baseline). It requires a Postgres connection
+# string with at least read access to the production database's
+# catalogs — a protected credential that should not be handed to every
+# PR run, including PRs from forks. See "Database baseline" note below
+# for how/when it runs instead.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'web/**'
+      - '.github/workflows/ci-react.yml'
+  pull_request:
+    paths:
+      - 'web/**'
+      - '.github/workflows/ci-react.yml'
+
+defaults:
+  run:
+    working-directory: web
+
+jobs:
+  typecheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - run: npm install
+      - run: npm run typecheck
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - run: npm install
+      - run: npm run lint
+
+  unit-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - run: npm install
+      - run: npm run test
+        env:
+          # Test-only placeholder values — see tests/unit/env.test.ts
+          # and src/lib/env.ts. Never a real project key.
+          VITE_SUPABASE_URL: https://example.supabase.co
+          VITE_SUPABASE_ANON_KEY: test-anon-key-placeholder
+
+  build:
+    needs: [typecheck, lint, unit-tests]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - run: npm install
+      - run: npm run build
+        env:
+          VITE_SUPABASE_URL: https://juwvlyrepwdcndkqiqna.supabase.co
+          # Public anon/publishable key only — see src/services/supabase/client.ts.
+          # Set as a repo VARIABLE (not a secret), since it is meant to
+          # ship inside the client bundle. Falls back to a placeholder
+          # so `build` doesn't fail before that variable is configured.
+          VITE_SUPABASE_ANON_KEY: ${{ vars.SUPABASE_ANON_KEY || 'unset-configure-repo-variable' }}
+      - name: Verify no privileged secret substrings in build output
+        run: |
+          set -euo pipefail
+          if grep -R -i --include='*.js' -E 'service_role|SUPABASE_SERVICE|BEGIN (RSA|EC) PRIVATE KEY' dist/ ; then
+            echo "::error::Privileged secret pattern found in built output"
+            exit 1
+          fi
+          echo "No privileged secret patterns found in dist/."
+      - uses: actions/upload-artifact@v4
+        with:
+          name: web-build
+          path: web/dist
+
+  frontend-security-check:
+    runs-on: ubuntu-latest
+    # Runs the EXISTING repo tooling (security/frontend_security_check.js)
+    # against the legacy index.html at the exact commit under test
+    # (checked out fresh — not fetched from raw.githubusercontent.com,
+    # which SECURITY_BASELINE.md notes can serve stale content).
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - name: Run frontend security static check against legacy index.html
+        working-directory: .
+        run: node security/frontend_security_check.js index.html
+
+  # --- Database baseline: documented, not run on every PR ---
+  #
+  # security/security_baseline.sql requires a Postgres connection with
+  # read access to production catalogs (pg_policies, pg_proc, etc.).
+  # That credential is not given to this per-PR/per-push workflow,
+  # including PRs from forks, which could otherwise exfiltrate it via
+  # a modified workflow file in the same PR.
+  #
+  # How/when it actually runs instead:
+  #   1. Manually, by a maintainer with production DB read access,
+  #      following security/RELEASE_SECURITY_TEMPLATE.md, before any
+  #      release that touches the DB/RLS/Realtime/Storage surface.
+  #   2. Once a staging project exists (docs/STAGING.md), a separate,
+  #      explicitly-triggered workflow can run it against staging
+  #      using a staging-scoped credential stored as a protected
+  #      GitHub Environment secret — not a plain repo secret available
+  #      to every PR.
+  # This is a process/documentation note, not a job, deliberately.
