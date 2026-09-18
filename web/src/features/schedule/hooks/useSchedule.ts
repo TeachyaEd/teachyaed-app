@@ -51,6 +51,17 @@ const INITIAL_STATE: ScheduleState = {
  * request that started before the user switched role/school, or a
  * duplicate StrictMode-development invocation) can never overwrite a
  * newer one, and no load can update state after unmount.
+ *
+ * PHASE 3A.1 data-minimization note: `listScheduleClasses` returns
+ * school-wide class metadata (used only to populate the create/edit
+ * form's class dropdown). Students can never create, edit, or delete
+ * a Schedule event, so that dropdown is never rendered for them â
+ * fetching school-wide class options for a student is unnecessary
+ * over-fetch, not a security fix (the `classes` table's own SELECT
+ * policy is unchanged and is out of scope here; see
+ * docs/SCHEDULE_MIGRATION.md). `canManageSchedule(profile.role)` is
+ * the same role check the UI already uses to decide whether to show
+ * management controls at all, so it's the correct gate here too.
  */
 export function useSchedule() {
   const { status: authStatus, profile } = useAuth();
@@ -70,9 +81,10 @@ export function useSchedule() {
     }
 
     try {
+      const canManage = canManageSchedule(profile.role);
       const [{ events, emptyReason }, classes] = await Promise.all([
         listScheduleEvents(profile),
-        profile.school_id ? listScheduleClasses(profile.school_id) : Promise.resolve([]),
+        canManage && profile.school_id ? listScheduleClasses(profile.school_id) : Promise.resolve([]),
       ]);
       if (isCurrent()) {
         setState({ status: 'ready', events, classes, emptyReason, error: null });
