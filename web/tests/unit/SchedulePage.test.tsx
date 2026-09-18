@@ -183,4 +183,36 @@ describe('SchedulePage', () => {
 
     await waitFor(() => expect(screen.getByRole('alert')).toBeInTheDocument());
   });
+
+  // PHASE 3A.1 data-minimization coverage: students can never create,
+  // edit, or delete a Schedule event, so the school-wide class dropdown
+  // data has no legitimate use for them and should never be requested.
+  it('student: schedule load does NOT call listScheduleClasses (data minimization)', async () => {
+    vi.mocked(scheduleService.listScheduleEvents).mockResolvedValue({
+      events: [makeEvent({ title: 'Enrolled class lesson' })],
+      emptyReason: null,
+    });
+    vi.mocked(scheduleService.listScheduleClasses).mockResolvedValue([]);
+
+    renderWithAuth(STUDENT);
+
+    await waitFor(() => expect(screen.getByText('Enrolled class lesson')).toBeInTheDocument());
+    expect(scheduleService.listScheduleClasses).not.toHaveBeenCalled();
+  });
+
+  it('teacher/admin: schedule load still calls listScheduleClasses (required for create/edit UI)', async () => {
+    vi.mocked(scheduleService.listScheduleEvents).mockResolvedValue({ events: [], emptyReason: null });
+    vi.mocked(scheduleService.listScheduleClasses).mockResolvedValue([]);
+
+    const { unmount } = renderWithAuth(TEACHER);
+    await waitFor(() => expect(scheduleService.listScheduleClasses).toHaveBeenCalledWith(TEACHER.school_id));
+    unmount();
+
+    vi.clearAllMocks();
+    vi.mocked(scheduleService.listScheduleEvents).mockResolvedValue({ events: [], emptyReason: null });
+    vi.mocked(scheduleService.listScheduleClasses).mockResolvedValue([]);
+
+    renderWithAuth(ADMIN);
+    await waitFor(() => expect(scheduleService.listScheduleClasses).toHaveBeenCalledWith(ADMIN.school_id));
+  });
 });
