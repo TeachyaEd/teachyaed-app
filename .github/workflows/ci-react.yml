@@ -8,13 +8,20 @@ name: React app CI
 # Mandatory jobs per docs/REACT_MIGRATION_PLAN.md PHASE 2: install,
 # typecheck, lint, unit tests, build, frontend security check.
 #
-# No package-lock.json is committed yet (this scaffold was produced
-# in an environment with no npm registry access, so `npm install`
-# could not be run to generate one — see docs/PHASE2_FOUNDATION.md).
-# Each job below runs its own `npm install` rather than relying on
-# `actions/setup-node`'s npm cache, which requires a lockfile to key
-# on. Add a committed package-lock.json and re-enable caching as a
-# follow-up once `npm install` has been run for real at least once.
+# Node 24 is pinned (not 20) because the PHASE 2.1 dependency
+# modernization pass adopted vitest 5 (requires Node ^22.12.0 || ^24.0.0
+# || >=26.0.0), eslint 10 (requires Node ^20.19.0 || ^22.13.0 || >=24)
+# and vite 8 (requires Node ^20.19.0 || >=22.12.0). Node 24 is the
+# smallest single version that satisfies all three simultaneously —
+# see docs/DEPENDENCY_BASELINE.md for the full compatibility review.
+#
+# PHASE 2.1 (in progress): no package-lock.json is committed yet. This
+# revision temporarily uploads the lockfile that `npm install` produces
+# on this workflow's own GitHub-hosted runner (real npm resolution, not
+# hand-authored) as a build artifact, so it can be downloaded and
+# committed as web/package-lock.json in a follow-up commit. Once that
+# lockfile is committed, every job switches from `npm install` to
+# `npm ci` for deterministic installs — see the next CI revision.
 #
 # Deliberately excluded from every-PR CI: security/security_baseline.sql
 # (the production database baseline). It requires a Postgres connection
@@ -44,8 +51,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
-        with: { node-version: 20 }
+        with: { node-version: 24 }
       - run: npm install
+      - name: Upload package-lock.json artifact (temporary, for PHASE 2.1 lockfile extraction)
+        uses: actions/upload-artifact@v4
+        with:
+          name: package-lock-json
+          path: web/package-lock.json
       - run: npm run typecheck
 
   lint:
@@ -53,7 +65,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
-        with: { node-version: 20 }
+        with: { node-version: 24 }
       - run: npm install
       - run: npm run lint
 
@@ -62,7 +74,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
-        with: { node-version: 20 }
+        with: { node-version: 24 }
       - run: npm install
       - run: npm run test
         env:
@@ -77,7 +89,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
-        with: { node-version: 20 }
+        with: { node-version: 24 }
       - run: npm install
       - run: npm run build
         env:
@@ -109,7 +121,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
-        with: { node-version: 20 }
+        with: { node-version: 24 }
       - name: Run frontend security static check against legacy index.html
         working-directory: .
         run: node security/frontend_security_check.js index.html
