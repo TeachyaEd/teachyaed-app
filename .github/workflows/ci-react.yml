@@ -53,11 +53,11 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: 24 }
       - run: npm install
-      - name: Upload package-lock.json artifact (temporary, for PHASE 2.1 lockfile extraction)
-        uses: actions/upload-artifact@v4
-        with:
-          name: package-lock-json
-          path: web/package-lock.json
+      - name: Print package-lock.json for extraction (temporary, PHASE 2.1)
+        run: |
+          echo "===LOCKFILE-START==="
+          cat package-lock.json
+          echo "===LOCKFILE-END==="
       - run: npm run typecheck
 
   lint:
