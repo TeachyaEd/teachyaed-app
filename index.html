@@ -3938,7 +3938,7 @@ async function cvCallStudent(){
       const{data:_pf}=await sb.from('profiles').select('id').ilike('email',_em).eq('school_id',S.schoolId).maybeSingle();
       if(_pf?.id){
         sb.from('call_signals').insert({to_profile_id:_pf.id,school_id:S.schoolId,..._rp}).then(({error:_se})=>{if(_se)console.warn('[live ring]',_se);});
-        const _nch=sb.channel('notify-'+_pf.id);
+        const _nch=sb.channel('notify-'+_pf.id,{config:{private:true}});
         _nch.subscribe(st=>{if(st==='SUBSCRIBED'){_nch.send({type:'broadcast',event:'ring',payload:_rp});setTimeout(()=>sb.removeChannel(_nch),5000);}});
         _rang++;
       }
@@ -4199,6 +4199,7 @@ async function doLogout(){
   hangUp();
   // 3. Remove all realtime channels before signOut
   if(S.notifyChannel){try{sb.removeChannel(S.notifyChannel);}catch(e){}S.notifyChannel=null;}
+  if(S.notifyBroadcastChannel){try{sb.removeChannel(S.notifyBroadcastChannel);}catch(e){}S.notifyBroadcastChannel=null;}
   if(MS.rtSub){try{sb.removeChannel(MS.rtSub);}catch(e){}MS.rtSub=null;}
   try{Object.assign(MS,{convId:null,convs:[],msgs:[],uploading:false,rtSub:null,profiles:[],_loadingConvs:false,_sending:false,_openingConv:null,_creatingConv:false});}catch(e){}
   if(typeof cvChatChannel!=='undefined'&&cvChatChannel){try{sb.removeChannel(cvChatChannel);}catch(e){}cvChatChannel=null;}
@@ -4821,11 +4822,22 @@ function handleIncomingCall(payload){
 function subscribeNotifications(){
   if(!S.profile?.id)return;
   if(S.notifyChannel){try{sb.removeChannel(S.notifyChannel);}catch(e){}S.notifyChannel=null;}
-  S.notifyChannel=sb.channel(`notify-${S.profile.id}`)
-    // Broadcast (быстро, когда оба онлайн)
-    .on('broadcast',{event:'ring'},({payload})=>handleIncomingCall(payload))
+  if(S.notifyBroadcastChannel){try{sb.removeChannel(S.notifyBroadcastChannel);}catch(e){}S.notifyBroadcastChannel=null;}
+  S.notifyBroadcastChannel=sb.channel(`notify-${S.profile.id}`,{config:{private:true}})
+    .on('broadcast',{event:'ring'},async()=>{
+      const{data:sigs}=await sb.from('call_signals').select('*').eq('to_profile_id',S.profile.id).eq('school_id',S.schoolId).order('created_at',{ascending:false}).limit(1);
+      if(sigs?.length){
+        const sig=sigs[0];
+        if(Date.now()-new Date(sig.created_at).getTime()<30000)handleIncomingCall({from_name:sig.from_name,from_role:sig.from_role,room_id:sig.room_id});
+      }
+    })
     .on('broadcast',{event:'decline'},()=>{if(S.inCall){showToast(t('Звонок отклонён'),'info');hangUp();}})
-    // Postgres Changes (надёжно — основной канал уведомлений)
+    .subscribe(function(status){
+    if(status==='CLOSED'||status==='CHANNEL_ERROR'||status==='TIMED_OUT'){
+      setTimeout(function(){if(S.profile?.id)subscribeNotifications();},1500);
+    }
+  });
+  S.notifyChannel=sb.channel(`notify-pg-${S.profile.id}`)
     .on('postgres_changes',{event:'INSERT',schema:'public',table:'call_signals',
       filter:`to_profile_id=eq.${S.profile.id}`},
       ({new:sig})=>{
@@ -4833,7 +4845,6 @@ function subscribeNotifications(){
         handleIncomingCall({from_name:sig.from_name,from_role:sig.from_role,room_id:sig.room_id});
         sb.from('call_signals').delete().eq('id',sig.id).then(()=>{});
       })
-    // 🔴 Live-урок: ученику приходит уведомление, что урок начался
     .on('postgres_changes',{event:'INSERT',schema:'public',table:'class_live'},
       async({new:lv})=>{
         try{
@@ -4845,24 +4856,20 @@ function subscribeNotifications(){
           if(S._viewingClassId===lv.class_id){openStudentClass._loading=false;openStudentClass(lv.class_id);}
         }catch(_e){}
       })
-    // 💬 Чат класса: живое обновление
     .on('postgres_changes',{event:'INSERT',schema:'public',table:'class_feed'},
       ({new:cf})=>{
         try{
           if(!cf||cf.school_id!==S.schoolId)return;
-          if(cf.author_id===S.profile?.id)return; // своё сообщение уже видно
-          // Ученик смотрит этот класс — перерисуем
+          if(cf.author_id===S.profile?.id)return;
           if(S.role==='student'&&S._viewingClassId===cf.class_id){
             const _txt=C('stuFeedText');
             if(!_txt||!_txt.value){openStudentClass._loading=false;openStudentClass(cf.class_id);}
             else if(cf.type==='post')showToast('💬 '+_escHtml(cf.author_name||'')+': '+_escHtml((cf.text||'').slice(0,60)));
             return;
           }
-          // Учитель на вкладке «Лента» этого класса — перерисуем
           if(['teacher','admin','owner'].includes(S.role)&&S.currentClassId===cf.class_id&&S.currentClassTab==='feed'){
             loadClassTab._busy=false;loadClassTab('feed');return;
           }
-          // Иначе — тост для сообщений (не системных)
           if(cf.type==='post')showToast('💬 '+_escHtml(cf.author_name||'')+': '+_escHtml((cf.text||'').slice(0,60)));
         }catch(_e){}
       })
@@ -4873,7 +4880,6 @@ function subscribeNotifications(){
       setTimeout(function(){if(S.profile?.id)subscribeNotifications();},1500);
     }
   });
-  // Проверяем pending сигналы (если пришли пока был офлайн)
   setTimeout(async()=>{
     const{data:sigs}=await sb.from('call_signals').select('*').eq('to_profile_id',S.profile.id).order('created_at',{ascending:false}).limit(1);
     if(sigs?.length){
@@ -4882,11 +4888,10 @@ function subscribeNotifications(){
       sb.from('call_signals').delete().eq('to_profile_id',S.profile.id).eq('school_id',S.schoolId).then(()=>{});
     }
   },1500);
-  // Подстраховка: если вкладка была в фоне и соединение протухло — переподключаемся при возврате
   if(!S._notifyVisBound){
     S._notifyVisBound=true;
     document.addEventListener('visibilitychange',function(){
-      if(!document.hidden&&S.profile?.id&&S.notifyChannel&&S.notifyChannel.state!=='joined'){
+      if(!document.hidden&&S.profile?.id&&((S.notifyChannel&&S.notifyChannel.state!=='joined')||(S.notifyBroadcastChannel&&S.notifyBroadcastChannel.state!=='joined'))){
         subscribeNotifications();
       }
     });
@@ -4931,7 +4936,7 @@ async function callContact(partnerId,partnerName,partnerRole){
     sb.from('call_signals').insert({to_profile_id:ringId,from_name:rPayload.from_name,from_role:rPayload.from_role,room_id:rPayload.room_id})
       .then(({error})=>{if(error)console.warn('call_signal insert:',error);});
     // 2️⃣ Broadcast — быстро (fire-and-forget, без await)
-    const notifyCh=sb.channel(`notify-${ringId}`);
+    const notifyCh=sb.channel(`notify-${ringId}`,{config:{private:true}});
     notifyCh.subscribe(st=>{
       if(st==='SUBSCRIBED'){
         notifyCh.send({type:'broadcast',event:'ring',payload:rPayload})
@@ -4958,10 +4963,10 @@ function declineCall(){
   clearTimeout(S._ringTimeout);S._ringTimeout=null;
   C('incomingCall').classList.remove('show');
   if(S.pendingCallerId){
-    const _dch=sb.channel(`notify-${S.pendingCallerId}`);
+    const _dch=sb.channel(`notify-${S.pendingCallerId}`,{config:{private:true}});
     _dch.subscribe(st=>{if(st==='SUBSCRIBED'){_dch.send({type:'broadcast',event:'decline',payload:{}});setTimeout(()=>sb.removeChannel(_dch),1000);}});
   } else if(S.pendingRoom){
-    const _dch=sb.channel(S.pendingRoom);
+    const _dch=sb.channel(S.pendingRoom,{config:{private:true}});
     _dch.subscribe(st=>{if(st==='SUBSCRIBED'){_dch.send({type:'broadcast',event:'decline',payload:{}});setTimeout(()=>sb.removeChannel(_dch),1000);}});
   }
   S.pendingRoom=null;
@@ -4992,7 +4997,7 @@ async function initCall(roomId,partnerName,isCallee){
   }
   // Канал для уведомления о завершении звонка
   if(S.callChannel){try{sb.removeChannel(S.callChannel);}catch(e){}S.callChannel=null;}
-  S.callChannel=sb.channel(roomId)
+  S.callChannel=sb.channel(roomId,{config:{private:true}})
     .on('broadcast',{event:'hangup'},()=>{showToast('Собеседник завершил звонок');hangUp();})
     .subscribe();
 }
@@ -9316,7 +9321,7 @@ function lvSyncInit(roomKey){
     if(LV._syncCh){try{sb.removeChannel(LV._syncCh);}catch(e){}LV._syncCh=null;}
     LV._syncReady=false;
     LV._syncRoomKey=roomKey;
-    LV._syncCh=sb.channel('exsync-'+roomKey)
+    LV._syncCh=sb.channel('exsync-'+roomKey,{config:{private:true}})
       .on('broadcast',{event:'ex'},({payload})=>lvSyncApply(payload))
       .subscribe(function(status){
         LV._syncReady=(status==='SUBSCRIBED');
