@@ -295,7 +295,7 @@ Run before every production release. Any unchecked mandatory item blocks release
 
 ## 26. Automated checks
 
-`security/security_baseline.sql` runs a read-only set of catalog/metadata checks covering a meaningful subset of this document (RLS enabled on critical tables, expected policies exist, dangerous grants absent, trigger function `search_path`, Storage policies exist). It is not a substitute for the full checklist above — several invariants in this document describe business logic that cannot be reliably proven by a catalog query, and are marked as such in that file.
+`security/security_baseline.sql` runs a read-only set of catalog/metadata checks covering a meaningful subset of this document (RLS enabled on critical tables, expected policies exist, dangerous grants absent, trigger function `search_path`, Storage policies exist, and — as of 2026-09-18 — `schedule_events` policy structure, see §30). It is not a substitute for the full checklist above — several invariants in this document describe business logic that cannot be reliably proven by a catalog query, and are marked as such in that file. As of 2026-09-18 the script contains 80 checks (68 pre-existing, matching the original Security Audit v10 close-out figure, plus 12 new `schedule_events` checks added in §30: 1 RLS-enabled check, 8 expected-policy-exists checks, 2 old-broad-policy-absent checks, and 1 exact-policy-count check). Always read the script itself for the current count rather than trusting any number restated here.
 
 ## 27. Frontend static check
 
@@ -335,6 +335,29 @@ Exercise-sync regression: NOT VERIFIED (no second live account)
 
 Both chains are currently backed by `DEPLOYED SOURCE VERIFIED` + `SQL CONTEXT VERIFIED` + `CODE ANALYSIS PROTECTED` evidence — a real, consistent, static proof — but not by a full multi-user runtime test. That gap is intentional and honestly labeled, not hidden; this section exists to close it on staging when the team is ready to run it.
 
+## 30. Schedule authorization invariant (schedule_events) — added 2026-09-18
+
+**Intended model** (verified against fresh legacy `index.html` source, 2026-09-18):
+
+- `owner` / `admin`: school-wide read, and may create/update/delete any `schedule_events` row in their school.
+- `teacher`: may read, update, and delete **only** events where `teacher_id = auth.uid()`. May create events, always as self (`teacher_id = auth.uid()`) — legacy has no teacher-picker UI, for any role.
+- `student`: read-only, and only for events whose `class_id` is a class the student is actually enrolled in via `class_students`. No create/update/delete.
+- Cross-school access: always denied, for every role.
+
+**Pre-fix finding (discovered during the React Schedule migration's live-RLS re-verification pass, not introduced by that migration):**
+
+The live policies were `se_select` (`FOR SELECT USING (school_id = get_my_school_id())` — no role check, no class-enrollment scoping at all) and `se_staff_write` (`FOR ALL`, restricted to `teacher`/`admin`/`owner`, but its `teacher_id` check only verified the id belonged to *some* profile in the school, not `auth.uid()`). Net effect: any authenticated school member — including students — could read every schedule event in the school via the API, and any teacher could write to any other teacher's events, regardless of what the legacy frontend's own query filters showed on screen.
+
+**Fix:** `se_select` and `se_staff_write` were replaced with 8 explicit, per-role/per-operation policies (`schedule_select_admin_owner`, `schedule_select_teacher`, `schedule_select_student`, `schedule_insert_staff`, `schedule_update_admin_owner`, `schedule_update_teacher`, `schedule_delete_admin_owner`, `schedule_delete_teacher`). The student SELECT policy reuses the same email-matched `students`↔`profiles` linkage already proven correct on `homeworks`/`lesson_assignments` (`lower(students.email) = lower(profiles.email)` for `auth.uid()`), joined through `class_students`. Teacher UPDATE's `WITH CHECK` forces `teacher_id = auth.uid()` on the new row too, which closes the ownership-rebinding vector structurally (not just by frontend convention). Full before/after policy text and root-cause detail: `docs/SCHEDULE_MIGRATION.md` → "LIVE RLS VERIFICATION" / "MATERIAL MISMATCH" sections.
+
+**Verification evidence:**
+
+- Structural: `security/security_baseline.sql` §10 (RLS enabled, all 8 expected policies present, both old broad policies absent, exact policy count = 8). 80/80 checks PASS as of this fix.
+- Behavioral: a rollback-only SQL-context negative-authorization matrix (`BEGIN; ... SET LOCAL request.jwt.claims ...; ROLLBACK;`, synthetic test rows only, no durable production data) — 21/21 scenarios PASS, covering enrolled/non-enrolled/no-class student reads, teacher-vs-teacher horizontal read/update/delete/insert/rebind attempts, and admin/owner school-wide access. Not re-run automatically; re-verify after any future change to these 8 policies.
+- Runtime multi-user staging E2E: **NOT RUN** — no staging environment exists (see `docs/STAGING.md`). This remains a required step before any production React cutover that touches Schedule.
+
+**Baseline coverage gap discovered:** Security Baseline v1 previously reported all its checks PASS (68 checks, closed out at Security Audit v10) but did not include any `schedule_events`-specific horizontal authorization invariant — the table simply wasn't in scope for v1–v10. That is not the same as "all possible authorization properties were proven." **PASS means all implemented checks passed, not that all possible authorization properties were proven.** The baseline has been extended (§26) precisely because this gap was found; treat every "N/N PASS" claim in this document's history the same way going forward.
+
 ## 29. Scope note — this document does not change production
 
 This baseline is documentation, read-only automated checks, and process. It intentionally does not modify, "improve," or re-architect production authorization. If a baseline check ever finds a live discrepancy between this document and production reality: **stop and report the drift.** Do not silently auto-fix it — any correction to production authorization requires its own dedicated security review, exactly as this document required for the v1–v10 audits it codifies.
@@ -342,3 +365,7 @@ This baseline is documentation, read-only automated checks, and process. It inte
 ---
 
 *This document reflects the verified state as of Security Audit v10 (2026-09-18). Application layer: READY. Realtime layer: READY. Storage layer: READY. Platform security status: READY. 0 new Critical, 0 new High, 0 material authorization UNKNOWN, at that time. Treat this file, not the audit history, as the source of truth going forward — update it whenever an invariant intentionally changes, in the same review that changes the invariant.*
+
+---
+
+*Schedule authorization hotfix, 2026-09-18 (see §30): a pre-existing, previously-undetected horizontal-authorization gap in `schedule_events` was found (during React Schedule migration prep, not caused by it), root-caused, and closed the same day. Structural baseline: 80/80 PASS. Behavioral negative-authorization matrix: 21/21 PASS (SQL-context, rollback-only). Runtime staging E2E: NOT RUN (no staging exists). Production authorization changed: YES (8 new explicit `schedule_events` policies replacing 2 broad ones). Production schema/data/frontend: unchanged. Application layer: READY. Platform security status: READY, with the explicit caveat in §30 that this baseline's PASS count describes implemented-check coverage, not a claim of exhaustive proof.*
