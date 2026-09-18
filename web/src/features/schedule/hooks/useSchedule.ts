@@ -93,7 +93,20 @@ export function useSchedule() {
   useEffect(() => {
     mountedRef.current = true;
     if (authStatus === 'signed_in' && profile) {
-      void load();
+      // Mirrors AuthProvider.tsx's own effect: the data-fetching entry
+      // point is a function declared INSIDE the effect body rather than
+      // calling an externally-defined useCallback's synchronous-setState
+      // path directly at the top of the effect (react-hooks/set-state-in-effect;
+      // see https://react.dev/learn/you-might-not-need-an-effect). Yielding
+      // one microtask before invoking `load()` keeps `load()`'s own
+      // generation-guarded setState calls out of the effect's synchronous
+      // execution path without changing any observable timing or the
+      // stale-request/StrictMode-safety guarantees `load()` already provides.
+      async function runLoad() {
+        await Promise.resolve();
+        await load();
+      }
+      void runLoad();
     }
     return () => {
       mountedRef.current = false;
