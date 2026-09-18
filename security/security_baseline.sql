@@ -245,6 +245,70 @@ storage_rls_check AS (
     CASE WHEN c.relrowsecurity IS TRUE THEN 'PASS' ELSE 'FAIL' END AS status
   FROM pg_class c
   WHERE c.relname = 'objects' AND c.relnamespace = 'storage'::regnamespace
+),
+
+
+-- ---------------------------------------------------------------
+-- 10. schedule_events horizontal authorization (added after the
+--     2026-09-18 Schedule-migration discovery: v1 baseline did not
+--     cover this table's authorization semantics at all, and the
+--     live policies (se_select / se_staff_write) turned out to be
+--     school-wide rather than per-teacher/per-enrolled-class. See
+--     docs/SCHEDULE_MIGRATION.md "LIVE RLS VERIFICATION" section
+--     for the pre-fix text. Fixed by replacing both broad policies
+--     with 8 explicit per-role/per-operation policies.
+-- ---------------------------------------------------------------
+schedule_rls_check AS (
+  SELECT
+    'RLS enabled: public.schedule_events' AS check_name,
+    'true' AS expected,
+    COALESCE(c.relrowsecurity::text, 'TABLE NOT FOUND') AS actual,
+    CASE WHEN c.relrowsecurity IS TRUE THEN 'PASS' ELSE 'FAIL' END AS status
+  FROM pg_class c
+  WHERE c.relname = 'schedule_events' AND c.relnamespace = 'public'::regnamespace
+),
+
+schedule_expected_policy_names AS (
+  SELECT unnest(ARRAY[
+    'schedule_select_admin_owner','schedule_select_teacher','schedule_select_student',
+    'schedule_insert_staff',
+    'schedule_update_admin_owner','schedule_update_teacher',
+    'schedule_delete_admin_owner','schedule_delete_teacher'
+  ]) AS policyname
+),
+schedule_expected_policy_check AS (
+  SELECT
+    'schedule_events policy exists: ' || sepn.policyname AS check_name,
+    'policy present' AS expected,
+    CASE WHEN p.policyname IS NOT NULL THEN 'policy present' ELSE 'MISSING' END AS actual,
+    CASE WHEN p.policyname IS NOT NULL THEN 'PASS' ELSE 'FAIL' END AS status
+  FROM schedule_expected_policy_names sepn
+  LEFT JOIN pg_policies p
+    ON p.schemaname = 'public' AND p.tablename = 'schedule_events' AND p.policyname = sepn.policyname
+),
+
+schedule_old_broad_policy_names AS (
+  SELECT unnest(ARRAY['se_select','se_staff_write']) AS policyname
+),
+schedule_old_broad_policy_absent_check AS (
+  SELECT
+    'old broad schedule_events policy removed: ' || sobp.policyname AS check_name,
+    'absent' AS expected,
+    CASE WHEN p.policyname IS NOT NULL THEN 'still present' ELSE 'absent' END AS actual,
+    CASE WHEN p.policyname IS NULL THEN 'PASS' ELSE 'FAIL' END AS status
+  FROM schedule_old_broad_policy_names sobp
+  LEFT JOIN pg_policies p
+    ON p.schemaname = 'public' AND p.tablename = 'schedule_events' AND p.policyname = sobp.policyname
+),
+
+schedule_policy_count_check AS (
+  SELECT
+    'schedule_events policy count' AS check_name,
+    '8 policies' AS expected,
+    count(*)::text || ' policies' AS actual,
+    CASE WHEN count(*) = 8 THEN 'PASS' ELSE 'FAIL' END AS status
+  FROM pg_policies
+  WHERE schemaname='public' AND tablename='schedule_events'
 )
 
 SELECT * FROM rls_check
@@ -259,6 +323,10 @@ UNION ALL SELECT * FROM no_client_execute_check
 UNION ALL SELECT * FROM storage_policy_check
 UNION ALL SELECT * FROM realtime_rls_check
 UNION ALL SELECT * FROM storage_rls_check
+UNION ALL SELECT * FROM schedule_rls_check
+UNION ALL SELECT * FROM schedule_expected_policy_check
+UNION ALL SELECT * FROM schedule_old_broad_policy_absent_check
+UNION ALL SELECT * FROM schedule_policy_count_check
 ORDER BY status DESC, check_name;
 
 -- =====================================================================
@@ -279,6 +347,14 @@ ORDER BY status DESC, check_name;
 --     by a teacher requesting a teacher role, cross-school
 --   - daily-room Edge Function body still checks
 --     call_room_participants + TTL before minting a room token
+--   - schedule_events student read-scope is genuinely derived from
+--     class_students enrollment, and teacher write-scope is
+--     genuinely self-only — structurally checked here (policy
+--     names/count/RLS-enabled), but the qual/with_check *logic*
+--     was proven correct via a rollback-only SQL-context negative-
+--     authorization matrix (21/21 PASS, 2026-09-18), not by this
+--     script. That proof does not re-run automatically — re-verify
+--     it after any future change to these 8 policies.
 --
 -- A PASS across this whole script is necessary but not sufficient
 -- for "Security baseline: ACTIVE" — pair it with the checklist in
