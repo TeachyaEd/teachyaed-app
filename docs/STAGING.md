@@ -97,3 +97,40 @@ is tagged with who/what it actually needs.
 No production accounts are reused for any of the above. These are
 purpose descriptions for staging-only seed accounts to be created once
 a staging Supabase project exists.
+
+---
+
+## PHASE 2.1 note: React preview is not a staging environment
+
+Explicit, because it is easy to conflate "the React app builds and I
+can open it in a browser" with "we have staging":
+
+- The React app (`web/`) at this point can be built locally and in CI
+  (`.github/workflows/ci-react.yml`: typecheck, lint, unit tests,
+  build, frontend security check all run against every push/PR). That
+  is a build/test guarantee, not a runtime environment.
+- It still talks to the **same single production Supabase project**
+  described above (see `web/src/services/supabase/client.ts` and
+  `web/.env.example`) — there is no second backend for it to point
+  at yet. Running the built app anywhere still means every request
+  hits production data, production RLS, production Realtime and
+  production Storage.
+- Therefore: until a dedicated staging Supabase project actually
+  exists (the "REQUIRES USER ACTION" / "REQUIRES NEW
+  CREDENTIALS/PROJECT" items above), the React app must **not** be
+  used as an informal write-testing environment against production.
+  No destructive or exploratory feature testing of React slices
+  against production data — the same discipline that already applies
+  to the legacy app.
+- A manually hidden or non-public URL (an unlisted GitHub Pages path,
+  a local `npm run dev` server, a preview build someone forgot to
+  link from anywhere) is explicitly **not** equivalent to staging. It
+  is still production data behind an obscure address, not an
+  isolated environment — "hidden" is not a security or isolation
+  boundary.
+- Production's existing legacy `index.html` frontend remains the
+  authoritative, user-facing entrypoint for all real usage until an
+  explicit, reviewed cutover decision is made per slice
+  (`REACT_MIGRATION_PLAN.md`'s "Side-by-side coexistence" model).
+  Building/testing the React app in CI or locally does not change
+  that.
