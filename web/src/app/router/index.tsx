@@ -3,6 +3,7 @@ import { RequireAuth } from '../guards/RequireAuth';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { LoginPage } from '@/features/auth/components/LoginPage';
 import { HomePage } from '@/features/auth/components/HomePage';
+import { SchedulePage } from '@/features/schedule/components/SchedulePage';
 
 /**
  * Routing strategy: HashRouter.
@@ -28,6 +29,16 @@ export function AppRouter() {
             <RequireAuth>
               <AppLayout>
                 <HomePage />
+              </AppLayout>
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/schedule"
+          element={
+            <RequireAuth>
+              <AppLayout>
+                <SchedulePage />
               </AppLayout>
             </RequireAuth>
           }
