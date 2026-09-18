@@ -7,7 +7,7 @@ import * as authService from '@/features/auth/api/authService';
 import type { Profile } from '@/features/auth/types';
 
 // Mocking the auth domain service (not the Supabase client itself) is
-// the documented boundary for these lifecycle tests — see PHASE 2.1
+// the documented boundary for these lifecycle tests â see PHASE 2.1
 // instructions. This proves AuthProvider's own state-machine and
 // stale-response handling; it does NOT prove RLS or any server-side
 // authorization behavior.
@@ -47,12 +47,12 @@ const PROFILE_B: Profile = { id: 'user-b', school_id: 'school-1', role: 'admin' 
 
 describe('AuthProvider lifecycle', () => {
   let authStateCallback: ((userId: string | null) => void) | null;
-  let unsubscribeSpy: ReturnType<typeof vi.fn>;
+  let unsubscribeSpy: ReturnType<typeof vi.fn<() => void>>;
 
   beforeEach(() => {
     vi.clearAllMocks();
     authStateCallback = null;
-    unsubscribeSpy = vi.fn();
+    unsubscribeSpy = vi.fn<() => void>();
     vi.mocked(authService.onAuthStateChange).mockImplementation((cb) => {
       authStateCallback = cb;
       return unsubscribeSpy;
