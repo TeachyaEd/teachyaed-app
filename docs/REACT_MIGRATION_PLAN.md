@@ -32,6 +32,33 @@ Auth contract carried forward unchanged: `auth.uid() → profiles → school_id/
 
 Realtime invariants carried forward unchanged, enforced by a `services/realtime` wrapper so every feature gets them automatically instead of re-implementing per channel: every security-sensitive Broadcast channel (`notify-*`, room/call channels, `exsync-*`) is created with `{config:{private:true}}`; Broadcast payload is never treated as authoritative identity, even on a private channel; the `exsync_authorized()` / `roomKey` prefix-matching contract and the `call_signals → enforce_call_signal_identity → record_call_room_participants → daily-room` chain are not touched.
 
+## Routing strategy (decided in PHASE 2)
+
+**HashRouter.** GitHub Pages — the legacy app's current and, for now,
+only host — serves static files with no configurable SPA rewrite rule
+(no `_redirects`, no server-side fallback to `index.html` for an
+arbitrary deep path). A `BrowserRouter` deep link such as
+`/schedule`, hit with a hard refresh, would be requested as a literal
+path from GitHub Pages' static file server and get a 404, because no
+file exists at that path — GitHub Pages has no mechanism to fall back
+to the SPA's `index.html` the way e.g. Netlify's `_redirects` or a
+custom server rewrite would. This was verified against GitHub Pages'
+actual behavior (a static host with no rewrite support), not assumed.
+
+`HashRouter` keeps every client-side route after a `#`
+(`/#/schedule`), which browsers never send to the server on a
+request — a refresh always requests the same real file
+(`index.html`), and the router then reads the route from the hash
+client-side. This works correctly from any static host and from any
+subpath the app is later deployed to, with zero hosting
+configuration. See `web/src/app/router/index.tsx` for the
+implementation and this same reasoning inline.
+
+This decision is revisited only if the app moves to a host with
+verified SPA fallback support (e.g. a platform with a real rewrite
+rule) — and only after re-verifying that host's actual behavior, not
+by assumption.
+
 ## 8-phase roadmap
 
 - **PHASE 0 — Discovery.** This document + `MIGRATION_INVENTORY.md`. Complete pending your review.
@@ -59,3 +86,13 @@ This does not require PHASE 1 (staging) to *start* scaffolding, but production c
 2. **No automated test suite of any kind exists** for the legacy frontend, so there's no regression baseline to diff React output against beyond manual/staging QA.
 
 Neither blocker prevents PHASE 0 (this document) or the early scaffolding part of PHASE 2 — they gate production cutovers, not planning or local development.
+
+## PHASE 2 status
+
+React foundation scaffolded at `web/` (Vite + React + TypeScript,
+strict mode). See `docs/PHASE2_FOUNDATION.md` for the full status
+report, `docs/AUTH_PARITY.md` for the legacy-vs-React auth comparison,
+`docs/SIDE_BY_SIDE.md` for the coexistence model, and
+`docs/SCHEDULE_MIGRATION.md` for the Schedule feature's preparation
+write-up (implementation is the next step, not part of this phase).
+Legacy `index.html` / production GitHub Pages deploy is unchanged.
