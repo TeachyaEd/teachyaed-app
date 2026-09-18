@@ -280,3 +280,99 @@ Corrected row 7: **Create event as admin/owner → Row created with
 `teacher_id = self` (the admin/owner's own id), same as a teacher
 creating their own event. There is no UI path to create an event
 "for" a different teacher.**
+
+## LIVE RLS VERIFICATION (read directly from `pg_policies` on the production project, 2026-09-18)
+
+This section records the ACTUAL policies currently enforced on
+`schedule_events`, `classes`, and `class_students`, read live via
+`select policyname, cmd, roles, qual, with_check from pg_policies
+where schemaname='public' and tablename in (...)`. This is
+verification only — no policy was modified to produce this section.
+
+### `schedule_events` (2 policies total)
+
+**`se_staff_write`** — `FOR ALL`, role `public`:
+```
+USING:      (school_id = get_my_school_id())
+            AND (get_my_role() = ANY (ARRAY['teacher','admin','owner']))
+WITH CHECK: (school_id = get_my_school_id())
+            AND (get_my_role() = ANY (ARRAY['teacher','admin','owner']))
+            AND (teacher_id IS NULL OR teacher_id IN (
+                  SELECT profiles.id FROM profiles
+                  WHERE profiles.school_id = get_my_school_id()))
+            AND (class_id IS NULL OR class_id IN (
+                  SELECT classes.id FROM classes
+                  WHERE classes.school_id = get_my_school_id()))
+```
+
+**`se_select`** — `FOR SELECT`, role `public`:
+```
+USING: (school_id = get_my_school_id())
+```
+
+### `classes` (4 policies) and `class_students` (4 policies)
+
+Both follow the same shape: `_select` policies scope to `school_id =
+get_my_school_id()` only (no role check); `_insert`/`_update`/`_delete`
+require `get_my_role() IN ('admin','owner','teacher')` plus school_id
+match, and (for classes) a check that `teacher_id`, if set, belongs to
+*some* profile in the same school.
+
+## ⚠️ MATERIAL MISMATCH WITH THE DOCUMENTED INTENDED AUTHORIZATION MODEL
+
+Per the Schedule migration instructions, the intended model is:
+
+```
+owner/admin : school-wide read/create/update/delete
+teacher     : own events only for relevant writes; own intended read scope
+student     : read-only, scoped to enrolled classes; no create/update/delete
+```
+
+**Actual live enforcement is materially different in two ways:**
+
+1. **`se_select` has NO role check and NO class-enrollment scoping.**
+   It only checks `school_id = get_my_school_id()`. This means ANY
+   authenticated user with a profile in the school — including a
+   `student` role — can `SELECT` **every** schedule_events row for
+   the whole school, not just events for classes they're enrolled in,
+   and a `teacher` can read every other teacher's events too. The
+   legacy app's own query-time filtering (role-scoped queries in
+   `renderSchedule`/`exportICal`) is currently the *only* thing
+   narrowing what a teacher or student actually sees — it is
+   client-side convenience filtering, not enforced authorization. Any
+   client (including a hand-crafted request bypassing the legacy UI)
+   can already read the full school schedule today, regardless of
+   role.
+
+2. **`se_staff_write`'s `teacher_id` check is not "own events only."**
+   The `WITH CHECK`/`USING` clause verifies `teacher_id IS NULL OR
+   teacher_id IN (SELECT profiles.id FROM profiles WHERE
+   profiles.school_id = get_my_school_id())` — i.e. it only confirms
+   the `teacher_id` belongs to *some* staff member of the same
+   school, not that it equals `auth.uid()`/the caller's own id. A
+   `teacher`-role caller can currently `UPDATE`/`DELETE`/re-insert
+   **any** other teacher's schedule_events row, not just their own.
+   "Own events only" for teachers is, like point 1, enforced only by
+   the legacy frontend's query construction (`eq('teacher_id',
+   S.profile.id)`), not by RLS.
+
+**This is a pre-existing condition of the live database — it was not
+introduced or changed by this migration pass, and no policy was
+modified to discover it.** It affects the current production legacy
+app exactly as much as it would affect a literal-parity React port:
+today, any authenticated school member can already read/write more of
+`schedule_events` than the legacy UI's own query filters suggest,
+if they call the Supabase REST/JS API directly instead of going
+through `index.html`.
+
+**Per the Schedule migration instructions' explicit stop condition
+(§3): SCHEDULE MIGRATION MUTATIONS ARE PAUSED pending a decision from
+the project owner on how to proceed.** Implementing the React
+service layer's create/update/delete against the *documented*
+per-teacher/per-student model would give a false sense of enforced
+security — the UI would hide the teacher-picker and restrict which
+rows it shows, but the database would still accept a role-appropriate
+write against any other teacher's row, and would still return every
+event to every reader, exactly as it does for legacy today.
+
+No production changes have been made as a result of this finding.
