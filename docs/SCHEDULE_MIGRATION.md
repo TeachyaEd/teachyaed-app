@@ -376,3 +376,225 @@ write against any other teacher's row, and would still return every
 event to every reader, exactly as it does for legacy today.
 
 No production changes have been made as a result of this finding.
+
+
+---
+
+## HOTFIX: Schedule Authorization Correction (2026-09-18)
+
+**Status: CLOSED.** The gap documented above under "LIVE RLS VERIFICATION" /
+"MATERIAL MISMATCH WITH THE DOCUMENTED INTENDED AUTHORIZATION MODEL" has been
+root-caused and fixed at the database layer. This section records the BEFORE
+state, the root cause, the intended authorization model, the fix as applied,
+the AFTER state, the evidence level behind each claim, and the one remaining
+gap. The original finding above is preserved unmodified — it is the
+discovery record; this section is the remediation record.
+
+### BEFORE (live production policies prior to this hotfix)
+
+Two broad permissive policies existed on `public.schedule_events`:
+
+```sql
+-- se_select (FOR SELECT)
+USING (school_id = get_my_school_id())
+-- No role check. No class-enrollment scoping. Any authenticated member of
+-- the school — student, teacher, admin, owner — could read every row.
+
+-- se_staff_write (FOR ALL)
+-- Restricted to role IN ('teacher','admin','owner') and same school_id,
+-- but its teacher_id check verified the id belonged to *some* profile in
+-- the school, not that it equalled auth.uid(). Any teacher could
+-- therefore INSERT/UPDATE/DELETE any other teacher's rows.
+```
+
+(Exact clause text as captured pre-fix is in the "LIVE RLS VERIFICATION"
+section above.)
+
+### Root cause
+
+RLS on `schedule_events` was written to enforce **tenant isolation**
+(same-school) but never enforced **horizontal, per-user isolation** within a
+tenant (per-teacher ownership, per-student class enrollment). The legacy
+frontend's own query filters (`eq('teacher_id', S.profile.id)`,
+enrollment-scoped queries for students) created the *appearance* of
+per-user scoping, but nothing prevented a direct Supabase REST/JS API call
+from bypassing those frontend filters. This is a pre-existing condition,
+not something introduced by the React migration — the migration's live-RLS
+re-verification pass is what surfaced it.
+
+### Intended authorization model (verified against fresh legacy `index.html` source)
+
+- `owner` / `admin`: school-wide read; may create/update/delete any
+  `schedule_events` row in their own school.
+- `teacher`: may read/update/delete only events where
+  `teacher_id = auth.uid()`. May create events, always as self
+  (`teacher_id = auth.uid()`) — legacy has no teacher-picker UI for any
+  role, including admin/owner.
+- `student`: read-only, and only for events whose `class_id` is a class
+  the student is actually enrolled in via `class_students` (resolved
+  through the same email-matched `students`↔`profiles` linkage already
+  proven correct on `homeworks`/`lesson_assignments`, since `students` has
+  no direct FK to `auth.users`/`profiles`). No create/update/delete.
+- Cross-school access: denied for every role, in every direction.
+
+### Fix as applied to production
+
+`se_select` and `se_staff_write` were **dropped and replaced** (not
+layered — Postgres RLS permissive policies combine with OR, so adding a
+narrower policy alongside a broad one does not narrow effective access) with
+8 explicit, single-operation/single-role policies:
+
+```sql
+BEGIN;
+
+DROP POLICY IF EXISTS se_select ON schedule_events;
+DROP POLICY IF EXISTS se_staff_write ON schedule_events;
+
+CREATE POLICY schedule_select_admin_owner ON schedule_events
+  FOR SELECT
+  USING (
+    school_id = get_my_school_id()
+    AND get_my_role() = ANY (ARRAY['admin','owner'])
+  );
+
+CREATE POLICY schedule_select_teacher ON schedule_events
+  FOR SELECT
+  USING (
+    school_id = get_my_school_id()
+    AND get_my_role() = 'teacher'
+    AND teacher_id = auth.uid()
+  );
+
+CREATE POLICY schedule_select_student ON schedule_events
+  FOR SELECT
+  USING (
+    school_id = get_my_school_id()
+    AND get_my_role() = 'student'
+    AND class_id IS NOT NULL
+    AND class_id IN (
+      SELECT cs.class_id FROM class_students cs
+      WHERE cs.school_id = get_my_school_id()
+        AND cs.student_id IN (
+          SELECT s.id FROM students s
+          WHERE lower(s.email) = lower((SELECT p.email FROM profiles p WHERE p.id = auth.uid()))
+        )
+    )
+  );
+
+CREATE POLICY schedule_insert_staff ON schedule_events
+  FOR INSERT
+  WITH CHECK (
+    school_id = get_my_school_id()
+    AND get_my_role() = ANY (ARRAY['teacher','admin','owner'])
+    AND teacher_id = auth.uid()
+    AND (class_id IS NULL OR class_id IN (SELECT c.id FROM classes c WHERE c.school_id = get_my_school_id()))
+  );
+
+CREATE POLICY schedule_update_teacher ON schedule_events
+  FOR UPDATE
+  USING (
+    school_id = get_my_school_id()
+    AND get_my_role() = 'teacher'
+    AND teacher_id = auth.uid()
+  )
+  WITH CHECK (
+    school_id = get_my_school_id()
+    AND get_my_role() = 'teacher'
+    AND teacher_id = auth.uid()
+    AND (class_id IS NULL OR class_id IN (SELECT c.id FROM classes c WHERE c.school_id = get_my_school_id()))
+  );
+
+CREATE POLICY schedule_update_admin_owner ON schedule_events
+  FOR UPDATE
+  USING (
+    school_id = get_my_school_id()
+    AND get_my_role() = ANY (ARRAY['admin','owner'])
+  )
+  WITH CHECK (
+    school_id = get_my_school_id()
+    AND get_my_role() = ANY (ARRAY['admin','owner'])
+    AND (teacher_id IS NULL OR teacher_id IN (SELECT p.id FROM profiles p WHERE p.school_id = get_my_school_id()))
+    AND (class_id IS NULL OR class_id IN (SELECT c.id FROM classes c WHERE c.school_id = get_my_school_id()))
+  );
+
+CREATE POLICY schedule_delete_teacher ON schedule_events
+  FOR DELETE
+  USING (
+    school_id = get_my_school_id()
+    AND get_my_role() = 'teacher'
+    AND teacher_id = auth.uid()
+  );
+
+CREATE POLICY schedule_delete_admin_owner ON schedule_events
+  FOR DELETE
+  USING (
+    school_id = get_my_school_id()
+    AND get_my_role() = ANY (ARRAY['admin','owner'])
+  );
+
+COMMIT;
+```
+
+Applied during a low-risk deployment window as catalog-metadata-only DDL
+(`CREATE`/`DROP POLICY` does not rewrite table data and does not touch
+`lessons`/calls/realtime tables). Dry-run validated inside
+`BEGIN...ROLLBACK` before the real `COMMIT`.
+
+Key structural point: `schedule_update_teacher`'s `WITH CHECK` re-asserts
+`teacher_id = auth.uid()` on the **new** row, which closes the
+ownership-rebinding vector structurally — a teacher cannot change
+`teacher_id`/`school_id` on their own row to escape or reassign ownership,
+regardless of what the frontend does or doesn't submit.
+
+### AFTER (live production policies, fresh-read post-`COMMIT`)
+
+A fresh `SELECT policyname, cmd, permissive, roles, qual, with_check FROM
+pg_policies WHERE schemaname='public' AND tablename='schedule_events'`,
+run in a separate SQL Editor session after commit, confirmed all 8 policies
+above are live, `PERMISSIVE`, role `{public}`, with `qual`/`with_check`
+text matching the submitted SQL exactly — no discrepancy between submitted
+and live text.
+
+### Evidence level
+
+- **Structural (catalog-level):** `security/security_baseline.sql` §10
+  checks RLS-enabled, all 8 expected policy names present, both old broad
+  policy names absent, exact policy count = 8. Live result: 80/80 checks
+  PASS (68 pre-existing baseline checks + 12 new schedule_events checks).
+- **Behavioral (SQL-context, rollback-only):** a 21-scenario negative
+  authorization matrix run directly against production inside
+  `BEGIN; SET LOCAL ROLE authenticated; SET LOCAL request.jwt.claims = ...;
+  ... ROLLBACK;`, impersonating 5 real production identities (2 teachers,
+  admin, owner, 1 student) across synthetic classes/enrollments/events
+  created and rolled back in the same transaction. Result: **21/21 PASS**,
+  covering enrolled/non-enrolled/no-class student reads and all writes,
+  teacher-vs-teacher horizontal read/update/delete/insert/rebind attempts,
+  and admin/owner school-wide access. A post-hoc `SELECT count(*) FROM
+  schedule_events WHERE title LIKE 'RLS_TEST%'` confirmed **0** — zero
+  durable rows were left behind.
+  - Cross-school denial specifically is **CODE ANALYSIS PROTECTED**, not
+    empirically exercised: every one of the 8 policies includes
+    `school_id = get_my_school_id()`, but this production database
+    currently contains only one school, so there was no second school's
+    data to attempt cross-school access against.
+- **Runtime multi-user E2E (real HTTP requests from two distinct logged-in
+  sessions, e.g. via a staging environment): NOT RUN.** No staging
+  environment exists (see `docs/STAGING.md`). This remains a required step
+  before any production React cutover that touches Schedule.
+
+### Legacy compatibility
+
+All flows the legacy frontend already performs remain permitted by
+construction, because each new policy's `USING`/`WITH CHECK` is a superset
+of what the legacy UI's own query filters already restrict to: admin/owner
+school-wide read, teacher own read/create/edit/delete, student
+enrolled-class read, and `exportICal` for each role (which only ever reads
+rows the caller's SELECT policy already permits, and adds no new query
+shape).
+
+### Remaining gap
+
+Runtime multi-user staging E2E verification is **NOT RUN** — tracked as a
+prerequisite for the eventual React Schedule cutover, not for closing this
+hotfix (which is a database-authorization correction, independent of any
+frontend).
