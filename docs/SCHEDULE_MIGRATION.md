@@ -68,8 +68,7 @@ after this PHASE 2 foundation is reviewed.
   `schedule_events` RLS policies before React re-implements this
   check, not assumed identical from this snippet alone.
 
-`exportICal` — not yet inspected in this pass (not in the snippet
-capture above); must be read before implementation, not skipped.
+`exportICal` — now fully inspected; see the dedicated section below.
 
 ## TARGET REACT BEHAVIOR
 
@@ -111,9 +110,9 @@ trusted.
 
 | Role | Read | Create | Update | Delete |
 |---|---|---|---|---|
-| `owner` | All school events | Yes | Any event in school | Any event in school |
-| `admin` | All school events | Yes | Any event in school (cannot reassign `teacher_id` via UI) | Any event in school |
+| `admin` | All school events | Yes (always as self — no teacher picker exists) | Any event in school (cannot reassign `teacher_id` via UI) | Any event in school |
 | `teacher` | Own events only | Yes (as self) | Own events only | Own events only |
+| `owner` | All school events | Yes (always as self — no teacher picker exists) | Any event in school (cannot reassign `teacher_id` via UI) | Any event in school |
 | `student` | Own enrolled classes' events (or none, if no enrolled classes / no student row) | No | No | No |
 
 ## CRUD OPERATIONS
@@ -169,7 +168,7 @@ of the migration instructions.
 | 4 | Load schedule as student, no student row | Empty state, no query error |
 | 5 | Load schedule as student, no enrolled classes | Empty list, no error |
 | 6 | Create event as teacher | Row created with `teacher_id = self`; visible to self, admin, owner |
-| 7 | Create event as admin/owner | Row created with chosen/any `teacher_id` |
+| 7 | Create event as admin/owner | Row created with `teacher_id = self` (no teacher-picker UI exists — corrected, see "Correction to the previous pass" below) |
 | 8 | Edit own event as teacher | Succeeds |
 | 9 | Edit another teacher's event as teacher | Fails (backend-enforced; UI shouldn't offer it, but the test asserts the backend denies it even if attempted directly) |
 | 10 | Edit any event as admin/owner | Succeeds, `teacher_id` unchanged by the edit |
@@ -183,3 +182,101 @@ Per the migration instructions: rows 9 and 12 (negative authorization)
 are backend/RLS-driven and must be proven against the real backend
 (staging, once it exists) — a mocked-UI test passing is not evidence
 of RLS working, and will not be reported as such.
+
+## `exportICal` (previously NOT inspected — now fully inspected)
+
+PHASE 2.1's Schedule preparation doc explicitly flagged this as unread.
+It has now been read directly from the legacy source (`exportICal`,
+async function, plus its `_icalEsc` escaping helper). Exact behavior:
+
+**Scope of exported events** — mirrors `renderSchedule`'s read scoping
+exactly:
+- `teacher` → `eq('teacher_id', S.profile.id)` (own events only).
+- `student` → resolved via `class_students` to enrolled `class_id`s,
+  then `in('class_id', ids)`; if the student has no enrolled classes,
+  legacy forces an empty result via the `__no_class__` sentinel filter
+  (React should return an empty result directly instead, per PART 9 of
+  the Schedule implementation instructions — same as the read-scope
+  fix already noted below for `renderSchedule`). If the student has no
+  `studentRowId` at all, legacy shows a session-expired banner and an
+  error toast and aborts the export entirely (does not silently
+  produce an empty calendar).
+- `admin`/`owner` → no additional filter (school-wide export).
+- **No status filtering** — `scheduled`, `completed`, and
+  `cancelled` events are all included in the export. Cancelled events
+  are exported with `STATUS:CANCELLED`; every other status (including
+  `completed`) is exported with `STATUS:CONFIRMED`. There is no
+  `STATUS:TENTATIVE` or other mapping.
+
+**Per-event field mapping:**
+- Events with a falsy `event_date` are skipped entirely (not
+  exported, no error).
+- `event_time` defaults to `'09:00'` if missing, then is truncated
+  to its first 5 characters (`HH:MM`).
+- The start `Date` is constructed as `new Date(event_date + 'T' +
+  time + ':00')` (i.e. `YYYY-MM-DDTHH:MM:00`, parsed as a *local*
+  time string by the JS `Date` constructor — no explicit `Z` suffix,
+  no explicit offset). If this produces an invalid `Date`
+  (`isNaN(getTime())`), the event is skipped entirely (not exported,
+  no error).
+- End time = start time + `duration_minutes` (parsed as int, falls
+  back to 60 if not parseable — same fallback as `saveEvent`)
+  minutes, computed in milliseconds.
+- `DTSTART`/`DTEND` are written as **floating local time**: formatted
+  as `YYYYMMDDTHHMMSS` with **no trailing `Z` and no `TZID`
+  parameter**. This means the exported `.ics` file does not carry any
+  timezone information at all — a calendar app importing it will
+  interpret the date/time in *its own* local timezone, whatever that
+  happens to be, not the school's actual timezone. This is an existing
+  ambiguity in legacy, not something to "fix" during migration — it
+  must be preserved exactly (per PART 14's "document the ambiguity
+  rather than guessing").
+- `UID`: `${event.id}@${schoolId || 'school'}.teachyaed` — no escaping
+  applied (UUIDs and school IDs are not expected to contain
+  iCalendar-special characters).
+- `SUMMARY`: `title`, escaped via `_icalEsc`.
+- `DESCRIPTION`: `notes || ''`, escaped via `_icalEsc`.
+- `_icalEsc(s)` applies RFC 5545 TEXT escaping in this exact order:
+  backslash → `\\\\`, then semicolon → `\\;`, then comma → `\\,`,
+  then newline → literal `\\n`. React's iCal generator must replicate
+  this exact order (backslash first, to avoid double-escaping the
+  backslashes introduced by the later replacements).
+
+**File structure:**
+- `BEGIN:VCALENDAR`, `VERSION:2.0`, `CALSCALE:GREGORIAN`,
+  `PRODID:-//TeachyaED//TeachyaED//EN`, `X-WR-CALNAME:TeachyaED`
+  (escaped, though the literal string has nothing to escape),
+  `METHOD:PUBLISH`, then one `BEGIN:VEVENT`/`END:VEVENT` block per
+  included event, then `END:VCALENDAR`.
+- Lines joined with `\r\n` (CRLF, per RFC 5545), trailing `\r\n` at
+  end of file.
+- MIME type: `text/calendar;charset=utf-8`.
+- Filename: fixed `teachyaed-schedule.ics` — **not localized**, same
+  for every language/role.
+- Delivered via a client-side `Blob` + object URL + synthetic
+  `<a download>` click (a browser-only download mechanism). React's
+  equivalent should produce the same file bytes; the exact delivery
+  mechanism (Blob download vs. other) is an implementation detail as
+  long as the resulting `.ics` content is byte-for-byte equivalent
+  for the same input events.
+
+## Correction to the previous pass
+
+The original version of this document's test matrix (row 7) stated:
+"Create event as admin/owner → Row created with chosen/any
+`teacher_id`." **This was wrong** and is corrected now that
+`saveEvent`'s insert path has been read in full: the insert payload
+*always* sets `teacher_id: S.profile.id` — the id of whoever is
+submitting the form — regardless of role. There is no teacher-picker
+field anywhere in the add/edit event form (confirmed: no `ev_teacher`
+element exists in `index.html`). So an admin or owner creating a new
+event also becomes that event's `teacher_id`, exactly like a teacher
+creating their own event. Only the *update* path treats admin/owner
+differently (by stripping `teacher_id` from the update payload so an
+edit doesn't reassign ownership). The role behavior table and CRUD
+section below are corrected to reflect this.
+
+Corrected row 7: **Create event as admin/owner → Row created with
+`teacher_id = self` (the admin/owner's own id), same as a teacher
+creating their own event. There is no UI path to create an event
+"for" a different teacher.**
