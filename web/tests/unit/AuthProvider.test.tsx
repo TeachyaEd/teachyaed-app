@@ -7,7 +7,7 @@ import * as authService from '@/features/auth/api/authService';
 import type { Profile } from '@/features/auth/types';
 
 // Mocking the auth domain service (not the Supabase client itself) is
-// the documented boundary for these lifecycle tests â see PHASE 2.1
+// the documented boundary for these lifecycle tests — see PHASE 2.1
 // instructions. This proves AuthProvider's own state-machine and
 // stale-response handling; it does NOT prove RLS or any server-side
 // authorization behavior.
