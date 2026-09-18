@@ -38,19 +38,15 @@ function sanitizeContext(
 
 class ConsoleObservability implements Observability {
   captureError(event: ObservabilityEvent & { error?: unknown }): void {
-    // eslint-disable-next-line no-console
     console.error('[observability:error]', event.message, sanitizeContext(event.context));
   }
   captureRealtimeFailure(event: ObservabilityEvent): void {
-    // eslint-disable-next-line no-console
     console.error('[observability:realtime]', event.message, sanitizeContext(event.context));
   }
   captureStorageFailure(event: ObservabilityEvent): void {
-    // eslint-disable-next-line no-console
     console.error('[observability:storage]', event.message, sanitizeContext(event.context));
   }
   captureSupabaseRequestFailure(event: ObservabilityEvent): void {
-    // eslint-disable-next-line no-console
     console.error('[observability:supabase]', event.message, sanitizeContext(event.context));
   }
 }
