@@ -1,29 +1,47 @@
-# Schedule feature — preparation only, no implementation yet
+# Schedule feature
 
-This folder is a placeholder marking where the Schedule feature slice
-lands. Per PHASE 2 scope, only the foundation (this repo's `app/`,
-`services/`, `features/auth`, test/CI setup) is built in this pass.
+Implemented in PHASE 3A. Full spec, before/after RLS evidence, and the
+test matrix this implementation is measured against live in
+`docs/SCHEDULE_MIGRATION.md` — read that first before changing
+anything here, especially anything touching authorization or the
+`exportICal` field mapping.
 
-Schedule itself — `api/`, `hooks/`, `components/`, `types.ts` — is
-implemented as the next, separate, small commit after this foundation
-is reviewed, using the domain-service convention below and the
-CURRENT/TARGET/TABLES/RLS/ROLE/CRUD/VALIDATION/ERROR/EMPTY/TEST-MATRIX
-write-up that belongs in `docs/SCHEDULE_MIGRATION.md`.
+Status: **IMPLEMENTED / AWAITING STAGING**. This slice is not wired
+to production traffic — see `docs/SIDE_BY_SIDE.md`. Legacy
+`index.html` remains the authoritative production Schedule
+implementation until a staging environment exists and a real
+multi-user runtime verification pass has been run (see
+`docs/STAGING.md`).
 
-## Domain service convention (applies to every feature, starting here)
+## Layout (domain-service convention)
 
 ```
-src/features/<name>/
-  api/          — all Supabase calls for this feature (the only files
-                  that import `services/supabase/client`)
-  hooks/        — React hooks that call api/ and expose loading/error/
-                  data state to components
-  components/   — presentational + container components; call hooks/,
-                  never api/ directly
-  types.ts      — this feature's local types (not the placeholder
-                  global Database type — see src/types/database.ts)
+api/
+  validation.ts     — pure normalize/validate helpers (no Supabase import)
+  ical.ts            — pure .ics builder + browser download wrapper
+  scheduleService.ts — all Supabase calls for this feature
+hooks/
+  useSchedule.ts     — loads events/classes for the signed-in profile,
+                        exposes create/update/delete/export + loading/
+                        error/empty state, stale-request-safe
+components/
+  SchedulePage.tsx      — page container, role-aware
+  ScheduleEventForm.tsx — create/edit form
+  ScheduleEventList.tsx — read-only table
+types.ts             — this feature's local types (not the global
+                        placeholder Database type — see
+                        src/types/database.ts)
 ```
 
-Rule: a React component is never an arbitrary Supabase query layer.
-Anything beyond a trivial single-row read goes in `api/`, not inline
-in a component's `useEffect`.
+Rule (unchanged from before implementation): a component never calls
+Supabase directly. Anything beyond a trivial read goes in `api/`.
+
+## Authorization
+
+Every role-based query filter in `scheduleService.ts` is a UX/parity
+convenience mirroring legacy's own client-side query shape — **not**
+the security boundary. The actual boundary is the 8 explicit
+`schedule_*` RLS policies described in `docs/SCHEDULE_MIGRATION.md`
+("HOTFIX: Schedule Authorization Correction") and
+`SECURITY_BASELINE.md` §30. Do not add a client-side check here and
+assume it replaces or weakens that requirement in either direction.
