@@ -4186,6 +4186,9 @@ async function afterLogin(user){
   },300);
 }
 async function doLogout(){
+  if(S._loggingOut)return;
+  S._loggingOut=true;
+  try{
   closeSidebar();
   // 1. Очистка кэша и интервалов
   if(typeof _DC!=='undefined')Object.keys(_DC).forEach(k=>delete _DC[k]);
@@ -4198,6 +4201,10 @@ async function doLogout(){
   // 2. hangUp before signOut
   hangUp();
   // 3. Remove all realtime channels before signOut
+  if(S._notifyRetryTimer){clearTimeout(S._notifyRetryTimer);S._notifyRetryTimer=null;}
+  S._notifyGen=(S._notifyGen||0)+1;
+  S._notifyState=null;
+  S._notifyReady=false;
   if(S.notifyChannel){try{sb.removeChannel(S.notifyChannel);}catch(e){}S.notifyChannel=null;}
   if(S.notifyBroadcastChannel){try{sb.removeChannel(S.notifyBroadcastChannel);}catch(e){}S.notifyBroadcastChannel=null;}
   if(MS.rtSub){try{sb.removeChannel(MS.rtSub);}catch(e){}MS.rtSub=null;}
@@ -4239,10 +4246,13 @@ async function doLogout(){
   if(typeof openHWReview==='function')openHWReview._busy=false;
   // Clear localStorage
   try{Object.keys(localStorage).filter(k=>k.startsWith('teachya_notes_')).forEach(k=>localStorage.removeItem(k));localStorage.removeItem('teachya_dict');}catch(_){}
+  }finally{
+    S._loggingOut=false;
+  }
 }
 // A11 (аудит): внешний разлогин (истёкший токен) выполняет ПОЛНЫЙ сброс —
 // тот же путь, что и кнопка «Выйти» (повторный signOut внутри безвреден).
-sb.auth.onAuthStateChange((event,session)=>{if(event==='SIGNED_OUT'&&!session&&S.userId){doLogout();}});
+sb.auth.onAuthStateChange((event,session)=>{if(event==='SIGNED_OUT'&&!session&&S.userId&&!S._loggingOut){doLogout();}});
 function showSessionExpiredBanner(){
   if(document.getElementById('sessionExpiredBanner'))return;
   var b=document.createElement('div');
@@ -4833,36 +4843,60 @@ function handleIncomingCall(payload){
 }
 function subscribeNotifications(){
   if(!S.profile?.id)return;
+  if(S._notifyState==='connecting'||S._notifyState==='healthy')return;
+  S._notifyState='connecting';
+  S._notifyGen=(S._notifyGen||0)+1;
+  const gen=S._notifyGen;
+  if(S._notifyRetryTimer){clearTimeout(S._notifyRetryTimer);S._notifyRetryTimer=null;}
   if(S.notifyChannel){try{sb.removeChannel(S.notifyChannel);}catch(e){}S.notifyChannel=null;}
   if(S.notifyBroadcastChannel){try{sb.removeChannel(S.notifyBroadcastChannel);}catch(e){}S.notifyBroadcastChannel=null;}
+  let _bcStatus=null,_pgStatus=null;
+  function _fail(){
+    if(gen!==S._notifyGen)return;
+    S._notifyState='failed';
+    S._notifyReady=false;
+    if(!S._notifyRetryTimer){
+      S._notifyRetryTimer=setTimeout(function(){S._notifyRetryTimer=null;if(S.profile?.id)subscribeNotifications();},1500);
+    }
+  }
+  function _checkHealthy(){
+    if(gen!==S._notifyGen)return;
+    if(_bcStatus==='SUBSCRIBED'&&_pgStatus==='SUBSCRIBED')S._notifyState='healthy';
+  }
   S.notifyBroadcastChannel=sb.channel(`notify-${S.profile.id}`,{config:{private:true}})
     .on('broadcast',{event:'ring'},async()=>{
+      if(gen!==S._notifyGen)return;
       const{data:sigs}=await sb.from('call_signals').select('*').eq('to_profile_id',S.profile.id).eq('school_id',S.schoolId).order('created_at',{ascending:false}).limit(1);
+      if(gen!==S._notifyGen)return;
       if(sigs?.length){
         const sig=sigs[0];
         if(Date.now()-new Date(sig.created_at).getTime()<30000)handleIncomingCall({from_name:sig.from_name,from_role:sig.from_role,room_id:sig.room_id});
       }
     })
-    .on('broadcast',{event:'decline'},()=>{if(S.inCall){showToast(t('Звонок отклонён'),'info');hangUp();}})
+    .on('broadcast',{event:'decline'},()=>{if(gen!==S._notifyGen)return;if(S.inCall){showToast(t('Звонок отклонён'),'info');hangUp();}})
     .subscribe(function(status){
-    if(status==='CLOSED'||status==='CHANNEL_ERROR'||status==='TIMED_OUT'){
-      setTimeout(function(){if(S.profile?.id)subscribeNotifications();},1500);
-    }
-  });
+      if(gen!==S._notifyGen)return;
+      _bcStatus=status;
+      if(status==='SUBSCRIBED')_checkHealthy();
+      else if(status==='CLOSED'||status==='CHANNEL_ERROR'||status==='TIMED_OUT')_fail();
+    });
   S.notifyChannel=sb.channel(`notify-pg-${S.profile.id}`)
     .on('postgres_changes',{event:'INSERT',schema:'public',table:'call_signals',
       filter:`to_profile_id=eq.${S.profile.id}`},
       ({new:sig})=>{
+        if(gen!==S._notifyGen)return;
         if(!sig||sig.school_id!==S.schoolId)return;
         handleIncomingCall({from_name:sig.from_name,from_role:sig.from_role,room_id:sig.room_id});
         sb.from('call_signals').delete().eq('id',sig.id).then(()=>{});
       })
     .on('postgres_changes',{event:'INSERT',schema:'public',table:'class_live'},
       async({new:lv})=>{
+        if(gen!==S._notifyGen)return;
         try{
           if(!lv||lv.school_id!==S.schoolId||!lv.active||S.role!=='student')return;
           if(!S.studentRowId)return;
           const{data:en}=await sb.from('class_students').select('id').eq('class_id',lv.class_id).eq('student_id',S.studentRowId).eq('school_id',S.schoolId).maybeSingle();
+          if(gen!==S._notifyGen)return;
           if(!en)return;
           showToast('🔴 '+t('Урок начался! Зайди в «Мой класс», чтобы присоединиться'));
           if(S._viewingClassId===lv.class_id){openStudentClass._loading=false;openStudentClass(lv.class_id);}
@@ -4870,6 +4904,7 @@ function subscribeNotifications(){
       })
     .on('postgres_changes',{event:'INSERT',schema:'public',table:'class_feed'},
       ({new:cf})=>{
+        if(gen!==S._notifyGen)return;
         try{
           if(!cf||cf.school_id!==S.schoolId)return;
           if(cf.author_id===S.profile?.id)return;
@@ -4886,14 +4921,16 @@ function subscribeNotifications(){
         }catch(_e){}
       })
     .subscribe(function(status){
-    S._notifyReady=(status==='SUBSCRIBED');
-    if(status==='CLOSED'||status==='CHANNEL_ERROR'||status==='TIMED_OUT'){
-      S._notifyReady=false;
-      setTimeout(function(){if(S.profile?.id)subscribeNotifications();},1500);
-    }
-  });
+      if(gen!==S._notifyGen)return;
+      S._notifyReady=(status==='SUBSCRIBED');
+      _pgStatus=status;
+      if(status==='SUBSCRIBED')_checkHealthy();
+      else if(status==='CLOSED'||status==='CHANNEL_ERROR'||status==='TIMED_OUT')_fail();
+    });
   setTimeout(async()=>{
+    if(gen!==S._notifyGen)return;
     const{data:sigs}=await sb.from('call_signals').select('*').eq('to_profile_id',S.profile.id).order('created_at',{ascending:false}).limit(1);
+    if(gen!==S._notifyGen)return;
     if(sigs?.length){
       const sig=sigs[0];
       if(Date.now()-new Date(sig.created_at).getTime()<30000)handleIncomingCall({from_name:sig.from_name,from_role:sig.from_role,room_id:sig.room_id});
@@ -4903,7 +4940,7 @@ function subscribeNotifications(){
   if(!S._notifyVisBound){
     S._notifyVisBound=true;
     document.addEventListener('visibilitychange',function(){
-      if(!document.hidden&&S.profile?.id&&((S.notifyChannel&&S.notifyChannel.state!=='joined')||(S.notifyBroadcastChannel&&S.notifyBroadcastChannel.state!=='joined'))){
+      if(!document.hidden&&S.profile?.id&&S._notifyState==='failed'){
         subscribeNotifications();
       }
     });
