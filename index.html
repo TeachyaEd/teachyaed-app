@@ -4201,10 +4201,15 @@ async function doLogout(){
   // 2. hangUp before signOut
   hangUp();
   // 3. Remove all realtime channels before signOut
-  if(S._notifyRetryTimer){clearTimeout(S._notifyRetryTimer);S._notifyRetryTimer=null;}
-  S._notifyGen=(S._notifyGen||0)+1;
-  S._notifyState=null;
+  if(S._pgRetryTimer){clearTimeout(S._pgRetryTimer);S._pgRetryTimer=null;}
+  if(S._bcRetryTimer){clearTimeout(S._bcRetryTimer);S._bcRetryTimer=null;}
+  S._pgGen=(S._pgGen||0)+1;
+  S._bcGen=(S._bcGen||0)+1;
+  S._pgState=null;
+  S._bcState=null;
   S._notifyReady=false;
+  S._notifySessionArmed=false;
+  S._notifySessionGen=(S._notifySessionGen||0)+1;
   if(S.notifyChannel){try{sb.removeChannel(S.notifyChannel);}catch(e){}S.notifyChannel=null;}
   if(S.notifyBroadcastChannel){try{sb.removeChannel(S.notifyBroadcastChannel);}catch(e){}S.notifyBroadcastChannel=null;}
   if(MS.rtSub){try{sb.removeChannel(MS.rtSub);}catch(e){}MS.rtSub=null;}
@@ -4843,60 +4848,58 @@ function handleIncomingCall(payload){
 }
 function subscribeNotifications(){
   if(!S.profile?.id)return;
-  if(S._notifyState==='connecting'||S._notifyState==='healthy')return;
-  S._notifyState='connecting';
-  S._notifyGen=(S._notifyGen||0)+1;
-  const gen=S._notifyGen;
-  if(S._notifyRetryTimer){clearTimeout(S._notifyRetryTimer);S._notifyRetryTimer=null;}
-  if(S.notifyChannel){try{sb.removeChannel(S.notifyChannel);}catch(e){}S.notifyChannel=null;}
-  if(S.notifyBroadcastChannel){try{sb.removeChannel(S.notifyBroadcastChannel);}catch(e){}S.notifyBroadcastChannel=null;}
-  let _bcStatus=null,_pgStatus=null;
-  function _fail(){
-    if(gen!==S._notifyGen)return;
-    S._notifyState='failed';
-    S._notifyReady=false;
-    if(!S._notifyRetryTimer){
-      S._notifyRetryTimer=setTimeout(function(){S._notifyRetryTimer=null;if(S.profile?.id)subscribeNotifications();},1500);
-    }
-  }
-  function _checkHealthy(){
-    if(gen!==S._notifyGen)return;
-    if(_bcStatus==='SUBSCRIBED'&&_pgStatus==='SUBSCRIBED')S._notifyState='healthy';
-  }
-  S.notifyBroadcastChannel=sb.channel(`notify-${S.profile.id}`,{config:{private:true}})
-    .on('broadcast',{event:'ring'},async()=>{
-      if(gen!==S._notifyGen)return;
-      const{data:sigs}=await sb.from('call_signals').select('*').eq('to_profile_id',S.profile.id).eq('school_id',S.schoolId).order('created_at',{ascending:false}).limit(1);
-      if(gen!==S._notifyGen)return;
+  if(S._notifySessionArmed!==true){
+    S._notifySessionArmed=true;
+    S._notifySessionGen=(S._notifySessionGen||0)+1;
+    const sgen=S._notifySessionGen;
+    setTimeout(async()=>{
+      if(sgen!==S._notifySessionGen)return;
+      const{data:sigs}=await sb.from('call_signals').select('*').eq('to_profile_id',S.profile.id).order('created_at',{ascending:false}).limit(1);
+      if(sgen!==S._notifySessionGen)return;
       if(sigs?.length){
         const sig=sigs[0];
         if(Date.now()-new Date(sig.created_at).getTime()<30000)handleIncomingCall({from_name:sig.from_name,from_role:sig.from_role,room_id:sig.room_id});
+        sb.from('call_signals').delete().eq('to_profile_id',S.profile.id).eq('school_id',S.schoolId).then(()=>{});
       }
-    })
-    .on('broadcast',{event:'decline'},()=>{if(gen!==S._notifyGen)return;if(S.inCall){showToast(t('Звонок отклонён'),'info');hangUp();}})
-    .subscribe(function(status){
-      if(gen!==S._notifyGen)return;
-      _bcStatus=status;
-      if(status==='SUBSCRIBED')_checkHealthy();
-      else if(status==='CLOSED'||status==='CHANNEL_ERROR'||status==='TIMED_OUT')_fail();
+    },1500);
+  }
+  _ensurePgNotifyChannel();
+  _ensureBcNotifyChannel();
+  if(!S._notifyVisBound){
+    S._notifyVisBound=true;
+    document.addEventListener('visibilitychange',function(){
+      if(!document.hidden&&S.profile?.id){
+        _ensurePgNotifyChannel();
+        _ensureBcNotifyChannel();
+      }
     });
+  }
+}
+function _ensurePgNotifyChannel(){
+  if(!S.profile?.id)return;
+  if(S._pgState==='connecting'||S._pgState==='healthy')return;
+  S._pgState='connecting';
+  S._pgGen=(S._pgGen||0)+1;
+  const gen=S._pgGen;
+  if(S._pgRetryTimer){clearTimeout(S._pgRetryTimer);S._pgRetryTimer=null;}
+  if(S.notifyChannel){try{sb.removeChannel(S.notifyChannel);}catch(e){}S.notifyChannel=null;}
   S.notifyChannel=sb.channel(`notify-pg-${S.profile.id}`)
     .on('postgres_changes',{event:'INSERT',schema:'public',table:'call_signals',
       filter:`to_profile_id=eq.${S.profile.id}`},
       ({new:sig})=>{
-        if(gen!==S._notifyGen)return;
+        if(gen!==S._pgGen)return;
         if(!sig||sig.school_id!==S.schoolId)return;
         handleIncomingCall({from_name:sig.from_name,from_role:sig.from_role,room_id:sig.room_id});
         sb.from('call_signals').delete().eq('id',sig.id).then(()=>{});
       })
     .on('postgres_changes',{event:'INSERT',schema:'public',table:'class_live'},
       async({new:lv})=>{
-        if(gen!==S._notifyGen)return;
+        if(gen!==S._pgGen)return;
         try{
           if(!lv||lv.school_id!==S.schoolId||!lv.active||S.role!=='student')return;
           if(!S.studentRowId)return;
           const{data:en}=await sb.from('class_students').select('id').eq('class_id',lv.class_id).eq('student_id',S.studentRowId).eq('school_id',S.schoolId).maybeSingle();
-          if(gen!==S._notifyGen)return;
+          if(gen!==S._pgGen)return;
           if(!en)return;
           showToast('🔴 '+t('Урок начался! Зайди в «Мой класс», чтобы присоединиться'));
           if(S._viewingClassId===lv.class_id){openStudentClass._loading=false;openStudentClass(lv.class_id);}
@@ -4904,7 +4907,7 @@ function subscribeNotifications(){
       })
     .on('postgres_changes',{event:'INSERT',schema:'public',table:'class_feed'},
       ({new:cf})=>{
-        if(gen!==S._notifyGen)return;
+        if(gen!==S._pgGen)return;
         try{
           if(!cf||cf.school_id!==S.schoolId)return;
           if(cf.author_id===S.profile?.id)return;
@@ -4921,30 +4924,49 @@ function subscribeNotifications(){
         }catch(_e){}
       })
     .subscribe(function(status){
-      if(gen!==S._notifyGen)return;
-      S._notifyReady=(status==='SUBSCRIBED');
-      _pgStatus=status;
-      if(status==='SUBSCRIBED')_checkHealthy();
-      else if(status==='CLOSED'||status==='CHANNEL_ERROR'||status==='TIMED_OUT')_fail();
-    });
-  setTimeout(async()=>{
-    if(gen!==S._notifyGen)return;
-    const{data:sigs}=await sb.from('call_signals').select('*').eq('to_profile_id',S.profile.id).order('created_at',{ascending:false}).limit(1);
-    if(gen!==S._notifyGen)return;
-    if(sigs?.length){
-      const sig=sigs[0];
-      if(Date.now()-new Date(sig.created_at).getTime()<30000)handleIncomingCall({from_name:sig.from_name,from_role:sig.from_role,room_id:sig.room_id});
-      sb.from('call_signals').delete().eq('to_profile_id',S.profile.id).eq('school_id',S.schoolId).then(()=>{});
-    }
-  },1500);
-  if(!S._notifyVisBound){
-    S._notifyVisBound=true;
-    document.addEventListener('visibilitychange',function(){
-      if(!document.hidden&&S.profile?.id&&S._notifyState==='failed'){
-        subscribeNotifications();
+      if(gen!==S._pgGen)return;
+      if(status==='SUBSCRIBED'){
+        S._pgState='healthy';
+        S._notifyReady=true;
+      } else if(status==='CLOSED'||status==='CHANNEL_ERROR'||status==='TIMED_OUT'){
+        S._pgState='failed';
+        S._notifyReady=false;
+        if(!S._pgRetryTimer){
+          S._pgRetryTimer=setTimeout(function(){S._pgRetryTimer=null;if(S.profile?.id)_ensurePgNotifyChannel();},1500);
+        }
       }
     });
-  }
+}
+function _ensureBcNotifyChannel(){
+  if(!S.profile?.id)return;
+  if(S._bcState==='connecting'||S._bcState==='healthy')return;
+  S._bcState='connecting';
+  S._bcGen=(S._bcGen||0)+1;
+  const gen=S._bcGen;
+  if(S._bcRetryTimer){clearTimeout(S._bcRetryTimer);S._bcRetryTimer=null;}
+  if(S.notifyBroadcastChannel){try{sb.removeChannel(S.notifyBroadcastChannel);}catch(e){}S.notifyBroadcastChannel=null;}
+  S.notifyBroadcastChannel=sb.channel(`notify-${S.profile.id}`,{config:{private:true}})
+    .on('broadcast',{event:'ring'},async()=>{
+      if(gen!==S._bcGen)return;
+      const{data:sigs}=await sb.from('call_signals').select('*').eq('to_profile_id',S.profile.id).eq('school_id',S.schoolId).order('created_at',{ascending:false}).limit(1);
+      if(gen!==S._bcGen)return;
+      if(sigs?.length){
+        const sig=sigs[0];
+        if(Date.now()-new Date(sig.created_at).getTime()<30000)handleIncomingCall({from_name:sig.from_name,from_role:sig.from_role,room_id:sig.room_id});
+      }
+    })
+    .on('broadcast',{event:'decline'},()=>{if(gen!==S._bcGen)return;if(S.inCall){showToast(t('Звонок отклонён'),'info');hangUp();}})
+    .subscribe(function(status){
+      if(gen!==S._bcGen)return;
+      if(status==='SUBSCRIBED'){
+        S._bcState='healthy';
+      } else if(status==='CLOSED'||status==='CHANNEL_ERROR'||status==='TIMED_OUT'){
+        S._bcState='failed';
+        if(!S._bcRetryTimer){
+          S._bcRetryTimer=setTimeout(function(){S._bcRetryTimer=null;if(S.profile?.id)_ensureBcNotifyChannel();},20000);
+        }
+      }
+    });
 }
 function toggleDialer(){if(S.inCall){hangUp();return;}const p=C('contactPicker');p.classList.toggle('open');if(p.classList.contains('open'))renderContacts();}
 function renderContacts(){
