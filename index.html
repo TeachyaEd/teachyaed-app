@@ -4356,7 +4356,7 @@ function pdRenderDetail(){
               ${_esc(opt)}
             </label>`).join('')}
         </div>`).join('')}
-      <button class="btn btn-primary" onclick="pdSubmitAttempt()">${t('Отправить')}</button>
+      <button class="btn btn-primary" id="pdSubmitBtn" onclick="pdSubmitAttempt()">${t('Отправить')}</button>
     </div>`;
 
   setContent(`
@@ -4388,12 +4388,24 @@ function pdStartTimer(minutes){
 }
 
 async function pdSubmitAttempt(force){
+  if(pdSubmitAttempt._inFlight)return;
   const qs=PD_STATE.questions;
   if(!force&&qs.some(q=>PD_STATE.answers[q.id]===undefined)){showToast(t('Ответь на все вопросы'));return;}
-  const{data,error}=await sb.rpc('submit_pd_attempt',{p_material_id:PD_STATE.material.id,p_answers:PD_STATE.answers});
-  if(error){showToast(t('Ошибка')+': '+error.message);return;}
-  PD_STATE.result=data;
-  pdRenderDetail();
+  pdSubmitAttempt._inFlight=true;
+  const btn=C('pdSubmitBtn');
+  const prevLabel=btn?btn.textContent:null;
+  if(btn){btn.disabled=true;btn.textContent=t('Отправка…');}
+  try{
+    const{data,error}=await sb.rpc('submit_pd_attempt',{p_material_id:PD_STATE.material.id,p_answers:PD_STATE.answers});
+    if(error){showToast(t('Ошибка')+': '+error.message);return;}
+    PD_STATE.result=data;
+    pdRenderDetail();
+  }catch(e){
+    showToast(t('Ошибка')+': '+(e&&e.message?e.message:String(e)));
+  }finally{
+    pdSubmitAttempt._inFlight=false;
+    if(btn){btn.disabled=false;btn.textContent=prevLabel;}
+  }
 }
 
 // ---------- Owner: authoring + report ----------
