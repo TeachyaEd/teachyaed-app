@@ -12,15 +12,20 @@ name: Staging E2E (legacy index.html) [Chromium P0 enabled -- not wired into req
 # the 4-URL local-parser-noise allow-list, and it does not hide DB/RLS
 # errors behind any allow-list.
 #
-# chromium-p0 requires 4 secrets this workflow does not yet have set
-# (STAGING_TEACHER_EMAIL, STAGING_TEACHER_PASSWORD, STAGING_STUDENT_EMAIL,
-# STAGING_STUDENT_PASSWORD) and staging fixture data (one school, the
-# test teacher's profile, the test student's profile+students row, one
-# class taught by the teacher with the student enrolled via
-# class_students, and deliberately no class_lessons/lesson_assignments/
-# class_live rows for that class). Until both exist, the spec's own
-# test.skip() guards make chromium-p0 report skipped rather than failing
-# opaquely or silently passing.
+# chromium-p0 requires 4 secrets (STAGING_TEACHER_EMAIL,
+# STAGING_TEACHER_PASSWORD, STAGING_STUDENT_EMAIL, STAGING_STUDENT_PASSWORD)
+# and staging fixture data (one school, the test teacher's profile, the
+# test student's profile+students row, one class taught by the teacher
+# with the student enrolled via class_students, and deliberately no
+# class_lessons/lesson_assignments/class_live rows for that class). This
+# is a release-quality gate, not a probe -- a missing secret must FAIL the
+# job, never silently skip it. The "Verify required P0 credential secrets"
+# step below fails fast, before any dependency install, if any of the 4
+# are unset, naming exactly which are missing without printing values.
+# The spec itself (tests/e2e-legacy/helpers/auth.ts's
+# requireTeacherCredentials()/requireStudentCredentials()) enforces the
+# same thing independently, so running the spec any other way still fails
+# rather than skips.
 #
 # Intended final wiring (production-regression.yml), once this graduates:
 #   static-legacy-audit -> staging-smoke -> staging-p0-chromium -> staging-p0-webkit -> production-smoke
@@ -102,6 +107,23 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: { node-version: 24 }
+
+      - name: Verify required P0 credential secrets
+        # Fails fast, before any dependency install, if any of the 4
+        # required secrets are unset. Never prints values -- only names.
+        # This is a release-quality gate: a missing secret must fail the
+        # job, not silently skip the tests that need it.
+        run: |
+          missing=()
+          [ -z "$STAGING_TEACHER_EMAIL" ] && missing+=("STAGING_TEACHER_EMAIL")
+          [ -z "$STAGING_TEACHER_PASSWORD" ] && missing+=("STAGING_TEACHER_PASSWORD")
+          [ -z "$STAGING_STUDENT_EMAIL" ] && missing+=("STAGING_STUDENT_EMAIL")
+          [ -z "$STAGING_STUDENT_PASSWORD" ] && missing+=("STAGING_STUDENT_PASSWORD")
+          if [ ${#missing[@]} -gt 0 ]; then
+            echo "::error::Missing required staging P0 credential secret(s): ${missing[*]}. Add them under Settings > Secrets and variables > Actions before running chromium-p0."
+            exit 1
+          fi
+          echo "All required P0 credential secrets are set."
 
       - name: Install e2e-legacy dependencies
         working-directory: tests/e2e-legacy
