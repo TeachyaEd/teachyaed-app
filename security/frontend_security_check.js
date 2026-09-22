@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 // TeachyaED — frontend security static check
 // Companion to security/frontend_security_check.md and SECURITY_BASELINE.md §19-22, §27.
+// Also invoked by tests/legacy/static-audit.mjs as its first check (reused,
+// not duplicated) — see tests/legacy/README.md.
 //
 // READ-ONLY: fetches or reads index.html and inspects text only.
 // Makes no network writes, no repo writes, no DB access.
@@ -13,6 +15,16 @@
 // MANUAL CHECK items never affect the exit code — they are always
 // printed for a human to review, per this script's own limitations
 // (see frontend_security_check.md).
+//
+// 2026-09-22 reconciliation: two anchors updated to match the approved
+// declineCall() rewrite (call-drop fix, commit 235c4be) — the decline-sender
+// channel now uses a captured local (_callerId) instead of S.pendingCallerId
+// (fixes a real race: S.pendingRoom/pendingCallerId were being cleared
+// before the async channel subscribe resolved), and the room-channel decline
+// fallback was removed outright because it was confirmed dead code (the
+// room channel only ever listens for 'hangup', never 'decline'). Both are
+// legitimate code changes, not regressions — see tests/legacy/README.md
+// "On false positives" for the policy this follows.
 
 const fs = require('fs');
 
@@ -43,12 +55,8 @@ const CHANNEL_ANCHORS = [
     anchor: "sb.channel('notify-'+_pf.id,{config:{private:true}})",
   },
   {
-    name: 'notify-<pendingCallerId> sender (decline)',
-    anchor: "sb.channel(`notify-${S.pendingCallerId}`,{config:{private:true}})",
-  },
-  {
-    name: 'pendingRoom sender (decline fallback)',
-    anchor: "sb.channel(S.pendingRoom,{config:{private:true}})",
+    name: 'notify-<callerId> sender (decline)',
+    anchor: "sb.channel(`notify-${_callerId}`,{config:{private:true}})",
   },
   {
     name: 'roomId channel (hangup, both sides)',
@@ -70,6 +78,11 @@ const FORBIDDEN_PATTERNS = [
     name: 'old unsafe ring handler (trusts raw broadcast payload) absent',
     // literal string that must NOT be present
     anchor: ".on('broadcast',{event:'ring'},({payload})=>handleIncomingCall(payload))",
+    forbidden: true,
+  },
+  {
+    name: 'dead room-channel decline fallback absent (confirmed non-functional, removed 2026-09-22)',
+    anchor: "sb.channel(S.pendingRoom,{config:{private:true}})",
     forbidden: true,
   },
 ];
