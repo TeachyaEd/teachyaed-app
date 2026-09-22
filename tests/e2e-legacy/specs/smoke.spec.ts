@@ -1,5 +1,9 @@
 import { test, expect } from '@playwright/test';
 import { attachErrorCollectors, assertNoUnexpectedErrors } from '../helpers/error-collectors';
+// TEMPORARY DIAGNOSTIC -- remove this import and its call site below once the
+// root cause of the 4 suspicious staging-smoke requests is proven and either
+// fixed, or explicitly approved (in a SEPARATE change) for an allow-list.
+import { attachSuspiciousRequestDiagnostics } from '../helpers/diagnostic-suspicious-requests';
 
 // This is the ONLY spec permitted to run before staging schema/fixtures
 // are provisioned. It makes zero assumptions about database contents --
@@ -11,8 +15,12 @@ const PROD_REF = 'juwvlyrepwdcndkqiqna';
 const STAGING_REF = process.env.STAGING_SUPABASE_REF || 'lqyetodkoxodwjyqxukq';
 
 test.describe('legacy app smoke (pre-fixture, staging-config only)', () => {
-  test('serves, loads, initializes without an uncaught error, and targets staging not production', async ({ page }) => {
+  test('serves, loads, initializes without an uncaught error, and targets staging not production', async ({ page, browserName }) => {
     const errors = attachErrorCollectors(page);
+    // TEMPORARY DIAGNOSTIC -- see helpers/diagnostic-suspicious-requests.ts.
+    // Does not weaken assertNoUnexpectedErrors below; only adds console.log
+    // (never console.error) output for 4 known suspicious request paths.
+    await attachSuspiciousRequestDiagnostics(page, browserName);
 
     const response = await page.goto('/');
     expect(response, 'index.html did not return a response').not.toBeNull();
