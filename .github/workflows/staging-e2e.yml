@@ -1,22 +1,26 @@
-name: Staging E2E (legacy index.html) [SKELETON -- not wired into required checks]
+name: Staging E2E (legacy index.html) [Chromium P0 enabled -- not wired into required checks]
 
-# STATUS: scaffolding only. Every job below is manual-dispatch-only and is
-# NOT added to production-regression.yml's required job chain yet.
+# STATUS: staging-smoke and chromium-p0 are both real, manual-dispatch-only
+# jobs. Neither is added to production-regression.yml's required job chain
+# yet. webkit-p0 remains a disabled placeholder until chromium-p0 is
+# confirmed green for real (not just "the workflow ran").
 #
-# Do not enable push/pull_request triggers, and do not remove the
-# `if: false` guards below, until:
-#   1. staging schema drift (call_signals, enforce_call_signal_identity,
-#      and the 11 other missing tables/4 other missing functions) is
-#      resolved -- see the staging provisioning plan in this session;
-#   2. minimal test fixtures exist in staging (2 schools, teacher/student
-#      pairs, one class+lesson+assignment+homework+schedule+conversation);
-#   3. the smoke spec (specs/smoke.spec.ts) has been run for real at least
-#      once against a live staging-configured artifact and passed.
+# chromium-p0 runs tests/e2e-legacy/specs/p0-teacher-student.spec.ts only
+# -- the first narrow authenticated P0 slice (teacher/student login,
+# dashboard, opening a class with no live lesson, empty classroom shell,
+# logout). It is zero-tolerance: unlike staging-smoke, it does not apply
+# the 4-URL local-parser-noise allow-list, and it does not hide DB/RLS
+# errors behind any allow-list.
 #
-# Until then, only workflow_dispatch -> smoke-only is meaningful; the
-# chromium-p0 / webkit-p0 jobs are placeholders showing the intended shape
-# and are guarded off (`if: false`) so they cannot accidentally run or
-# block anything.
+# chromium-p0 requires 4 secrets this workflow does not yet have set
+# (STAGING_TEACHER_EMAIL, STAGING_TEACHER_PASSWORD, STAGING_STUDENT_EMAIL,
+# STAGING_STUDENT_PASSWORD) and staging fixture data (one school, the
+# test teacher's profile, the test student's profile+students row, one
+# class taught by the teacher with the student enrolled via
+# class_students, and deliberately no class_lessons/lesson_assignments/
+# class_live rows for that class). Until both exist, the spec's own
+# test.skip() guards make chromium-p0 report skipped rather than failing
+# opaquely or silently passing.
 #
 # Intended final wiring (production-regression.yml), once this graduates:
 #   static-legacy-audit -> staging-smoke -> staging-p0-chromium -> staging-p0-webkit -> production-smoke
@@ -84,15 +88,64 @@ jobs:
           retention-days: 7
 
   chromium-p0:
-    name: "[PLACEHOLDER] Staging P0 -- Chromium (disabled until fixtures ready)"
-    if: false
+    name: "Staging P0 -- Chromium (first authenticated slice)"
+    needs: staging-smoke
     runs-on: ubuntu-latest
+    env:
+      STAGING_SUPABASE_REF: lqyetodkoxodwjyqxukq
+      STAGING_SUPABASE_ANON_KEY: ${{ secrets.STAGING_SUPABASE_ANON_KEY }}
+      STAGING_TEACHER_EMAIL: ${{ secrets.STAGING_TEACHER_EMAIL }}
+      STAGING_TEACHER_PASSWORD: ${{ secrets.STAGING_TEACHER_PASSWORD }}
+      STAGING_STUDENT_EMAIL: ${{ secrets.STAGING_STUDENT_EMAIL }}
+      STAGING_STUDENT_PASSWORD: ${{ secrets.STAGING_STUDENT_PASSWORD }}
     steps:
-      - run: echo "Guarded off. Enable only once staging provisioning + fixtures are confirmed and real P0 specs exist (not just the smoke spec)."
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 24 }
+
+      - name: Install e2e-legacy dependencies
+        working-directory: tests/e2e-legacy
+        run: npm install
+
+      - name: Install Playwright (Chromium only)
+        working-directory: tests/e2e-legacy
+        run: npx playwright install --with-deps chromium
+
+      - name: Generate ephemeral staging artifact
+        working-directory: tests/e2e-legacy
+        run: node ci/generate-staging-artifact.mjs ../../index.html .staging-artifact
+
+      - name: Serve staging artifact
+        working-directory: tests/e2e-legacy
+        run: node ci/serve-static.mjs .staging-artifact &
+
+      - name: Wait for local server
+        run: |
+          for i in $(seq 1 30); do
+            if curl -sf http://127.0.0.1:4173/ -o /dev/null; then
+              echo "Server is up after ${i}s"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "Server did not become ready within 30s" >&2
+          exit 1
+
+      - name: Run P0 teacher/student spec (Chromium)
+        working-directory: tests/e2e-legacy
+        run: npx playwright test specs/p0-teacher-student.spec.ts --project=chromium
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: staging-p0-chromium-report
+          path: tests/e2e-legacy/playwright-report
+          retention-days: 7
 
   webkit-p0:
-    name: "[PLACEHOLDER] Staging P0 -- WebKit (disabled until fixtures ready)"
+    name: "[PLACEHOLDER] Staging P0 -- WebKit (disabled until Chromium P0 is green)"
     if: false
     runs-on: ubuntu-latest
     steps:
-      - run: echo "Guarded off. Enable only once staging provisioning + fixtures are confirmed and real P0 specs exist (not just the smoke spec)."
+      - run: echo "Guarded off. Enable only once chromium-p0 has passed for real against fixture data, not just executed."
