@@ -49,24 +49,43 @@ export async function logout(page: Page): Promise<void> {
 }
 
 // Dedicated staging-only P0 test identities, read from CI/local env vars
-// only. Never hardcoded, never logged, never printed. Returns null (not
-// a thrown error) when unset so callers can test.skip() with a clear
-// reason instead of failing the whole suite opaquely.
+// only. Never hardcoded, never logged, never printed.
 //
-// Required secrets (see .github/workflows/staging-e2e.yml):
+// Deliberately fail-fast, not skip-on-missing: a release-quality P0 gate
+// must not report green with both authenticated tests silently skipped.
+// If a required var is unset, these throw immediately (at spec module
+// load time, since callers assign the result to a top-level const --
+// see specs/p0-teacher-student.spec.ts) naming exactly which variable(s)
+// are missing. Values are never included in the thrown message.
+//
+// Required secrets (see .github/workflows/staging-e2e.yml, which also
+// runs its own preflight step naming the same variables before any of
+// this code even executes):
 //   STAGING_TEACHER_EMAIL, STAGING_TEACHER_PASSWORD
 //   STAGING_STUDENT_EMAIL, STAGING_STUDENT_PASSWORD
 
-export function getTeacherCredentials(): Credentials | null {
-  const email = process.env.STAGING_TEACHER_EMAIL;
-  const password = process.env.STAGING_TEACHER_PASSWORD;
-  if (!email || !password) return null;
-  return { email, password };
+function requireEnvVars(names: string[]): Record<string, string> {
+  const missing = names.filter((n) => !process.env[n]);
+  if (missing.length > 0) {
+    throw new Error(
+      `Missing required staging P0 credential environment variable(s): ${missing.join(', ')}. ` +
+        `Set them as GitHub Actions secrets (see .github/workflows/staging-e2e.yml) for CI, or in ` +
+        `the local shell env for a local run. This P0 suite fails fast on missing credentials ` +
+        `rather than skipping -- a green run with both authenticated tests silently skipped is ` +
+        `not an acceptable release gate.`,
+    );
+  }
+  const result: Record<string, string> = {};
+  for (const n of names) result[n] = process.env[n]!;
+  return result;
 }
 
-export function getStudentCredentials(): Credentials | null {
-  const email = process.env.STAGING_STUDENT_EMAIL;
-  const password = process.env.STAGING_STUDENT_PASSWORD;
-  if (!email || !password) return null;
-  return { email, password };
+export function requireTeacherCredentials(): Credentials {
+  const vars = requireEnvVars(['STAGING_TEACHER_EMAIL', 'STAGING_TEACHER_PASSWORD']);
+  return { email: vars.STAGING_TEACHER_EMAIL, password: vars.STAGING_TEACHER_PASSWORD };
+}
+
+export function requireStudentCredentials(): Credentials {
+  const vars = requireEnvVars(['STAGING_STUDENT_EMAIL', 'STAGING_STUDENT_PASSWORD']);
+  return { email: vars.STAGING_STUDENT_EMAIL, password: vars.STAGING_STUDENT_PASSWORD };
 }
