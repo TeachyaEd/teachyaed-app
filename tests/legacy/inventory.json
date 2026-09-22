@@ -1,0 +1,174 @@
+{
+  "version": 1,
+  "scope": "root index.html (production entrypoint, repo TeachyaEd/teachyaed-app) only — never /web",
+  "productionSupabaseRef": "juwvlyrepwdcndkqiqna",
+  "notes": "Phase 1 inventory. 'layer':'static' items are covered (or coverable) by tests/legacy/static-audit.mjs today. 'layer':'e2e' items require Phase 3 Playwright infrastructure against staging (lqyetodkoxodwjyqxukq) and are NOT YET IMPLEMENTED — see tests/legacy/README.md and docs/TESTING_STAGING_REQUIREMENTS.md.",
+  "categories": [
+    {
+      "name": "authentication/session",
+      "tests": [
+        { "id": "auth-01", "name": "teacher login", "priority": "P0", "layer": "e2e" },
+        { "id": "auth-02", "name": "student login", "priority": "P0", "layer": "e2e" },
+        { "id": "auth-03", "name": "logout", "priority": "P0", "layer": "e2e" },
+        { "id": "auth-04", "name": "reload with valid session", "priority": "P0", "layer": "e2e" },
+        { "id": "auth-05", "name": "expired/replaced session does not create loops", "priority": "P0", "layer": "e2e", "notes": "covers showSessionExpiredBanner() + SIGNED_OUT/doLogout() reentrancy guard from prior hotfix" },
+        { "id": "auth-06", "name": "invite link leads to password setup, not login", "priority": "P1", "layer": "e2e" },
+        { "id": "auth-07", "name": "build-version-changed banner shown after deploy", "priority": "P2", "layer": "e2e" }
+      ]
+    },
+    {
+      "name": "teacher",
+      "tests": [
+        { "id": "teacher-01", "name": "teacher dashboard load", "priority": "P0", "layer": "e2e" },
+        { "id": "teacher-02", "name": "class list render", "priority": "P0", "layer": "e2e" },
+        { "id": "teacher-03", "name": "profile edit", "priority": "P2", "layer": "e2e" }
+      ]
+    },
+    {
+      "name": "student",
+      "tests": [
+        { "id": "student-01", "name": "student dashboard load", "priority": "P0", "layer": "e2e" },
+        { "id": "student-02", "name": "class list render", "priority": "P0", "layer": "e2e" },
+        { "id": "student-03", "name": "profile edit", "priority": "P2", "layer": "e2e" }
+      ]
+    },
+    {
+      "name": "classes",
+      "tests": [
+        { "id": "classes-01", "name": "teacher enters class with no active class_live", "priority": "P0", "layer": "e2e", "functions": ["enterClassLesson"] },
+        { "id": "classes-02", "name": "student enters class with no active class_live", "priority": "P0", "layer": "e2e", "functions": ["enterStudentClassLesson"] },
+        { "id": "classes-03", "name": "teacher class entry never creates/updates class_live", "priority": "P0", "layer": "e2e", "functions": ["enterClassLesson"] },
+        { "id": "classes-04", "name": "student class entry never creates/updates class_live", "priority": "P0", "layer": "e2e", "functions": ["enterStudentClassLesson"] },
+        { "id": "classes-05", "name": "teacher class entry does not implicitly start a live lesson", "priority": "P0", "layer": "static", "functions": ["enterClassLesson"] },
+        { "id": "classes-06", "name": "student no-lesson fallback opens classroom shell, not class details", "priority": "P0", "layer": "static", "functions": ["enterStudentClassLesson"] },
+        { "id": "classes-07", "name": "class with pinned class_lessons entry opens pinned lesson on entry", "priority": "P1", "layer": "e2e", "functions": ["enterClassLesson", "enterStudentClassLesson"] },
+        { "id": "classes-08", "name": "class with no lesson at all opens empty classroom shell", "priority": "P0", "layer": "e2e", "functions": ["enterClassLesson", "enterStudentClassLesson", "openClassroomView"] },
+        { "id": "classes-09", "name": "class details screen (non-entry) renders", "priority": "P1", "layer": "e2e", "functions": ["openClassDetail", "openStudentClass"] },
+        { "id": "classes-10", "name": "class archive/delete", "priority": "P2", "layer": "e2e" }
+      ]
+    },
+    {
+      "name": "lessons/classroom",
+      "tests": [
+        { "id": "lessons-01", "name": "teacher chooses/switches lesson", "priority": "P0", "layer": "e2e", "functions": ["cdpStartLesson", "cdpPickLesson", "cvOpenSwitchLesson", "cvSwitchTo"] },
+        { "id": "lessons-02", "name": "student opens assigned lesson", "priority": "P0", "layer": "e2e", "functions": ["enterStudentClassLesson", "openLessonView"] },
+        { "id": "lessons-03", "name": "teacher classroom view renders", "priority": "P0", "layer": "e2e", "functions": ["openClassroomView"] },
+        { "id": "lessons-04", "name": "student classroom view renders", "priority": "P0", "layer": "e2e", "functions": ["openClassroomView"] },
+        { "id": "lessons-05", "name": "exercise content renders (gap-fill/word-bank/ordering)", "priority": "P1", "layer": "e2e" },
+        { "id": "lessons-06", "name": "navigation between lesson sections", "priority": "P1", "layer": "e2e", "functions": ["lvRender"] },
+        { "id": "lessons-07", "name": "materials panel toggles", "priority": "P2", "layer": "e2e" },
+        { "id": "lessons-08", "name": "switch-lesson button available to teacher regardless of live state", "priority": "P1", "layer": "static", "functions": ["cvOpenSwitchLesson"], "notes": "regression baseline from commit 93de3d6f" },
+        { "id": "lessons-09", "name": "starting a live lesson creates class_live (explicit action only)", "priority": "P1", "layer": "e2e", "functions": ["startLiveLesson"] }
+      ]
+    },
+    {
+      "name": "assignments",
+      "tests": [
+        { "id": "assign-01", "name": "teacher assigns lesson to class", "priority": "P1", "layer": "e2e", "functions": ["cdpPickLesson"] },
+        { "id": "assign-02", "name": "student sees newest assignment first", "priority": "P1", "layer": "e2e", "functions": ["enterStudentClassLesson"] },
+        { "id": "assign-03", "name": "assignment reassign/unassign", "priority": "P2", "layer": "e2e" }
+      ]
+    },
+    {
+      "name": "homework",
+      "tests": [
+        { "id": "hw-01", "name": "student opens homework", "priority": "P0", "layer": "e2e", "notes": "promoted P0 per correction: currently-used production workflow" },
+        { "id": "hw-02", "name": "student submits homework", "priority": "P0", "layer": "e2e", "notes": "promoted P0 per correction: currently-used production workflow" },
+        { "id": "hw-03", "name": "teacher grades homework", "priority": "P1", "layer": "e2e" },
+        { "id": "hw-04", "name": "homework delete", "priority": "P2", "layer": "e2e" }
+      ]
+    },
+    {
+      "name": "schedule",
+      "tests": [
+        { "id": "sched-01", "name": "schedule reads/loads (teacher and student)", "priority": "P0", "layer": "e2e", "notes": "promoted P0 per correction: currently-used production workflow" },
+        { "id": "sched-02", "name": "schedule event create", "priority": "P1", "layer": "e2e" },
+        { "id": "sched-03", "name": "iCal export", "priority": "P2", "layer": "e2e" }
+      ]
+    },
+    {
+      "name": "class feed",
+      "tests": [
+        { "id": "feed-01", "name": "teacher posts class feed item", "priority": "P0", "layer": "e2e" },
+        { "id": "feed-02", "name": "student sees feed update (Realtime)", "priority": "P0", "layer": "e2e" },
+        { "id": "feed-03", "name": "student posts class feed item", "priority": "P0", "layer": "e2e" },
+        { "id": "feed-04", "name": "teacher sees feed update (Realtime)", "priority": "P0", "layer": "e2e" },
+        { "id": "feed-05", "name": "feed item delete", "priority": "P2", "layer": "e2e" }
+      ]
+    },
+    {
+      "name": "messenger",
+      "tests": [
+        { "id": "msg-01", "name": "send message", "priority": "P0", "layer": "e2e", "notes": "promoted P0 per correction: currently-used production workflow" },
+        { "id": "msg-02", "name": "receive message (Realtime)", "priority": "P0", "layer": "e2e", "notes": "promoted P0 per correction: currently-used production workflow" },
+        { "id": "msg-03", "name": "conversation list unread badge", "priority": "P2", "layer": "e2e" }
+      ]
+    },
+    {
+      "name": "calls",
+      "tests": [
+        { "id": "call-01", "name": "call signal delivery (1:1)", "priority": "P0", "layer": "e2e", "functions": ["callContact", "_ensurePgNotifyChannel", "_ensureBcNotifyChannel"] },
+        { "id": "call-02", "name": "exactly one call_signals INSERT per attempt succeeds", "priority": "P0", "layer": "e2e", "functions": ["callContact"] },
+        { "id": "call-03", "name": "incoming-call UI shown to recipient", "priority": "P0", "layer": "e2e", "functions": ["handleIncomingCall"] },
+        { "id": "call-04", "name": "authoritative caller id corresponds to DB from_profile_id", "priority": "P0", "layer": "e2e", "functions": ["handleIncomingCall"] },
+        { "id": "call-05", "name": "recipient declines", "priority": "P0", "layer": "e2e", "functions": ["declineCall"] },
+        { "id": "call-06", "name": "caller receives decline for the exact attempt only", "priority": "P0", "layer": "e2e", "functions": ["_ensureBcNotifyChannel"] },
+        { "id": "call-07", "name": "caller UI closes on decline", "priority": "P0", "layer": "e2e", "functions": ["hangUp"] },
+        { "id": "call-08", "name": "second call to same recipient immediately after first", "priority": "P0", "layer": "e2e", "functions": ["callContact"] },
+        { "id": "call-09", "name": "stale decline from first attempt cannot terminate second attempt", "priority": "P0", "layer": "e2e", "functions": ["_ensureBcNotifyChannel"], "notes": "this session's primary call-drop fix" },
+        { "id": "call-10", "name": "recipient accepts, Daily room URL loads", "priority": "P0", "layer": "e2e", "functions": ["acceptCall", "initCall"] },
+        { "id": "call-11", "name": "call stays alive >= 60s with no spontaneous hangUp()", "priority": "P0", "layer": "e2e", "functions": ["hangUp"] },
+        { "id": "call-12", "name": "caller hangs up, recipient reacts if signalling available", "priority": "P0", "layer": "e2e", "functions": ["hangUp"] },
+        { "id": "call-13", "name": "same scenarios in student -> teacher direction", "priority": "P0", "layer": "e2e" },
+        { "id": "call-14", "name": "group ring (cvCallStudent) rings all enrolled students", "priority": "P1", "layer": "e2e", "functions": ["cvCallStudent"] },
+        { "id": "call-15", "name": "ring-tone playback", "priority": "P2", "layer": "e2e" },
+        { "id": "call-16", "name": "no call_signals.school_id usage anywhere", "priority": "P0", "layer": "static" },
+        { "id": "call-17", "name": "no school_id/from_id written into call_signals inserts", "priority": "P0", "layer": "static" },
+        { "id": "call-18", "name": "from_profile_id never client-written", "priority": "P0", "layer": "static" },
+        { "id": "call-19", "name": "1:1 insert carries explicit per-attempt UUID", "priority": "P0", "layer": "static", "functions": ["callContact"] },
+        { "id": "call-20", "name": "PG handler forwards sig.id and sig.from_profile_id", "priority": "P0", "layer": "static", "functions": ["_ensurePgNotifyChannel"] },
+        { "id": "call-21", "name": "Broadcast ring path re-reads call_signals, does not trust raw payload identity", "priority": "P0", "layer": "static", "functions": ["_ensureBcNotifyChannel"] },
+        { "id": "call-22", "name": "decline correlated by both room id and attempt id", "priority": "P0", "layer": "static", "functions": ["_ensureBcNotifyChannel"] }
+      ]
+    },
+    {
+      "name": "realtime",
+      "tests": [
+        { "id": "rt-01", "name": "Realtime reconnect after transient failure", "priority": "P0", "layer": "e2e" },
+        { "id": "rt-02", "name": "Broadcast channel failure does not affect PG channel health", "priority": "P0", "layer": "e2e", "functions": ["_ensurePgNotifyChannel", "_ensureBcNotifyChannel"] },
+        { "id": "rt-03", "name": "no request storm after channel failure/retry", "priority": "P0", "layer": "e2e" },
+        { "id": "rt-04", "name": "tab hide/show does not create duplicate subscriptions", "priority": "P0", "layer": "e2e", "functions": ["subscribeNotifications"] },
+        { "id": "rt-05", "name": "PG and BC notification lifecycles remain decoupled", "priority": "P0", "layer": "static", "functions": ["_ensurePgNotifyChannel", "_ensureBcNotifyChannel"] },
+        { "id": "rt-06", "name": "exactly one guarded retry timer per channel (no unbounded fanout)", "priority": "P0", "layer": "static", "functions": ["_ensurePgNotifyChannel", "_ensureBcNotifyChannel"] },
+        { "id": "rt-07", "name": "missed-call catch-up runs once per login session", "priority": "P1", "layer": "e2e", "functions": ["subscribeNotifications"] },
+        { "id": "rt-08", "name": "private:true present on all Realtime channels (delegated)", "priority": "P0", "layer": "static", "notes": "delegated to security/frontend_security_check.js" }
+      ]
+    },
+    {
+      "name": "uploads/materials",
+      "tests": [
+        { "id": "upload-01", "name": "material upload succeeds", "priority": "P1", "layer": "e2e" },
+        { "id": "upload-02", "name": "100MB file size limit enforced", "priority": "P2", "layer": "e2e" },
+        { "id": "upload-03", "name": "disallowed MIME type rejected", "priority": "P2", "layer": "e2e" }
+      ]
+    },
+    {
+      "name": "permissions/RLS-sensitive",
+      "tests": [
+        { "id": "rls-01", "name": "cross-school IDOR smoke: student_b cannot see student_a's class", "priority": "P1", "layer": "e2e" },
+        { "id": "rls-02", "name": "teacher cannot access another school's data", "priority": "P1", "layer": "e2e" },
+        { "id": "rls-03", "name": "admin vs owner permission boundary", "priority": "P1", "layer": "e2e" },
+        { "id": "rls-04", "name": "production Supabase ref unchanged (juwvlyrepwdcndkqiqna), no unexpected ref present", "priority": "P0", "layer": "static" },
+        { "id": "rls-05", "name": "no service-role/JWT/private credentials in frontend source", "priority": "P0", "layer": "static" }
+      ]
+    },
+    {
+      "name": "admin/owner operations",
+      "tests": [
+        { "id": "admin-01", "name": "owner invites user", "priority": "P1", "layer": "e2e" },
+        { "id": "admin-02", "name": "owner changes role", "priority": "P1", "layer": "e2e" },
+        { "id": "admin-03", "name": "owner deletes user (delete_school_user)", "priority": "P2", "layer": "e2e", "notes": "destructive — staging-only, isolated fixtures required" }
+      ]
+    }
+  ]
+}
