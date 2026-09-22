@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { attachErrorCollectors, assertNoUnexpectedErrors } from '../helpers/error-collectors';
 import { attachRequestStormDetector } from '../helpers/request-storm-detector';
-import { login, logout, getTeacherCredentials, getStudentCredentials } from '../helpers/auth';
+import { login, logout, requireTeacherCredentials, requireStudentCredentials } from '../helpers/auth';
 
 // First real authenticated P0 slice against staging. Scope is deliberately
 // narrow -- teacher and student login, dashboard, opening a class with no
@@ -28,13 +28,18 @@ import { login, logout, getTeacherCredentials, getStudentCredentials } from '../
 // notes), so this is a documented fallback, not an unexamined shortcut.
 // The student flow instead targets the real semantic "▶️ В урок" button
 // via role+name, which needs no additional hook and is more robust than
-// a card-div click would be.
+// a card-div click would be. Kept unchanged for this first live run per
+// explicit instruction; revisit only if the run proves either unreliable.
 //
 // Requires 4 dedicated staging-only test identities via env vars (never
 // hardcoded, never logged): STAGING_TEACHER_EMAIL, STAGING_TEACHER_PASSWORD,
-// STAGING_STUDENT_EMAIL, STAGING_STUDENT_PASSWORD. Both tests below
-// test.skip() with an explicit reason if these aren't set, rather than
-// hard-failing opaquely or silently passing.
+// STAGING_STUDENT_EMAIL, STAGING_STUDENT_PASSWORD. Fail-fast, not skip:
+// requireTeacherCredentials()/requireStudentCredentials() throw at module
+// load time (before any test runs) naming exactly which variable(s) are
+// missing if any are unset -- a green run with both tests silently
+// skipped is not an acceptable release gate. The workflow also runs its
+// own preflight step checking the same 4 secrets before this spec even
+// gets a chance to load (see .github/workflows/staging-e2e.yml).
 //
 // Requires staging fixture data this spec does not create, seed, or
 // verify at runtime: one school; the test teacher's profile in that
@@ -46,16 +51,15 @@ import { login, logout, getTeacherCredentials, getStudentCredentials } from '../
 // deterministically. See the fixture report delivered alongside this
 // spec for the exact minimal data and a read-only SQL check for it.
 
-const teacherCreds = getTeacherCredentials();
-const studentCreds = getStudentCredentials();
+const teacherCreds = requireTeacherCredentials();
+const studentCreds = requireStudentCredentials();
 
 test.describe('legacy app P0 -- authenticated teacher/student (Chromium only)', () => {
   test('teacher: login, dashboard, open class with no live lesson, empty classroom shell, logout', async ({ page }) => {
-    test.skip(!teacherCreds, 'STAGING_TEACHER_EMAIL / STAGING_TEACHER_PASSWORD not configured');
     const errors = attachErrorCollectors(page);
     const storm = attachRequestStormDetector(page);
 
-    await login(page, teacherCreds!);
+    await login(page, teacherCreds);
 
     // Teacher dashboard: renderClasses() renders into #evClassesGrid.
     await expect(page.locator('#evClassesGrid')).toBeVisible();
@@ -86,11 +90,10 @@ test.describe('legacy app P0 -- authenticated teacher/student (Chromium only)', 
   });
 
   test('student: login, dashboard, open class with no live lesson, empty classroom shell, logout', async ({ page }) => {
-    test.skip(!studentCreds, 'STAGING_STUDENT_EMAIL / STAGING_STUDENT_PASSWORD not configured');
     const errors = attachErrorCollectors(page);
     const storm = attachRequestStormDetector(page);
 
-    await login(page, studentCreds!);
+    await login(page, studentCreds);
 
     // Student dashboard has no dedicated wrapper id in the legacy markup;
     // the enrolled class's own "▶️ В урок" button is both the dashboard/
