@@ -1,0 +1,4 @@
+node_modules/
+.staging-artifact/
+playwright-report/
+test-results/
