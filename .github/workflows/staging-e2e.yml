@@ -1,0 +1,98 @@
+name: Staging E2E (legacy index.html) [SKELETON -- not wired into required checks]
+
+# STATUS: scaffolding only. Every job below is manual-dispatch-only and is
+# NOT added to production-regression.yml's required job chain yet.
+#
+# Do not enable push/pull_request triggers, and do not remove the
+# `if: false` guards below, until:
+#   1. staging schema drift (call_signals, enforce_call_signal_identity,
+#      and the 11 other missing tables/4 other missing functions) is
+#      resolved -- see the staging provisioning plan in this session;
+#   2. minimal test fixtures exist in staging (2 schools, teacher/student
+#      pairs, one class+lesson+assignment+homework+schedule+conversation);
+#   3. the smoke spec (specs/smoke.spec.ts) has been run for real at least
+#      once against a live staging-configured artifact and passed.
+#
+# Until then, only workflow_dispatch -> smoke-only is meaningful; the
+# chromium-p0 / webkit-p0 jobs are placeholders showing the intended shape
+# and are guarded off (`if: false`) so they cannot accidentally run or
+# block anything.
+#
+# Intended final wiring (production-regression.yml), once this graduates:
+#   static-legacy-audit -> staging-smoke -> staging-p0-chromium -> staging-p0-webkit -> production-smoke
+
+on:
+  workflow_dispatch: {}
+
+jobs:
+  staging-smoke:
+    name: Staging smoke (Chromium only, pre-fixture safe)
+    runs-on: ubuntu-latest
+    env:
+      STAGING_SUPABASE_REF: lqyetodkoxodwjyqxukq
+      STAGING_SUPABASE_ANON_KEY: ${{ secrets.STAGING_SUPABASE_ANON_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 24 }
+
+      # Bootstrap-only until a real package-lock.json exists and this
+      # step is switched to `npm ci` (same sequencing used for /web:
+      # see docs/DEPENDENCY_BASELINE.md). Do not switch before that.
+      - name: Install e2e-legacy dependencies
+        working-directory: tests/e2e-legacy
+        run: npm install
+
+      - name: Install Playwright (Chromium only)
+        working-directory: tests/e2e-legacy
+        run: npx playwright install --with-deps chromium
+
+      - name: Generate ephemeral staging artifact
+        working-directory: tests/e2e-legacy
+        run: node ci/generate-staging-artifact.mjs ../../index.html .staging-artifact
+
+      - name: Serve staging artifact
+        working-directory: tests/e2e-legacy
+        run: node ci/serve-static.mjs .staging-artifact &
+
+      - name: Wait for local server
+        # Dependency-free readiness loop -- curl is guaranteed present on
+        # GitHub-hosted ubuntu-latest runners. Deliberately not `npx wait-on`,
+        # which is not declared in package.json and would pull an
+        # undeclared package at runtime.
+        run: |
+          for i in $(seq 1 30); do
+            if curl -sf http://127.0.0.1:4173/ -o /dev/null; then
+              echo "Server is up after ${i}s"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "Server did not become ready within 30s" >&2
+          exit 1
+
+      - name: Run smoke spec only
+        working-directory: tests/e2e-legacy
+        run: npx playwright test specs/smoke.spec.ts --project=chromium
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: staging-smoke-report
+          path: tests/e2e-legacy/playwright-report
+          retention-days: 7
+
+  chromium-p0:
+    name: "[PLACEHOLDER] Staging P0 -- Chromium (disabled until fixtures ready)"
+    if: false
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Guarded off. Enable only once staging provisioning + fixtures are confirmed and real P0 specs exist (not just the smoke spec)."
+
+  webkit-p0:
+    name: "[PLACEHOLDER] Staging P0 -- WebKit (disabled until fixtures ready)"
+    if: false
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Guarded off. Enable only once staging provisioning + fixtures are confirmed and real P0 specs exist (not just the smoke spec)."
