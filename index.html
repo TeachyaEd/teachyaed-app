@@ -3937,7 +3937,7 @@ async function cvCallStudent(){
       const _em=c.student?.email;if(!_em)continue;
       const{data:_pf}=await sb.from('profiles').select('id').ilike('email',_em).eq('school_id',S.schoolId).maybeSingle();
       if(_pf?.id){
-        sb.from('call_signals').insert({to_profile_id:_pf.id,school_id:S.schoolId,..._rp}).then(({error:_se})=>{if(_se)console.warn('[live ring]',_se);});
+        sb.from('call_signals').insert({to_profile_id:_pf.id,from_name:_rp.from_name,from_role:_rp.from_role,room_id:_rp.room_id}).then(({error:_se})=>{if(_se)console.warn('[live ring]',_se);});
         const _nch=sb.channel('notify-'+_pf.id,{config:{private:true}});
         _nch.subscribe(st=>{if(st==='SUBSCRIBED'){_nch.send({type:'broadcast',event:'ring',payload:_rp});setTimeout(()=>sb.removeChannel(_nch),5000);}});
         _rang++;
@@ -4840,6 +4840,7 @@ function stopRingTone(){if(_ringInterval){clearInterval(_ringInterval);_ringInte
 function handleIncomingCall(payload){
   if(S.inCall||S.pendingRoom)return; // уже в звонке или уже показано
   S.pendingRoom=payload.room_id;S.pendingPartner=payload.from_name;S.pendingCallerId=payload.from_id||null;
+  S.pendingCallAttemptId=payload.attempt_id||null;
   if(C('icName'))C('icName').textContent=payload.from_name||'Звонок';
   C('icRole').textContent=ROLE_L[payload.from_role]||'';
   C('incomingCall').classList.add('show');
@@ -4858,8 +4859,8 @@ function subscribeNotifications(){
       if(sgen!==S._notifySessionGen)return;
       if(sigs?.length){
         const sig=sigs[0];
-        if(Date.now()-new Date(sig.created_at).getTime()<30000)handleIncomingCall({from_name:sig.from_name,from_role:sig.from_role,room_id:sig.room_id});
-        sb.from('call_signals').delete().eq('to_profile_id',S.profile.id).eq('school_id',S.schoolId).then(()=>{});
+        if(Date.now()-new Date(sig.created_at).getTime()<30000)handleIncomingCall({from_name:sig.from_name,from_role:sig.from_role,room_id:sig.room_id,from_id:sig.from_profile_id||null,attempt_id:sig.id||null});
+        sb.from('call_signals').delete().eq('to_profile_id',S.profile.id).then(()=>{});
       }
     },1500);
   }
@@ -4888,8 +4889,8 @@ function _ensurePgNotifyChannel(){
       filter:`to_profile_id=eq.${S.profile.id}`},
       ({new:sig})=>{
         if(gen!==S._pgGen)return;
-        if(!sig||sig.school_id!==S.schoolId)return;
-        handleIncomingCall({from_name:sig.from_name,from_role:sig.from_role,room_id:sig.room_id});
+        if(!sig)return;
+        handleIncomingCall({from_name:sig.from_name,from_role:sig.from_role,room_id:sig.room_id,from_id:sig.from_profile_id||null,attempt_id:sig.id||null});
         sb.from('call_signals').delete().eq('id',sig.id).then(()=>{});
       })
     .on('postgres_changes',{event:'INSERT',schema:'public',table:'class_live'},
@@ -4948,14 +4949,24 @@ function _ensureBcNotifyChannel(){
   S.notifyBroadcastChannel=sb.channel(`notify-${S.profile.id}`,{config:{private:true}})
     .on('broadcast',{event:'ring'},async()=>{
       if(gen!==S._bcGen)return;
-      const{data:sigs}=await sb.from('call_signals').select('*').eq('to_profile_id',S.profile.id).eq('school_id',S.schoolId).order('created_at',{ascending:false}).limit(1);
+      const{data:sigs}=await sb.from('call_signals').select('*').eq('to_profile_id',S.profile.id).order('created_at',{ascending:false}).limit(1);
       if(gen!==S._bcGen)return;
       if(sigs?.length){
         const sig=sigs[0];
-        if(Date.now()-new Date(sig.created_at).getTime()<30000)handleIncomingCall({from_name:sig.from_name,from_role:sig.from_role,room_id:sig.room_id});
+        if(Date.now()-new Date(sig.created_at).getTime()<30000)handleIncomingCall({from_name:sig.from_name,from_role:sig.from_role,room_id:sig.room_id,from_id:sig.from_profile_id||null,attempt_id:sig.id||null});
       }
     })
-    .on('broadcast',{event:'decline'},()=>{if(gen!==S._bcGen)return;if(S.inCall){showToast(t('Звонок отклонён'),'info');hangUp();}})
+    .on('broadcast',{event:'decline'},(msg)=>{
+      if(gen!==S._bcGen)return;
+      const _rid=msg&&msg.payload&&msg.payload.room_id;
+      const _aid=msg&&msg.payload&&msg.payload.attempt_id;
+      if(_rid&&_aid&&S._callRoomId&&S._callAttemptId&&_rid===S._callRoomId&&_aid===S._callAttemptId){
+        showToast(t('Звонок отклонён'),'info');
+        S._callRoomId=null;
+        S._callAttemptId=null;
+        hangUp();
+      }
+    })
     .subscribe(function(status){
       if(gen!==S._bcGen)return;
       if(status==='SUBSCRIBED'){
@@ -4983,6 +4994,9 @@ async function callContact(partnerId,partnerName,partnerRole){
   if(S.inCall){showToast('Уже идёт звонок');return;}
   S.inCall=true;
   const roomId=getRoomId(S.profile.id,partnerId);
+  const attemptId=crypto.randomUUID();
+  S._callRoomId=roomId;
+  S._callAttemptId=attemptId;
   // Resolve real profile UUID for students stored with 'stu_' prefix or raw students-table IDs
   let ringId=partnerId;
   if(partnerId.startsWith('stu_')){
@@ -5004,7 +5018,7 @@ async function callContact(partnerId,partnerName,partnerRole){
   if(!ringId.startsWith('stu_')){
     const rPayload={from_name:`${S.profile.first_name} ${S.profile.last_name}`,from_role:S.role,room_id:roomId,from_id:S.profile?.id};
     // 1️⃣ Postgres Changes — надёжно (основной канал)
-    sb.from('call_signals').insert({to_profile_id:ringId,from_name:rPayload.from_name,from_role:rPayload.from_role,room_id:rPayload.room_id})
+    sb.from('call_signals').insert({id:attemptId,to_profile_id:ringId,from_name:rPayload.from_name,from_role:rPayload.from_role,room_id:rPayload.room_id})
       .then(({error})=>{if(error)console.warn('call_signal insert:',error);});
     // 2️⃣ Broadcast — быстро (fire-and-forget, без await)
     const notifyCh=sb.channel(`notify-${ringId}`,{config:{private:true}});
@@ -5033,16 +5047,17 @@ function declineCall(){
   stopRingTone();
   clearTimeout(S._ringTimeout);S._ringTimeout=null;
   C('incomingCall').classList.remove('show');
-  if(S.pendingCallerId){
-    const _dch=sb.channel(`notify-${S.pendingCallerId}`,{config:{private:true}});
-    _dch.subscribe(st=>{if(st==='SUBSCRIBED'){_dch.send({type:'broadcast',event:'decline',payload:{}});setTimeout(()=>sb.removeChannel(_dch),1000);}});
-  } else if(S.pendingRoom){
-    const _dch=sb.channel(S.pendingRoom,{config:{private:true}});
-    _dch.subscribe(st=>{if(st==='SUBSCRIBED'){_dch.send({type:'broadcast',event:'decline',payload:{}});setTimeout(()=>sb.removeChannel(_dch),1000);}});
-  }
+  const _callerId=S.pendingCallerId;
+  const _roomId=S.pendingRoom;
+  const _attemptId=S.pendingCallAttemptId;
   S.pendingRoom=null;
   S.pendingPartner=null;
   S.pendingCallerId=null;
+  S.pendingCallAttemptId=null;
+  if(_callerId){
+    const _dch=sb.channel(`notify-${_callerId}`,{config:{private:true}});
+    _dch.subscribe(st=>{if(st==='SUBSCRIBED'){_dch.send({type:'broadcast',event:'decline',payload:{room_id:_roomId,attempt_id:_attemptId}});setTimeout(()=>sb.removeChannel(_dch),1000);}});
+  }
 }
 // DAILY_KEY removed from frontend — proxied via Supabase Edge Function 'daily-room'
 async function initCall(roomId,partnerName,isCallee){
@@ -5082,6 +5097,9 @@ async function hangUp(){
   S.pendingRoom=null;
   S.pendingPartner=null;
   S.pendingCallerId=null;
+  S.pendingCallAttemptId=null;
+  S._callRoomId=null;
+  S._callAttemptId=null;
 }
 function minimizeCall(){const b=C('callBody');b.style.display=b.style.display==='none'?'block':'none';}
 
@@ -5961,7 +5979,7 @@ async function enterStudentClassLesson(classId){
       const{data:_sr}=await sb.from('students').select('id').ilike('email',S.profile.email).eq('school_id',S.schoolId).limit(1);
       S.studentRowId=_sr?.[0]?.id||null;
     }
-    if(!S.studentRowId){openStudentClass(classId);return;}
+    if(!S.studentRowId){S.currentClassId=classId;openClassroomView(t('Класс'),[],null,null,[],null);return;}
     const[{data:prog},{data:assigns}]=await Promise.all([
       sb.from('class_lessons').select('lesson_id,position').eq('class_id',classId).eq('school_id',S.schoolId).order('position'),
       sb.from('lesson_assignments').select('*,lesson:lesson_id(id,title,language,level,content)').eq('student_id',S.studentRowId).eq('school_id',S.schoolId).order('assigned_at',{ascending:false})
@@ -5987,7 +6005,8 @@ async function enterStudentClassLesson(classId){
         }
       }
     }catch(_le){}
-    openStudentClass(classId);
+    S.currentClassId=classId;
+    openClassroomView(t('Класс'),[],null,null,[],null);
     showToast(t('Уроки пока не назначены. Попроси учителя!'));
   }catch(e){console.warn('[enterStudentClassLesson]',e);openStudentClass(classId);}
   finally{enterStudentClassLesson._busy=false;}
@@ -7156,7 +7175,23 @@ async function enterClassLesson(classId){
     const{data:cl}=await sb.from('classes').select('*').eq('id',classId).eq('school_id',S.schoolId).single();
     if(!cl){showToast(t('Класс не найден'),'error');return;}
     S._currentClassData=cl;
-    await cdpStartLesson(); // следующий урок программы или выбор, если программы нет
+    // Открываем классную комнату сразу, без старта живого урока — class_live не создаётся и не обновляется.
+    // Явный старт/смена урока — отдельное действие (кнопка «🔄 Сменить урок»).
+    let _title=null,_secs=[],_mats=[],_lessonId=null;
+    try{
+      const{data:prog}=await sb.from('class_lessons').select('lesson_id,position').eq('class_id',classId).eq('school_id',S.schoolId).order('position').limit(1);
+      const _lid=prog&&prog[0]&&prog[0].lesson_id;
+      if(_lid){
+        const{data:_lr}=await sb.from('lessons').select('id,title,content').eq('id',_lid).eq('school_id',S.schoolId).maybeSingle();
+        if(_lr){
+          const _pc=_parseLessonContent(_lr.content||[]);
+          _title=_lr.title||null;_secs=_pc.sections;_mats=_pc.materials;_lessonId=_lr.id;
+        }
+      }
+    }catch(_e){}
+    openClassroomView(_title||t('Класс'),_secs,null,cl.name||null,_mats,_lessonId);
+    LV.lessonId=_lessonId;
+    if(_lessonId)lvSyncInit('ls_'+String(_lessonId).replace(/[^a-zA-Z0-9]/g,'').slice(0,20));
   }finally{enterClassLesson._busy=false;}
 }
 async function cdpStartLesson(){
