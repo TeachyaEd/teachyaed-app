@@ -1,0 +1,19 @@
+{
+  "name": "teachyaed-e2e-legacy",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Playwright E2E suite for the legacy production index.html (TeachyaEd/teachyaed-app). Runs only against an ephemeral, CI-generated copy of index.html reconfigured for the staging Supabase project (lqyetodkoxodwjyqxukq). Never runs against production. Isolated from /web -- do not merge tooling with the React app's Playwright setup.",
+  "type": "module",
+  "scripts": {
+    "generate:staging-artifact": "node ci/generate-staging-artifact.mjs",
+    "serve": "node ci/serve-static.mjs",
+    "pretest": "npm run generate:staging-artifact",
+    "test": "playwright test",
+    "test:chromium": "playwright test --project=chromium",
+    "test:webkit": "playwright test --project=webkit",
+    "test:smoke": "playwright test specs/smoke.spec.ts"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.48.0"
+  }
+}
