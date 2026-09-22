@@ -1,0 +1,58 @@
+name: Production regression (legacy index.html)
+
+# Phase 2 (implemented): static-legacy-audit only.
+# Phase 3 (staging Chromium/WebKit P0, full staging regression) is NOT yet
+# implemented — see docs/TESTING_STAGING_REQUIREMENTS.md and the Phase 3/4/5
+# architecture note. This workflow intentionally does not listen for
+# deployment_status; post-Pages-deploy smoke is a separate workflow,
+# production-smoke.yml, triggered by GitHub's deployment_status event, not by
+# push/pull_request/workflow_dispatch (see that file's own header comment
+# once added).
+
+on:
+  pull_request:
+    paths:
+      - 'index.html'
+      - 'security/frontend_security_check.js'
+      - 'tests/legacy/**'
+      - '.github/workflows/production-regression.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'index.html'
+      - 'security/frontend_security_check.js'
+      - 'tests/legacy/**'
+      - '.github/workflows/production-regression.yml'
+  workflow_dispatch: {}
+
+jobs:
+  static-legacy-audit:
+    name: Static legacy audit (index.html)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 24 }
+      - name: Run static regression audit
+        run: node tests/legacy/static-audit.mjs
+
+  summary:
+    name: Quality gate summary
+    needs: [static-legacy-audit]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Write summary
+        run: |
+          {
+            echo "## Production regression — legacy index.html"
+            echo ""
+            echo '```'
+            echo "Static legacy audit: ${{ needs.static-legacy-audit.result }}"
+            echo "STAGING E2E: NOT RUN"
+            echo '```'
+            echo ""
+            echo "Staging E2E (Phase 3) is not yet implemented. This gate currently"
+            echo "reflects static analysis of index.html only — it is NOT a full"
+            echo "production-quality release gate. See docs/TESTING_STAGING_REQUIREMENTS.md."
+          } >> "$GITHUB_STEP_SUMMARY"
