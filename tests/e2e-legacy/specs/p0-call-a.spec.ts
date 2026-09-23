@@ -326,6 +326,33 @@ test.describe('CALL-A -- 1:1 call signalling stability (call-01..call-09, no acc
         entry.endTs = Date.now();
         entry.status = resp.status;
         try { entry.body = await resp.clone().text(); } catch { /* ignore */ }
+        // DIAGNOSTIC-ONLY: immediately after a successful call_signals 201,
+        // check (read-only, best-effort) whether call_room_participants
+        // already contains a row for the exact room -- proves or disproves
+        // synchronous AFTER INSERT trigger visibility at this exact moment.
+        if (isCallSignals && method === 'POST' && entry.status === 201) {
+          try {
+            let roomId: any = null;
+            try {
+              const parsed = JSON.parse(entry.body);
+              const row = Array.isArray(parsed) ? parsed[0] : parsed;
+              roomId = row && row.room_id;
+            } catch (_e) { /* ignore */ }
+            if (roomId) {
+              const { data: partRows, error: partErr } = await sb
+                .from('call_room_participants')
+                .select('room_id,profile_id,created_at')
+                .eq('room_id', roomId);
+              entry.participantCheckAfter201 = {
+                roomId,
+                rows: partRows,
+                error: partErr ? (partErr.message || String(partErr)) : null,
+              };
+            } else {
+              entry.participantCheckAfter201 = { roomId: null, note: 'could not parse room_id from response body' };
+            }
+          } catch (e) { entry.participantCheckError = String(e); }
+        }
         console.log('[netdiag] ' + JSON.stringify(entry));
         return resp;
       };
@@ -367,6 +394,49 @@ test.describe('CALL-A -- 1:1 call signalling stability (call-01..call-09, no acc
       const callBtn = teacherPage.locator('#cv_callPanel .cv-call-btn');
       await expect(callBtn).toBeVisible();
       await expect(callBtn).toBeEnabled();
+      // DIAGNOSTIC-ONLY (test-only, not app code): capture getSession() vs
+      // getUser() vs storage-key-existence state on the teacher's real `sb`
+      // client immediately before the real call button click (which
+      // triggers callContact() -> initCall() -> the daily-room invoke),
+      // so it can be compared against the JWT claims actually attached to
+      // the daily-room request. Never logs raw tokens or storage values.
+      const authDiagBeforeCall = await teacherPage.evaluate(async () => {
+        const out: any = {};
+        try {
+          const s = await sb.auth.getSession();
+          out.getSession = {
+            hasSession: !!(s && s.data && s.data.session),
+            userId: (s && s.data && s.data.session && s.data.session.user && s.data.session.user.id) || null,
+            hasAccessToken: !!(s && s.data && s.data.session && s.data.session.access_token),
+            tokenClaims: null,
+            error: s && s.error ? (s.error.name || s.error.message || 'error') : null,
+          };
+          if (s && s.data && s.data.session && s.data.session.access_token) {
+            try {
+              const parts = s.data.session.access_token.split('.');
+              const payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')));
+              out.getSession.tokenClaims = { sub: payload.sub, iat: payload.iat, exp: payload.exp, session_id: payload.session_id };
+            } catch (_e) { /* ignore */ }
+          }
+        } catch (e) { out.getSessionThrew = String(e); }
+        try {
+          const u = await sb.auth.getUser();
+          out.getUser = {
+            hasUser: !!(u && u.data && u.data.user),
+            userId: (u && u.data && u.data.user && u.data.user.id) || null,
+            error: u && u.error ? (u.error.name || u.error.message || 'error') : null,
+          };
+        } catch (e) { out.getUserThrew = String(e); }
+        try {
+          const keys = Object.keys(window.localStorage);
+          out.storage = {
+            hasSupabaseAuthKey: keys.some((k) => /^sb-.*-auth-token$/.test(k)),
+            matchingKeyCount: keys.filter((k) => /^sb-.*-auth-token$/.test(k)).length,
+          };
+        } catch (e) { out.storageCheckError = String(e); }
+        return out;
+      });
+      console.log('[call-a] authDiag immediately before callBtn.click():\n' + JSON.stringify(authDiagBeforeCall, null, 2));
       await callBtn.click();
       // cvCallStudent() rings the sole student in the class directly, or --
       // if the class has more than one student -- opens the real
