@@ -567,19 +567,27 @@ test.describe('CALL-A -- 1:1 call signalling stability (call-01..call-09, no acc
       // immediately before the real decline click, so we know the exact
       // pre-decline baseline (BC health, correlation ids) to compare
       // against the post-decline capture below.
-      const teacherBeforeDecline = await teacherPage.evaluate(() => ({
-      bcState: (window as any).S._bcState ?? null,
-      bcGen: (window as any).S._bcGen ?? null,
-      callRoomId: (window as any).S._callRoomId ?? null,
-      callAttemptId: (window as any).S._callAttemptId ?? null,
-      inCall: (window as any).S.inCall,
-      }));
-      const studentBeforeDecline = await studentPage.evaluate(() => ({
-      pendingRoom: (window as any).S.pendingRoom ?? null,
-      pendingCallAttemptId: (window as any).S.pendingCallAttemptId ?? null,
-      pendingCallerId: (window as any).S.pendingCallerId ?? null,
-      bcState: (window as any).S._bcState ?? null,
-      }));
+      const teacherBeforeDecline = await teacherPage.evaluate(() => {
+        const hasS = typeof S !== 'undefined';
+        return {
+          hasS,
+          bcState: hasS ? (S._bcState ?? null) : null,
+          bcGen: hasS ? (S._bcGen ?? null) : null,
+          callRoomId: hasS ? (S._callRoomId ?? null) : null,
+          callAttemptId: hasS ? (S._callAttemptId ?? null) : null,
+          inCall: hasS ? S.inCall : null,
+        };
+      });
+      const studentBeforeDecline = await studentPage.evaluate(() => {
+        const hasS = typeof S !== 'undefined';
+        return {
+          hasS,
+          pendingRoom: hasS ? (S.pendingRoom ?? null) : null,
+          pendingCallAttemptId: hasS ? (S.pendingCallAttemptId ?? null) : null,
+          pendingCallerId: hasS ? (S.pendingCallerId ?? null) : null,
+          bcState: hasS ? (S._bcState ?? null) : null,
+        };
+      });
       console.log('[call-a] DIAGNOSTIC pre-decline-click state:\n' + JSON.stringify({ teacherBeforeDecline, studentBeforeDecline }, null, 2));
 
       expect(callerStillActiveBeforeDecline.inCall).toBe(true);
@@ -594,14 +602,18 @@ test.describe('CALL-A -- 1:1 call signalling stability (call-01..call-09, no acc
       // so this data is always present in the CI log even if that assertion
       // times out. The assertion itself is unchanged and unmoved.
       const studentDiagBeforeAssertion = await studentPage.evaluate(() => (window as any).__diag);
-      const teacherAfterDecline = await teacherPage.evaluate(() => ({
-        bcState: (window as any).S._bcState ?? null,
-        bcGen: (window as any).S._bcGen ?? null,
-        callRoomId: (window as any).S._callRoomId ?? null,
-        callAttemptId: (window as any).S._callAttemptId ?? null,
-        inCall: (window as any).S.inCall,
-        hangups: (window as any).__diag.hangups,
-      }));
+      const teacherAfterDecline = await teacherPage.evaluate(() => {
+        const hasS = typeof S !== 'undefined';
+        return {
+          hasS,
+          bcState: hasS ? (S._bcState ?? null) : null,
+          bcGen: hasS ? (S._bcGen ?? null) : null,
+          callRoomId: hasS ? (S._callRoomId ?? null) : null,
+          callAttemptId: hasS ? (S._callAttemptId ?? null) : null,
+          inCall: hasS ? S.inCall : null,
+          hangups: (window as any).__diag.hangups,
+        };
+      });
       console.log('[call-a] DIAGNOSTIC post-decline-click state:\n' + JSON.stringify({ studentDiagBeforeAssertion, teacherAfterDecline, wsDeclineFrames }, null, 2));
 
       await expect(teacherPage.locator('#callWindow')).not.toHaveClass(/visible/, { timeout: 20_000 });
