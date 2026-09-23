@@ -1,31 +1,57 @@
-name: Staging E2E (legacy index.html) [Chromium P0 enabled -- not wired into required checks]
+name: Staging E2E (legacy index.html) [Chromium P0 + WebKit P0 -- not wired into required checks]
 
-# STATUS: staging-smoke and chromium-p0 are both real, manual-dispatch-only
-# jobs. Neither is added to production-regression.yml's required job chain
-# yet. webkit-p0 remains a disabled placeholder until chromium-p0 is
-# confirmed green for real (not just "the workflow ran").
+# STATUS: staging-smoke, chromium-p0, and webkit-p0 are all real,
+# manual-dispatch-only jobs. None is added to production-regression.yml's
+# required job chain yet.
 #
-# chromium-p0 runs tests/e2e-legacy/specs/p0-teacher-student.spec.ts only
-# -- the first narrow authenticated P0 slice (teacher/student login,
-# dashboard, opening a class with no live lesson, empty classroom shell,
-# logout). It is zero-tolerance: unlike staging-smoke, it does not apply
-# the 4-URL local-parser-noise allow-list, and it does not hide DB/RLS
-# errors behind any allow-list.
+# 2026-09-23: webkit-p0 replaces the previous disabled placeholder now
+# that chromium-p0 has run green for real against staging fixture data
+# (not just "the workflow ran") -- see the Chromium P0 delivery notes for
+# that evidence. webkit-p0 `needs: chromium-p0`, so it never runs unless
+# chromium-p0 has already passed on this same workflow run.
 #
-# chromium-p0 requires 4 secrets (STAGING_TEACHER_EMAIL,
+# chromium-p0 and webkit-p0 both run the exact same
+# tests/e2e-legacy/specs/p0-teacher-student.spec.ts -- same functional
+# scope only (teacher/student login, dashboard, opening a class with no
+# live lesson, empty classroom shell, logout), just a different Playwright
+# project (chromium vs webkit, see tests/e2e-legacy/playwright.config.ts).
+# No coverage expansion for this phase. Both are zero-tolerance: unlike
+# staging-smoke, neither applies the 4-URL local-parser-noise allow-list,
+# and neither hides DB/RLS errors behind any allow-list.
+#
+# The spec's one documented exception (ALLOWED_LOGOUT_ABORT in
+# specs/p0-teacher-student.spec.ts, backed by AllowedRequestFailure in
+# helpers/error-collectors.ts) is not project-specific by construction --
+# it is evidence-gated on an exact failure string ('net::ERR_ABORTED'),
+# which is a Chromium/CDP netstack error code, plus an exact prior
+# response status (204) on the same request. It was added because
+# Chromium's network stack has a confirmed quirk reporting a false
+# 'requestfailed' after a 204 response (microsoft/playwright#42786,
+# #42787). It is not disabled for webkit-p0, but it can only ever match a
+# request whose failure text is exactly that Chromium-specific string --
+# so it will only suppress anything for WebKit if WebKit's own network
+# stack happens to produce the exact same evidence, which has not been
+# assumed and must be confirmed from a real webkit-p0 run, not assumed
+# from the Chromium result.
+#
+# chromium-p0 and webkit-p0 both require 4 secrets (STAGING_TEACHER_EMAIL,
 # STAGING_TEACHER_PASSWORD, STAGING_STUDENT_EMAIL, STAGING_STUDENT_PASSWORD)
-# and staging fixture data (one school, the test teacher's profile, the
-# test student's profile+students row, one class taught by the teacher
-# with the student enrolled via class_students, and deliberately no
-# class_lessons/lesson_assignments/class_live rows for that class). This
-# is a release-quality gate, not a probe -- a missing secret must FAIL the
-# job, never silently skip it. The "Verify required P0 credential secrets"
-# step below fails fast, before any dependency install, if any of the 4
-# are unset, naming exactly which are missing without printing values.
-# The spec itself (tests/e2e-legacy/helpers/auth.ts's
-# requireTeacherCredentials()/requireStudentCredentials()) enforces the
-# same thing independently, so running the spec any other way still fails
-# rather than skips.
+# and the same staging fixture data (one school, the test teacher's
+# profile, the test student's profile+students row, one class taught by
+# the teacher with the student enrolled via class_students, and
+# deliberately no class_lessons/lesson_assignments/class_live rows for
+# that class). This is a release-quality gate, not a probe -- a missing
+# secret must FAIL the job, never silently skip it. The "Verify required
+# P0 credential secrets" step in each job fails fast, before any
+# dependency install, if any of the 4 are unset, naming exactly which are
+# missing without printing values. The spec itself
+# (tests/e2e-legacy/helpers/auth.ts's requireTeacherCredentials()/
+# requireStudentCredentials()) enforces the same thing independently, so
+# running the spec any other way still fails rather than skips.
+#
+# Neither job modifies index.html or the staging database -- both only
+# read against the same fixture chromium-p0 already depends on and the
+# same generate-staging-artifact.mjs-produced ephemeral copy.
 #
 # Intended final wiring (production-regression.yml), once this graduates:
 #   static-legacy-audit -> staging-smoke -> staging-p0-chromium -> staging-p0-webkit -> production-smoke
@@ -166,8 +192,74 @@ jobs:
           retention-days: 7
 
   webkit-p0:
-    name: "[PLACEHOLDER] Staging P0 -- WebKit (disabled until Chromium P0 is green)"
-    if: false
+    name: "Staging P0 -- WebKit (same spec, same scope)"
+    needs: chromium-p0
     runs-on: ubuntu-latest
+    env:
+      STAGING_SUPABASE_REF: lqyetodkoxodwjyqxukq
+      STAGING_SUPABASE_ANON_KEY: ${{ secrets.STAGING_SUPABASE_ANON_KEY }}
+      STAGING_TEACHER_EMAIL: ${{ secrets.STAGING_TEACHER_EMAIL }}
+      STAGING_TEACHER_PASSWORD: ${{ secrets.STAGING_TEACHER_PASSWORD }}
+      STAGING_STUDENT_EMAIL: ${{ secrets.STAGING_STUDENT_EMAIL }}
+      STAGING_STUDENT_PASSWORD: ${{ secrets.STAGING_STUDENT_PASSWORD }}
     steps:
-      - run: echo "Guarded off. Enable only once chromium-p0 has passed for real against fixture data, not just executed."
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 24 }
+
+      - name: Verify required P0 credential secrets
+        # Same fail-fast preflight as chromium-p0, duplicated rather than
+        # factored out -- these are independent jobs/runners in GitHub
+        # Actions with no shared step definitions across jobs in this
+        # workflow syntax.
+        run: |
+          missing=()
+          [ -z "$STAGING_TEACHER_EMAIL" ] && missing+=("STAGING_TEACHER_EMAIL")
+          [ -z "$STAGING_TEACHER_PASSWORD" ] && missing+=("STAGING_TEACHER_PASSWORD")
+          [ -z "$STAGING_STUDENT_EMAIL" ] && missing+=("STAGING_STUDENT_EMAIL")
+          [ -z "$STAGING_STUDENT_PASSWORD" ] && missing+=("STAGING_STUDENT_PASSWORD")
+          if [ ${#missing[@]} -gt 0 ]; then
+            echo "::error::Missing required staging P0 credential secret(s): ${missing[*]}. Add them under Settings > Secrets and variables > Actions before running webkit-p0."
+            exit 1
+          fi
+          echo "All required P0 credential secrets are set."
+
+      - name: Install e2e-legacy dependencies
+        working-directory: tests/e2e-legacy
+        run: npm install
+
+      - name: Install Playwright (WebKit only)
+        working-directory: tests/e2e-legacy
+        run: npx playwright install --with-deps webkit
+
+      - name: Generate ephemeral staging artifact
+        working-directory: tests/e2e-legacy
+        run: node ci/generate-staging-artifact.mjs ../../index.html .staging-artifact
+
+      - name: Serve staging artifact
+        working-directory: tests/e2e-legacy
+        run: node ci/serve-static.mjs .staging-artifact &
+
+      - name: Wait for local server
+        run: |
+          for i in $(seq 1 30); do
+            if curl -sf http://127.0.0.1:4173/ -o /dev/null; then
+              echo "Server is up after ${i}s"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "Server did not become ready within 30s" >&2
+          exit 1
+
+      - name: Run P0 teacher/student spec (WebKit)
+        working-directory: tests/e2e-legacy
+        run: npx playwright test specs/p0-teacher-student.spec.ts --project=webkit
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: staging-p0-webkit-report
+          path: tests/e2e-legacy/playwright-report
+          retention-days: 7
