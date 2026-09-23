@@ -123,6 +123,7 @@ interface CallSignalsInsertRecord {
 }
 
 declare const S: any;
+declare const sb: any;
 
 async function waitForNotifyReady(page: Page): Promise<void> {
   try {
@@ -277,6 +278,59 @@ test.describe('CALL-A -- 1:1 call signalling stability (call-01..call-09, no acc
       }
     });
 
+    // ---- DIAGNOSTIC-ONLY network instrumentation (not app code) ----
+    // Wraps window.fetch via addInitScript so it is active from first
+    // paint, before any app code runs. Captures real request/response
+    // timing and ordering between the awaited call_signals INSERT and the
+    // daily-room invocation, plus auth state at the moment daily-room
+    // fires. Never logs a raw JWT -- only decoded iat/exp/sub/session_id
+    // claims read from the Authorization header already being sent.
+    await teacherPage.addInitScript(() => {
+      (window as any).__netDiag = [];
+      const origFetch = window.fetch.bind(window);
+      (window as any).fetch = async function (input: any, init: any) {
+        let url = '';
+        let method = 'GET';
+        try {
+          url = typeof input === 'string' ? input : input.url;
+          method = (init && init.method) || (typeof input !== 'string' && input.method) || 'GET';
+        } catch { /* ignore */ }
+        const isDailyRoom = url.includes('/functions/v1/daily-room');
+        const isCallSignals = url.includes('/rest/v1/call_signals');
+        if (!isDailyRoom && !isCallSignals) return origFetch(input, init);
+        const entry: any = { url, method, startTs: Date.now() };
+        try {
+          const h = new Headers((init && init.headers) || (typeof input !== 'string' ? input.headers : undefined));
+          const auth = h.get('authorization') || h.get('Authorization');
+          entry.hasAuthHeader = !!auth;
+          if (auth && auth.startsWith('Bearer ')) {
+            const parts = auth.slice(7).split('.');
+            if (parts.length === 3) {
+              const payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')));
+              entry.jwt = { iat: payload.iat, exp: payload.exp, sub: payload.sub, session_id: payload.session_id };
+            }
+          }
+        } catch (e) { entry.authDecodeError = String(e); }
+        if (isDailyRoom && method === 'POST') {
+          try {
+            const r = await sb.auth.getUser();
+            entry.getUserBeforeSend = {
+              hasUser: !!r?.data?.user,
+              userId: r?.data?.user?.id ?? null,
+              errorName: r?.error ? (r.error.name || r.error.message || 'error') : null,
+            };
+          } catch (e) { entry.getUserBeforeSendError = String(e); }
+        }
+        (window as any).__netDiag.push(entry);
+        const resp = await origFetch(input, init);
+        entry.endTs = Date.now();
+        entry.status = resp.status;
+        try { entry.body = await resp.clone().text(); } catch { /* ignore */ }
+        console.log('[netdiag] ' + JSON.stringify(entry));
+        return resp;
+      };
+    });
+
     try {
       // 1. Login teacher and student in two simultaneous, independent contexts.
       await Promise.all([login(teacherPage, teacherCreds), login(studentPage, studentCreds)]);
@@ -367,7 +421,7 @@ test.describe('CALL-A -- 1:1 call signalling stability (call-01..call-09, no acc
       try {
         participantsObserved = await studentPage.evaluate(
           async ({ roomId }) => {
-            const { data } = await (window as any).sb
+            const { data } = await sb
               .from('call_room_participants')
               .select('profile_id,room_id')
               .eq('room_id', roomId);
@@ -393,6 +447,11 @@ test.describe('CALL-A -- 1:1 call signalling stability (call-01..call-09, no acc
         await teacherPage.waitForTimeout(250);
       }
       const teacherDiagAfterCall = await teacherPage.evaluate(() => (window as any).__diag);
+      // DIAGNOSTIC-ONLY: dump the captured call_signals/daily-room network
+      // timeline BEFORE any assertion can throw, so it is always present
+      // in the CI log even when this test fails.
+      const netDiagAttempt1 = await teacherPage.evaluate(() => (window as any).__netDiag);
+      console.log('[call-a] netDiag (call_signals + daily-room timeline) attempt-1:\n' + JSON.stringify(netDiagAttempt1, null, 2));
       console.log(
         '[call-a] attempt-1 caller state:\n' +
           JSON.stringify({ attempt1, jitsiSrc, hangups: teacherDiagAfterCall.hangups }, null, 2),
