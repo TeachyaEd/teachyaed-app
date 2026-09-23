@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { attachErrorCollectors, assertNoUnexpectedErrors, type AllowedRequestFailure } from '../helpers/error-collectors';
+import { attachErrorCollectors, assertNoUnexpectedErrors, type AllowedRequestFailure, type AllowedBadResponse } from '../helpers/error-collectors';
 import { attachRequestStormDetector } from '../helpers/request-storm-detector';
 import { login, logout, requireTeacherCredentials } from '../helpers/auth';
 
@@ -125,6 +125,51 @@ const ALLOWED_LOGOUT_ABORT: AllowedRequestFailure = {
   requireRespondedStatus: 204,
 };
 
+// 2026-09-23: sched-01-only, evidence-gated exception for 4 Chromium
+// speculative-HTML-preload-scanner artifacts. Investigated at length
+// (source-trace + live CI log evidence) before being added here:
+//   - all 4 requests are emitted during Chromium's initial document
+//     parse of the served index.html -- proven because smoke.spec.ts
+//     (no login, no navigation, no app JS execution at all beyond a
+//     1.5s settle wait) reproduces the identical 4 artifacts. Schedule
+//     navigation is NOT causal here, only coincidental: every
+//     authenticated P0 spec attaches attachErrorCollectors() before
+//     login()'s internal page.goto('/'), so all of them are equally
+//     exposed to this pre-DOMContentLoaded parser behavior regardless
+//     of what the test does afterward. (Previously confirmed via CDP:
+//     initiatorType "parser", not "script"; no matching DOM node is
+//     ever created for any of the 4 literal strings.)
+//   - root index.html and the generated .staging-artifact/index.html
+//     are byte-identical at all 4 source locations of these literal
+//     strings (renderBlockView's image-block template, the lesson-
+//     editor image-preview template, and the PD/quiz src="x" timer
+//     trick) -- ci/generate-staging-artifact.mjs only rewrites 4
+//     tightly-anchored Supabase ref/key occurrences elsewhere in the
+//     file, nowhere near these locations. So this is Chromium parser
+//     behavior on valid, unmodified source, not a staging-artifact or
+//     application markup bug.
+//   - this exception exists ONLY because this spec's error collector
+//     (like every P0 spec's) starts listening before the first
+//     page.goto('/') -- it is not a symptom of anything this spec's
+//     own test steps do.
+// '/x' specifically: this is the intentional legacy img-tag
+// src="x" onerror=... timer trick used by the PD-test and lesson-quiz-
+// block timers (unrelated to schedule). It is allowed ONLY inside this
+// schedule spec -- sched-01 never opens quiz/PD UI, so the real,
+// intentional use of that trick is never exercised or masked here. This
+// is NOT a global exception: it is not added to error-collectors.ts,
+// not added to smoke.spec.ts, and any exception the quiz/PD src="x"
+// trick needs in ITS OWN authenticated tests must be scoped there
+// separately, not inherited from this one.
+// Deliberately exact match (hostname + status + decoded path), never a
+// regex/wildcard -- see AllowedBadResponse in helpers/error-collectors.ts.
+const SCHED01_ONLY_ALLOWED_BAD_RESPONSES: AllowedBadResponse[] = [
+  { hostname: '127.0.0.1', status: 404, path: '/${_escHtml(safeUrl)}' },
+  { hostname: '127.0.0.1', status: 404, path: '/${_escHtml(b.image)}' },
+  { hostname: '127.0.0.1', status: 404, path: '/x' },
+  { hostname: '127.0.0.1', status: 404, path: '/${_iUrl}' },
+];
+
 test.describe('legacy app P0 -- schedule read-only load (sched-01, teacher, Chromium + WebKit)', () => {
   test('teacher: login, open schedule via sidebar, grid loads, logout', async ({ page }) => {
     const errors = attachErrorCollectors(page);
@@ -153,7 +198,10 @@ test.describe('legacy app P0 -- schedule read-only load (sched-01, teacher, Chro
       await expect(page.locator('#loginForm')).toBeVisible();
 
       storm.assertNoStorm();
-      assertNoUnexpectedErrors(errors, { allowRequestFailures: [ALLOWED_LOGOUT_ABORT] });
+      assertNoUnexpectedErrors(errors, {
+        allowBadResponses: SCHED01_ONLY_ALLOWED_BAD_RESPONSES,
+        allowRequestFailures: [ALLOWED_LOGOUT_ABORT],
+      });
     } catch (e) {
       console.error(
         '[sched-01 diagnostic] teacher test failed. Captured errors at failure time:\n' + JSON.stringify(errors, null, 2),
