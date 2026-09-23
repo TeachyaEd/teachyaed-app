@@ -99,12 +99,29 @@ interface HangupRecord {
   inCall: boolean;
 }
 
+declare const S: any;
+
 async function waitForNotifyReady(page: Page): Promise<void> {
-  await page.waitForFunction(
-    () => typeof (window as any).S !== 'undefined' && (window as any).S._notifyReady === true && (window as any).S._bcState === 'healthy',
-    null,
-    { timeout: 20_000 },
-  );
+  try {
+    await page.waitForFunction(
+      () => typeof S !== 'undefined' && S._notifyReady === true && S._bcState === 'healthy',
+      null,
+      { timeout: 20_000 },
+    );
+  } catch (err) {
+    const diag = await page.evaluate(() => {
+      const hasS = typeof S !== 'undefined';
+      return {
+        hasS,
+        notifyReady: hasS ? (S._notifyReady ?? null) : null,
+        bcState: hasS ? (S._bcState ?? null) : null,
+        profileId: hasS ? (S.profile?.id ?? null) : null,
+        profileRole: hasS ? (S.role ?? null) : null,
+      };
+    });
+    console.log('[call-a] waitForNotifyReady timeout diagnostics:\n' + JSON.stringify(diag, null, 2));
+    throw err;
+  }
 }
 
 async function getOwnProfile(page: Page): Promise<{ id: string; first_name: string; last_name: string }> {
