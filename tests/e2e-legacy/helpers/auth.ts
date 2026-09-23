@@ -44,6 +44,16 @@ import type { Page } from '@playwright/test';
 // existing #loginForm visibility wait. No allow-list, no suppression of
 // ERR_ABORTED, no networkidle -- this removes the race instead of
 // tolerating its symptom.
+//
+// 2026-09-23 logout completion fix: waitForResponse() alone resolves once
+// response headers are received, not once the request/response is fully
+// complete on the wire -- so context teardown could still abort the
+// in-flight body/connection completion afterward, which is exactly what
+// kept surfacing as net::ERR_ABORTED even after the fix above. Added an
+// explicit await of response.finished() (Playwright API: waits for the
+// response to finish, returns a failure error if the request failed) so
+// the helper genuinely waits for full completion, not just headers,
+// before proceeding to the #loginForm visibility wait.
 
 export interface Credentials {
   email: string;
@@ -68,7 +78,8 @@ export async function logout(page: Page): Promise<void> {
     (res) => res.url().includes('/auth/v1/logout') && res.request().method() === 'POST',
   );
   await page.locator('button.btn-logout').click();
-  await logoutResponse;
+  const response = await logoutResponse;
+  await response.finished();
   await page.locator('#loginForm').waitFor({ state: 'visible' });
 }
 
