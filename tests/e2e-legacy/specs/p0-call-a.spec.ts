@@ -14,12 +14,20 @@ import { login, requireTeacherCredentials, requireStudentCredentials } from '../
 // detail at that point below).
 //
 // UI path traced from index.html:
-//   - Caller: click #dialBtn -> toggleDialer() -> renderContacts() builds
-//     `.contact-item[data-cid="<profile id>"]` rows in #contactList from
-//     S.contacts (loaded by loadContacts(), called once right after
-//     login alongside subscribeNotifications()); each row's onclick calls
-//     callContact(id,name,role) -- callContact is the real, unmodified
-//     app function invoked by a real click, not by test code.
+//   - Caller: click a `.ev-class-card` on the teacher's "Классы" screen
+//     (the default post-login landing screen) -> onclick="enterClassLesson(classId)"
+//     -> openClassroomView(...) shows #classroomView (adds class "open") and
+//     wires `#cv_callPanel .cv-call-btn` to cvCallStudent() for the teacher
+//     role (source: `_cvCallBtn.setAttribute('onclick','cvCallStudent()')`
+//     when role !== student). Note: the legacy global `#dialBtn` +
+//     `#contactPicker` dial-anyone UI is dead code -- CSS-hidden
+//     (`display:none`) with nothing in the app ever un-hiding it after
+//     task "Remove out-of-class calling entry points"; it is NOT used here.
+//   - cvCallStudent(): if the class has exactly one student, calls them
+//     directly; otherwise falls back to opening `#contactPicker` (same
+//     picker markup/rows as before) for a manual pick. Either way it ends
+//     by calling callContact(id,name,role) -- callContact is the real,
+//     unmodified app function invoked by a real click, not by test code.
 //   - callContact(): sets S._callRoomId/S._callAttemptId (attemptId =
 //     crypto.randomUUID(), used as call_signals.id), inserts the
 //     call_signals row (fire-and-forget .then(), NOT awaited before
@@ -229,10 +237,27 @@ test.describe('CALL-A -- 1:1 call signalling stability (call-01..call-09, no acc
       const attempt1InsertCountBefore = teacherCallSignalsInserts.length;
       const attempt1RingTs = Date.now();
 
-      // 3. Teacher initiates one real call through the real UI.
-      await teacherPage.locator('#dialBtn').click();
-      await expect(teacherPage.locator('#contactPicker')).toHaveClass(/open/);
-      await teacherPage.locator(`.contact-item[data-cid="${studentProfile.id}"]`).click();
+      // 3. Teacher initiates one real call through the real UI: enter the
+      // class (real UI path: click `.ev-class-card` -> enterClassLesson()
+      // -> openClassroomView() shows #classroomView and wires
+      // #cv_callPanel .cv-call-btn to cvCallStudent() for the teacher role),
+      // then click the real call button.
+      await teacherPage.locator('.ev-class-card:not(.ev-class-create)').first().click();
+      await expect(teacherPage.locator('#classroomView')).toHaveClass(/open/);
+      const callBtn = teacherPage.locator('#cv_callPanel .cv-call-btn');
+      await expect(callBtn).toBeVisible();
+      await expect(callBtn).toBeEnabled();
+      await callBtn.click();
+      // cvCallStudent() rings the sole student in the class directly, or --
+      // if the class has more than one student -- opens the real
+      // #contactPicker for a manual pick (same picker used by the old
+      // global dial UI). Handle both real outcomes, no guessing.
+      try {
+        await expect(teacherPage.locator('#contactPicker')).toHaveClass(/open/, { timeout: 5_000 });
+        await teacherPage.locator(`.contact-item[data-cid="${studentProfile.id}"]`).click();
+      } catch {
+        // Single-student class: cvCallStudent() rang the student directly.
+      }
 
       // 6. Student gets incoming-call UI.
       await expect(studentPage.locator('#incomingCall')).toHaveClass(/show/, { timeout: 20_000 });
@@ -343,9 +368,16 @@ test.describe('CALL-A -- 1:1 call signalling stability (call-01..call-09, no acc
       const attempt2InsertCountBefore = teacherCallSignalsInserts.length;
       const attempt2RingTs = Date.now();
 
-      await teacherPage.locator('#dialBtn').click();
-      await expect(teacherPage.locator('#contactPicker')).toHaveClass(/open/);
-      await teacherPage.locator(`.contact-item[data-cid="${studentProfile.id}"]`).click();
+      const callBtn2 = teacherPage.locator('#cv_callPanel .cv-call-btn');
+      await expect(callBtn2).toBeVisible();
+      await expect(callBtn2).toBeEnabled();
+      await callBtn2.click();
+      try {
+        await expect(teacherPage.locator('#contactPicker')).toHaveClass(/open/, { timeout: 5_000 });
+        await teacherPage.locator(`.contact-item[data-cid="${studentProfile.id}"]`).click();
+      } catch {
+        // Single-student class: cvCallStudent() rang the student directly.
+      }
 
       await expect(studentPage.locator('#incomingCall')).toHaveClass(/show/, { timeout: 20_000 });
 
