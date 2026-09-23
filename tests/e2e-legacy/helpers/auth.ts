@@ -30,30 +30,42 @@ import type { Page } from '@playwright/test';
 // 2026-09-23 logout sync fix: doLogout() in index.html does
 // `await sb.auth.signOut()` before resetting the DOM (#loginForm becomes
 // visible only after that await resolves), so the app itself is not
-// racing its own UI ahead of the call. But the promise returned by
-// sb.auth.signOut() is not reliably gated on the underlying
-// POST /auth/v1/logout request having fully settled on the wire (a
-// Supabase client characteristic, not an app bug), and this helper's only
-// prior synchronization point was #loginForm's DOM visibility -- which
-// is not coupled to that network request. That gap let Playwright end the
-// test and tear down the page/context while the logout POST was still in
-// flight, surfacing as [request failed: net::ERR_ABORTED] against
-// /auth/v1/logout?scope=global on every single P0 attempt. Fixed by
-// explicitly waiting for that response (started before the click, so a
-// fast-resolving response can't be missed) before falling through to the
-// existing #loginForm visibility wait. No allow-list, no suppression of
-// ERR_ABORTED, no networkidle -- this removes the race instead of
-// tolerating its symptom.
+// racing its own UI ahead of the call. The POST to /auth/v1/logout
+// consistently shows up in requestFailures as [request failed:
+// net::ERR_ABORTED], on every single P0 attempt, teacher and student
+// alike, regardless of timing -- added a page.waitForResponse() wait
+// (started before the click) as a first attempt at closing what looked
+// like a teardown race. It did not fix the underlying signal (see next
+// note); kept here only because it is harmless and does no waiting
+// beyond the response headers arriving.
 //
-// 2026-09-23 logout completion fix: waitForResponse() alone resolves once
-// response headers are received, not once the request/response is fully
-// complete on the wire -- so context teardown could still abort the
-// in-flight body/connection completion afterward, which is exactly what
-// kept surfacing as net::ERR_ABORTED even after the fix above. Added an
-// explicit await of response.finished() (Playwright API: waits for the
-// response to finish, returns a failure error if the request failed) so
-// the helper genuinely waits for full completion, not just headers,
-// before proceeding to the #loginForm visibility wait.
+// 2026-09-23 diagnosis (response.finished() tried and reverted): a
+// second attempt added `await response.finished()` after the above wait,
+// hypothesizing the abort happened *after* headers but the response
+// hadn't fully completed on the wire. That made every P0 attempt hang
+// for the full 90s test timeout instead of failing fast, with zero
+// additional signal -- `response.finished()` never resolved.
+//
+// Root cause, confirmed against upstream Playwright source/issues:
+// Supabase's GoTrue /auth/v1/logout endpoint returns HTTP 204 No Content
+// on success. Chromium's own network stack has a long-standing,
+// independently confirmed quirk (microsoft/playwright#42786, fix
+// proposed in microsoft/playwright#42787, unmerged as of Playwright
+// 1.48.0 which this suite pins): for a fetch answered with 204 No
+// Content, Chromium reports Network.loadingFailed / net::ERR_ABORTED to
+// the CDP client *after* the response has already been delivered to the
+// page -- even though the page's own `fetch()` promise resolves
+// normally and the app proceeds correctly (confirmed: doLogout()'s
+// `await sb.auth.signOut()` completes and the UI transitions to
+// #loginForm on every run). Playwright's `Response.finished()` in 1.48.0
+// only resolves on the `requestfinished` event, never on `requestfailed`
+// -- so for a request that fails *after* its response (exactly this
+// case), `finished()` never settles. This is a Chromium/CDP-level false
+// failure signal on a 204 response, not an app defect, not a test race,
+// and not something `finished()` can wait past in this Playwright
+// version. Do not reintroduce `response.finished()` here -- see the P0
+// diagnosis delivered 2026-09-23 for the full event-order evidence and
+// the proposed (not yet applied) fix.
 
 export interface Credentials {
   email: string;
@@ -78,8 +90,7 @@ export async function logout(page: Page): Promise<void> {
     (res) => res.url().includes('/auth/v1/logout') && res.request().method() === 'POST',
   );
   await page.locator('button.btn-logout').click();
-  const response = await logoutResponse;
-  await response.finished();
+  await logoutResponse;
   await page.locator('#loginForm').waitFor({ state: 'visible' });
 }
 
