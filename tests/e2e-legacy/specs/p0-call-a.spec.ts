@@ -404,6 +404,72 @@ test.describe('CALL-A -- 1:1 call signalling stability (call-01..call-09, no acc
       ws.on('framesent', ({ payload }) => capture('sent')(String(payload)));
       ws.on('framereceived', ({ payload }) => capture('received')(String(payload)));
       });
+      // DIAGNOSTIC-ONLY (staging, temporary): observe raw Realtime WebSocket
+      // frames on the student page for the teacher's notify topic, and
+      // transparently wrap sb.channel/sb.removeChannel on the student page
+      // so the real declineCall() call chain (unmodified) is observable:
+      // exact topic, every subscribe status+ts, whether/when send() runs
+      // and what it resolves to, and removeChannel() timing vs send().
+      // Wrapping is pass-through only; it does not alter app behavior.
+      const studentWsFrames: any[] = [];
+      studentPage.on('websocket', (ws) => {
+        const capture = (direction: 'sent' | 'received') => (payload: string) => {
+          try {
+            const redacted = redactJwt(payload);
+            const parsed = JSON.parse(redacted);
+            const topic = Array.isArray(parsed) ? parsed[2] : parsed?.topic ?? null;
+            if (topic !== teacherNotifyTopic) return;
+            const event = Array.isArray(parsed) ? parsed[3] : parsed?.event ?? null;
+            const msgPayload = Array.isArray(parsed) ? parsed[4] : parsed?.payload ?? null;
+            studentWsFrames.push({ ts: Date.now(), direction, topic, event, payload: msgPayload, join_ref: Array.isArray(parsed) ? parsed[0] : null, ref: Array.isArray(parsed) ? parsed[1] : null });
+          } catch { /* non-JSON frame (e.g. heartbeat) -- ignore */ }
+        };
+        ws.on('framesent', ({ payload }) => capture('sent')(String(payload)));
+        ws.on('framereceived', ({ payload }) => capture('received')(String(payload)));
+      });
+
+      await studentPage.evaluate(() => {
+        const w = window as any;
+        if (w.__chDiag) return;
+        w.__chDiag = { events: [] as any[] };
+        const origChannel = sb.channel.bind(sb);
+        sb.channel = function (name: string, opts: any) {
+          const ch = origChannel(name, opts);
+          if (typeof name === 'string' && name.startsWith('notify-')) {
+            const entry: any = { topic: name, tag: Math.random().toString(36).slice(2), createdAt: Date.now(), subscribeEvents: [] as any[], sendCalls: [] as any[], removedAt: null };
+            (ch as any).__diagTag = entry.tag;
+            w.__chDiag.events.push(entry);
+            const origSubscribe = ch.subscribe.bind(ch);
+            ch.subscribe = function (cb: any) {
+              return origSubscribe((status: any, err: any) => {
+                entry.subscribeEvents.push({ status, err: err ? String(err) : null, ts: Date.now() });
+                if (cb) return cb(status, err);
+              });
+            };
+            const origSend = ch.send.bind(ch);
+            ch.send = function (payload: any) {
+              const call: any = { ts: Date.now(), payload, resolved: null, rejected: null };
+              entry.sendCalls.push(call);
+              const result = origSend(payload);
+              if (result && typeof result.then === 'function') {
+                result.then((r: any) => { call.resolved = { ts: Date.now(), value: r }; }).catch((e: any) => { call.rejected = { ts: Date.now(), error: String(e) }; });
+              } else {
+                call.resolved = { ts: Date.now(), value: result };
+              }
+              return result;
+            };
+          }
+          return ch;
+        };
+        const origRemoveChannel = sb.removeChannel.bind(sb);
+        sb.removeChannel = function (ch: any) {
+          if (ch && ch.__diagTag) {
+            const entry = w.__chDiag.events.find((e: any) => e.tag === ch.__diagTag);
+            if (entry) entry.removedAt = Date.now();
+          }
+          return origRemoveChannel(ch);
+        };
+      });
 
 
       // Teacher's contact list (loaded by the real loadContacts()) must
@@ -614,7 +680,8 @@ test.describe('CALL-A -- 1:1 call signalling stability (call-01..call-09, no acc
           hangups: (window as any).__diag.hangups,
         };
       });
-      console.log('[call-a] DIAGNOSTIC post-decline-click state:\n' + JSON.stringify({ studentDiagBeforeAssertion, teacherAfterDecline, wsDeclineFrames }, null, 2));
+      const studentChDiag = await studentPage.evaluate(() => (window as any).__chDiag);
+      console.log('[call-a] DIAGNOSTIC post-decline-click state:\n' + JSON.stringify({ studentDiagBeforeAssertion, teacherAfterDecline, wsDeclineFrames, studentChDiag, studentWsFrames }, null, 2));
 
       await expect(teacherPage.locator('#callWindow')).not.toHaveClass(/visible/, { timeout: 20_000 });
 
