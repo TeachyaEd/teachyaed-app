@@ -278,6 +278,19 @@ test.describe('CALL-A -- 1:1 call signalling stability (call-01..call-09, no acc
       }
     });
 
+    // DIAGNOSTIC-ONLY: Playwright-level (Chromium-reported) network failure
+    // reason for the exact daily-room request, independent of and in
+    // addition to the window.fetch-wrapper try/catch below -- this comes
+    // directly from Chromium's network stack (net::ERR_FAILED,
+    // net::ERR_ABORTED, CORS, connection reset, etc.), not from JS.
+    const teacherDailyRoomFailures: { url: string; ts: number; errorText: string | null }[] = [];
+    teacherPage.on('requestfailed', (req) => {
+      if (req.url().includes('/functions/v1/daily-room')) {
+        teacherDailyRoomFailures.push({ url: req.url(), ts: Date.now(), errorText: req.failure()?.errorText ?? null });
+        console.log('[call-a] daily-room requestfailed: ' + JSON.stringify(req.failure()));
+      }
+    });
+
     // ---- DIAGNOSTIC-ONLY network instrumentation (not app code) ----
     // Wraps window.fetch via addInitScript so it is active from first
     // paint, before any app code runs. Captures real request/response
@@ -311,58 +324,33 @@ test.describe('CALL-A -- 1:1 call signalling stability (call-01..call-09, no acc
             }
           }
         } catch (e) { entry.authDecodeError = String(e); }
-        if (isDailyRoom && method === 'POST') {
-          try {
-            const r = await sb.auth.getUser();
-            entry.getUserBeforeSend = {
-              hasUser: !!r?.data?.user,
-              userId: r?.data?.user?.id ?? null,
-              errorName: r?.error ? (r.error.name || r.error.message || 'error') : null,
-            };
-          } catch (e) { entry.getUserBeforeSendError = String(e); }
-        }
+        // NON-INVASIVE ONLY: no auth API calls of any kind are made from
+        // inside this wrapper. sb.auth.getUser() is proven (from real
+        // @supabase/auth-js source) to be able to call _removeSession() on
+        // certain errors -- i.e. it is not a passive read and could itself
+        // mutate/clear the session being observed. It is never called here.
+        // The prior call_room_participants read-after-201 probe has also
+        // been removed: the browser client has no SELECT grant on that
+        // table by design, so "permission denied" there is expected and
+        // uninformative for row/trigger timing.
         (window as any).__netDiag.push(entry);
-        const resp = await origFetch(input, init);
-        entry.endTs = Date.now();
-        entry.status = resp.status;
-        try { entry.body = await resp.clone().text(); } catch { /* ignore */ }
-        // DIAGNOSTIC-ONLY: immediately after a successful call_signals 201,
-        // check (read-only, best-effort) whether call_room_participants
-        // already contains a row for the exact room -- proves or disproves
-        // synchronous AFTER INSERT trigger visibility at this exact moment.
-        if (isCallSignals && method === 'POST' && entry.status === 201) {
-          try {
-            // Authoritative room_id source: the captured REQUEST body (what
-            // the app actually sent to call_signals), not the response body --
-            // the insert returns Prefer: return=minimal so the 201 response
-            // body is empty and cannot be parsed for room_id (confirmed in
-            // the prior diagnostic run: "body": "").
-            let roomId: any = null;
-            try {
-              const reqBodyRaw = init && (init as any).body;
-              if (typeof reqBodyRaw === 'string') {
-                const parsedReq = JSON.parse(reqBodyRaw);
-                const reqRow = Array.isArray(parsedReq) ? parsedReq[0] : parsedReq;
-                roomId = reqRow && reqRow.room_id;
-              }
-            } catch (_e) { /* ignore */ }
-            if (roomId) {
-              const { data: partRows, error: partErr } = await sb
-                .from('call_room_participants')
-                .select('room_id,profile_id,created_at')
-                .eq('room_id', roomId);
-              entry.participantCheckAfter201 = {
-                roomId,
-                rows: partRows,
-                error: partErr ? (partErr.message || String(partErr)) : null,
-              };
-            } else {
-              entry.participantCheckAfter201 = { roomId: null, note: 'could not parse room_id from response body' };
-            }
-          } catch (e) { entry.participantCheckError = String(e); }
+        try {
+          const resp = await origFetch(input, init);
+          entry.endTs = Date.now();
+          entry.status = resp.status;
+          try { entry.body = await resp.clone().text(); } catch { /* ignore */ }
+          console.log('[netdiag] ' + JSON.stringify(entry));
+          return resp;
+        } catch (e: any) {
+          // The underlying fetch promise itself rejected (network-level
+          // failure) -- record the exact browser error instead of leaving
+          // this entry with no endTs/status/body and no explanation.
+          entry.endTs = Date.now();
+          entry.fetchRejected = true;
+          entry.fetchError = { name: e && e.name, message: e && e.message ? String(e.message) : String(e) };
+          console.log('[netdiag] ' + JSON.stringify(entry));
+          throw e;
         }
-        console.log('[netdiag] ' + JSON.stringify(entry));
-        return resp;
       };
     });
 
@@ -408,6 +396,12 @@ test.describe('CALL-A -- 1:1 call signalling stability (call-01..call-09, no acc
       // triggers callContact() -> initCall() -> the daily-room invoke),
       // so it can be compared against the JWT claims actually attached to
       // the daily-room request. Never logs raw tokens or storage values.
+      // STRICTLY NON-INVASIVE: only sb.auth.getSession() is called here.
+      // sb.auth.getUser() is deliberately never called anywhere in this
+      // diagnostic path -- proven from real auth-js source to be able to
+      // call _removeSession() on certain errors, so it is not a passive
+      // read and could itself corrupt the very session state being
+      // measured. Never logs the raw access token.
       const authDiagBeforeCall = await teacherPage.evaluate(async () => {
         const out: any = {};
         try {
@@ -427,14 +421,6 @@ test.describe('CALL-A -- 1:1 call signalling stability (call-01..call-09, no acc
             } catch (_e) { /* ignore */ }
           }
         } catch (e) { out.getSessionThrew = String(e); }
-        try {
-          const u = await sb.auth.getUser();
-          out.getUser = {
-            hasUser: !!(u && u.data && u.data.user),
-            userId: (u && u.data && u.data.user && u.data.user.id) || null,
-            error: u && u.error ? (u.error.name || u.error.message || 'error') : null,
-          };
-        } catch (e) { out.getUserThrew = String(e); }
         try {
           const keys = Object.keys(window.localStorage);
           out.storage = {
@@ -492,25 +478,16 @@ test.describe('CALL-A -- 1:1 call signalling stability (call-01..call-09, no acc
       expect(provenIncoming[0].payload.room_id).toBe(attempt1.roomId);
       expect(provenIncoming[0].payload.attempt_id).toBe(attempt1.id);
 
-      // 5. call_room_participants trigger side effect, if observable
-      // safely (best-effort, informational -- not fatal if RLS/timing
-      // makes it unreadable from here, per "if observable safely").
-      let participantsObserved: unknown = null;
-      try {
-        participantsObserved = await studentPage.evaluate(
-          async ({ roomId }) => {
-            const { data } = await sb
-              .from('call_room_participants')
-              .select('profile_id,room_id')
-              .eq('room_id', roomId);
-            return data;
-          },
-          { roomId: attempt1.roomId },
-        );
-      } catch (e) {
-        participantsObserved = { observeError: String(e) };
-      }
-      console.log('[call-a] call_room_participants observation (best-effort):\n' + JSON.stringify(participantsObserved, null, 2));
+      // 5. call_room_participants membership is deliberately NOT probed
+      // from either browser client: the authenticated client has no
+      // SELECT grant on that table by design, so a browser-side read
+      // returns "permission denied" -- expected and uninformative for
+      // row/trigger timing, not a real signal. If membership needs
+      // inspection, do it read-only via SQL Editor/service-role context
+      // using the already-captured authoritative room_id, and do not infer
+      // attempt timing from created_at alone (the trigger's
+      // ON CONFLICT ... DO UPDATE SET created_at = now() overwrites
+      // history for the deterministic room id).
 
       // 8. Caller-side daily-room must succeed for this real (now-member)
       // room and must NOT self-hang-up. Poll for a real Daily URL; also
