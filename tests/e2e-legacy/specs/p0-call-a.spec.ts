@@ -332,11 +332,19 @@ test.describe('CALL-A -- 1:1 call signalling stability (call-01..call-09, no acc
         // synchronous AFTER INSERT trigger visibility at this exact moment.
         if (isCallSignals && method === 'POST' && entry.status === 201) {
           try {
+            // Authoritative room_id source: the captured REQUEST body (what
+            // the app actually sent to call_signals), not the response body --
+            // the insert returns Prefer: return=minimal so the 201 response
+            // body is empty and cannot be parsed for room_id (confirmed in
+            // the prior diagnostic run: "body": "").
             let roomId: any = null;
             try {
-              const parsed = JSON.parse(entry.body);
-              const row = Array.isArray(parsed) ? parsed[0] : parsed;
-              roomId = row && row.room_id;
+              const reqBodyRaw = init && (init as any).body;
+              if (typeof reqBodyRaw === 'string') {
+                const parsedReq = JSON.parse(reqBodyRaw);
+                const reqRow = Array.isArray(parsedReq) ? parsedReq[0] : parsedReq;
+                roomId = reqRow && reqRow.room_id;
+              }
             } catch (_e) { /* ignore */ }
             if (roomId) {
               const { data: partRows, error: partErr } = await sb
