@@ -26,6 +26,24 @@ import type { Page } from '@playwright/test';
 // strict mode correctly rejected as ambiguous. Replaced with an
 // unambiguous role+name selector scoped to the exact login button text.
 // Do not revert to the class selector.
+//
+// 2026-09-23 logout sync fix: doLogout() in index.html does
+// `await sb.auth.signOut()` before resetting the DOM (#loginForm becomes
+// visible only after that await resolves), so the app itself is not
+// racing its own UI ahead of the call. But the promise returned by
+// sb.auth.signOut() is not reliably gated on the underlying
+// POST /auth/v1/logout request having fully settled on the wire (a
+// Supabase client characteristic, not an app bug), and this helper's only
+// prior synchronization point was #loginForm's DOM visibility -- which
+// is not coupled to that network request. That gap let Playwright end the
+// test and tear down the page/context while the logout POST was still in
+// flight, surfacing as [request failed: net::ERR_ABORTED] against
+// /auth/v1/logout?scope=global on every single P0 attempt. Fixed by
+// explicitly waiting for that response (started before the click, so a
+// fast-resolving response can't be missed) before falling through to the
+// existing #loginForm visibility wait. No allow-list, no suppression of
+// ERR_ABORTED, no networkidle -- this removes the race instead of
+// tolerating its symptom.
 
 export interface Credentials {
   email: string;
@@ -46,7 +64,11 @@ export async function assertLoginFailed(page: Page): Promise<void> {
 }
 
 export async function logout(page: Page): Promise<void> {
+  const logoutResponse = page.waitForResponse(
+    (res) => res.url().includes('/auth/v1/logout') && res.request().method() === 'POST',
+  );
   await page.locator('button.btn-logout').click();
+  await logoutResponse;
   await page.locator('#loginForm').waitFor({ state: 'visible' });
 }
 
