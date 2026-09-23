@@ -367,6 +367,44 @@ test.describe('CALL-A -- 1:1 call signalling stability (call-01..call-09, no acc
 
       await installStudentDiagnostics(studentPage);
       await installTeacherDiagnostics(teacherPage);
+      // DIAGNOSTIC-ONLY (staging, temporary): observe raw Realtime WebSocket
+      // frames on the teacher page for the teacher's own notify topic, to
+      // prove whether the student's decline broadcast frame actually
+      // arrives at the transport level. Does not modify app Realtime
+      // handlers.
+      const wsDeclineFrames: any[] = [];
+      const teacherNotifyTopic = `realtime:notify-${teacherProfile.id}`;
+      const redactJwt = (s: string) => s.replace(/eyJ[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+/g, '[REDACTED_JWT]');
+      teacherPage.on('websocket', (ws) => {
+      const capture = (direction: 'sent' | 'received') => (payload: string) => {
+      try {
+      const redacted = redactJwt(payload);
+      const parsed = JSON.parse(redacted);
+      const topic = Array.isArray(parsed) ? parsed[2] : parsed?.topic ?? null;
+      const event = Array.isArray(parsed) ? parsed[3] : parsed?.event ?? null;
+      const msgPayload = Array.isArray(parsed) ? parsed[4] : parsed?.payload ?? null;
+      const isNotifyTopic = topic === teacherNotifyTopic;
+      const mentionsDecline = redacted.includes('decline');
+      if (isNotifyTopic && mentionsDecline) {
+      wsDeclineFrames.push({
+      ts: Date.now(),
+      direction,
+      topic,
+      event,
+      room_id: msgPayload?.room_id ?? null,
+      attempt_id: msgPayload?.attempt_id ?? null,
+      join_ref: Array.isArray(parsed) ? parsed[0] : null,
+      ref: Array.isArray(parsed) ? parsed[1] : null,
+      });
+      }
+      } catch {
+      // non-JSON frame (e.g. heartbeat) -- ignore
+      }
+      };
+      ws.on('framesent', ({ payload }) => capture('sent')(String(payload)));
+      ws.on('framereceived', ({ payload }) => capture('received')(String(payload)));
+      });
+
 
       // Teacher's contact list (loaded by the real loadContacts()) must
       // include the student before the real dial UI can be used.
@@ -525,6 +563,25 @@ test.describe('CALL-A -- 1:1 call signalling stability (call-01..call-09, no acc
         hangupsSoFar: (window as any).__diag.hangups.length,
       }));
       expect(callerStillActiveBeforeDecline.hangupsSoFar).toBe(0);
+      // DIAGNOSTIC-ONLY (staging, temporary): capture state on both sides
+      // immediately before the real decline click, so we know the exact
+      // pre-decline baseline (BC health, correlation ids) to compare
+      // against the post-decline capture below.
+      const teacherBeforeDecline = await teacherPage.evaluate(() => ({
+      bcState: (window as any).S._bcState ?? null,
+      bcGen: (window as any).S._bcGen ?? null,
+      callRoomId: (window as any).S._callRoomId ?? null,
+      callAttemptId: (window as any).S._callAttemptId ?? null,
+      inCall: (window as any).S.inCall,
+      }));
+      const studentBeforeDecline = await studentPage.evaluate(() => ({
+      pendingRoom: (window as any).S.pendingRoom ?? null,
+      pendingCallAttemptId: (window as any).S.pendingCallAttemptId ?? null,
+      pendingCallerId: (window as any).S.pendingCallerId ?? null,
+      bcState: (window as any).S._bcState ?? null,
+      }));
+      console.log('[call-a] DIAGNOSTIC pre-decline-click state:\n' + JSON.stringify({ teacherBeforeDecline, studentBeforeDecline }, null, 2));
+
       expect(callerStillActiveBeforeDecline.inCall).toBe(true);
 
       // 9. Student declines through the real UI.
@@ -532,6 +589,21 @@ test.describe('CALL-A -- 1:1 call signalling stability (call-01..call-09, no acc
       await studentPage.locator('#incomingCall .btn-red').click();
 
       // 11. Caller UI closes (hangUp fires on the correlated decline).
+      // DIAGNOSTIC-ONLY (staging, temporary): capture post-decline-click
+      // state on both sides BEFORE the existing #callWindow assertion below,
+      // so this data is always present in the CI log even if that assertion
+      // times out. The assertion itself is unchanged and unmoved.
+      const studentDiagAfterDecline = await studentPage.evaluate(() => (window as any).__diag);
+      const teacherAfterDecline = await teacherPage.evaluate(() => ({
+        bcState: (window as any).S._bcState ?? null,
+        bcGen: (window as any).S._bcGen ?? null,
+        callRoomId: (window as any).S._callRoomId ?? null,
+        callAttemptId: (window as any).S._callAttemptId ?? null,
+        inCall: (window as any).S.inCall,
+        hangups: (window as any).__diag.hangups,
+      }));
+      console.log('[call-a] DIAGNOSTIC post-decline-click state:\n' + JSON.stringify({ studentDiagAfterDecline, teacherAfterDecline, wsDeclineFrames }, null, 2));
+
       await expect(teacherPage.locator('#callWindow')).not.toHaveClass(/visible/, { timeout: 20_000 });
 
       // 10. Decline correlated to the exact attempt.
