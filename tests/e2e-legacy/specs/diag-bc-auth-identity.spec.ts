@@ -132,14 +132,39 @@ interface WsFrameRecord {
   jwtClaims: Partial<Record<(typeof CLAIM_WHITELIST)[number], unknown>> | null;
 }
 
+// FIXED (previous run): the raw websocket frame is NOT the classic Phoenix
+// v2 positional array `[join_ref, ref, topic, event, payload]`. Playwright's
+// raw frame capture for this app's Realtime traffic is actually a JSON
+// OBJECT with named keys: `{ topic, event, payload, ref, join_ref }` --
+// confirmed directly from a captured frame's raw text in the prior
+// diag-bc-failure.spec.ts run (payloadRedacted showed `"topic":"realtime:
+// notify-...","event":"phx_join","payload":{...},"ref":"2","join_ref":"2"`).
+// The previous version of this file assumed the array format, so
+// `Array.isArray(arr)` was always false, topic/event/ref were always parsed
+// as null, and the `f.event === 'phx_join'` filter in the test body never
+// matched -- bcJoinFrame came back null for both teacher and student even
+// though the frames themselves were captured correctly in `payloadRedacted`.
+// This fix handles the actual object shape (falling back to the array shape
+// too, defensively, in case a different frame type ever uses it).
 function parsePhoenixFrame(raw: string): { topic: string | null; event: string | null; ref: string | null; rawPayload: unknown } {
   try {
-    const arr = JSON.parse(raw);
-    if (Array.isArray(arr) && arr.length >= 4) {
-      return { topic: String(arr[2] ?? null), event: String(arr[3] ?? null), ref: arr[1] != null ? String(arr[1]) : null, rawPayload: arr[4] };
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed) && parsed.length >= 4) {
+      return { topic: String(parsed[2] ?? null), event: String(parsed[3] ?? null), ref: parsed[1] != null ? String(parsed[1]) : null, rawPayload: parsed[4] };
+    }
+    if (parsed && typeof parsed === 'object') {
+      const p = parsed as any;
+      if ('topic' in p || 'event' in p) {
+        return {
+          topic: p.topic != null ? String(p.topic) : null,
+          event: p.event != null ? String(p.event) : null,
+          ref: p.ref != null ? String(p.ref) : null,
+          rawPayload: p.payload ?? null,
+        };
+      }
     }
   } catch (_e) {
-    // not JSON / not a phoenix frame -- ignore parse failure
+    // not JSON / not a recognized frame shape -- ignore parse failure
   }
   return { topic: null, event: null, ref: null, rawPayload: null };
 }
@@ -252,6 +277,11 @@ test.describe('DIAGNOSTIC -- Broadcast auth identity propagation (not a gate)', 
 
         const topicUuid = finalState.notifyBroadcastChannelTopic ? finalState.notifyBroadcastChannelTopic.replace(/^realtime:notify-/, '') : null;
 
+        // Debug counters -- kept small and non-sensitive (counts only), so
+        // that if the frame filter still misses for any reason, that is
+        // visible in the log instead of silently reporting null.
+        const sentPhxJoinCount = capture.frames.filter((f) => f.direction === 'sent' && f.event === 'phx_join').length;
+
         console.log(
           `[diag-bc-auth-identity] ${label} IDENTITY COMPARISON:\n` +
             JSON.stringify(
@@ -262,6 +292,8 @@ test.describe('DIAGNOSTIC -- Broadcast auth identity propagation (not a gate)', 
                 'session.getSessionError': sessionInfo.getSessionError,
                 'S.profile.id (at session-read time)': sessionInfo.profileId,
                 'S.profile.id (at end of 20s window)': finalState.profileId,
+                'BC join frame found': bcJoinFrame != null,
+                'BC join frame has access_token': !!bcJoinFrame && bcJoinFrame.jwtClaims != null,
                 'BC join JWT claims (whitelisted only)': bcJoinFrame?.jwtClaims ?? null,
                 'BC topic (from S.notifyBroadcastChannel.topic)': finalState.notifyBroadcastChannelTopic,
                 'BC topic uuid suffix': topicUuid,
@@ -271,12 +303,27 @@ test.describe('DIAGNOSTIC -- Broadcast auth identity propagation (not a gate)', 
                   sessionInfo.sessionUserId === bcJoinFrame.jwtClaims.sub &&
                   sessionInfo.profileId === bcJoinFrame.jwtClaims.sub &&
                   topicUuid === bcJoinFrame.jwtClaims.sub,
+                debug_totalFrames: capture.frames.length,
+                debug_sentPhxJoinCount: sentPhxJoinCount,
               },
               null,
               2,
             ),
         );
         console.log(`[diag-bc-auth-identity] ${label} BC phx_join FRAME (topic/event/ref + whitelisted JWT claims only, raw token redacted):\n` + JSON.stringify(bcJoinFrame ?? null, null, 2));
+        if (!bcJoinFrame) {
+          // Fallback visibility: dump event/topic/direction only (never
+          // payloadRedacted/jwtClaims here would be redundant, but this at
+          // least shows what WAS captured if the primary filter misses).
+          console.log(
+            `[diag-bc-auth-identity] ${label} ALL SENT phx_join FRAMES (topic/event/ref only, fallback debug):\n` +
+              JSON.stringify(
+                capture.frames.filter((f) => f.direction === 'sent' && f.event === 'phx_join').map((f) => ({ topic: f.topic, event: f.event, ref: f.ref })),
+                null,
+                2,
+              ),
+          );
+        }
       }
 
       await readBack(teacherPage, 'teacher', teacherCapture, teacherSession);
