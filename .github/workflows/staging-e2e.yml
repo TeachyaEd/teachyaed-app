@@ -1,4 +1,4 @@
-name: Staging E2E (legacy index.html) [Chromium P0 + WebKit P0 + auth-04 reload -- not wired into required checks]
+name: Staging E2E (legacy index.html) [Chromium P0 + WebKit P0 + auth-04 reload + sched-01 (teacher-only) -- not wired into required checks]
 
 # STATUS: staging-smoke, chromium-p0, and webkit-p0 are all real,
 # manual-dispatch-only jobs. None is added to production-regression.yml's
@@ -74,8 +74,24 @@ name: Staging E2E (legacy index.html) [Chromium P0 + WebKit P0 + auth-04 reload 
 # slice itself has passed. The existing staging-smoke, chromium-p0, and
 # webkit-p0 (classroom) jobs are unchanged by this addition.
 #
+# 2026-09-23: chromium-sched01 and webkit-sched01 add the sched-01 slice
+# ("schedule reads/loads") via tests/e2e-legacy/specs/p0-schedule-read.spec.ts.
+# Strictly read-only -- no schedule_events row is created, updated, or
+# deleted. Teacher only: source-tracing found no student-facing schedule
+# NAV entry and no reachable UI path for the student role (see that
+# spec's own header comment for the full source evidence) -- the student
+# half is deliberately deferred/uncovered, not implemented via any
+# synthetic navigation path, and index.html/NAV is untouched.
+#
+# chromium-sched01 `needs: chromium-p0` (same authenticated-session
+# precondition as chromium-auth04, not chained through auth-04 itself,
+# since sched-01 has no dependency on the reload slice). webkit-sched01
+# `needs: chromium-sched01`. The existing staging-smoke, chromium-p0,
+# webkit-p0, chromium-auth04, and webkit-auth04 jobs are unchanged by
+# this addition.
+#
 # Intended final wiring (production-regression.yml), once this graduates:
-#   static-legacy-audit -> staging-smoke -> staging-p0-chromium -> staging-p0-webkit -> staging-auth04-chromium -> staging-auth04-webkit -> production-smoke
+#   static-legacy-audit -> staging-smoke -> staging-p0-chromium -> staging-p0-webkit -> staging-auth04-chromium -> staging-auth04-webkit -> staging-sched01-chromium -> staging-sched01-webkit -> production-smoke
 
 on:
   workflow_dispatch: {}
@@ -428,5 +444,151 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: staging-auth04-webkit-report
+          path: tests/e2e-legacy/playwright-report
+          retention-days: 7
+
+  chromium-sched01:
+    name: "Staging sched-01 -- Chromium (schedule read-only load, teacher)"
+    needs: chromium-p0
+    runs-on: ubuntu-latest
+    env:
+      STAGING_SUPABASE_REF: lqyetodkoxodwjyqxukq
+      STAGING_SUPABASE_ANON_KEY: ${{ secrets.STAGING_SUPABASE_ANON_KEY }}
+      STAGING_TEACHER_EMAIL: ${{ secrets.STAGING_TEACHER_EMAIL }}
+      STAGING_TEACHER_PASSWORD: ${{ secrets.STAGING_TEACHER_PASSWORD }}
+      STAGING_STUDENT_EMAIL: ${{ secrets.STAGING_STUDENT_EMAIL }}
+      STAGING_STUDENT_PASSWORD: ${{ secrets.STAGING_STUDENT_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 24 }
+
+      - name: Verify required P0 credential secrets
+        # Fails fast, before any dependency install, if any of the 4
+        # required secrets are unset. Never prints values -- only names.
+        # This is a release-quality gate: a missing secret must fail the
+        # job, not silently skip the tests that need it.
+        run: |
+          missing=()
+          [ -z "$STAGING_TEACHER_EMAIL" ] && missing+=("STAGING_TEACHER_EMAIL")
+          [ -z "$STAGING_TEACHER_PASSWORD" ] && missing+=("STAGING_TEACHER_PASSWORD")
+          [ -z "$STAGING_STUDENT_EMAIL" ] && missing+=("STAGING_STUDENT_EMAIL")
+          [ -z "$STAGING_STUDENT_PASSWORD" ] && missing+=("STAGING_STUDENT_PASSWORD")
+          if [ ${#missing[@]} -gt 0 ]; then
+            echo "::error::Missing required staging P0 credential secret(s): ${missing[*]}. Add them under Settings > Secrets and variables > Actions before running chromium-sched01."
+            exit 1
+          fi
+          echo "All required P0 credential secrets are set."
+
+      - name: Install e2e-legacy dependencies
+        working-directory: tests/e2e-legacy
+        run: npm install
+
+      - name: Install Playwright (Chromium only)
+        working-directory: tests/e2e-legacy
+        run: npx playwright install --with-deps chromium
+
+      - name: Generate ephemeral staging artifact
+        working-directory: tests/e2e-legacy
+        run: node ci/generate-staging-artifact.mjs ../../index.html .staging-artifact
+
+      - name: Serve staging artifact
+        working-directory: tests/e2e-legacy
+        run: node ci/serve-static.mjs .staging-artifact &
+
+      - name: Wait for local server
+        run: |
+          for i in $(seq 1 30); do
+            if curl -sf http://127.0.0.1:4173/ -o /dev/null; then
+              echo "Server is up after ${i}s"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "Server did not become ready within 30s" >&2
+          exit 1
+
+      - name: Run sched-01 schedule-read spec (Chromium)
+        working-directory: tests/e2e-legacy
+        run: npx playwright test specs/p0-schedule-read.spec.ts --project=chromium
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: staging-sched01-chromium-report
+          path: tests/e2e-legacy/playwright-report
+          retention-days: 7
+
+  webkit-sched01:
+    name: "Staging sched-01 -- WebKit (same spec, same scope)"
+    needs: chromium-sched01
+    runs-on: ubuntu-latest
+    env:
+      STAGING_SUPABASE_REF: lqyetodkoxodwjyqxukq
+      STAGING_SUPABASE_ANON_KEY: ${{ secrets.STAGING_SUPABASE_ANON_KEY }}
+      STAGING_TEACHER_EMAIL: ${{ secrets.STAGING_TEACHER_EMAIL }}
+      STAGING_TEACHER_PASSWORD: ${{ secrets.STAGING_TEACHER_PASSWORD }}
+      STAGING_STUDENT_EMAIL: ${{ secrets.STAGING_STUDENT_EMAIL }}
+      STAGING_STUDENT_PASSWORD: ${{ secrets.STAGING_STUDENT_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 24 }
+
+      - name: Verify required P0 credential secrets
+        # Same fail-fast preflight as chromium-sched01, duplicated rather than
+        # factored out -- these are independent jobs/runners in GitHub
+        # Actions with no shared step definitions across jobs in this
+        # workflow syntax.
+        run: |
+          missing=()
+          [ -z "$STAGING_TEACHER_EMAIL" ] && missing+=("STAGING_TEACHER_EMAIL")
+          [ -z "$STAGING_TEACHER_PASSWORD" ] && missing+=("STAGING_TEACHER_PASSWORD")
+          [ -z "$STAGING_STUDENT_EMAIL" ] && missing+=("STAGING_STUDENT_EMAIL")
+          [ -z "$STAGING_STUDENT_PASSWORD" ] && missing+=("STAGING_STUDENT_PASSWORD")
+          if [ ${#missing[@]} -gt 0 ]; then
+            echo "::error::Missing required staging P0 credential secret(s): ${missing[*]}. Add them under Settings > Secrets and variables > Actions before running webkit-sched01."
+            exit 1
+          fi
+          echo "All required P0 credential secrets are set."
+
+      - name: Install e2e-legacy dependencies
+        working-directory: tests/e2e-legacy
+        run: npm install
+
+      - name: Install Playwright (WebKit only)
+        working-directory: tests/e2e-legacy
+        run: npx playwright install --with-deps webkit
+
+      - name: Generate ephemeral staging artifact
+        working-directory: tests/e2e-legacy
+        run: node ci/generate-staging-artifact.mjs ../../index.html .staging-artifact
+
+      - name: Serve staging artifact
+        working-directory: tests/e2e-legacy
+        run: node ci/serve-static.mjs .staging-artifact &
+
+      - name: Wait for local server
+        run: |
+          for i in $(seq 1 30); do
+            if curl -sf http://127.0.0.1:4173/ -o /dev/null; then
+              echo "Server is up after ${i}s"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "Server did not become ready within 30s" >&2
+          exit 1
+
+      - name: Run sched-01 schedule-read spec (WebKit)
+        working-directory: tests/e2e-legacy
+        run: npx playwright test specs/p0-schedule-read.spec.ts --project=webkit
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: staging-sched01-webkit-report
           path: tests/e2e-legacy/playwright-report
           retention-days: 7
