@@ -805,7 +805,7 @@ jobs:
 
   diag-bc-failure:
     name: "DIAGNOSTIC -- Broadcast (_bcState) subscribe failure (not a gate, one Chromium attempt only)"
-    needs: chromium-p0
+    needs: staging-smoke
     runs-on: ubuntu-latest
     env:
       STAGING_SUPABASE_REF: lqyetodkoxodwjyqxukq
