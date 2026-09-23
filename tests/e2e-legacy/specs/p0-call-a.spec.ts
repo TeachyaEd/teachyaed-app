@@ -126,7 +126,7 @@ async function waitForNotifyReady(page: Page): Promise<void> {
 
 async function getOwnProfile(page: Page): Promise<{ id: string; first_name: string; last_name: string }> {
   return page.evaluate(() => {
-    const s = (window as any).S;
+    const s = S;
     return { id: s.profile.id, first_name: s.profile.first_name, last_name: s.profile.last_name };
   });
 }
@@ -137,7 +137,7 @@ async function installStudentDiagnostics(page: Page): Promise<void> {
     w.__diag = { incoming: [] as any[], declines: [] as any[] };
     const origHandle = w.handleIncomingCall;
     w.handleIncomingCall = function (payload: any) {
-      const s = w.S;
+      const s = S;
       const wouldProceed = !(s.inCall || s.pendingRoom);
       w.__diag.incoming.push({
         ts: Date.now(),
@@ -154,7 +154,7 @@ async function installStudentDiagnostics(page: Page): Promise<void> {
     };
     const origDecline = w.declineCall;
     w.declineCall = function () {
-      const s = w.S;
+      const s = S;
       w.__diag.declines.push({
         ts: Date.now(),
         room_id: s.pendingRoom ?? null,
@@ -172,7 +172,7 @@ async function installTeacherDiagnostics(page: Page): Promise<void> {
     w.__diag = { hangups: [] as { ts: number; callRoomId: any; callAttemptId: any; inCall: any }[] };
     const origHang = w.hangUp;
     w.hangUp = function () {
-      const s = w.S;
+      const s = S;
       w.__diag.hangups.push({ ts: Date.now(), callRoomId: s._callRoomId ?? null, callAttemptId: s._callAttemptId ?? null, inCall: s.inCall });
       return origHang.apply(this, arguments as any);
     };
@@ -220,7 +220,7 @@ test.describe('CALL-A -- 1:1 call signalling stability (call-01..call-09, no acc
       // Teacher's contact list (loaded by the real loadContacts()) must
       // include the student before the real dial UI can be used.
       await teacherPage.waitForFunction(
-        (sid) => Array.isArray((window as any).S.contacts) && (window as any).S.contacts.some((c: any) => c.id === sid),
+        (sid) => Array.isArray(S.contacts) && S.contacts.some((c: any) => c.id === sid),
         studentProfile.id,
         { timeout: 20_000 },
       );
@@ -245,8 +245,8 @@ test.describe('CALL-A -- 1:1 call signalling stability (call-01..call-09, no acc
       // attempt (read-only diagnostic reads of S, same pattern as
       // waitForNotifyReady above -- not an action).
       const attempt1 = await teacherPage.evaluate(() => ({
-        roomId: (window as any).S._callRoomId,
-        attemptId: (window as any).S._callAttemptId,
+        roomId: S._callRoomId,
+        attemptId: S._callAttemptId,
       }));
       expect(attempt1.roomId).toBeTruthy();
       expect(attempt1.attemptId).toBeTruthy();
@@ -326,8 +326,8 @@ test.describe('CALL-A -- 1:1 call signalling stability (call-01..call-09, no acc
       const attempt1CloseTs = hangup1.ts;
 
       // 12. Both sides return to idle.
-      await expect.poll(async () => teacherPage.evaluate(() => (window as any).S.inCall)).toBe(false);
-      await expect.poll(async () => studentPage.evaluate(() => (window as any).S.pendingRoom)).toBeNull();
+      await expect.poll(async () => teacherPage.evaluate(() => S.inCall)).toBe(false);
+      await expect.poll(async () => studentPage.evaluate(() => S.pendingRoom)).toBeNull();
       await expect(studentPage.locator('#incomingCall')).not.toHaveClass(/show/);
 
       console.log(
@@ -353,8 +353,8 @@ test.describe('CALL-A -- 1:1 call signalling stability (call-01..call-09, no acc
       expect(attempt2InsertCountAfter - attempt2InsertCountBefore).toBe(1);
 
       const attempt2 = await teacherPage.evaluate(() => ({
-        roomId: (window as any).S._callRoomId,
-        attemptId: (window as any).S._callAttemptId,
+        roomId: S._callRoomId,
+        attemptId: S._callAttemptId,
       }));
       expect(attempt2.attemptId).toBeTruthy();
       expect(attempt2.attemptId).not.toBe(attempt1.attemptId); // call-08: a distinct per-attempt id
@@ -408,7 +408,7 @@ test.describe('CALL-A -- 1:1 call signalling stability (call-01..call-09, no acc
       // same __diag accumulator for the whole test) -- the stale decline
       // must NOT have added a second hangup entry.
       expect(teacherDiagAfterStale.hangups.length).toBe(1);
-      const liveStateAfterStale = await teacherPage.evaluate(() => ({ inCall: (window as any).S.inCall, roomId: (window as any).S._callRoomId, attemptId: (window as any).S._callAttemptId }));
+      const liveStateAfterStale = await teacherPage.evaluate(() => ({ inCall: S.inCall, roomId: S._callRoomId, attemptId: S._callAttemptId }));
       expect(liveStateAfterStale.inCall).toBe(true);
       expect(liveStateAfterStale.roomId).toBe(attempt2.roomId);
       expect(liveStateAfterStale.attemptId).toBe(attempt2.attemptId);
@@ -432,8 +432,8 @@ test.describe('CALL-A -- 1:1 call signalling stability (call-01..call-09, no acc
       const attempt2CloseTs = hangup2.ts;
 
       // Clean idle state again.
-      await expect.poll(async () => teacherPage.evaluate(() => (window as any).S.inCall)).toBe(false);
-      await expect.poll(async () => studentPage.evaluate(() => (window as any).S.pendingRoom)).toBeNull();
+      await expect.poll(async () => teacherPage.evaluate(() => S.inCall)).toBe(false);
+      await expect.poll(async () => studentPage.evaluate(() => S.pendingRoom)).toBeNull();
       await expect(studentPage.locator('#incomingCall')).not.toHaveClass(/show/);
 
       console.log(
