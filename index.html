@@ -5021,9 +5021,19 @@ async function callContact(partnerId,partnerName,partnerRole){
   // Send ring notification (only if we have a real profile UUID)
   if(!ringId.startsWith('stu_')){
     const rPayload={from_name:`${S.profile.first_name} ${S.profile.last_name}`,from_role:S.role,room_id:roomId,from_id:S.profile?.id};
-    // 1️⃣ Postgres Changes — надёжно (основной канал)
-    sb.from('call_signals').insert({id:attemptId,to_profile_id:ringId,from_name:rPayload.from_name,from_role:rPayload.from_role,room_id:rPayload.room_id})
-      .then(({error})=>{if(error)console.warn('call_signal insert:',error);});
+    // 1️⃣ Postgres Changes — надёжно (основной канал). AWAITED: daily-room's
+    // authorization for 1:1 rooms depends entirely on call_room_participants,
+    // which is populated by an AFTER INSERT trigger on this very row. If
+    // initCall() (and thus the daily-room invocation) ran before this insert
+    // actually commits, the trigger-created membership row may not exist yet
+    // when daily-room checks it -- a real race, not a test artifact.
+    const{error:insErr}=await sb.from('call_signals').insert({id:attemptId,to_profile_id:ringId,from_name:rPayload.from_name,from_role:rPayload.from_role,room_id:rPayload.room_id});
+    if(insErr){
+      console.warn('call_signal insert:',insErr);
+      S.inCall=false;
+      showToast(t('Ошибка соединения'),'error');
+      return;
+    }
     // 2️⃣ Broadcast — быстро (fire-and-forget, без await)
     const notifyCh=sb.channel(`notify-${ringId}`,{config:{private:true}});
     notifyCh.subscribe(st=>{
