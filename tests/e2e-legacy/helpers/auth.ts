@@ -20,10 +20,12 @@ import type { Page } from '@playwright/test';
 // visible without calling toggleSidebar() first. Re-verify if the E2E
 // viewport is ever changed to a mobile size.
 //
-// Still unverified against a *running* instance (only against source text),
-// so the first real Playwright run is the actual confirmation step --
-// if any of these turn out wrong, fix them here, do not silently
-// loosen the smoke/P0 specs to route around it.
+// 2026-09-23 fix: the first real Chromium P0 run against staging failed
+// before authentication -- button.btn-login matched 3 buttons on the live
+// page (Войти / Отправить ссылку / Войти в систему →), which Playwright's
+// strict mode correctly rejected as ambiguous. Replaced with an
+// unambiguous role+name selector scoped to the exact login button text.
+// Do not revert to the class selector.
 
 export interface Credentials {
   email: string;
@@ -34,7 +36,7 @@ export async function login(page: Page, creds: Credentials): Promise<void> {
   await page.goto('/');
   await page.locator('#loginEmail').fill(creds.email);
   await page.locator('#loginPass').fill(creds.password);
-  await page.locator('button.btn-login').click();
+  await page.getByRole('button', { name: 'Войти', exact: true }).click();
   // App shell root becomes visible on successful login.
   await page.locator('#app').waitFor({ state: 'visible' });
 }
