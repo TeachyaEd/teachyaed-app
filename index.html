@@ -4257,7 +4257,7 @@ async function doLogout(){
 }
 // A11 (аудит): внешний разлогин (истёкший токен) выполняет ПОЛНЫЙ сброс —
 // тот же путь, что и кнопка «Выйти» (повторный signOut внутри безвреден).
-sb.auth.onAuthStateChange((event,session)=>{if(event==='SIGNED_OUT'&&!session&&S.userId&&!S._loggingOut){doLogout();}});
+sb.auth.onAuthStateChange((event,session)=>{if(event==='SIGNED_OUT'&&!session&&S.userId&&!S._loggingOut){doLogout();}if((event==='SIGNED_IN'||event==='TOKEN_REFRESHED'||event==='INITIAL_SESSION')&&session?.access_token){sb.realtime.setAuth(session.access_token);}});
 function showSessionExpiredBanner(){
   if(document.getElementById('sessionExpiredBanner'))return;
   var b=document.createElement('div');
@@ -4847,8 +4847,12 @@ function handleIncomingCall(payload){
   playRingTone();
   clearTimeout(S._ringTimeout);S._ringTimeout=setTimeout(declineCall,30000);
 }
-function subscribeNotifications(){
+async function subscribeNotifications(){
   if(!S.profile?.id)return;
+  try{
+    const{data:{session}}=await sb.auth.getSession();
+    if(session?.access_token)sb.realtime.setAuth(session.access_token);
+  }catch(e){}
   if(S._notifySessionArmed!==true){
     S._notifySessionArmed=true;
     S._notifySessionGen=(S._notifySessionGen||0)+1;
