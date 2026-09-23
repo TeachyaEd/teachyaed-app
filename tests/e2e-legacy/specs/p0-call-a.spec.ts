@@ -593,7 +593,7 @@ test.describe('CALL-A -- 1:1 call signalling stability (call-01..call-09, no acc
       // state on both sides BEFORE the existing #callWindow assertion below,
       // so this data is always present in the CI log even if that assertion
       // times out. The assertion itself is unchanged and unmoved.
-      const studentDiagAfterDecline = await studentPage.evaluate(() => (window as any).__diag);
+      const studentDiagBeforeAssertion = await studentPage.evaluate(() => (window as any).__diag);
       const teacherAfterDecline = await teacherPage.evaluate(() => ({
         bcState: (window as any).S._bcState ?? null,
         bcGen: (window as any).S._bcGen ?? null,
@@ -602,7 +602,7 @@ test.describe('CALL-A -- 1:1 call signalling stability (call-01..call-09, no acc
         inCall: (window as any).S.inCall,
         hangups: (window as any).__diag.hangups,
       }));
-      console.log('[call-a] DIAGNOSTIC post-decline-click state:\n' + JSON.stringify({ studentDiagAfterDecline, teacherAfterDecline, wsDeclineFrames }, null, 2));
+      console.log('[call-a] DIAGNOSTIC post-decline-click state:\n' + JSON.stringify({ studentDiagBeforeAssertion, teacherAfterDecline, wsDeclineFrames }, null, 2));
 
       await expect(teacherPage.locator('#callWindow')).not.toHaveClass(/visible/, { timeout: 20_000 });
 
