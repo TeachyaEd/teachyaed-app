@@ -33,9 +33,30 @@ import { login, requireTeacherCredentials } from '../helpers/auth';
 // main world), so `sb` is reachable here without being a `window` property.
 //
 // Never logs the anon key, any JWT, or any Authorization header -- only
-// booleans, elapsed time, an error message/status if present, and (on
-// success) the result URL's hostname/protocol, never the full URL query
-// or path in case it embeds a room token.
+// booleans, elapsed time, token length (never the token itself), an
+// error message/status if present, and (on success) the result URL's
+// hostname/protocol, never the full URL query or path in case it embeds
+// a room token.
+//
+// TEMPORARY ADDITION (auth-layer investigation, staging 401 on daily-room):
+// Production v5's authorization logic requires a call_room_participants
+// row for a 1:1 (non-"ty-cls-") roomId, which this diagnostic's random
+// `diag-${uuid}` room never has -- so once authentication itself works,
+// the *expected* outcome here is 403 Forbidden, not a Daily URL. This
+// diagnostic does not create any call_room_participants row and is not
+// intended to reach a successful room creation. Its only job right now
+// is to determine, without modifying the Edge Function, whether a 401
+// response is a client-side session/token-propagation problem (session
+// missing, or sb.functions.invoke() not attaching the access token) or
+// a staging-side gateway/JWT-validation/function-code problem (session
+// and token are present and valid, but the Edge Function/gateway still
+// rejects it as Unauthorized). Two probes are run against the same
+// random room: Probe A is the untouched production-like call path
+// (sb.functions.invoke with no explicit headers, relying on whatever
+// the pinned supabase-js client does automatically); Probe B explicitly
+// sets the Authorization header from the current session's access_token
+// on the same invoke call, using the options shape supported by the
+// pinned supabase-js@2 FunctionsClient.invoke(name, { body, headers }).
 
 const teacherCreds = requireTeacherCredentials();
 
@@ -47,52 +68,79 @@ test.describe('DIAGNOSTIC -- daily-room Edge Function staging reachability (CALL
     await expect(page.locator('#app')).toBeVisible();
 
     const result = await page.evaluate(async () => {
-      const diagRoomId = 'diag-' + crypto.randomUUID();
-      const startedAt = Date.now();
+      // @ts-expect-error -- sb is a page-global from index.html's own script, not declared to TypeScript here.
+      const sbClient = sb;
+
+      // --- Auth-layer evidence (no secrets/tokens logged) ---
+      let authEvidence: any = {};
       try {
-        // @ts-expect-error -- sb is a page-global from index.html's own script, not declared to TypeScript here.
-        const { data, error } = await sb.functions.invoke('daily-room', { body: { roomId: diagRoomId } });
-        const elapsedMs = Date.now() - startedAt;
-        if (error) {
-          return {
-            ok: false,
-            elapsedMs,
-            errorName: error.name || null,
-            errorMessage: error.message || String(error),
-            errorStatus: error.status ?? error.context?.status ?? null,
-          };
-        }
-        const hasUrl = typeof data?.url === 'string' && data.url.length > 0;
-        let urlHost: string | null = null;
-        let urlIsHttps: boolean | null = null;
-        if (hasUrl) {
-          try {
-            const u = new URL(data.url);
-            urlHost = u.hostname;
-            urlIsHttps = u.protocol === 'https:';
-          } catch {
-            /* leave nulls -- url did not parse */
-          }
-        }
-        return {
-          ok: true,
-          elapsedMs,
-          hasUrl,
-          urlHost,
-          urlIsHttps,
-          dataKeys: data ? Object.keys(data) : [],
-        };
+        const { data: sessionData, error: sessionError } = await sbClient.auth.getSession();
+        const session = sessionData?.session ?? null;
+        authEvidence.getSessionError = sessionError ? (sessionError.message || String(sessionError)) : null;
+        authEvidence.hasSession = !!session;
+        authEvidence.hasSessionUserId = !!session?.user?.id;
+        authEvidence.hasAccessToken = !!session?.access_token;
+        authEvidence.accessTokenLength = session?.access_token ? session.access_token.length : null;
+
+        const { data: userData, error: userError } = await sbClient.auth.getUser();
+        authEvidence.getUserError = userError ? (userError.message || String(userError)) : null;
+        authEvidence.getUserSuccess = !userError && !!userData?.user;
+        authEvidence.hasGetUserId = !!userData?.user?.id;
+
+        var accessToken = session?.access_token || null;
       } catch (e: any) {
-        return {
-          ok: false,
-          elapsedMs: Date.now() - startedAt,
-          thrown: true,
-          errorMessage: e?.message || String(e),
-        };
+        authEvidence.thrown = true;
+        authEvidence.thrownMessage = e?.message || String(e);
+        var accessToken = null;
       }
+
+      const diagRoomId = 'diag-' + crypto.randomUUID();
+
+      async function runProbe(useExplicitHeader: boolean) {
+        const startedAt = Date.now();
+        try {
+          const invokeOptions: any = { body: { roomId: diagRoomId } };
+          if (useExplicitHeader && accessToken) {
+            invokeOptions.headers = { Authorization: `Bearer ${accessToken}` };
+          }
+          const { data, error } = await sbClient.functions.invoke('daily-room', invokeOptions);
+          const elapsedMs = Date.now() - startedAt;
+          if (error) {
+            return {
+              ok: false,
+              elapsedMs,
+              errorName: error.name || null,
+              errorMessage: error.message || String(error),
+              errorStatus: error.status ?? error.context?.status ?? null,
+            };
+          }
+          const hasUrl = typeof data?.url === 'string' && data.url.length > 0;
+          let urlHost: string | null = null;
+          let urlIsHttps: boolean | null = null;
+          if (hasUrl) {
+            try {
+              const u = new URL(data.url);
+              urlHost = u.hostname;
+              urlIsHttps = u.protocol === 'https:';
+            } catch {
+              /* leave nulls -- url did not parse */
+            }
+          }
+          return { ok: true, elapsedMs, hasUrl, urlHost, urlIsHttps, dataKeys: data ? Object.keys(data) : [] };
+        } catch (e: any) {
+          return { ok: false, elapsedMs: Date.now() - startedAt, thrown: true, errorMessage: e?.message || String(e) };
+        }
+      }
+
+      const probeA = await runProbe(false);
+      const probeB = await runProbe(true);
+
+      return { authEvidence, probeA, probeB };
     });
 
-    console.log('[diag-daily-room] probe result:\n' + JSON.stringify(result, null, 2));
+    console.log('[diag-daily-room] auth-layer evidence (no tokens/secrets):\n' + JSON.stringify(result.authEvidence, null, 2));
+    console.log('[diag-daily-room] Probe A (no explicit Authorization header) result:\n' + JSON.stringify(result.probeA, null, 2));
+    console.log('[diag-daily-room] Probe B (explicit Authorization: Bearer <session access_token>) result:\n' + JSON.stringify(result.probeB, null, 2));
     console.log(
       '[diag-daily-room] page console/network errors captured during login+probe (informational only):\n' +
         JSON.stringify(errors, null, 2),
@@ -104,4 +152,3 @@ test.describe('DIAGNOSTIC -- daily-room Edge Function staging reachability (CALL
     // decides what it means for CALL-A.
   });
 });
-
