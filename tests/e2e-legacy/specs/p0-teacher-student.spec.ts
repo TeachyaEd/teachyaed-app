@@ -99,7 +99,7 @@ test.describe('legacy app P0 -- authenticated teacher/student (Chromium only)', 
     // the enrolled class's own "▶️ В урок" button is both the dashboard/
     // enrollment assertion and the real semantic entry-point control.
     const enterButton = page.getByRole('button', { name: /В урок/ }).first();
-    await expect(enterButton, 'expected the staging student fixture to see at least one enrolled class').toBeVisible();
+    await expect(enterButton, 'expe cted the staging student fixture to see at least one enrolled class').toBeVisible();
 
     // enterStudentClassLesson() queries class_live but never uses it to
     // gate entry -- a live lesson is read, not required.
