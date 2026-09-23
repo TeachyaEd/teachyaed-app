@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { attachErrorCollectors, assertNoUnexpectedErrors } from '../helpers/error-collectors';
+import { attachErrorCollectors, assertNoUnexpectedErrors, type AllowedRequestFailure } from '../helpers/error-collectors';
 import { attachRequestStormDetector } from '../helpers/request-storm-detector';
 import { login, logout, requireTeacherCredentials, requireStudentCredentials } from '../helpers/auth';
 
@@ -12,10 +12,28 @@ import { login, logout, requireTeacherCredentials, requireStudentCredentials } f
 // the 4-URL local-parser-noise allow-list from the smoke spec. That
 // allow-list is scoped to the pre-login smoke page load only and must
 // never leak into an authenticated P0 spec (see smoke.spec.ts's own
-// comment). assertNoUnexpectedErrors() below is called with no options,
-// so any pageerror, any console.error, any bad HTTP response, and any
-// request storm fails this spec outright -- including RLS/DB errors,
-// which are never hidden behind an allow-list here.
+// comment).
+//
+// 2026-09-23: assertNoUnexpectedErrors() below is called with exactly one
+// narrow, structured, evidence-gated exception -- ALLOWED_LOGOUT_ABORT,
+// via allowRequestFailures -- and nothing else. It does not use `allow`
+// (regex) or `allowBadResponses`. See error-collectors.ts's
+// AllowedRequestFailure doc comment for the full explanation: Chromium
+// reports net::ERR_ABORTED via 'requestfailed' for the logout POST to
+// Supabase's /auth/v1/logout, purely because that endpoint replies 204 No
+// Content and Chromium has a confirmed, independently reported CDP-level
+// quirk around 204 responses (microsoft/playwright#42786, fix proposed
+// and still unmerged in microsoft/playwright#42787 as of Sep 2026; this
+// suite pins @playwright/test@1.48.0, which predates that fix). The
+// exception can only match a request that (a) is a POST, (b) has this
+// exact URL, (c) failed with exactly 'net::ERR_ABORTED', AND (d) already
+// received an HTTP response on the same request with status exactly 204
+// -- condition (d) is enforced unconditionally in error-collectors.ts and
+// cannot be satisfied by a request that never got a response at all, so a
+// genuine network failure on this or any other URL is never masked.
+// Every other pageerror, console.error, bad HTTP response, and request
+// failure -- including any RLS/DB error -- still fails this spec outright,
+// exactly as before.
 //
 // Selectors: #loginEmail/#loginPass/button.btn-login/#loginErr/#app/
 // button.btn-logout/#loginForm are pre-existing stable IDs, confirmed
@@ -65,15 +83,28 @@ import { login, logout, requireTeacherCredentials, requireStudentCredentials } f
 // badResponses, requestFailures -- as of the moment of failure, then
 // rethrows the original error completely unchanged. This is diagnostic
 // only: it does not suppress, downgrade, or filter anything, and
-// assertNoUnexpectedErrors(errors) at the end of the try block is
-// unchanged and still fatal on any captured error when it is reached.
-// Its only purpose is to make already-captured errors visible in the
-// failure output when an earlier assertion (e.g. a toHaveClass/
-// toBeVisible timeout) throws before assertNoUnexpectedErrors() would
-// otherwise have been reached.
+// assertNoUnexpectedErrors(errors, ...) at the end of the try block is
+// unchanged and still fatal on any captured error (other than the one
+// documented exception above) when it is reached. Its only purpose is to
+// make already-captured errors visible in the failure output when an
+// earlier assertion (e.g. a toHaveClass/toBeVisible timeout) throws
+// before assertNoUnexpectedErrors() would otherwise have been reached.
 
 const teacherCreds = requireTeacherCredentials();
 const studentCreds = requireStudentCredentials();
+
+// The one documented, evidence-gated exception in this zero-tolerance
+// spec. See the header comment above and error-collectors.ts's
+// AllowedRequestFailure doc comment for the full explanation and upstream
+// references. Scoped to this spec only via the two assertNoUnexpectedErrors
+// calls below -- specs/smoke.spec.ts's own allow-list is a separate,
+// pre-existing mechanism (AllowedBadResponse) and is untouched by this.
+const ALLOWED_LOGOUT_ABORT: AllowedRequestFailure = {
+  method: 'POST',
+  url: 'https://lqyetodkoxodwjyqxukq.supabase.co/auth/v1/logout?scope=global',
+  failure: 'net::ERR_ABORTED',
+  requireRespondedStatus: 204,
+};
 
 test.describe('legacy app P0 -- authenticated teacher/student (Chromium only)', () => {
   test('teacher: login, dashboard, open class with no live lesson, empty classroom shell, logout', async ({ page }) => {
@@ -108,7 +139,7 @@ test.describe('legacy app P0 -- authenticated teacher/student (Chromium only)', 
       await expect(page.locator('#loginForm')).toBeVisible();
 
       storm.assertNoStorm();
-      assertNoUnexpectedErrors(errors);
+      assertNoUnexpectedErrors(errors, { allowRequestFailures: [ALLOWED_LOGOUT_ABORT] });
     } catch (e) {
       console.error(
         '[P0 diagnostic] teacher test failed. Captured errors at failure time:\n' + JSON.stringify(errors, null, 2),
@@ -147,7 +178,7 @@ test.describe('legacy app P0 -- authenticated teacher/student (Chromium only)', 
       await expect(page.locator('#loginForm')).toBeVisible();
 
       storm.assertNoStorm();
-      assertNoUnexpectedErrors(errors);
+      assertNoUnexpectedErrors(errors, { allowRequestFailures: [ALLOWED_LOGOUT_ABORT] });
     } catch (e) {
       console.error(
         '[P0 diagnostic] student test failed. Captured errors at failure time:\n' + JSON.stringify(errors, null, 2),
