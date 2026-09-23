@@ -940,3 +940,71 @@ jobs:
           name: staging-diag-bc-auth-identity-report
           path: tests/e2e-legacy/playwright-report
           retention-days: 7
+  diag-call-a-oneoff:
+    name: "DIAGNOSTIC -- CALL-A one-off (profErr + participant probe, not a gate, decoupled from chromium-p0, one Chromium attempt only)"
+    needs: staging-smoke
+    runs-on: ubuntu-latest
+    env:
+      STAGING_SUPABASE_REF: lqyetodkoxodwjyqxukq
+      STAGING_SUPABASE_ANON_KEY: ${{ secrets.STAGING_SUPABASE_ANON_KEY }}
+      STAGING_TEACHER_EMAIL: ${{ secrets.STAGING_TEACHER_EMAIL }}
+      STAGING_TEACHER_PASSWORD: ${{ secrets.STAGING_TEACHER_PASSWORD }}
+      STAGING_STUDENT_EMAIL: ${{ secrets.STAGING_STUDENT_EMAIL }}
+      STAGING_STUDENT_PASSWORD: ${{ secrets.STAGING_STUDENT_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 24 }
+
+      - name: Verify required P0 credential secrets
+        run: |
+          missing=()
+          [ -z "$STAGING_TEACHER_EMAIL" ] && missing+=("STAGING_TEACHER_EMAIL")
+          [ -z "$STAGING_TEACHER_PASSWORD" ] && missing+=("STAGING_TEACHER_PASSWORD")
+          [ -z "$STAGING_STUDENT_EMAIL" ] && missing+=("STAGING_STUDENT_EMAIL")
+          [ -z "$STAGING_STUDENT_PASSWORD" ] && missing+=("STAGING_STUDENT_PASSWORD")
+          if [ ${#missing[@]} -gt 0 ]; then
+            echo "::error::Missing required staging P0 credential secret(s): ${missing[*]}. Add them under Settings > Secrets and variables > Actions before running diag-call-a-oneoff."
+            exit 1
+          fi
+          echo "All required P0 credential secrets are set."
+
+      - name: Install e2e-legacy dependencies
+        working-directory: tests/e2e-legacy
+        run: npm install
+
+      - name: Install Playwright (Chromium only)
+        working-directory: tests/e2e-legacy
+        run: npx playwright install --with-deps chromium
+
+      - name: Generate ephemeral staging artifact
+        working-directory: tests/e2e-legacy
+        run: node ci/generate-staging-artifact.mjs ../../index.html .staging-artifact
+
+      - name: Serve staging artifact
+        working-directory: tests/e2e-legacy
+        run: node ci/serve-static.mjs .staging-artifact &
+
+      - name: Wait for local server
+        run: |
+          for i in $(seq 1 30); do
+            if curl -sf http://127.0.0.1:4173/ -o /dev/null; then
+              echo "Server is up after ${i}s"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "Server did not become ready within 30s" >&2
+          exit 1
+
+      - name: Run CALL-A call-signalling spec (Chromium, one attempt only, no retries, decoupled from chromium-p0)
+        working-directory: tests/e2e-legacy
+        run: npx playwright test specs/p0-call-a.spec.ts --project=chromium --retries=0
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: staging-diag-call-a-oneoff-report
+          path: tests/e2e-legacy/playwright-report
+          retention-days: 7
