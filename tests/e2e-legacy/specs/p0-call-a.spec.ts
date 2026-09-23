@@ -106,6 +106,21 @@ interface HangupRecord {
   callAttemptId: string | null;
   inCall: boolean;
 }
+interface CallSignalsInsertRecord {
+  url: string;
+  ts: number;
+  // Parsed from the real POST body via request.postDataJSON() -- the
+  // actual call_signals row the app tried to insert, which is the
+  // authoritative per-attempt identity (see header comment). Never
+  // includes headers (auth/apikey live there, not the body).
+  body: {
+    id: string | null;
+    room_id: string | null;
+    to_profile_id: string | null;
+    from_name: string | null;
+    from_role: string | null;
+  } | null;
+}
 
 declare const S: any;
 
@@ -187,6 +202,32 @@ async function installTeacherDiagnostics(page: Page): Promise<void> {
   });
 }
 
+// Staging fixture has exactly one student in this class, so the real
+// cvCallStudent() path (source-traced above) rings the student directly
+// and #contactPicker never opens -- no fixed dead-wait is spent on it.
+// Structural fallback kept only in case a multi-student fixture is ever
+// used: race the picker actually opening against the student's real
+// incoming-call UI (the actual signal the test needs), bounded by the
+// same ceiling as the incoming-call assertion at the call site below --
+// never an artificial sleep before reading call state.
+async function ringPickerOrIncoming(teacherPage: Page, studentPage: Page, studentProfileId: string): Promise<void> {
+  const which = await Promise.race([
+    teacherPage
+      .locator('#contactPicker.open')
+      .waitFor({ state: 'attached', timeout: 20_000 })
+      .then(() => 'picker' as const)
+      .catch(() => null),
+    studentPage
+      .locator('#incomingCall.show')
+      .waitFor({ state: 'attached', timeout: 20_000 })
+      .then(() => 'incoming' as const)
+      .catch(() => null),
+  ]);
+  if (which === 'picker') {
+    await teacherPage.locator(`.contact-item[data-cid="${studentProfileId}"]`).click();
+  }
+}
+
 test.describe('CALL-A -- 1:1 call signalling stability (call-01..call-09, no accept/media)', () => {
   test('teacher -> student: real call, student declines; then a second call proves stale-decline immunity', async ({ browser }) => {
     const teacherContext = await browser.newContext();
@@ -204,10 +245,35 @@ test.describe('CALL-A -- 1:1 call signalling stability (call-01..call-09, no acc
     // Real network evidence for call-02 ("exactly one call_signals INSERT
     // per call attempt") -- counts actual POST requests the browser sent,
     // not a re-query of the (intentionally short-lived) row afterward.
-    const teacherCallSignalsInserts: { url: string; ts: number }[] = [];
+    const teacherCallSignalsInserts: CallSignalsInsertRecord[] = [];
     teacherPage.on('request', (req) => {
       if (req.method() === 'POST' && req.url().includes('/rest/v1/call_signals')) {
-        teacherCallSignalsInserts.push({ url: req.url(), ts: Date.now() });
+        // Capture the real INSERT body the app actually sent -- this is
+        // the authoritative per-attempt identity going forward (see
+        // header comment), not the caller's post-hoc S._callRoomId/
+        // S._callAttemptId reads, which hangUp() intentionally clears.
+        // Supabase's REST client has sent single-row inserts as either a
+        // bare object or a one-element array depending on version; handle
+        // both shapes as actually observed at runtime, never assume one.
+        // Never touch req.headers() here -- auth/apikey live there, not
+        // in the body, and are never captured or logged.
+        let body: CallSignalsInsertRecord['body'] = null;
+        try {
+          const parsed = req.postDataJSON();
+          const row = Array.isArray(parsed) ? parsed[0] : parsed;
+          if (row && typeof row === 'object') {
+            body = {
+              id: row.id ?? null,
+              room_id: row.room_id ?? null,
+              to_profile_id: row.to_profile_id ?? null,
+              from_name: row.from_name ?? null,
+              from_role: row.from_role ?? null,
+            };
+          }
+        } catch {
+          body = null;
+        }
+        teacherCallSignalsInserts.push({ url: req.url(), ts: Date.now(), body });
       }
     });
 
@@ -252,12 +318,7 @@ test.describe('CALL-A -- 1:1 call signalling stability (call-01..call-09, no acc
       // if the class has more than one student -- opens the real
       // #contactPicker for a manual pick (same picker used by the old
       // global dial UI). Handle both real outcomes, no guessing.
-      try {
-        await expect(teacherPage.locator('#contactPicker')).toHaveClass(/open/, { timeout: 5_000 });
-        await teacherPage.locator(`.contact-item[data-cid="${studentProfile.id}"]`).click();
-      } catch {
-        // Single-student class: cvCallStudent() rang the student directly.
-      }
+      await ringPickerOrIncoming(teacherPage, studentPage, studentProfile.id);
 
       // 6. Student gets incoming-call UI.
       await expect(studentPage.locator('#incomingCall')).toHaveClass(/show/, { timeout: 20_000 });
@@ -266,15 +327,25 @@ test.describe('CALL-A -- 1:1 call signalling stability (call-01..call-09, no acc
       const attempt1InsertCountAfter = teacherCallSignalsInserts.length;
       expect(attempt1InsertCountAfter - attempt1InsertCountBefore).toBe(1);
 
-      // Pull the live correlation state the app itself is using for this
-      // attempt (read-only diagnostic reads of S, same pattern as
-      // waitForNotifyReady above -- not an action).
-      const attempt1 = await teacherPage.evaluate(() => ({
-        roomId: S._callRoomId,
-        attemptId: S._callAttemptId,
-      }));
+      // Authoritative attempt identity: the actual call_signals INSERT
+      // body the app sent (captured via request.postDataJSON() above),
+      // NOT S._callRoomId/S._callAttemptId -- those are the caller's own
+      // transient scratch state, explicitly zeroed by hangUp() on any
+      // call termination (success, decline, or daily-room failure), so
+      // reading them after the fact is not a valid correlation source
+      // (source-traced in detail; see the callContact()/hangUp() trace).
+      const attempt1Insert = teacherCallSignalsInserts[attempt1InsertCountBefore];
+      expect(attempt1Insert).toBeTruthy();
+      expect(attempt1Insert.body).toBeTruthy();
+      const attempt1 = {
+        id: attempt1Insert.body!.id,
+        roomId: attempt1Insert.body!.room_id,
+        toProfileId: attempt1Insert.body!.to_profile_id,
+      };
+      expect(attempt1.id).toBeTruthy();
+      expect(attempt1.id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i); // UUID-shaped
       expect(attempt1.roomId).toBeTruthy();
-      expect(attempt1.attemptId).toBeTruthy();
+      expect(attempt1.toProfileId).toBe(studentProfile.id);
 
       // 7. Authoritative caller identity: the incoming-call payload's
       // from_id is (per the source-traced code in all three delivery
@@ -287,7 +358,7 @@ test.describe('CALL-A -- 1:1 call signalling stability (call-01..call-09, no acc
       expect(provenIncoming.length).toBe(1); // call-03: exactly one shown incoming ring
       expect(provenIncoming[0].payload.from_id).toBe(teacherProfile.id);
       expect(provenIncoming[0].payload.room_id).toBe(attempt1.roomId);
-      expect(provenIncoming[0].payload.attempt_id).toBe(attempt1.attemptId);
+      expect(provenIncoming[0].payload.attempt_id).toBe(attempt1.id);
 
       // 5. call_room_participants trigger side effect, if observable
       // safely (best-effort, informational -- not fatal if RLS/timing
@@ -330,6 +401,18 @@ test.describe('CALL-A -- 1:1 call signalling stability (call-01..call-09, no acc
       expect(jitsiSrc).toBeTruthy();
       expect(jitsiSrc).not.toBe('about:blank');
 
+      // Explicit proof the real caller has not self-terminated before the
+      // student even attempts to decline -- if this is false, that is a
+      // real app/runtime failure (the caller dropped the call on its
+      // own), not a test-correlation problem, and must be reported as
+      // such rather than papered over.
+      const callerStillActiveBeforeDecline = await teacherPage.evaluate(() => ({
+        inCall: S.inCall,
+        hangupsSoFar: (window as any).__diag.hangups.length,
+      }));
+      expect(callerStillActiveBeforeDecline.hangupsSoFar).toBe(0);
+      expect(callerStillActiveBeforeDecline.inCall).toBe(true);
+
       // 9. Student declines through the real UI.
       const attempt1DeclineTs = Date.now();
       await studentPage.locator('#incomingCall .btn-red').click();
@@ -342,7 +425,7 @@ test.describe('CALL-A -- 1:1 call signalling stability (call-01..call-09, no acc
       const decline1 = (studentDiagAfterDecline.declines as DeclineRecord[])[0];
       expect(decline1).toBeTruthy();
       expect(decline1.room_id).toBe(attempt1.roomId);
-      expect(decline1.attempt_id).toBe(attempt1.attemptId);
+      expect(decline1.attempt_id).toBe(attempt1.id);
       expect(decline1.caller_id).toBe(teacherProfile.id);
 
       const teacherDiagAfterDecline = await teacherPage.evaluate(() => (window as any).__diag);
@@ -358,7 +441,7 @@ test.describe('CALL-A -- 1:1 call signalling stability (call-01..call-09, no acc
       console.log(
         '[call-a] attempt 1 timeline:\n' +
           JSON.stringify(
-            { attemptId: attempt1.attemptId, roomId: attempt1.roomId, recipientId: studentProfile.id, fromProfileId: provenIncoming[0].payload.from_id, ringTs: attempt1RingTs, declineTs: attempt1DeclineTs, callerCloseTs: attempt1CloseTs },
+            { attemptId: attempt1.id, roomId: attempt1.roomId, recipientId: studentProfile.id, fromProfileId: provenIncoming[0].payload.from_id, ringTs: attempt1RingTs, declineTs: attempt1DeclineTs, callerCloseTs: attempt1CloseTs },
             null,
             2,
           ),
@@ -372,32 +455,33 @@ test.describe('CALL-A -- 1:1 call signalling stability (call-01..call-09, no acc
       await expect(callBtn2).toBeVisible();
       await expect(callBtn2).toBeEnabled();
       await callBtn2.click();
-      try {
-        await expect(teacherPage.locator('#contactPicker')).toHaveClass(/open/, { timeout: 5_000 });
-        await teacherPage.locator(`.contact-item[data-cid="${studentProfile.id}"]`).click();
-      } catch {
-        // Single-student class: cvCallStudent() rang the student directly.
-      }
+      await ringPickerOrIncoming(teacherPage, studentPage, studentProfile.id);
 
       await expect(studentPage.locator('#incomingCall')).toHaveClass(/show/, { timeout: 20_000 });
 
       const attempt2InsertCountAfter = teacherCallSignalsInserts.length;
       expect(attempt2InsertCountAfter - attempt2InsertCountBefore).toBe(1);
 
-      const attempt2 = await teacherPage.evaluate(() => ({
-        roomId: S._callRoomId,
-        attemptId: S._callAttemptId,
-      }));
-      expect(attempt2.attemptId).toBeTruthy();
-      expect(attempt2.attemptId).not.toBe(attempt1.attemptId); // call-08: a distinct per-attempt id
+      const attempt2Insert = teacherCallSignalsInserts[attempt2InsertCountBefore];
+      expect(attempt2Insert).toBeTruthy();
+      expect(attempt2Insert.body).toBeTruthy();
+      const attempt2 = {
+        id: attempt2Insert.body!.id,
+        roomId: attempt2Insert.body!.room_id,
+        toProfileId: attempt2Insert.body!.to_profile_id,
+      };
+      expect(attempt2.id).toBeTruthy();
+      expect(attempt2.id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i); // UUID-shaped
+      expect(attempt2.id).not.toBe(attempt1.id); // call-08: a distinct per-attempt id
       expect(attempt2.roomId).toBe(attempt1.roomId); // same participant pair -> same deterministic room id
+      expect(attempt2.toProfileId).toBe(studentProfile.id);
 
       const studentDiagAfterRing2 = await studentPage.evaluate(() => (window as any).__diag);
       const provenIncoming2 = (studentDiagAfterRing2.incoming as IncomingRecord[]).filter((r) => r.wouldProceed);
       expect(provenIncoming2.length).toBe(2); // one more than attempt 1's count
       const latestIncoming2 = provenIncoming2[1];
       expect(latestIncoming2.payload.from_id).toBe(teacherProfile.id);
-      expect(latestIncoming2.payload.attempt_id).toBe(attempt2.attemptId);
+      expect(latestIncoming2.payload.attempt_id).toBe(attempt2.id);
 
       // call-09: prove a STALE decline from attempt 1 cannot terminate
       // attempt 2. Real-signalling construction (documented in the file
@@ -429,7 +513,7 @@ test.describe('CALL-A -- 1:1 call signalling stability (call-01..call-09, no acc
             });
           });
         },
-        { callerId: teacherProfile.id, roomId: attempt1.roomId, attemptId: attempt1.attemptId },
+        { callerId: teacherProfile.id, roomId: attempt1.roomId, attemptId: attempt1.id },
       );
 
       // Give the stale event time to arrive and (correctly) be ignored;
@@ -443,7 +527,7 @@ test.describe('CALL-A -- 1:1 call signalling stability (call-01..call-09, no acc
       const liveStateAfterStale = await teacherPage.evaluate(() => ({ inCall: S.inCall, roomId: S._callRoomId, attemptId: S._callAttemptId }));
       expect(liveStateAfterStale.inCall).toBe(true);
       expect(liveStateAfterStale.roomId).toBe(attempt2.roomId);
-      expect(liveStateAfterStale.attemptId).toBe(attempt2.attemptId);
+      expect(liveStateAfterStale.attemptId).toBe(attempt2.id);
       await expect(teacherPage.locator('#callWindow')).toHaveClass(/visible/);
 
       // Decline attempt 2 normally through the real UI.
@@ -455,7 +539,7 @@ test.describe('CALL-A -- 1:1 call signalling stability (call-01..call-09, no acc
       const decline2 = (studentDiagAfterDecline2.declines as DeclineRecord[])[1];
       expect(decline2).toBeTruthy();
       expect(decline2.room_id).toBe(attempt2.roomId);
-      expect(decline2.attempt_id).toBe(attempt2.attemptId);
+      expect(decline2.attempt_id).toBe(attempt2.id);
 
       const teacherDiagFinal = await teacherPage.evaluate(() => (window as any).__diag);
       expect(teacherDiagFinal.hangups.length).toBe(2); // hangup #1 (attempt 1's real decline) + hangup #2 (attempt 2's real decline); the stale decline in between added none
@@ -471,7 +555,7 @@ test.describe('CALL-A -- 1:1 call signalling stability (call-01..call-09, no acc
       console.log(
         '[call-a] attempt 2 timeline:\n' +
           JSON.stringify(
-            { attemptId: attempt2.attemptId, roomId: attempt2.roomId, recipientId: studentProfile.id, fromProfileId: latestIncoming2.payload.from_id, ringTs: attempt2RingTs, staleDeclineFromAttempt1: { roomId: attempt1.roomId, attemptId: attempt1.attemptId }, declineTs: attempt2DeclineTs, callerCloseTs: attempt2CloseTs },
+            { attemptId: attempt2.id, roomId: attempt2.roomId, recipientId: studentProfile.id, fromProfileId: latestIncoming2.payload.from_id, ringTs: attempt2RingTs, staleDeclineFromAttempt1: { roomId: attempt1.roomId, attemptId: attempt1.id }, declineTs: attempt2DeclineTs, callerCloseTs: attempt2CloseTs },
             null,
             2,
           ),
