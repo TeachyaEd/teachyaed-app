@@ -24,7 +24,7 @@ import { login, requireTeacherCredentials, requireStudentCredentials } from '../
 //
 // UI path traced from index.html (unchanged from the prior version of this
 // spec):
-//   - Caller: click a `.ev-class-card` on the teacher's "ÐÐ»Ð°ÑÑÑ" screen
+//   - Caller: click a `.ev-class-card` on the teacher's "ÃÂÃÂ»ÃÂ°ÃÂÃÂÃÂ" screen
 //     (the default post-login landing screen) -> onclick="enterClassLesson(classId)"
 //     -> openClassroomView(...) shows #classroomView (adds class "open") and
 //     wires `#cv_callPanel .cv-call-btn` to cvCallStudent() for the teacher
@@ -301,6 +301,24 @@ test.describe('CALL-A -- 1:1 call signalling stability (call-01..call-09, no acc
         studentProfile.id,
         { timeout: 20_000 },
       );
+
+      // Staging fixture hygiene: a previous interrupted test run may have left an
+      // active class_live row for this teacher's class. If S._liveRoomId gets
+      // restored from a stale active row when the classroom view opens,
+      // cvCallStudent() takes the legacy multi-student "live room" group-ring
+      // branch (call_signals insert + broadcast) instead of the 1:1
+      // callContact()/start_call RPC path this test exercises. Deactivate any
+      // stale active session up front so the real 1:1 call_attempts flow runs.
+      await teacherPage.evaluate(async () => {
+        const w = window as any;
+        if (w.S?.profile?.id) {
+          await (sb as any)
+            .from('class_live')
+            .update({ active: false, ended_at: new Date().toISOString() })
+            .eq('teacher_id', w.S.profile.id)
+            .eq('active', true);
+        }
+      });
 
       const attempt1CountBefore = teacherStartCallRPCs.length;
       const attempt1RingTs = Date.now();
