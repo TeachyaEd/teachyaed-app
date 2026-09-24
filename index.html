@@ -4838,6 +4838,7 @@ function playRingTone(){
 function stopRingTone(){if(_ringInterval){clearInterval(_ringInterval);_ringInterval=null;}}
 
 function handleIncomingCall(payload){
+  if(S.pendingCallAttemptId&&payload.attempt_id&&S.pendingCallAttemptId===payload.attempt_id)return; // already showing this exact attempt
   if(S.inCall||S.pendingRoom)return; // уже в звонке или уже показано
   S.pendingRoom=payload.room_id;S.pendingPartner=payload.from_name;S.pendingCallerId=payload.from_id||null;
   S.pendingCallAttemptId=payload.attempt_id||null;
@@ -4853,29 +4854,16 @@ async function subscribeNotifications(){
     const{data:{session}}=await sb.auth.getSession();
     if(session?.access_token)sb.realtime.setAuth(session.access_token);
   }catch(e){}
-  if(S._notifySessionArmed!==true){
-    S._notifySessionArmed=true;
-    S._notifySessionGen=(S._notifySessionGen||0)+1;
-    const sgen=S._notifySessionGen;
-    setTimeout(async()=>{
-      if(sgen!==S._notifySessionGen)return;
-      const{data:sigs}=await sb.from('call_signals').select('*').eq('to_profile_id',S.profile.id).order('created_at',{ascending:false}).limit(1);
-      if(sgen!==S._notifySessionGen)return;
-      if(sigs?.length){
-        const sig=sigs[0];
-        if(Date.now()-new Date(sig.created_at).getTime()<30000)handleIncomingCall({from_name:sig.from_name,from_role:sig.from_role,room_id:sig.room_id,from_id:sig.from_profile_id||null,attempt_id:sig.id||null});
-        sb.from('call_signals').delete().eq('to_profile_id',S.profile.id).then(()=>{});
-      }
-    },1500);
-  }
   _ensurePgNotifyChannel();
   _ensureBcNotifyChannel();
+  _ensureCallAttemptsChannel();
   if(!S._notifyVisBound){
     S._notifyVisBound=true;
     document.addEventListener('visibilitychange',function(){
       if(!document.hidden&&S.profile?.id){
         _ensurePgNotifyChannel();
         _ensureBcNotifyChannel();
+        _ensureCallAttemptsChannel();
       }
     });
   }
@@ -4889,14 +4877,6 @@ function _ensurePgNotifyChannel(){
   if(S._pgRetryTimer){clearTimeout(S._pgRetryTimer);S._pgRetryTimer=null;}
   if(S.notifyChannel){try{sb.removeChannel(S.notifyChannel);}catch(e){}S.notifyChannel=null;}
   S.notifyChannel=sb.channel(`notify-pg-${S.profile.id}`)
-    .on('postgres_changes',{event:'INSERT',schema:'public',table:'call_signals',
-      filter:`to_profile_id=eq.${S.profile.id}`},
-      ({new:sig})=>{
-        if(gen!==S._pgGen)return;
-        if(!sig)return;
-        handleIncomingCall({from_name:sig.from_name,from_role:sig.from_role,room_id:sig.room_id,from_id:sig.from_profile_id||null,attempt_id:sig.id||null});
-        sb.from('call_signals').delete().eq('id',sig.id).then(()=>{});
-      })
     .on('postgres_changes',{event:'INSERT',schema:'public',table:'class_live'},
       async({new:lv})=>{
         if(gen!==S._pgGen)return;
@@ -4951,25 +4931,28 @@ function _ensureBcNotifyChannel(){
   if(S._bcRetryTimer){clearTimeout(S._bcRetryTimer);S._bcRetryTimer=null;}
   if(S.notifyBroadcastChannel){try{sb.removeChannel(S.notifyBroadcastChannel);}catch(e){}S.notifyBroadcastChannel=null;}
   S.notifyBroadcastChannel=sb.channel(`notify-${S.profile.id}`,{config:{private:true}})
-    .on('broadcast',{event:'ring'},async()=>{
+    .on('broadcast',{event:'ring'},async(msg)=>{
       if(gen!==S._bcGen)return;
+      const p=msg&&msg.payload;
+      if(!p)return;
+      if(p.attempt_id){
+        handleIncomingCall({from_name:p.from_name,from_role:p.from_role,room_id:p.room_id,from_id:p.from_id||null,attempt_id:p.attempt_id});
+        return;
+      }
+      // Legacy one-to-many live-class ring (cvCallStudent): no call_attempts row
+      // exists for a group ring, so this path still resolves via call_signals,
+      // which cvCallStudent() still writes for exactly this purpose.
       const{data:sigs}=await sb.from('call_signals').select('*').eq('to_profile_id',S.profile.id).order('created_at',{ascending:false}).limit(1);
       if(gen!==S._bcGen)return;
       if(sigs?.length){
         const sig=sigs[0];
-        if(Date.now()-new Date(sig.created_at).getTime()<30000)handleIncomingCall({from_name:sig.from_name,from_role:sig.from_role,room_id:sig.room_id,from_id:sig.from_profile_id||null,attempt_id:sig.id||null});
+        if(Date.now()-new Date(sig.created_at).getTime()<30000)handleIncomingCall({from_name:sig.from_name,from_role:sig.from_role,room_id:sig.room_id,from_id:sig.from_profile_id||null,attempt_id:null});
       }
     })
     .on('broadcast',{event:'decline'},(msg)=>{
       if(gen!==S._bcGen)return;
-      const _rid=msg&&msg.payload&&msg.payload.room_id;
       const _aid=msg&&msg.payload&&msg.payload.attempt_id;
-      if(_rid&&_aid&&S._callRoomId&&S._callAttemptId&&_rid===S._callRoomId&&_aid===S._callAttemptId){
-        showToast(t('Звонок отклонён'),'info');
-        S._callRoomId=null;
-        S._callAttemptId=null;
-        hangUp();
-      }
+      if(_aid)_reconcileCallAttempt(_aid);
     })
     .subscribe(function(status){
       if(gen!==S._bcGen)return;
@@ -4982,6 +4965,137 @@ function _ensureBcNotifyChannel(){
         }
       }
     });
+}
+
+function _ensureCallAttemptsChannel(){
+  if(!S.profile?.id)return;
+  if(S._caState==='connecting'||S._caState==='healthy')return;
+  S._caState='connecting';
+  S._caGen=(S._caGen||0)+1;
+  const gen=S._caGen;
+  if(S._caRetryTimer){clearTimeout(S._caRetryTimer);S._caRetryTimer=null;}
+  if(S.callAttemptsChannel){try{sb.removeChannel(S.callAttemptsChannel);}catch(e){}S.callAttemptsChannel=null;}
+  S.callAttemptsChannel=sb.channel(`call-attempts-${S.profile.id}`)
+    .on('postgres_changes',{event:'INSERT',schema:'public',table:'call_attempts',
+      filter:`callee_profile_id=eq.${S.profile.id}`},
+      ({new:row})=>{ if(gen!==S._caGen)return; if(row)_resolveCallerAndShow(row); })
+    .on('postgres_changes',{event:'UPDATE',schema:'public',table:'call_attempts',
+      filter:`callee_profile_id=eq.${S.profile.id}`},
+      ({new:row})=>{ if(gen!==S._caGen)return; if(row)_reconcileCallAttempt(row.id,row); })
+    .on('postgres_changes',{event:'UPDATE',schema:'public',table:'call_attempts',
+      filter:`caller_profile_id=eq.${S.profile.id}`},
+      ({new:row})=>{ if(gen!==S._caGen)return; if(row)_reconcileCallAttempt(row.id,row); })
+    .subscribe(function(status){
+      if(gen!==S._caGen)return;
+      if(status==='SUBSCRIBED'){
+        S._caState='healthy';
+        _reconcileActiveCallAttempt();
+      } else if(status==='CLOSED'||status==='CHANNEL_ERROR'||status==='TIMED_OUT'){
+        S._caState='failed';
+        if(!S._caRetryTimer){ S._caRetryTimer=setTimeout(function(){S._caRetryTimer=null;if(S.profile?.id)_ensureCallAttemptsChannel();},1500); }
+      }
+    });
+}
+
+function _resolveCallerAndShow(row){
+  if(!row||!row.id)return;
+  if(row.state!=='ringing')return;
+  if(S.inCall||S.pendingRoom)return;
+  S._handledAttemptIds=S._handledAttemptIds||new Set();
+  if(S._handledAttemptIds.has(row.id))return;
+  S._handledAttemptIds.add(row.id);
+  sb.from('profiles').select('first_name,last_name,role').eq('id',row.caller_profile_id).maybeSingle().then(({data:p})=>{
+    handleIncomingCall({
+      from_name:p?`${p.first_name} ${p.last_name}`:'Звонок',
+      from_role:p?.role,
+      room_id:row.room_id,
+      from_id:row.caller_profile_id,
+      attempt_id:row.id
+    });
+  });
+}
+
+async function _reconcileCallAttempt(attemptId,rowOpt){
+  if(!attemptId)return;
+  let row=rowOpt;
+  if(!row){
+    const{data}=await sb.from('call_attempts').select('*').eq('id',attemptId).maybeSingle();
+    row=data;
+  }
+  if(!row)return;
+
+  if(S.pendingCallAttemptId===row.id && (row.state==='declined'||row.state==='ended'||row.state==='failed')){
+    stopRingTone();clearTimeout(S._ringTimeout);S._ringTimeout=null;
+    C('incomingCall').classList.remove('show');
+    S.pendingRoom=null;S.pendingPartner=null;S.pendingCallerId=null;S.pendingCallAttemptId=null;
+    return;
+  }
+  if(S._callAttemptId===row.id && !S.inCall && row.state==='declined'){
+    showToast(t('Звонок отклонён'),'info');
+    S._callRoomId=null;S._callAttemptId=null;
+    return;
+  }
+  if(S._callAttemptId===row.id && S.inCall && (row.state==='ended'||row.state==='declined'||row.state==='failed')){
+    showToast(row.state==='failed'?t('Звонок прерван'):t('Собеседник завершил звонок'),'info');
+    hangUp();
+    return;
+  }
+  if(S.pendingCallAttemptId===row.id && row.state==='accepted'){
+    stopRingTone();clearTimeout(S._ringTimeout);S._ringTimeout=null;
+    C('incomingCall').classList.remove('show');
+    S.pendingRoom=null;S.pendingPartner=null;S.pendingCallerId=null;S.pendingCallAttemptId=null;
+    return;
+  }
+}
+
+async function _reconcileActiveCallAttempt(){
+  if(!S.profile?.id)return;
+  const{data:rows}=await sb.from('call_attempts')
+    .select('*')
+    .or(`caller_profile_id.eq.${S.profile.id},callee_profile_id.eq.${S.profile.id}`)
+    .in('state',['ringing','accepted'])
+    .order('created_at',{ascending:false})
+    .limit(1);
+  const row=rows&&rows[0];
+  if(!row)return;
+  if(S.inCall||S.pendingRoom)return;
+
+  if(row.state==='ringing' && row.callee_profile_id===S.profile.id){
+    _resolveCallerAndShow(row);
+    return;
+  }
+  if(row.state==='ringing' && row.caller_profile_id===S.profile.id){
+    S._restoredRingingIds=S._restoredRingingIds||new Set();
+    if(S._restoredRingingIds.has(row.id))return;
+    S._restoredRingingIds.add(row.id);
+    _restoreCallerRinging(row);
+    return;
+  }
+  if(row.state==='accepted' && (row.caller_profile_id===S.profile.id || row.callee_profile_id===S.profile.id)){
+    S._rejoinedAttemptIds=S._rejoinedAttemptIds||new Set();
+    if(S._rejoinedAttemptIds.has(row.id))return;
+    S._rejoinedAttemptIds.add(row.id);
+    _rejoinAcceptedCall(row);
+  }
+}
+
+async function _restoreCallerRinging(row){
+  const{data:p}=await sb.from('profiles').select('first_name,last_name').eq('id',row.callee_profile_id).maybeSingle();
+  const partnerName=p?`${p.first_name} ${p.last_name}`:'Звонок';
+  showToast(t('Восстанавливаем звонок...'),'info');
+  S._callRoomId=row.room_id;
+  S._callAttemptId=row.id;
+  await initCall(row.room_id,partnerName,false);
+}
+
+async function _rejoinAcceptedCall(row){
+  const otherId=row.caller_profile_id===S.profile.id?row.callee_profile_id:row.caller_profile_id;
+  const{data:p}=await sb.from('profiles').select('first_name,last_name').eq('id',otherId).maybeSingle();
+  const partnerName=p?`${p.first_name} ${p.last_name}`:'Звонок';
+  showToast(t('Восстанавливаем звонок...'),'info');
+  S._callRoomId=row.room_id;
+  S._callAttemptId=row.id;
+  await initCall(row.room_id,partnerName,true);
 }
 function toggleDialer(){if(S.inCall){hangUp();return;}const p=C('contactPicker');p.classList.toggle('open');if(p.classList.contains('open'))renderContacts();}
 function renderContacts(){
@@ -4999,12 +5113,8 @@ async function callContact(partnerId,partnerName,partnerRole){
   S.inCall=true;
   const roomId=getRoomId(S.profile.id,partnerId);
   const attemptId=crypto.randomUUID();
-  S._callRoomId=roomId;
-  S._callAttemptId=attemptId;
-  // Resolve real profile UUID for students stored with 'stu_' prefix or raw students-table IDs
   let ringId=partnerId;
   if(partnerId.startsWith('stu_')){
-    // stu_<students.id> → look up profile by email
     const realId=partnerId.slice(4);
     try{
       const{data:stu}=await sb.from('students').select('email').eq('id',realId).eq('school_id',S.schoolId).single();
@@ -5018,43 +5128,68 @@ async function callContact(partnerId,partnerName,partnerRole){
       return;
     }
   }
-  // Send ring notification (only if we have a real profile UUID)
-  if(!ringId.startsWith('stu_')){
-    const rPayload={from_name:`${S.profile.first_name} ${S.profile.last_name}`,from_role:S.role,room_id:roomId,from_id:S.profile?.id};
-    // 1️⃣ Postgres Changes — надёжно (основной канал). AWAITED: daily-room's
-    // authorization for 1:1 rooms depends entirely on call_room_participants,
-    // which is populated by an AFTER INSERT trigger on this very row. If
-    // initCall() (and thus the daily-room invocation) ran before this insert
-    // actually commits, the trigger-created membership row may not exist yet
-    // when daily-room checks it -- a real race, not a test artifact.
-    const{error:insErr}=await sb.from('call_signals').insert({id:attemptId,to_profile_id:ringId,from_name:rPayload.from_name,from_role:rPayload.from_role,room_id:rPayload.room_id});
-    if(insErr){
-      console.warn('call_signal insert:',insErr);
+  if(ringId.startsWith('stu_')){
+    showToast('⚠️ У ученика нет аккаунта — уведомление не придёт');
+    S.inCall=false;
+    return;
+  }
+  let row;
+  try{
+    const{data,error}=await sb.rpc('start_call',{p_id:attemptId,p_room_id:roomId,p_callee_profile_id:ringId});
+    if(error||!data){
+      console.warn('start_call:',error);
       S.inCall=false;
       showToast(t('Ошибка соединения'),'error');
       return;
     }
-    // 2️⃣ Broadcast — быстро (fire-and-forget, без await)
-    const notifyCh=sb.channel(`notify-${ringId}`,{config:{private:true}});
-    notifyCh.subscribe(st=>{
-      if(st==='SUBSCRIBED'){
-        notifyCh.send({type:'broadcast',event:'ring',payload:rPayload})
-          .then(r=>console.log('[ring broadcast]',r));
-        setTimeout(()=>sb.removeChannel(notifyCh),5000);
-      }
-    });
-  } else {
-    showToast('⚠️ У ученика нет аккаунта — уведомление не придёт');
+    row=data;
+  }catch(e){
+    S.inCall=false;
+    showToast(t('Ошибка соединения'),'error');
+    return;
   }
+  S._callRoomId=roomId;
+  S._callAttemptId=row.id;
+  const rPayload={from_name:`${S.profile.first_name} ${S.profile.last_name}`,from_role:S.role,room_id:roomId,from_id:S.profile?.id,attempt_id:row.id};
+  const notifyCh=sb.channel(`notify-${ringId}`,{config:{private:true}});
+  notifyCh.subscribe(st=>{
+    if(st==='SUBSCRIBED'){
+      notifyCh.send({type:'broadcast',event:'ring',payload:rPayload})
+        .then(r=>console.log('[ring broadcast]',r));
+      setTimeout(()=>sb.removeChannel(notifyCh),5000);
+    }
+  });
   await initCall(roomId,partnerName,false);
 }
 async function acceptCall(){
-  stopRingTone();clearTimeout(S._ringTimeout);
+  stopRingTone();clearTimeout(S._ringTimeout);S._ringTimeout=null;
   C('incomingCall').classList.remove('show');
-  if(!S.pendingRoom){showToast(t('Ошибка: данные звонка потеряны'),'error');return;}
-  S.inCall=true;  // close race window
+  if(!S.pendingRoom||!S.pendingCallAttemptId){showToast(t('Ошибка: данные звонка потеряны'),'error');return;}
+  const attemptId=S.pendingCallAttemptId;
   const room=S.pendingRoom,partner=S.pendingPartner||'Собеседник';
-  S.pendingRoom=null;S.pendingPartner=null;
+  let row;
+  try{
+    const{data,error}=await sb.rpc('accept_call',{p_id:attemptId});
+    if(error||!data){
+      showToast(t('Ошибка соединения'),'error');
+      S.pendingRoom=null;S.pendingPartner=null;S.pendingCallerId=null;S.pendingCallAttemptId=null;
+      return;
+    }
+    row=data;
+  }catch(e){
+    showToast(t('Ошибка соединения'),'error');
+    S.pendingRoom=null;S.pendingPartner=null;S.pendingCallerId=null;S.pendingCallAttemptId=null;
+    return;
+  }
+  if(row.state!=='accepted'){
+    showToast(t('Звонок больше не активен'),'info');
+    S.pendingRoom=null;S.pendingPartner=null;S.pendingCallerId=null;S.pendingCallAttemptId=null;
+    return;
+  }
+  S.inCall=true;  // close race window
+  S._callRoomId=room;
+  S._callAttemptId=attemptId;
+  S.pendingRoom=null;S.pendingPartner=null;S.pendingCallerId=null;S.pendingCallAttemptId=null;
   await initCall(room,partner,true);
 }
 function declineCall(){
@@ -5068,6 +5203,9 @@ function declineCall(){
   S.pendingPartner=null;
   S.pendingCallerId=null;
   S.pendingCallAttemptId=null;
+  if(_attemptId){
+    sb.rpc('decline_call',{p_id:_attemptId}).then(()=>{}).catch(()=>{});
+  }
   if(_callerId){
     const _dch=sb.channel(`notify-${_callerId}`,{config:{private:true}});
     _dch.subscribe(st=>{if(st==='SUBSCRIBED'){_dch.send({type:'broadcast',event:'decline',payload:{room_id:_roomId,attempt_id:_attemptId}});setTimeout(()=>sb.removeChannel(_dch),1000);}});
@@ -5083,9 +5221,16 @@ async function initCall(roomId,partnerName,isCallee){
   C('callStatus').textContent=t('⏳ Создаю комнату...');C('callStatus').classList.remove('hidden');
   try{
     // Получаем URL комнаты через Edge Function (ключ Daily.co хранится в секретах Supabase)
-    const{data,error}=await sb.functions.invoke('daily-room',{body:{roomId}});
+    // attemptId is required by daily-room v6 to authorize 1:1 rooms against the
+    // authoritative call_attempts row.
+    const{data,error}=await sb.functions.invoke('daily-room',{body:{roomId,attemptId:S._callAttemptId}});
     if(error||!data?.url){
       showToast(t('Ошибка создания комнаты: ')+(error?.message||'нет URL'));
+      if(S._callAttemptId){
+        try{
+          await sb.rpc('fail_call',{p_id:S._callAttemptId,p_reason:'daily_room_error'});
+        }catch(_e){}
+      }
       hangUp();return;
     }
     C('callStatus').textContent=t('⏳ Соединяю...');
@@ -5093,6 +5238,11 @@ async function initCall(roomId,partnerName,isCallee){
     setTimeout(()=>C('callStatus').classList.add('hidden'),4000);
   }catch(e){
     showToast(t('Ошибка сети при звонке:')+' '+e.message);
+    if(S._callAttemptId){
+      try{
+        await sb.rpc('fail_call',{p_id:S._callAttemptId,p_reason:'network_error'});
+      }catch(_e){}
+    }
     hangUp();return;
   }
   // Канал для уведомления о завершении звонка
@@ -5101,9 +5251,10 @@ async function initCall(roomId,partnerName,isCallee){
     .on('broadcast',{event:'hangup'},()=>{showToast('Собеседник завершил звонок');hangUp();})
     .subscribe();
 }
-async function hangUp(){
+async async function hangUp(){
   stopRingTone();
   clearTimeout(S._ringTimeout);S._ringTimeout=null;
+  const _attemptId=S._callAttemptId;
   if(S.callChannel){try{S.callChannel.send({type:'broadcast',event:'hangup',payload:{}});}catch(e){}sb.removeChannel(S.callChannel);S.callChannel=null;}
   C('jitsiFrame').src='about:blank';
   C('callWindow').classList.remove('visible');C('dialBtn').classList.remove('incall');C('dialBtn').textContent='📞';
@@ -5114,6 +5265,9 @@ async function hangUp(){
   S.pendingCallAttemptId=null;
   S._callRoomId=null;
   S._callAttemptId=null;
+  if(_attemptId){
+    sb.rpc('end_call',{p_id:_attemptId}).then(()=>{}).catch(()=>{});
+  }
 }
 function minimizeCall(){const b=C('callBody');b.style.display=b.style.display==='none'?'block':'none';}
 
