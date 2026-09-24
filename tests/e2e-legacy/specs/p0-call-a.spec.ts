@@ -473,7 +473,14 @@ test.describe('CALL-A -- 1:1 call signalling stability (call-01..call-09, no acc
 
       await studentPage.evaluate(
         ({ callerId, roomId, attemptId }) => {
-          const sb = (window as any).sb;
+          // `sb` is the page's own script-scoped const (see file header: const/let
+          // globals are NOT attached to window, unlike the function-declaration
+          // globals wrapped above) -- it is directly accessible here because
+          // Playwright's page.evaluate callback body executes IN the page's own
+          // JS realm, so this refers straight to that real global, exactly like
+          // fetchCallAttempt() above already does via `(sb as any)`. Reading it off
+          // `window` (as this block used to) is always undefined and made this
+          // block throw a TypeError on every run, not just flakily.
           return new Promise<void>((resolve, reject) => {
             const ch = sb.channel(`notify-${callerId}`, { config: { private: true } });
             const timeout = setTimeout(() => reject(new Error('stale-decline channel subscribe timed out')), 10_000);
