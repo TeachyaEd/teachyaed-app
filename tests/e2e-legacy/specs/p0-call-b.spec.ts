@@ -49,6 +49,33 @@ async function fetchCallAttemptState(page: Page, roomId: string): Promise<string
   }, roomId);
 }
 
+// Defensive, idempotent cleanup fallback (mirrors p0-call-a.spec.ts's
+// finally-block fail_call fallback). If a test fails/times out before its
+// own explicit hangup/terminal-state wait completes, the teacher's
+// call_attempts row can be left in a non-terminal state ('ringing' /
+// 'accepted') when the browser contexts are torn down. A non-terminal row
+// left behind here is picked up by the app's own
+// _reconcileActiveCallAttempt() on the NEXT test's fresh login (same
+// shared teacher fixture account) and rejoined via initCall(), which shows
+// #callWindow again before that next test's own first click. Calling
+// fail_call here forces the row terminal regardless of pass/fail outcome;
+// it is a safe no-op if the row is already terminal.
+async function cleanupCallAttempt(page: Page): Promise<void> {
+  try {
+    const attemptId = await page.evaluate(() => (typeof S !== 'undefined' ? S._callAttemptId : null));
+    if (!attemptId) return;
+    await page.evaluate(async (id) => {
+      try {
+        await (sb as any).rpc('fail_call', { p_attempt_id: id, p_reason: 'test_cleanup' });
+      } catch {
+        /* ignore -- row may already be terminal, or page may be closing */
+      }
+    }, attemptId);
+  } catch {
+    /* ignore -- best-effort cleanup only, never block teardown */
+  }
+}
+
 // Known, pre-existing 404s from the legacy lesson-content image
 // rendering path -- unrelated to the calling subsystem this spec covers.
 // '/x' is a documented, intentional onerror-trigger hack (see
@@ -115,6 +142,12 @@ test.describe('CALL-B -- accept, media, hangup, accepted-call reload recovery', 
       await teacherPage.locator('#callHeader button.chbtn').last().click();
       await expect.poll(() => fetchCallAttemptState(teacherPage, roomId)).toBe('ended');
     } finally {
+      // See cleanupCallAttempt() above: forces the row terminal if this
+      // test failed/timed out before the explicit hangup above completed
+      // (e.g. a real, intermittent daily-room failure after accept), so a
+      // non-terminal row can never be left for the next test's fresh login
+      // to rejoin via reconciliation. No-op if already terminal.
+      await cleanupCallAttempt(teacherPage);
       await Promise.allSettled([teacherContext.close(), studentContext.close()]);
     }
   });
