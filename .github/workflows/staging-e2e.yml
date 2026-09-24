@@ -1084,6 +1084,12 @@ jobs:
   chromium-call-b:
     name: "Staging CALL-B -- Chromium (accept, media, hangup)"
     needs: webkit-call-a
+    # 2026-09-24 fix: default success() checks the FULL transitive ancestor
+    # chain, not just the immediate needs -- so a failure in an upstream
+    # "not a gate" diagnostic (e.g. diag-call-a-oneoff) still skipped this
+    # real release-blocking job even though webkit-call-a itself succeeded.
+    # Only require the immediate real dependency to have succeeded.
+    if: always() && needs.webkit-call-a.result == 'success'
     runs-on: ubuntu-latest
     env:
       STAGING_SUPABASE_REF: lqyetodkoxodwjyqxukq
@@ -1134,6 +1140,9 @@ jobs:
   call-recovery:
     name: "Staging CALL recovery -- reload/reconnect + stranger security (Chromium)"
     needs: chromium-call-b
+    # 2026-09-24 fix: same transitive-ancestor cascade-skip reasoning as
+    # chromium-call-b above.
+    if: always() && needs.chromium-call-b.result == 'success'
     runs-on: ubuntu-latest
     env:
       STAGING_SUPABASE_REF: lqyetodkoxodwjyqxukq
@@ -1191,6 +1200,9 @@ jobs:
   call-recovery-staleness:
     name: "Staging CALL recovery -- stale-state reconciliation (Chromium)"
     needs: call-recovery
+    # 2026-09-24 fix: same transitive-ancestor cascade-skip reasoning as
+    # chromium-call-b above.
+    if: always() && needs.call-recovery.result == 'success'
     runs-on: ubuntu-latest
     env:
       STAGING_SUPABASE_REF: lqyetodkoxodwjyqxukq
@@ -1244,7 +1256,9 @@ jobs:
   call-signaling-concurrency:
     name: "Staging CALL signaling-state/RPC concurrency (10/25/50 pairs, manual only)"
     needs: call-recovery-staleness
-    if: github.event_name == 'workflow_dispatch'
+    # 2026-09-24 fix: same transitive-ancestor cascade-skip reasoning as
+    # chromium-call-b above, combined with the pre-existing manual-only gate.
+    if: always() && needs.call-recovery-staleness.result == 'success' && github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     env:
       STAGING_SUPABASE_URL: https://lqyetodkoxodwjyqxukq.supabase.co
