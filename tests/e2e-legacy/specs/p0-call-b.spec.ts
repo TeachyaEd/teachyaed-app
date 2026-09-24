@@ -38,7 +38,7 @@ async function placeCallAndGetIncoming(teacherPage: Page, studentPage: Page, stu
     teacherPage.locator('#contactPicker.open').waitFor({ state: 'attached', timeout: 20_000 }).then(() => 'picker' as const).catch(() => null),
     studentPage.locator('#incomingCall.show').waitFor({ state: 'attached', timeout: 20_000 }).then(() => 'incoming' as const).catch(() => null),
   ]);
-  if (which === 'picker') await teacherPage.locator(\`.contact-item[data-cid="\${studentProfileId}"]\`).click();
+  if (which === 'picker') await teacherPage.locator(`.contact-item[data-cid="${studentProfileId}"]`).click();
   await expect(studentPage.locator('#incomingCall')).toHaveClass(/show/, { timeout: 20_000 });
 }
 
@@ -69,8 +69,8 @@ test.describe('CALL-B -- accept, media, hangup, accepted-call reload recovery', 
       await placeCallAndGetIncoming(teacherPage, studentPage, studentProfile.id);
       await studentPage.locator('#incomingCall .btn-green').click();
 
-      await expect(studentPage.locator('#jitsiFrame')).toHaveAttribute('src', /daily\\.co/, { timeout: 15_000 });
-      await expect(teacherPage.locator('#jitsiFrame')).toHaveAttribute('src', /daily\\.co/, { timeout: 15_000 });
+      await expect(studentPage.locator('#jitsiFrame')).toHaveAttribute('src', /daily\.co/, { timeout: 15_000 });
+      await expect(teacherPage.locator('#jitsiFrame')).toHaveAttribute('src', /daily\.co/, { timeout: 15_000 });
 
       const roomId = await teacherPage.evaluate(() => S._callRoomId);
       await expect.poll(() => fetchCallAttemptState(teacherPage, roomId)).toBe('accepted');
@@ -84,8 +84,8 @@ test.describe('CALL-B -- accept, media, hangup, accepted-call reload recovery', 
 
       teacherStorm.assertNoStorm();
       studentStorm.assertNoStorm();
-      assertNoUnexpectedErrors(teacherErrors, { allow: [/daily\\.co/] });
-      assertNoUnexpectedErrors(studentErrors, { allow: [/daily\\.co/] });
+      assertNoUnexpectedErrors(teacherErrors, { allow: [/daily\.co/] });
+      assertNoUnexpectedErrors(studentErrors, { allow: [/daily\.co/] });
     } finally {
       await teacherContext.close();
       await studentContext.close();
@@ -106,7 +106,7 @@ test.describe('CALL-B -- accept, media, hangup, accepted-call reload recovery', 
 
       await placeCallAndGetIncoming(teacherPage, studentPage, studentProfile.id);
       await studentPage.locator('#incomingCall .btn-green').click();
-      await expect(teacherPage.locator('#jitsiFrame')).toHaveAttribute('src', /daily\\.co/, { timeout: 15_000 });
+      await expect(teacherPage.locator('#jitsiFrame')).toHaveAttribute('src', /daily\.co/, { timeout: 15_000 });
 
       const attemptId = await teacherPage.evaluate(() => S._callAttemptId);
       await teacherPage.locator('#callHeader button.chbtn').last().click();
@@ -143,7 +143,7 @@ test.describe('CALL-B -- accept, media, hangup, accepted-call reload recovery', 
 
       await placeCallAndGetIncoming(teacherPage, studentPage, studentProfile.id);
       await studentPage.locator('#incomingCall .btn-green').click();
-      await expect(studentPage.locator('#jitsiFrame')).toHaveAttribute('src', /daily\\.co/, { timeout: 15_000 });
+      await expect(studentPage.locator('#jitsiFrame')).toHaveAttribute('src', /daily\.co/, { timeout: 15_000 });
 
       await studentPage.locator('#callHeader button.chbtn').last().click();
       await expect(teacherPage.locator('#callWindow')).not.toHaveClass(/visible/, { timeout: 20_000 });

@@ -19,19 +19,19 @@ import { login, requireTeacherCredentials, requireStudentCredentials } from '../
 // rewritten alongside. Unlike call_signals, call_attempts rows are durable
 // (never deleted by either party), so this spec both captures the real
 // POST request to /rest/v1/rpc/start_call AND reads the row back afterward
-// via the page's own authenticated \`sb\` client (RLS permits this: both
+// via the page's own authenticated `sb` client (RLS permits this: both
 // caller and callee are participants).
 //
 // UI path traced from index.html (unchanged from the prior version of this
 // spec):
-//   - Caller: click a \`.ev-class-card\` on the teacher's "Классы" screen
+//   - Caller: click a `.ev-class-card` on the teacher's "ÐÐ»Ð°ÑÑÑ" screen
 //     (the default post-login landing screen) -> onclick="enterClassLesson(classId)"
 //     -> openClassroomView(...) shows #classroomView (adds class "open") and
-//     wires \`#cv_callPanel .cv-call-btn\` to cvCallStudent() for the teacher
-//     role. The legacy global \`#dialBtn\` + \`#contactPicker\` dial-anyone UI
+//     wires `#cv_callPanel .cv-call-btn` to cvCallStudent() for the teacher
+//     role. The legacy global `#dialBtn` + `#contactPicker` dial-anyone UI
 //     is dead code (CSS-hidden, nothing un-hides it) -- NOT used here.
 //   - cvCallStudent(): if the class has exactly one student, calls them
-//     directly; otherwise falls back to opening \`#contactPicker\` for a
+//     directly; otherwise falls back to opening `#contactPicker` for a
 //     manual pick. Either way it ends by calling callContact(id,name,role)
 //     -- the real, unmodified app function invoked by a real click.
 //   - callContact(): resolves the callee's real profile id, then AWAITS
@@ -47,14 +47,14 @@ import { login, requireTeacherCredentials, requireStudentCredentials } from '../
 //     call_attempts (filtered to callee_profile_id = me), and a Broadcast
 //     'ring' handler that now trusts the broadcast payload directly
 //     (attempt_id is always present, set server-side by start_call's
-//     return value). A built-in guard (\`if(S.inCall||S.pendingRoom)return;\`)
+//     return value). A built-in guard (`if(S.inCall||S.pendingRoom)return;`)
 //     means only the first delivery path to arrive actually shows the
 //     incoming-call UI; the other silently no-ops.
-//   - Recipient declines via the real button (\`#incomingCall .btn-red\`,
+//   - Recipient declines via the real button (`#incomingCall .btn-red`,
 //     onclick="declineCall()"). declineCall() captures the then-current
 //     S.pendingRoom/S.pendingCallAttemptId/S.pendingCallerId, clears that
 //     state, calls the decline_call RPC (authoritative), and also sends a
-//     'decline' broadcast on \`notify-<callerId>\` (fast path only).
+//     'decline' broadcast on `notify-<callerId>` (fast path only).
 //   - Caller's decline handling (inside _ensureBcNotifyChannel's 'decline'
 //     handler, or the postgres_changes UPDATE listener in
 //     _ensureCallAttemptsChannel) hands off to _reconcileCallAttempt(id),
@@ -65,10 +65,10 @@ import { login, requireTeacherCredentials, requireStudentCredentials } from '../
 // Instrumentation strategy (read-only observation, never used to trigger a
 // user action or bypass any correlation/authorization logic) -- unchanged
 // in spirit from the prior version: window.handleIncomingCall,
-// window.declineCall, window.hangUp are \`function\` declarations at the top
-// level of index.html's classic <script> tag, so they ARE plain \`window\`
+// window.declineCall, window.hangUp are `function` declarations at the top
+// level of index.html's classic <script> tag, so they ARE plain `window`
 // properties (function declarations create global-object properties;
-// \`const\`/\`let\` -- like \`sb\` -- do not). Each is wrapped here to push a
+// `const`/`let` -- like `sb` -- do not). Each is wrapped here to push a
 // timestamped record of the real arguments/state the app itself observed,
 // then calls straight through via .apply(this, arguments) -- functional
 // behavior is unchanged, this only adds an observer.
@@ -76,12 +76,12 @@ import { login, requireTeacherCredentials, requireStudentCredentials } from '../
 // call-02's "exactly one call_attempts row created per attempt" is
 // asserted two ways: the real POST request to '/rest/v1/rpc/start_call'
 // the browser actually sent (count + body), AND a read-back of the actual
-// call_attempts row via the page's own \`sb\` client (safe now that the row
+// call_attempts row via the page's own `sb` client (safe now that the row
 // is durable, unlike call_signals).
 //
 // The main scenario's stale-decline construction (documented in detail at
 // its call site below) sends one real Realtime broadcast frame, via the
-// same \`sb.channel(name,{config:{private:true}}).send({type:'broadcast',...})\`
+// same `sb.channel(name,{config:{private:true}}).send({type:'broadcast',...})`
 // API declineCall() itself uses, carrying attempt 1's now-superseded
 // {room_id, attempt_id}. This is real wire traffic processed by the real,
 // unmodified caller-side handler; only the *sender* of an already-late
@@ -211,7 +211,7 @@ async function ringPickerOrIncoming(teacherPage: Page, studentPage: Page, studen
       .catch(() => null),
   ]);
   if (which === 'picker') {
-    await teacherPage.locator(\`.contact-item[data-cid="\${studentProfileId}"]\`).click();
+    await teacherPage.locator(`.contact-item[data-cid="${studentProfileId}"]`).click();
   }
 }
 
@@ -233,7 +233,7 @@ test.describe('CALL-A -- 1:1 call signalling stability (call-01..call-09, no acc
         const attemptId = crypto.randomUUID();
         const { data, error } = await (sb as any).rpc('start_call', {
           p_id: attemptId,
-          p_room_id: \`room-call04-\${attemptId}\`,
+          p_room_id: `room-call04-${attemptId}`,
           p_callee_profile_id: meId,
         });
         return { error: error?.message ?? null, row: data ?? null };
@@ -447,7 +447,7 @@ test.describe('CALL-A -- 1:1 call signalling stability (call-01..call-09, no acc
         ({ callerId, roomId, attemptId }) => {
           const sb = (window as any).sb;
           return new Promise<void>((resolve, reject) => {
-            const ch = sb.channel(\`notify-\${callerId}\`, { config: { private: true } });
+            const ch = sb.channel(`notify-${callerId}`, { config: { private: true } });
             const timeout = setTimeout(() => reject(new Error('stale-decline channel subscribe timed out')), 10_000);
             ch.subscribe((status: string) => {
               if (status === 'SUBSCRIBED') {
@@ -458,7 +458,7 @@ test.describe('CALL-A -- 1:1 call signalling stability (call-01..call-09, no acc
                 });
               } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
                 clearTimeout(timeout);
-                reject(new Error(\`stale-decline channel subscribe failed: \${status}\`));
+                reject(new Error(`stale-decline channel subscribe failed: ${status}`));
               }
             });
           });

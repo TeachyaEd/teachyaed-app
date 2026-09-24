@@ -65,7 +65,7 @@ test.describe('CALL recovery -- reconnect, reload, stale/duplicate events', () =
       await teacherPage.locator('#cv_callPanel .cv-call-btn').click();
       await expect(studentPage.locator('#incomingCall')).toHaveClass(/show/, { timeout: 20_000 });
       await studentPage.locator('#incomingCall .btn-green').click();
-      await expect(studentPage.locator('#jitsiFrame')).toHaveAttribute('src', /daily\\.co/, { timeout: 15_000 });
+      await expect(studentPage.locator('#jitsiFrame')).toHaveAttribute('src', /daily\.co/, { timeout: 15_000 });
 
       const attemptId = await studentPage.evaluate(() => S._callAttemptId);
       const roomId = await studentPage.evaluate(() => S._callRoomId);
@@ -85,7 +85,7 @@ test.describe('CALL recovery -- reconnect, reload, stale/duplicate events', () =
       await expect.poll(async () => studentPage.evaluate(() => S._callAttemptId)).toBe(attemptId);
       await expect.poll(async () => studentPage.evaluate(() => S._callRoomId)).toBe(roomId);
       await expect(studentPage.locator('#callWindow')).toHaveClass(/visible/, { timeout: 20_000 });
-      await expect(studentPage.locator('#jitsiFrame')).toHaveAttribute('src', /daily\\.co/, { timeout: 15_000 });
+      await expect(studentPage.locator('#jitsiFrame')).toHaveAttribute('src', /daily\.co/, { timeout: 15_000 });
 
       expect(startCallCalls).toBe(0);
       expect(acceptCallCalls).toBe(0);
@@ -159,7 +159,7 @@ test.describe('CALL recovery -- reconnect, reload, stale/duplicate events', () =
     }
   });
 
-  test('a non-participant cannot read, rejoin via daily-room, or act via RPC on another pair\\'s call_attempts row', async ({ browser }) => {
+  test('a non-participant cannot read, rejoin via daily-room, or act via RPC on another pair\'s call_attempts row', async ({ browser }) => {
     const teacherContext = await browser.newContext();
     const studentContext = await browser.newContext();
     const strangerContext = await browser.newContext();
