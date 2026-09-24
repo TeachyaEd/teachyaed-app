@@ -42,6 +42,23 @@ async function placeCallAndGetIncoming(teacherPage: Page, studentPage: Page, stu
   await expect(studentPage.locator('#incomingCall')).toHaveClass(/show/, { timeout: 20_000 });
 }
 
+// The app's call header has multiple '.chbtn' icon buttons (whiteboard,
+// expand, minimize, hangup) plus a separately-injected 'callLockBtn'
+// (id="callLockBtn", also class="chbtn") that a page-level script appends
+// to #callHeader as its LAST child once per page load -- see the
+// `initCallLock` IIFE in index.html, which does
+// `hdr.appendChild(b)` for the lock button after the header's static
+// markup (openWb / expandCallBtn / minimizeCall / hangUp) has already
+// rendered. That makes '#callHeader button.chbtn'.last() resolve to the
+// lock button, NOT the hangup ("hangUp()") button -- clicking it just
+// toggles call-locked and never calls hangUp() at all. Target the hangup
+// button explicitly by its onclick attribute instead of positional
+// '.last()' so this test clicks the real hangup control regardless of
+// how many other chbtn-class buttons index.html adds to the header.
+function hangupBtn(page: Page) {
+  return page.locator('#callHeader button.chbtn[onclick="hangUp()"]');
+}
+
 async function fetchCallAttemptState(page: Page, roomId: string): Promise<string | null> {
   return page.evaluate(async (rid) => {
     const { data } = await (sb as any).from('call_attempts').select('state').eq('room_id', rid).order('created_at', { ascending: false }).limit(1).maybeSingle();
@@ -139,7 +156,7 @@ test.describe('CALL-B -- accept, media, hangup, accepted-call reload recovery', 
       // causes the next serialized test (call-b03) to hang for the full
       // test timeout on its first call-button click while the app's
       // staleness reconciliation sweeps up the stale row on next login.
-      await teacherPage.locator('#callHeader button.chbtn').last().click();
+      await hangupBtn(teacherPage).click();
       await expect.poll(() => fetchCallAttemptState(teacherPage, roomId)).toBe('ended');
     } finally {
       // See cleanupCallAttempt() above: forces the row terminal if this
@@ -169,7 +186,7 @@ test.describe('CALL-B -- accept, media, hangup, accepted-call reload recovery', 
       await expect(teacherPage.locator('#jitsiFrame')).toHaveAttribute('src', /daily\.co/, { timeout: 15_000 });
 
       const attemptId = await teacherPage.evaluate(() => S._callAttemptId);
-      await teacherPage.locator('#callHeader button.chbtn').last().click();
+      await hangupBtn(teacherPage).click();
 
       await expect(studentPage.locator('#callWindow')).not.toHaveClass(/visible/, { timeout: 20_000 });
       await expect.poll(async () => {
@@ -204,7 +221,7 @@ test.describe('CALL-B -- accept, media, hangup, accepted-call reload recovery', 
       await studentPage.locator('#incomingCall .btn-green').click();
       await expect(studentPage.locator('#jitsiFrame')).toHaveAttribute('src', /daily\.co/, { timeout: 15_000 });
 
-      await studentPage.locator('#callHeader button.chbtn').last().click();
+      await hangupBtn(studentPage).click();
       await expect(teacherPage.locator('#callWindow')).not.toHaveClass(/visible/, { timeout: 20_000 });
     } finally {
       await Promise.allSettled([teacherContext.close(), studentContext.close()]);
