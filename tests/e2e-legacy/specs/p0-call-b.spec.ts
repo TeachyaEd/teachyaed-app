@@ -168,7 +168,12 @@ test.describe('CALL-B -- accept, media, hangup, accepted-call reload recovery', 
 
       await teacherPage.locator('.ev-class-card:not(.ev-class-create)').first().click();
       await teacherPage.locator('#cv_callPanel .cv-call-btn').click();
-      const attemptId = await teacherPage.waitForFunction(() => (window as any).S._callAttemptId, null, { timeout: 10_000 }).then((h) => h.jsonValue());
+      await teacherPage.waitForFunction(
+        () => typeof S !== 'undefined' && !!S._callAttemptId,
+        null,
+        { timeout: 10_000 },
+      );
+      const attemptId = await teacherPage.evaluate(() => S._callAttemptId);
 
       await expect(teacherPage.locator('#callWindow')).not.toHaveClass(/visible/, { timeout: 15_000 });
       await expect.poll(async () => {
@@ -201,7 +206,12 @@ test.describe('CALL-B -- accept, media, hangup, accepted-call reload recovery', 
 
       await teacherPage.locator('.ev-class-card:not(.ev-class-create)').first().click();
       await teacherPage.locator('#cv_callPanel .cv-call-btn').click();
-      const attemptId = await teacherPage.waitForFunction(() => (window as any).S._callAttemptId, null, { timeout: 10_000 }).then((h) => h.jsonValue());
+      await teacherPage.waitForFunction(
+        () => typeof S !== 'undefined' && !!S._callAttemptId,
+        null,
+        { timeout: 10_000 },
+      );
+      const attemptId = await teacherPage.evaluate(() => S._callAttemptId);
 
       await expect(teacherPage.locator('#callWindow')).not.toHaveClass(/visible/, { timeout: 15_000 });
 
