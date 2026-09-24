@@ -259,7 +259,10 @@ function stripKnownCallTeardownCancellations(errors: CollectedErrors): void {
 // in smoke.spec.ts, p0-teacher-student.spec.ts, p0-session-reload.spec.ts) -- wholly
 // unrelated to the call_attempts migration; call-a's second scenario also renders
 // the student classroom UI and so hits the same quirk.
-const STUDENT_EMPTY_CLASSROOM_ALLOWED_BAD_RESPONSES: AllowedBadResponse[] = [
+// 2026-09-25 evidence (CI run 36056520914, job 107828116319): teacherErrors hit
+// this exact same 4-URL set too (teacher also opens #classroomView), so this is
+// now applied to both collectors below -- no new entries added.
+const CLASSROOM_VIEW_ALLOWED_BAD_RESPONSES: AllowedBadResponse[] = [
   { hostname: '127.0.0.1', status: 404, path: '/x' },
   { hostname: '127.0.0.1', status: 404, path: '/${_escHtml(safeUrl)}' },
   { hostname: '127.0.0.1', status: 404, path: '/${_escHtml(b.image)}' },
@@ -623,8 +626,8 @@ test.describe('CALL-A -- 1:1 call signalling stability (call-01..call-09, no acc
       studentRt.assertNoDuplicateSubscriptions();
       stripKnownCallTeardownCancellations(teacherErrors);
       stripKnownCallTeardownCancellations(studentErrors);
-      assertNoUnexpectedErrors(teacherErrors);
-      assertNoUnexpectedErrors(studentErrors, { allowBadResponses: STUDENT_EMPTY_CLASSROOM_ALLOWED_BAD_RESPONSES });
+      assertNoUnexpectedErrors(teacherErrors, { allowBadResponses: CLASSROOM_VIEW_ALLOWED_BAD_RESPONSES });
+      assertNoUnexpectedErrors(studentErrors, { allowBadResponses: CLASSROOM_VIEW_ALLOWED_BAD_RESPONSES });
 
       console.log('[call-a] full teacher start_call RPC requests:\n' + JSON.stringify(teacherStartCallRPCs, null, 2));
     } finally {
