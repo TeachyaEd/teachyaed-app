@@ -105,6 +105,15 @@ test.describe('CALL-B -- accept, media, hangup, accepted-call reload recovery', 
       studentStorm.assertNoStorm();
       assertNoUnexpectedErrors(teacherErrors, { allow: [/daily\.co/], allowBadResponses: CALL_B_KNOWN_LEGACY_IMAGE_404S });
       assertNoUnexpectedErrors(studentErrors, { allow: [/daily\.co/], allowBadResponses: CALL_B_KNOWN_LEGACY_IMAGE_404S });
+
+      // Explicitly hang up and wait for the attempt to reach a terminal
+      // state before teardown. Without this, this test's call_attempts row
+      // is abandoned in 'accepted' state when the contexts close, which
+      // causes the next serialized test (call-b03) to hang for the full
+      // test timeout on its first call-button click while the app's
+      // staleness reconciliation sweeps up the stale row on next login.
+      await teacherPage.locator('#callHeader button.chbtn').last().click();
+      await expect.poll(() => fetchCallAttemptState(teacherPage, roomId)).toBe('ended');
     } finally {
       await Promise.allSettled([teacherContext.close(), studentContext.close()]);
     }
