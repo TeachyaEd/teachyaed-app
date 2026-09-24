@@ -942,7 +942,20 @@ jobs:
           retention-days: 7
   diag-call-a-oneoff:
     name: "DIAGNOSTIC -- CALL-A one-off (profErr + participant probe, not a gate, sequenced after chromium-p0 to avoid shared-teacher-fixture call notification contamination, one Chromium attempt only)"
-    needs: diag-call-a-readiness
+    needs: [chromium-call-a, diag-call-a-readiness]
+    # 2026-09-24 fix: this diagnostic (and diag-call-a-readiness before it) is
+    # explicitly labeled "not a gate" and is allowed to fail/be flaky -- but
+    # GitHub Actions' default needs: behavior requires every needed job to
+    # SUCCEED, so diag-call-a-readiness failing was cascade-skipping this job
+    # and, transitively, the real release-blocking CALL-A WebKit / CALL-B /
+    # recovery gates below (evidence: run 36012735277, job 107673149402's
+    # successor chain -- chromium-call-a itself passed, only the diagnostic
+    # failed, yet webkit-call-a through call-signaling-concurrency all show
+    # conclusion "skipped"). Fix: only require the real gate (chromium-call-a)
+    # to have succeeded; tolerate the diagnostic's own failure. Still runs
+    # after diag-call-a-readiness finishes (needs: lists it) to preserve the
+    # documented shared-teacher-fixture sequencing.
+    if: always() && needs.chromium-call-a.result == 'success'
     runs-on: ubuntu-latest
     env:
       STAGING_SUPABASE_REF: lqyetodkoxodwjyqxukq
@@ -1011,7 +1024,13 @@ jobs:
 
   webkit-call-a:
     name: "Staging CALL-A -- WebKit (same spec, same scope)"
-    needs: diag-call-a-oneoff
+    needs: [chromium-call-a, diag-call-a-oneoff]
+    # 2026-09-24 fix: same reasoning as diag-call-a-oneoff's if: above --
+    # diag-call-a-oneoff is also explicitly "not a gate" and must not be able
+    # to skip this real release-blocking job. Only require the real gate
+    # (chromium-call-a) to have succeeded; still sequenced after
+    # diag-call-a-oneoff via needs:.
+    if: always() && needs.chromium-call-a.result == 'success'
     runs-on: ubuntu-latest
     env:
       STAGING_SUPABASE_REF: lqyetodkoxodwjyqxukq
