@@ -230,7 +230,7 @@ jobs:
 
   diag-daily-room:
     name: "DIAGNOSTIC -- daily-room Edge Function staging reachability (not a gate, CALL-A prereq)"
-    needs: chromium-p0
+    needs: webkit-sched01
     runs-on: ubuntu-latest
     env:
       STAGING_SUPABASE_REF: lqyetodkoxodwjyqxukq
@@ -372,7 +372,7 @@ jobs:
 
   chromium-auth04:
     name: "Staging auth-04 -- Chromium (reload with valid session)"
-    needs: chromium-p0
+    needs: webkit-p0
     runs-on: ubuntu-latest
     env:
       STAGING_SUPABASE_REF: lqyetodkoxodwjyqxukq
@@ -518,7 +518,7 @@ jobs:
 
   chromium-sched01:
     name: "Staging sched-01 -- Chromium (schedule read-only load, teacher)"
-    needs: chromium-p0
+    needs: webkit-auth04
     runs-on: ubuntu-latest
     env:
       STAGING_SUPABASE_REF: lqyetodkoxodwjyqxukq
@@ -664,7 +664,7 @@ jobs:
 
   chromium-call-a:
     name: "Staging CALL-A -- Chromium (1:1 call signalling, decline + stale-decline immunity)"
-    needs: chromium-p0
+    needs: diag-daily-room
     runs-on: ubuntu-latest
     env:
       STAGING_SUPABASE_REF: lqyetodkoxodwjyqxukq
@@ -736,7 +736,7 @@ jobs:
 
   diag-call-a-readiness:
     name: "DIAGNOSTIC -- CALL-A PG/Broadcast readiness (not a gate, one Chromium attempt only)"
-    needs: chromium-p0
+    needs: chromium-call-a
     runs-on: ubuntu-latest
     env:
       STAGING_SUPABASE_REF: lqyetodkoxodwjyqxukq
@@ -942,7 +942,7 @@ jobs:
           retention-days: 7
   diag-call-a-oneoff:
     name: "DIAGNOSTIC -- CALL-A one-off (profErr + participant probe, not a gate, sequenced after chromium-p0 to avoid shared-teacher-fixture call notification contamination, one Chromium attempt only)"
-    needs: chromium-p0
+    needs: diag-call-a-readiness
     runs-on: ubuntu-latest
     env:
       STAGING_SUPABASE_REF: lqyetodkoxodwjyqxukq
@@ -1011,7 +1011,7 @@ jobs:
 
   webkit-call-a:
     name: "Staging CALL-A -- WebKit (same spec, same scope)"
-    needs: chromium-call-a
+    needs: diag-call-a-oneoff
     runs-on: ubuntu-latest
     env:
       STAGING_SUPABASE_REF: lqyetodkoxodwjyqxukq
@@ -1064,7 +1064,7 @@ jobs:
 
   chromium-call-b:
     name: "Staging CALL-B -- Chromium (accept, media, hangup)"
-    needs: [chromium-call-a, webkit-call-a]
+    needs: webkit-call-a
     runs-on: ubuntu-latest
     env:
       STAGING_SUPABASE_REF: lqyetodkoxodwjyqxukq
