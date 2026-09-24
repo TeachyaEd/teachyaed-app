@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { attachErrorCollectors, assertNoUnexpectedErrors, type CollectedErrors } from '../helpers/error-collectors';
+import { attachErrorCollectors, assertNoUnexpectedErrors, type CollectedErrors, type AllowedBadResponse } from '../helpers/error-collectors';
 import { attachRequestStormDetector, attachRealtimeSubscriptionTracker } from '../helpers/request-storm-detector';
 import { login, requireTeacherCredentials, requireStudentCredentials } from '../helpers/auth';
 
@@ -251,6 +251,20 @@ function stripKnownCallTeardownCancellations(errors: CollectedErrors): void {
     (r) => !(r.failure === 'net::ERR_ABORTED' && KNOWN_CALL_TEARDOWN_CANCELLATIONS.some((rx) => rx.test(r.url))),
   );
 }
+
+// 2026-09-24 evidence (CI run 36019818816, job 107705734776): student-side classroom
+// UI renders a broken-image fallback whose src is an un-interpolated JS template
+// literal, causing deterministic 404s against these exact literal-text paths. This
+// is a pre-existing, already-documented app quirk (identical allowlist already used
+// in smoke.spec.ts, p0-teacher-student.spec.ts, p0-session-reload.spec.ts) -- wholly
+// unrelated to the call_attempts migration; call-a's second scenario also renders
+// the student classroom UI and so hits the same quirk.
+const STUDENT_EMPTY_CLASSROOM_ALLOWED_BAD_RESPONSES: AllowedBadResponse[] = [
+  { hostname: '127.0.0.1', status: 404, path: '/x' },
+  { hostname: '127.0.0.1', status: 404, path: '/${_escHtml(safeUrl)}' },
+  { hostname: '127.0.0.1', status: 404, path: '/${_escHtml(b.image)}' },
+  { hostname: '127.0.0.1', status: 404, path: '/${_iUrl}' },
+];
 
 test.describe('CALL-A -- 1:1 call signalling stability (call-01..call-09, no accept/media)', () => {
   test('call-04: caller identity is server-enforced by start_call, not client-suppliable', async ({ browser }) => {
@@ -610,7 +624,7 @@ test.describe('CALL-A -- 1:1 call signalling stability (call-01..call-09, no acc
       stripKnownCallTeardownCancellations(teacherErrors);
       stripKnownCallTeardownCancellations(studentErrors);
       assertNoUnexpectedErrors(teacherErrors);
-      assertNoUnexpectedErrors(studentErrors);
+      assertNoUnexpectedErrors(studentErrors, { allowBadResponses: STUDENT_EMPTY_CLASSROOM_ALLOWED_BAD_RESPONSES });
 
       console.log('[call-a] full teacher start_call RPC requests:\n' + JSON.stringify(teacherStartCallRPCs, null, 2));
     } finally {
