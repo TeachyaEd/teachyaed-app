@@ -286,6 +286,14 @@ test.describe('CALL-A -- 1:1 call signalling stability (call-01..call-09, no acc
       }
     });
 
+    // Track every call_attempts row this test creates so the finally block can
+    // force-terminate any that are still active if the test fails partway
+    // through (e.g. attempt2 left 'ringing' after an assertion/eval error).
+    // Without this, a crashed run leaves a fresh (non-stale) ringing row for
+    // the shared CI fixture account that a later retry/run legitimately
+    // restores on login -- contaminating that run's incoming-call assertions.
+    const createdAttemptIds: string[] = [];
+
     try {
       await Promise.all([login(teacherPage, teacherCreds), login(studentPage, studentCreds)]);
       await Promise.all([waitForNotifyReady(teacherPage), waitForNotifyReady(studentPage)]);
@@ -344,6 +352,7 @@ test.describe('CALL-A -- 1:1 call signalling stability (call-01..call-09, no acc
         roomId: attempt1Rpc.body!.p_room_id,
         calleeId: attempt1Rpc.body!.p_callee_profile_id,
       };
+      if (attempt1.id) createdAttemptIds.push(attempt1.id);
       expect(attempt1.id).toBeTruthy();
       expect(attempt1.id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);
       expect(attempt1.roomId).toBeTruthy();
@@ -444,6 +453,7 @@ test.describe('CALL-A -- 1:1 call signalling stability (call-01..call-09, no acc
         roomId: attempt2Rpc.body!.p_room_id,
         calleeId: attempt2Rpc.body!.p_callee_profile_id,
       };
+      if (attempt2.id) createdAttemptIds.push(attempt2.id);
       expect(attempt2.id).toBeTruthy();
       expect(attempt2.id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);
       expect(attempt2.id).not.toBe(attempt1.id);
@@ -537,6 +547,19 @@ test.describe('CALL-A -- 1:1 call signalling stability (call-01..call-09, no acc
 
       console.log('[call-a] full teacher start_call RPC requests:\n' + JSON.stringify(teacherStartCallRPCs, null, 2));
     } finally {
+      for (const attemptId of createdAttemptIds) {
+        try {
+          await teacherPage.evaluate(async (id) => {
+            try {
+              await (sb as any).rpc('fail_call', { p_attempt_id: id, p_reason: 'test_cleanup' });
+            } catch {
+              /* ignore -- row may already be terminal */
+            }
+          }, attemptId);
+        } catch {
+          /* ignore -- page may already be closed/crashed */
+        }
+      }
       await teacherContext.close();
       await studentContext.close();
     }
