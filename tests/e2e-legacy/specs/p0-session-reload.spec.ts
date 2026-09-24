@@ -175,6 +175,24 @@ function stripKnownWebkitReloadCancellations(errors: CollectedErrors): void {
   errors.pageErrors = errors.pageErrors.filter(
     (m) => !m.endsWith('due to access control checks.'),
   );
+  // 2026-09-24 evidence (CI run 36018797057, job 107699771247): Chromium hit
+  // the same underlying "reload() cancels an in-flight request" race as the
+  // WebKit cases above, but with Chromium's own failure text
+  // (net::ERR_ABORTED, not 'Load request cancelled') and on a URL specific
+  // to this session's own call_attempts migration -- the GET
+  // /rest/v1/call_attempts?...&state=in.(ringing,accepted)... reconciliation
+  // query added by _reconcileActiveCallAttempt (see index.html), which the
+  // app fires in the background on load/reload to recover from a stale
+  // in-progress call. There is no prior 'response' event for this failure
+  // (the request never completed), so AllowedRequestFailure's mandatory
+  // prior-response check can never excuse it -- same reasoning as the
+  // WebKit case, handled the same way, by local failure-text+URL filtering
+  // rather than the structured allow-list. Not a real app defect: the
+  // reconciliation query re-fires and resolves normally on the very next
+  // load, which this spec's own post-reload assertions already prove.
+  errors.requestFailures = errors.requestFailures.filter(
+    (r) => !(r.failure === 'net::ERR_ABORTED' && r.url.includes('/rest/v1/call_attempts?') && r.url.includes('state=in.')),
+  );
 }
 // 2026-09-24 evidence (CI run 36018092266, job 107694347238): the student
 // "session restored, reload" flow hit the same 4 bad 127.0.0.1 404
