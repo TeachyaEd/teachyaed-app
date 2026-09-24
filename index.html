@@ -5251,7 +5251,7 @@ async function initCall(roomId,partnerName,isCallee){
     .on('broadcast',{event:'hangup'},()=>{showToast('Собеседник завершил звонок');hangUp();})
     .subscribe();
 }
-async async function hangUp(){
+async function hangUp(){
   stopRingTone();
   clearTimeout(S._ringTimeout);S._ringTimeout=null;
   const _attemptId=S._callAttemptId;
