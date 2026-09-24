@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { attachErrorCollectors, assertNoUnexpectedErrors } from '../helpers/error-collectors';
+import { attachErrorCollectors, assertNoUnexpectedErrors, type CollectedErrors } from '../helpers/error-collectors';
 import { attachRequestStormDetector, attachRealtimeSubscriptionTracker } from '../helpers/request-storm-detector';
 import { login, requireTeacherCredentials, requireStudentCredentials } from '../helpers/auth';
 
@@ -220,6 +220,36 @@ async function fetchCallAttempt(page: Page, id: string): Promise<{ state: string
     const { data } = await (sb as any).from('call_attempts').select('state,room_id,caller_profile_id,callee_profile_id').eq('id', attemptId).maybeSingle();
     return data ?? null;
   }, id);
+}
+
+// 2026-09-24 evidence (CI run 36010182185, job 107673149402, commit
+// b1e9ce7c4308850dddde0e022b081bc7920ab908): after the try/catch fix above
+// let the synthetic stale-decline harness step be skipped non-fatally, BOTH
+// real calls in this test completed successfully end-to-end -- attempt1's
+// ring/decline/close and attempt2's ring/decline/close all logged real ms
+// timestamps ("[call-a] attempt 1 timeline" / "[call-a] attempt 2
+// timeline"). The test still failed, but only on 4 stray net::ERR_ABORTED
+// network errors, none of which have any prior 'response' event (so
+// AllowedRequestFailure's mandatory prior-response check can never excuse
+// them -- this must use a local filter instead, same approach as
+// stripKnownWebkitReloadCancellations above): 3 Daily.co call-UI sound
+// preloads (knock.mp3, error.mp3, join.mp3 -- cosmetic audio cues bundled
+// by Daily's own call-ui client, not app business logic) plus one Supabase
+// Realtime broadcast POST. All 4 aborted at the exact moment the call
+// window closed during the test's own real hangup/decline teardown --
+// the same class of issue as the WebKit reload-cancellation fix above (an
+// in-flight request cancelled by the test's own intentional action, not a
+// real app defect). Scoped narrowly to these exact known URLs/patterns so
+// it can never silently absorb an unrelated failure.
+const KNOWN_CALL_TEARDOWN_CANCELLATIONS = [
+  /^https:\/\/c\.daily\.co\/call-ui\/[^/]+\/(?:error|knock|join)\.mp3$/,
+  /^https:\/\/lqyetodkoxodwjyqxukq\.supabase\.co\/realtime\/v1\/api\/broadcast$/,
+];
+
+function stripKnownCallTeardownCancellations(errors: CollectedErrors): void {
+  errors.requestFailures = errors.requestFailures.filter(
+    (r) => !(r.failure === 'net::ERR_ABORTED' && KNOWN_CALL_TEARDOWN_CANCELLATIONS.some((rx) => rx.test(r.url))),
+  );
 }
 
 test.describe('CALL-A -- 1:1 call signalling stability (call-01..call-09, no accept/media)', () => {
@@ -577,6 +607,8 @@ test.describe('CALL-A -- 1:1 call signalling stability (call-01..call-09, no acc
       studentStorm.assertNoStorm();
       teacherRt.assertNoDuplicateSubscriptions();
       studentRt.assertNoDuplicateSubscriptions();
+      stripKnownCallTeardownCancellations(teacherErrors);
+      stripKnownCallTeardownCancellations(studentErrors);
       assertNoUnexpectedErrors(teacherErrors);
       assertNoUnexpectedErrors(studentErrors);
 
