@@ -4199,7 +4199,7 @@ async function doLogout(){
   if(typeof _timerRunning!=='undefined')_timerRunning=false;
   clearTimeout(S._ringTimeout);S._ringTimeout=null;
   // 2. hangUp before signOut
-  hangUp();
+  await hangUp();
   // 3. Remove all realtime channels before signOut
   if(S._pgRetryTimer){clearTimeout(S._pgRetryTimer);S._pgRetryTimer=null;}
   if(S._bcRetryTimer){clearTimeout(S._bcRetryTimer);S._bcRetryTimer=null;}
@@ -5037,7 +5037,7 @@ async function _reconcileCallAttempt(attemptId,rowOpt){
   }
   if(S._callAttemptId===row.id && S.inCall && (row.state==='ended'||row.state==='declined'||row.state==='failed')){
     showToast(row.state==='failed'?t('Звонок прерван'):t('Собеседник завершил звонок'),'info');
-    hangUp();
+    hangUp({notifyRemote:false});
     return;
   }
   if(S.pendingCallAttemptId===row.id && row.state==='accepted'){
@@ -5279,14 +5279,16 @@ async function initCall(roomId,partnerName,isCallee){
   // Канал для уведомления о завершении звонка
   if(S.callChannel){try{sb.removeChannel(S.callChannel);}catch(e){}S.callChannel=null;}
   S.callChannel=sb.channel(roomId,{config:{private:true}})
-    .on('broadcast',{event:'hangup'},()=>{showToast('Собеседник завершил звонок');hangUp();})
+    .on('broadcast',{event:'hangup'},()=>{showToast('Собеседник завершил звонок');hangUp({notifyRemote:false});})
     .subscribe();
 }
-async function hangUp(){
+async function hangUp(opts){
+  const notifyRemote = !opts || opts.notifyRemote !== false;
   stopRingTone();
   clearTimeout(S._ringTimeout);S._ringTimeout=null;
   const _attemptId=S._callAttemptId;
-  if(S.callChannel){try{S.callChannel.send({type:'broadcast',event:'hangup',payload:{}});}catch(e){}sb.removeChannel(S.callChannel);S.callChannel=null;}
+  const _channel=S.callChannel;
+  S.callChannel=null;
   C('jitsiFrame').src='about:blank';
   C('callWindow').classList.remove('visible');C('dialBtn').classList.remove('incall');C('dialBtn').textContent='📞';
   S.inCall=false;closeWb();
@@ -5297,7 +5299,31 @@ async function hangUp(){
   S._callRoomId=null;
   S._callAttemptId=null;
   if(_attemptId){
-    sb.rpc('end_call',{p_attempt_id:_attemptId}).then(()=>{}).catch(()=>{});
+    try{
+      const {error}=await sb.rpc('end_call',{p_attempt_id:_attemptId});
+      if(error){
+        console.error('[hangUp] end_call RPC failed for attempt',_attemptId,error);
+      }
+    }catch(e){
+      console.error('[hangUp] end_call RPC threw for attempt',_attemptId,e);
+    }
+  }
+  if(_channel && notifyRemote){
+    try{
+      const status=await _channel.send({type:'broadcast',event:'hangup',payload:{}});
+      if(status!=='ok'){
+        console.error('[hangUp] hangup broadcast send returned',status);
+      }
+    }catch(e){
+      console.error('[hangUp] hangup broadcast send failed',e);
+    }
+  }
+  if(_channel){
+    try{
+      sb.removeChannel(_channel);
+    }catch(e){
+      console.error('[hangUp] removeChannel failed',e);
+    }
   }
 }
 function minimizeCall(){const b=C('callBody');b.style.display=b.style.display==='none'?'block':'none';}
