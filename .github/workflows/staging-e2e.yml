@@ -941,8 +941,8 @@ jobs:
           path: tests/e2e-legacy/playwright-report
           retention-days: 7
   diag-call-a-oneoff:
-    name: "DIAGNOSTIC -- CALL-A one-off (profErr + participant probe, not a gate, decoupled from chromium-p0, one Chromium attempt only)"
-    needs: staging-smoke
+    name: "DIAGNOSTIC -- CALL-A one-off (profErr + participant probe, not a gate, sequenced after chromium-p0 to avoid shared-teacher-fixture call notification contamination, one Chromium attempt only)"
+    needs: chromium-p0
     runs-on: ubuntu-latest
     env:
       STAGING_SUPABASE_REF: lqyetodkoxodwjyqxukq
