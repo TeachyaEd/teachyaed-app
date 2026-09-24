@@ -1008,3 +1008,213 @@ jobs:
           name: staging-diag-call-a-oneoff-report
           path: tests/e2e-legacy/playwright-report
           retention-days: 7
+
+  webkit-call-a:
+    name: "Staging CALL-A -- WebKit (same spec, same scope)"
+    needs: chromium-call-a
+    runs-on: ubuntu-latest
+    env:
+      STAGING_SUPABASE_REF: lqyetodkoxodwjyqxukq
+      STAGING_SUPABASE_ANON_KEY: ${{ secrets.STAGING_SUPABASE_ANON_KEY }}
+      STAGING_TEACHER_EMAIL: ${{ secrets.STAGING_TEACHER_EMAIL }}
+      STAGING_TEACHER_PASSWORD: ${{ secrets.STAGING_TEACHER_PASSWORD }}
+      STAGING_STUDENT_EMAIL: ${{ secrets.STAGING_STUDENT_EMAIL }}
+      STAGING_STUDENT_PASSWORD: ${{ secrets.STAGING_STUDENT_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 24 }
+      - name: Verify required P0 credential secrets
+        run: |
+          missing=()
+          [ -z "$STAGING_TEACHER_EMAIL" ] && missing+=("STAGING_TEACHER_EMAIL")
+          [ -z "$STAGING_TEACHER_PASSWORD" ] && missing+=("STAGING_TEACHER_PASSWORD")
+          [ -z "$STAGING_STUDENT_EMAIL" ] && missing+=("STAGING_STUDENT_EMAIL")
+          [ -z "$STAGING_STUDENT_PASSWORD" ] && missing+=("STAGING_STUDENT_PASSWORD")
+          if [ ${#missing[@]} -gt 0 ]; then
+            echo "::error::Missing required staging P0 credential secret(s): ${missing[*]}."
+            exit 1
+          fi
+      - name: Install e2e-legacy dependencies
+        working-directory: tests/e2e-legacy
+        run: npm install
+      - name: Install Playwright (WebKit only)
+        working-directory: tests/e2e-legacy
+        run: npx playwright install --with-deps webkit
+      - name: Generate ephemeral staging artifact
+        working-directory: tests/e2e-legacy
+        run: node ci/generate-staging-artifact.mjs ../../index.html .staging-artifact
+      - name: Serve staging artifact
+        working-directory: tests/e2e-legacy
+        run: node ci/serve-static.mjs .staging-artifact &
+      - name: Wait for local server
+        run: |
+          for i in $(seq 1 30); do
+            if curl -sf http://127.0.0.1:4173/ -o /dev/null; then exit 0; fi
+            sleep 1
+          done
+          exit 1
+      - name: Run CALL-A spec (WebKit)
+        working-directory: tests/e2e-legacy
+        run: npx playwright test specs/p0-call-a.spec.ts --project=webkit
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with: { name: staging-call-a-webkit-report, path: tests/e2e-legacy/playwright-report, retention-days: 7 }
+
+  chromium-call-b:
+    name: "Staging CALL-B -- Chromium (accept, media, hangup)"
+    needs: [chromium-call-a, webkit-call-a]
+    runs-on: ubuntu-latest
+    env:
+      STAGING_SUPABASE_REF: lqyetodkoxodwjyqxukq
+      STAGING_SUPABASE_ANON_KEY: ${{ secrets.STAGING_SUPABASE_ANON_KEY }}
+      STAGING_TEACHER_EMAIL: ${{ secrets.STAGING_TEACHER_EMAIL }}
+      STAGING_TEACHER_PASSWORD: ${{ secrets.STAGING_TEACHER_PASSWORD }}
+      STAGING_STUDENT_EMAIL: ${{ secrets.STAGING_STUDENT_EMAIL }}
+      STAGING_STUDENT_PASSWORD: ${{ secrets.STAGING_STUDENT_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 24 }
+      - name: Verify required P0 credential secrets
+        run: |
+          missing=()
+          [ -z "$STAGING_TEACHER_EMAIL" ] && missing+=("STAGING_TEACHER_EMAIL")
+          [ -z "$STAGING_TEACHER_PASSWORD" ] && missing+=("STAGING_TEACHER_PASSWORD")
+          [ -z "$STAGING_STUDENT_EMAIL" ] && missing+=("STAGING_STUDENT_EMAIL")
+          [ -z "$STAGING_STUDENT_PASSWORD" ] && missing+=("STAGING_STUDENT_PASSWORD")
+          if [ ${#missing[@]} -gt 0 ]; then echo "::error::Missing secrets: ${missing[*]}"; exit 1; fi
+      - name: Install e2e-legacy dependencies
+        working-directory: tests/e2e-legacy
+        run: npm install
+      - name: Install Playwright (Chromium only)
+        working-directory: tests/e2e-legacy
+        run: npx playwright install --with-deps chromium
+      - name: Generate ephemeral staging artifact
+        working-directory: tests/e2e-legacy
+        run: node ci/generate-staging-artifact.mjs ../../index.html .staging-artifact
+      - name: Serve staging artifact
+        working-directory: tests/e2e-legacy
+        run: node ci/serve-static.mjs .staging-artifact &
+      - name: Wait for local server
+        run: |
+          for i in $(seq 1 30); do
+            if curl -sf http://127.0.0.1:4173/ -o /dev/null; then exit 0; fi
+            sleep 1
+          done
+          exit 1
+      - name: Run CALL-B spec (Chromium)
+        working-directory: tests/e2e-legacy
+        run: npx playwright test specs/p0-call-b.spec.ts --project=chromium
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with: { name: staging-call-b-chromium-report, path: tests/e2e-legacy/playwright-report, retention-days: 7 }
+
+  call-recovery:
+    name: "Staging CALL recovery -- reload/reconnect + stranger security (Chromium)"
+    needs: chromium-call-b
+    runs-on: ubuntu-latest
+    env:
+      STAGING_SUPABASE_REF: lqyetodkoxodwjyqxukq
+      STAGING_SUPABASE_ANON_KEY: ${{ secrets.STAGING_SUPABASE_ANON_KEY }}
+      STAGING_TEACHER_EMAIL: ${{ secrets.STAGING_TEACHER_EMAIL }}
+      STAGING_TEACHER_PASSWORD: ${{ secrets.STAGING_TEACHER_PASSWORD }}
+      STAGING_STUDENT_EMAIL: ${{ secrets.STAGING_STUDENT_EMAIL }}
+      STAGING_STUDENT_PASSWORD: ${{ secrets.STAGING_STUDENT_PASSWORD }}
+      STAGING_STRANGER_EMAIL: ${{ secrets.STAGING_STRANGER_EMAIL }}
+      STAGING_STRANGER_PASSWORD: ${{ secrets.STAGING_STRANGER_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 24 }
+      - name: Verify required P0 + stranger credential secrets
+        run: |
+          missing=()
+          [ -z "$STAGING_TEACHER_EMAIL" ] && missing+=("STAGING_TEACHER_EMAIL")
+          [ -z "$STAGING_TEACHER_PASSWORD" ] && missing+=("STAGING_TEACHER_PASSWORD")
+          [ -z "$STAGING_STUDENT_EMAIL" ] && missing+=("STAGING_STUDENT_EMAIL")
+          [ -z "$STAGING_STUDENT_PASSWORD" ] && missing+=("STAGING_STUDENT_PASSWORD")
+          [ -z "$STAGING_STRANGER_EMAIL" ] && missing+=("STAGING_STRANGER_EMAIL")
+          [ -z "$STAGING_STRANGER_PASSWORD" ] && missing+=("STAGING_STRANGER_PASSWORD")
+          if [ ${#missing[@]} -gt 0 ]; then
+            echo "::error::Missing secrets: ${missing[*]}. STAGING_STRANGER_* requires running the provision-call-fixtures job first (scripts/provision-staging-fixtures.mjs stranger)."
+            exit 1
+          fi
+      - name: Install e2e-legacy dependencies
+        working-directory: tests/e2e-legacy
+        run: npm install
+      - name: Install Playwright (Chromium only)
+        working-directory: tests/e2e-legacy
+        run: npx playwright install --with-deps chromium
+      - name: Generate ephemeral staging artifact
+        working-directory: tests/e2e-legacy
+        run: node ci/generate-staging-artifact.mjs ../../index.html .staging-artifact
+      - name: Serve staging artifact
+        working-directory: tests/e2e-legacy
+        run: node ci/serve-static.mjs .staging-artifact &
+      - name: Wait for local server
+        run: |
+          for i in $(seq 1 30); do
+            if curl -sf http://127.0.0.1:4173/ -o /dev/null; then exit 0; fi
+            sleep 1
+          done
+          exit 1
+      - name: Run CALL recovery + security spec (Chromium)
+        working-directory: tests/e2e-legacy
+        run: npx playwright test specs/p0-call-recovery.spec.ts --project=chromium
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with: { name: staging-call-recovery-report, path: tests/e2e-legacy/playwright-report, retention-days: 7 }
+
+  call-signaling-concurrency:
+    name: "Staging CALL signaling-state/RPC concurrency (10/25/50 pairs, manual only)"
+    needs: call-recovery
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    env:
+      STAGING_SUPABASE_URL: https://lqyetodkoxodwjyqxukq.supabase.co
+      STAGING_SUPABASE_ANON_KEY: ${{ secrets.STAGING_SUPABASE_ANON_KEY }}
+      STAGING_SERVICE_ROLE_KEY: ${{ secrets.STAGING_SERVICE_ROLE_KEY }}
+      CALL_CONCURRENCY_FIXTURE_JSON: ${{ secrets.CALL_CONCURRENCY_FIXTURE_JSON }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 24 }
+      - name: Verify fixture + service-role secrets are set
+        run: |
+          missing=()
+          [ -z "$CALL_CONCURRENCY_FIXTURE_JSON" ] && missing+=("CALL_CONCURRENCY_FIXTURE_JSON")
+          [ -z "$STAGING_SERVICE_ROLE_KEY" ] && missing+=("STAGING_SERVICE_ROLE_KEY")
+          if [ ${#missing[@]} -gt 0 ]; then
+            echo "::error::Missing: ${missing[*]}. Run scripts/provision-staging-fixtures.mjs (see the provision-call-fixtures job) first."
+            exit 1
+          fi
+      - run: npm install @supabase/supabase-js
+      - name: Run signaling-state/RPC concurrency at n=10 (this checks call_attempts RPC correctness and HTTP request-count amplification only -- it opens no Realtime sockets, so it does not verify Realtime reconnect-storm behavior; that remains covered by the browser CALL-A/CALL-B/recovery specs above)
+        run: node scripts/call-concurrency-signaling.mjs 10
+      - name: Run signaling-state/RPC concurrency at n=25
+        run: node scripts/call-concurrency-signaling.mjs 25
+      - name: Run signaling-state/RPC concurrency at n=50
+        run: node scripts/call-concurrency-signaling.mjs 50
+
+  provision-call-fixtures:
+    name: "Provision staging call-test fixtures (manual only)"
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_URL: https://lqyetodkoxodwjyqxukq.supabase.co
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.STAGING_SERVICE_ROLE_KEY }}
+      STAGING_TEACHER_EMAIL: ${{ secrets.STAGING_TEACHER_EMAIL }}
+      GH_TOKEN: ${{ secrets.FIXTURE_PROVISIONING_GH_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 24 }
+      - run: npm install @supabase/supabase-js
+      - name: Provision stranger identity
+        run: node scripts/provision-staging-fixtures.mjs stranger
+      - name: Provision 50 concurrency pairs
+        run: node scripts/provision-staging-fixtures.mjs pairs 50
