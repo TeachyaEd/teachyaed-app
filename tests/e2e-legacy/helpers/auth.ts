@@ -135,3 +135,10 @@ export function requireStudentCredentials(): Credentials {
   const vars = requireEnvVars(['STAGING_STUDENT_EMAIL', 'STAGING_STUDENT_PASSWORD']);
   return { email: vars.STAGING_STUDENT_EMAIL, password: vars.STAGING_STUDENT_PASSWORD };
 }
+
+// Add alongside requireTeacherCredentials/requireStudentCredentials, same
+// fail-fast pattern, same "never logged" contract.
+export function requireStrangerCredentials(): Credentials {
+  const vars = requireEnvVars(['STAGING_STRANGER_EMAIL', 'STAGING_STRANGER_PASSWORD']);
+  return { email: vars.STAGING_STRANGER_EMAIL, password: vars.STAGING_STRANGER_PASSWORD };
+}
