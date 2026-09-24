@@ -5050,12 +5050,23 @@ async function _reconcileCallAttempt(attemptId,rowOpt){
 
 async function _reconcileActiveCallAttempt(){
   if(!S.profile?.id)return;
-  const{data:rows}=await sb.from('call_attempts')
-    .select('*')
-    .or(`caller_profile_id.eq.${S.profile.id},callee_profile_id.eq.${S.profile.id}`)
-    .in('state',['ringing','accepted'])
-    .order('created_at',{ascending:false})
-    .limit(1);
+  // Guard against transient fetch failures right after login/reload (observed
+  // on WebKit: a CORS-style "access control checks" rejection can occur here
+  // in a narrow window before the auth token is fully attached to outgoing
+  // REST requests). Treat any failure as "no active call to reconcile" rather
+  // than letting it throw an uncaught page error that breaks unrelated UI.
+  let rows;
+  try{
+    const res=await sb.from('call_attempts')
+      .select('*')
+      .or(`caller_profile_id.eq.${S.profile.id},callee_profile_id.eq.${S.profile.id}`)
+      .in('state',['ringing','accepted'])
+      .order('created_at',{ascending:false})
+      .limit(1);
+    rows=res.data;
+  }catch(_e){
+    return;
+  }
   const row=rows&&rows[0];
   if(!row)return;
   if(S.inCall||S.pendingRoom)return;
