@@ -5060,6 +5060,26 @@ async function _reconcileActiveCallAttempt(){
   if(!row)return;
   if(S.inCall||S.pendingRoom)return;
 
+  if(row.state==='ringing'){
+    const ageMs=Date.now()-new Date(row.created_at).getTime();
+    if(ageMs>90000){
+      try{
+        await sb.rpc('fail_call',{p_attempt_id:row.id,p_reason:'stale_ringing_timeout'});
+      }catch(_e){}
+      return;
+    }
+  }
+  if(row.state==='accepted'){
+    const acceptedBase=row.accepted_at||row.updated_at||row.created_at;
+    const ageMs2=Date.now()-new Date(acceptedBase).getTime();
+    if(ageMs2>2*60*60*1000){
+      try{
+        await sb.rpc('fail_call',{p_attempt_id:row.id,p_reason:'stale_accepted_expired'});
+      }catch(_e){}
+      return;
+    }
+  }
+
   if(row.state==='ringing' && row.callee_profile_id===S.profile.id){
     _resolveCallerAndShow(row);
     return;
