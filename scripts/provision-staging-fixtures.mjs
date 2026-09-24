@@ -5,7 +5,7 @@
 //
 // Required env (read, never logged):
 //   SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY  -- staging project only
-// Required on PATH: \`gh\`, authenticated with repo-secret write access.
+// Required on PATH: `gh`, authenticated with repo-secret write access.
 //
 // Usage:
 //   node scripts/provision-staging-fixtures.mjs stranger
@@ -28,7 +28,7 @@ function genPassword() {
 
 function ghSecretSet(name, value) {
   const res = spawnSync('gh', ['secret', 'set', name], { input: value, stdio: ['pipe', 'inherit', 'inherit'] });
-  if (res.status !== 0) throw new Error(\`gh secret set \${name} failed (exit \${res.status})\`);
+  if (res.status !== 0) throw new Error(`gh secret set ${name} failed (exit ${res.status})`);
 }
 
 async function findUserByEmail(email) {
@@ -85,12 +85,12 @@ async function provisionPairs(n) {
   const schoolId = await getStagingSchoolId();
   const pairs = [];
   for (let i = 0; i < n; i++) {
-    const caller = await ensureUser(\`e2e-conc-\${i}-caller@teachyaed-staging.test\`, 'teacher', 'E2E', \`ConcCaller\${i}\`, schoolId);
-    const callee = await ensureUser(\`e2e-conc-\${i}-callee@teachyaed-staging.test\`, 'teacher', 'E2E', \`ConcCallee\${i}\`, schoolId);
+    const caller = await ensureUser(`e2e-conc-${i}-caller@teachyaed-staging.test`, 'teacher', 'E2E', `ConcCaller${i}`, schoolId);
+    const callee = await ensureUser(`e2e-conc-${i}-callee@teachyaed-staging.test`, 'teacher', 'E2E', `ConcCallee${i}`, schoolId);
     pairs.push({ caller: { email: caller.email, password: caller.password }, callee: { email: callee.email, password: callee.password }, calleeProfileId: callee.id });
   }
   ghSecretSet('CALL_CONCURRENCY_FIXTURE_JSON', JSON.stringify(pairs));
-  console.log(\`Provisioned \${n} pairs into CALL_CONCURRENCY_FIXTURE_JSON secret (values not printed).\`);
+  console.log(`Provisioned ${n} pairs into CALL_CONCURRENCY_FIXTURE_JSON secret (values not printed).`);
 }
 
 const [, , mode, arg] = process.argv;
