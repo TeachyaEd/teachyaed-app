@@ -75,9 +75,22 @@ async function fetchCallAttempt(
   }, id);
 }
 
-async function countCallAttemptsForRoom(page: Page, roomId: string): Promise<number> {
+// NOTE: room_id is derived deterministically from the sorted pair of
+// participant ids (see index.html's getRoomId()) -- it is NOT unique per
+// call, it is stable for every call ever made between the same two people.
+// A long-lived staging fixture pair accumulates many historical (terminal)
+// rows for the same room_id across CI runs, so counting *all* rows for a
+// room is not a meaningful invariant here. What the app actually
+// guarantees is at most one *non-terminal* (active) attempt per room at a
+// time -- so this only counts rows still in a non-terminal state, which is
+// what "exactly one attempt was created for this call" means in practice.
+async function countActiveCallAttemptsForRoom(page: Page, roomId: string): Promise<number> {
   return page.evaluate(async (rid) => {
-    const { data } = await (sb as any).from('call_attempts').select('id').eq('room_id', rid);
+    const { data } = await (sb as any)
+      .from('call_attempts')
+      .select('id')
+      .eq('room_id', rid)
+      .in('state', ['ringing', 'accepted']);
     return Array.isArray(data) ? data.length : -1;
   }, roomId);
 }
@@ -140,7 +153,7 @@ test.describe('CALL-MULTITAB -- duplicate-session behaviour for call_attempts (s
       expect(roomA).toBe(roomB);
       expect(startCallCalls).toBe(1);
 
-      const rowCount = await countCallAttemptsForRoom(studentPageA, roomA);
+      const rowCount = await countActiveCallAttemptsForRoom(studentPageA, roomA);
       expect(rowCount).toBe(1);
 
       const row = await fetchCallAttempt(studentPageA, attemptA);
@@ -301,12 +314,50 @@ test.describe('CALL-MULTITAB -- duplicate-session behaviour for call_attempts (s
       // attempt_id) must ignore this, exactly as CALL-A's call-09 proves
       // for a single stale reload -- this is the same guard exercised via
       // a second idle tab instead.
+      // Diagnostic-only network capture: if call 2 never rings, we want
+      // the failure to say *why* (RPC never fired vs. fired and errored)
+      // instead of just "Test timeout of 90000ms exceeded" with no other
+      // detail, which is what an unqualified toHaveClass() wait produces
+      // when it is still the pending operation at the moment the overall
+      // test timeout fires. This does not change what is asserted.
+      let call2StartCallRequests = 0;
+      let call2StartCallLastStatus: number | null = null;
+      const call2ReqListener = (req: any) => {
+        if (req.url().includes('/rest/v1/rpc/start_call') && req.method() === 'POST') call2StartCallRequests++;
+      };
+      const call2ResListener = (res: any) => {
+        if (res.url().includes('/rest/v1/rpc/start_call')) call2StartCallLastStatus = res.status();
+      };
+      teacherPage.on('request', call2ReqListener);
+      teacherPage.on('response', call2ResListener);
+
       await teacherStartCall(teacherPage);
-      await expect(studentPageA.locator('#incomingCall')).toHaveClass(/show/, { timeout: 20_000 });
+      try {
+        await expect(studentPageA.locator('#incomingCall')).toHaveClass(/show/, { timeout: 20_000 });
+      } catch (e) {
+        const diag = await teacherPage.evaluate(() => ({
+          inCall: (window as any).S?.inCall,
+          pendingCallAttemptId: (window as any).S?.pendingCallAttemptId,
+          callAttemptId: (window as any).S?._callAttemptId,
+        }));
+        throw new Error(
+          `call 2 never rang on studentPageA. start_call RPC requests seen: ${call2StartCallRequests}, last response status: ${call2StartCallLastStatus}. teacherPage state: ${JSON.stringify(diag)}. Original error: ${(e as Error).message}`,
+        );
+      } finally {
+        teacherPage.off('request', call2ReqListener);
+        teacherPage.off('response', call2ResListener);
+      }
       const freshAttemptId = await studentPageA.evaluate(() => S.pendingCallAttemptId);
       const freshRoomId = await studentPageA.evaluate(() => S.pendingRoom);
       expect(freshAttemptId).not.toBe(staleAttemptId);
-      expect(freshRoomId).not.toBe(staleRoomId);
+      // NOTE: room_id is deterministic per (caller, callee) pair (see
+      // index.html's getRoomId()) -- calling the same student again
+      // legitimately reuses the same room_id. The room is intentionally
+      // NOT asserted to differ here; attempt_id is what must be unique per
+      // call, which is exactly what the guard below (the stale broadcast
+      // must be ignored because its attempt_id no longer matches the
+      // caller's active attempt) actually depends on.
+      expect(freshRoomId).toBe(staleRoomId);
 
       await studentPageB.evaluate(
         ({ attemptId, roomId, callerId }) => {
