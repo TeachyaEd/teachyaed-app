@@ -156,6 +156,9 @@ jobs:
           retention-days: 7
 
   chromium-p0:
+    concurrency:
+      group: staging-call-fixture
+      cancel-in-progress: false
     name: "Staging P0 -- Chromium (first authenticated slice)"
     needs: staging-smoke
     runs-on: ubuntu-latest
@@ -229,6 +232,9 @@ jobs:
           retention-days: 7
 
   diag-daily-room:
+    concurrency:
+      group: staging-call-fixture
+      cancel-in-progress: false
     name: "DIAGNOSTIC -- daily-room Edge Function staging reachability (not a gate, CALL-A prereq)"
     needs: webkit-sched01
     runs-on: ubuntu-latest
@@ -298,6 +304,9 @@ jobs:
           retention-days: 7
 
   webkit-p0:
+    concurrency:
+      group: staging-call-fixture
+      cancel-in-progress: false
     name: "Staging P0 -- WebKit (same spec, same scope)"
     needs: chromium-p0
     runs-on: ubuntu-latest
@@ -371,6 +380,9 @@ jobs:
           retention-days: 7
 
   chromium-auth04:
+    concurrency:
+      group: staging-call-fixture
+      cancel-in-progress: false
     name: "Staging auth-04 -- Chromium (reload with valid session)"
     needs: webkit-p0
     runs-on: ubuntu-latest
@@ -444,6 +456,9 @@ jobs:
           retention-days: 7
 
   webkit-auth04:
+    concurrency:
+      group: staging-call-fixture
+      cancel-in-progress: false
     name: "Staging auth-04 -- WebKit (same spec, same scope)"
     needs: chromium-auth04
     runs-on: ubuntu-latest
@@ -517,6 +532,9 @@ jobs:
           retention-days: 7
 
   chromium-sched01:
+    concurrency:
+      group: staging-call-fixture
+      cancel-in-progress: false
     name: "Staging sched-01 -- Chromium (schedule read-only load, teacher)"
     needs: webkit-auth04
     runs-on: ubuntu-latest
@@ -590,6 +608,9 @@ jobs:
           retention-days: 7
 
   webkit-sched01:
+    concurrency:
+      group: staging-call-fixture
+      cancel-in-progress: false
     name: "Staging sched-01 -- WebKit (same spec, same scope)"
     needs: chromium-sched01
     runs-on: ubuntu-latest
@@ -663,6 +684,9 @@ jobs:
           retention-days: 7
 
   chromium-call-a:
+    concurrency:
+      group: staging-call-fixture
+      cancel-in-progress: false
     name: "Staging CALL-A -- Chromium (1:1 call signalling, decline + stale-decline immunity)"
     needs: diag-daily-room
     runs-on: ubuntu-latest
@@ -735,6 +759,9 @@ jobs:
           retention-days: 7
 
   diag-call-a-readiness:
+    concurrency:
+      group: staging-call-fixture
+      cancel-in-progress: false
     name: "DIAGNOSTIC -- CALL-A PG/Broadcast readiness (not a gate, one Chromium attempt only)"
     needs: chromium-call-a
     runs-on: ubuntu-latest
@@ -804,6 +831,9 @@ jobs:
           retention-days: 7
 
   diag-bc-failure:
+    concurrency:
+      group: staging-call-fixture
+      cancel-in-progress: false
     name: "DIAGNOSTIC -- Broadcast (_bcState) subscribe failure (not a gate, one Chromium attempt only)"
     needs: staging-smoke
     runs-on: ubuntu-latest
@@ -873,6 +903,9 @@ jobs:
           retention-days: 7
 
   diag-bc-auth-identity:
+    concurrency:
+      group: staging-call-fixture
+      cancel-in-progress: false
     name: "DIAGNOSTIC -- Broadcast auth identity propagation (not a gate, one Chromium attempt only)"
     needs: staging-smoke
     runs-on: ubuntu-latest
@@ -941,6 +974,9 @@ jobs:
           path: tests/e2e-legacy/playwright-report
           retention-days: 7
   diag-call-a-oneoff:
+    concurrency:
+      group: staging-call-fixture
+      cancel-in-progress: false
     name: "DIAGNOSTIC -- CALL-A one-off (profErr + participant probe, not a gate, sequenced after chromium-p0 to avoid shared-teacher-fixture call notification contamination, one Chromium attempt only)"
     needs: [chromium-call-a, diag-call-a-readiness]
     # 2026-09-24 fix: this diagnostic (and diag-call-a-readiness before it) is
@@ -1023,6 +1059,9 @@ jobs:
           retention-days: 7
 
   webkit-call-a:
+    concurrency:
+      group: staging-call-fixture
+      cancel-in-progress: false
     name: "Staging CALL-A -- WebKit (same spec, same scope)"
     needs: [chromium-call-a, diag-call-a-oneoff]
     # 2026-09-24 fix: same reasoning as diag-call-a-oneoff's if: above --
@@ -1082,6 +1121,9 @@ jobs:
         with: { name: staging-call-a-webkit-report, path: tests/e2e-legacy/playwright-report, retention-days: 7 }
 
   chromium-call-b:
+    concurrency:
+      group: staging-call-fixture
+      cancel-in-progress: false
     name: "Staging CALL-B -- Chromium (accept, media, hangup)"
     needs: webkit-call-a
     # 2026-09-24 fix: default success() checks the FULL transitive ancestor
@@ -1138,6 +1180,9 @@ jobs:
         with: { name: staging-call-b-chromium-report, path: tests/e2e-legacy/playwright-report, retention-days: 7 }
 
   chromium-call-multitab:
+    concurrency:
+      group: staging-call-fixture
+      cancel-in-progress: false
     name: "Staging CALL-MULTITAB -- Chromium (multi-tab / duplicate-session, Phase 4 hardening)"
     needs: chromium-call-b
     if: always() && needs.chromium-call-b.result == 'success'
@@ -1189,6 +1234,9 @@ jobs:
         with: { name: staging-call-multitab-chromium-report, path: tests/e2e-legacy/playwright-report, retention-days: 7 }
 
   diag-call-multitab-04:
+    concurrency:
+      group: staging-call-fixture
+      cancel-in-progress: false
     name: "DIAGNOSTIC -- multitab-04 only, isolated, retries off (test-only, no app changes)"
     runs-on: ubuntu-latest
     env:
@@ -1238,6 +1286,9 @@ jobs:
         with: { name: diag-call-multitab-04-report, path: tests/e2e-legacy/playwright-report, retention-days: 7 }
 
   diag-call-multitab-01-matrix:
+    concurrency:
+      group: staging-call-fixture
+      cancel-in-progress: false
     name: "DIAGNOSTIC -- multitab-01 x${{ matrix.attempt }}, isolated, retries off (test-only, no app changes)"
     runs-on: ubuntu-latest
     strategy:
@@ -1292,6 +1343,9 @@ jobs:
         with: { name: "diag-call-multitab-01-attempt-${{ matrix.attempt }}-report", path: tests/e2e-legacy/playwright-report, retention-days: 7 }
 
   call-recovery:
+    concurrency:
+      group: staging-call-fixture
+      cancel-in-progress: false
     name: "Staging CALL recovery -- reload/reconnect + stranger security (Chromium)"
     needs: chromium-call-multitab
     # 2026-09-24 fix: same transitive-ancestor cascade-skip reasoning as
@@ -1352,6 +1406,9 @@ jobs:
         with: { name: staging-call-recovery-report, path: tests/e2e-legacy/playwright-report, retention-days: 7 }
 
   call-recovery-staleness:
+    concurrency:
+      group: staging-call-fixture
+      cancel-in-progress: false
     name: "Staging CALL recovery -- stale-state reconciliation (Chromium)"
     needs: call-recovery
     # 2026-09-24 fix: same transitive-ancestor cascade-skip reasoning as
@@ -1441,6 +1498,9 @@ jobs:
         run: node scripts/call-concurrency-signaling.mjs 50
 
   provision-call-fixtures:
+    concurrency:
+      group: staging-call-fixture
+      cancel-in-progress: false
     name: "Provision staging call-test fixtures (manual only)"
     if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
