@@ -1237,6 +1237,59 @@ jobs:
         uses: actions/upload-artifact@v4
         with: { name: diag-call-multitab-04-report, path: tests/e2e-legacy/playwright-report, retention-days: 7 }
 
+  diag-call-multitab-01-matrix:
+    name: "DIAGNOSTIC -- multitab-01 x${{ matrix.attempt }}, isolated, retries off (test-only, no app changes)"
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        attempt: [1, 2, 3]
+    env:
+      STAGING_SUPABASE_REF: lqyetodkoxodwjyqxukq
+      STAGING_SUPABASE_ANON_KEY: ${{ secrets.STAGING_SUPABASE_ANON_KEY }}
+      STAGING_TEACHER_EMAIL: ${{ secrets.STAGING_TEACHER_EMAIL }}
+      STAGING_TEACHER_PASSWORD: ${{ secrets.STAGING_TEACHER_PASSWORD }}
+      STAGING_STUDENT_EMAIL: ${{ secrets.STAGING_STUDENT_EMAIL }}
+      STAGING_STUDENT_PASSWORD: ${{ secrets.STAGING_STUDENT_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 24 }
+      - name: Verify required P0 credential secrets
+        run: |
+          missing=()
+          [ -z "$STAGING_TEACHER_EMAIL" ] && missing+=("STAGING_TEACHER_EMAIL")
+          [ -z "$STAGING_TEACHER_PASSWORD" ] && missing+=("STAGING_TEACHER_PASSWORD")
+          [ -z "$STAGING_STUDENT_EMAIL" ] && missing+=("STAGING_STUDENT_EMAIL")
+          [ -z "$STAGING_STUDENT_PASSWORD" ] && missing+=("STAGING_STUDENT_PASSWORD")
+          if [ ${#missing[@]} -gt 0 ]; then echo "::error::Missing secrets: ${missing[*]}"; exit 1; fi
+      - name: Install e2e-legacy dependencies
+        working-directory: tests/e2e-legacy
+        run: npm install
+      - name: Install Playwright (Chromium only)
+        working-directory: tests/e2e-legacy
+        run: npx playwright install --with-deps chromium
+      - name: Generate ephemeral staging artifact
+        working-directory: tests/e2e-legacy
+        run: node ci/generate-staging-artifact.mjs ../../index.html .staging-artifact
+      - name: Serve staging artifact
+        working-directory: tests/e2e-legacy
+        run: node ci/serve-static.mjs .staging-artifact &
+      - name: Wait for local server
+        run: |
+          for i in $(seq 1 30); do
+            if curl -sf http://127.0.0.1:4173/ -o /dev/null; then exit 0; fi
+            sleep 1
+          done
+          exit 1
+      - name: Run multitab-01 ONLY, attempt ${{ matrix.attempt }} (isolated, retries off, no allowlist changes)
+        working-directory: tests/e2e-legacy
+        run: npx playwright test specs/p0-call-multitab.spec.ts --project=chromium --grep "multitab-01" --retries=0 --timeout=90000
+      - name: Upload Playwright report (diagnostic, attempt ${{ matrix.attempt }})
+        if: always()
+        uses: actions/upload-artifact@v4
+        with: { name: diag-call-multitab-01-attempt-${{ matrix.attempt }}-report, path: tests/e2e-legacy/playwright-report, retention-days: 7 }
+
   call-recovery:
     name: "Staging CALL recovery -- reload/reconnect + stranger security (Chromium)"
     needs: chromium-call-multitab
