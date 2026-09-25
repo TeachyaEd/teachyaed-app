@@ -1288,7 +1288,7 @@ jobs:
       - name: Upload Playwright report (diagnostic, attempt ${{ matrix.attempt }})
         if: always()
         uses: actions/upload-artifact@v4
-        with: { name: diag-call-multitab-01-attempt-${{ matrix.attempt }}-report, path: tests/e2e-legacy/playwright-report, retention-days: 7 }
+        with: { name: "diag-call-multitab-01-attempt-${{ matrix.attempt }}-report", path: tests/e2e-legacy/playwright-report, retention-days: 7 }
 
   call-recovery:
     name: "Staging CALL recovery -- reload/reconnect + stranger security (Chromium)"
