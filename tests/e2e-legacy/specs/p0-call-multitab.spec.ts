@@ -100,9 +100,88 @@ async function countActiveCallAttemptsForRoom(page: Page, roomId: string): Promi
 // call panel's call button. cvCallStudent() calls the single enrolled student
 // directly when the class has exactly one student -- the same staging fixture
 // class used by every other call-* spec in this suite.
-async function teacherStartCall(teacherPage: Page): Promise<void> {
-  await teacherPage.locator('.ev-class-card:not(.ev-class-create)').first().click();
-  await teacherPage.locator('#cv_callPanel .cv-call-btn').click();
+async function captureCallHelperState(page: Page, label: string, terminalAttemptId?: string | null): Promise<Record<string, unknown>> {
+  const snap = async () => {
+    try {
+      return await Promise.race([
+        page.evaluate(() => ({
+          url: location.href,
+          callAttemptId: (window as any).S?._callAttemptId ?? null,
+          pendingCallAttemptId: (window as any).S?.pendingCallAttemptId ?? null,
+          inCall: (window as any).S?.inCall ?? null,
+          callBusyFlag: (window as any).S?._callBusy ?? (window as any).S?.callLock ?? (window as any).S?._callLock ?? (window as any).S?._callStarting ?? null,
+          callWindowVisible: document.getElementById('callWindow')?.classList.contains('visible') ?? null,
+          incomingCallShown: document.getElementById('incomingCall')?.classList.contains('show') ?? null,
+          jitsiSrc: (document.getElementById('jitsiFrame') as HTMLIFrameElement | null)?.src ?? null,
+          openModalCount: document.querySelectorAll('.modal.show, .modal.visible, [aria-modal="true"]').length,
+          classCardCount: document.querySelectorAll('.ev-class-card:not(.ev-class-create)').length,
+          callPanelPresent: !!document.getElementById('cv_callPanel'),
+          callBtnCount: document.querySelectorAll('#cv_callPanel .cv-call-btn').length,
+        })),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('state-snapshot-timeout')), 4_000)),
+      ]);
+    } catch (e) {
+      return { error: (e as Error).message };
+    }
+  };
+  const state = await snap();
+  let call1Row: unknown = null;
+  if (terminalAttemptId) {
+    try {
+      call1Row = await Promise.race([
+        fetchCallAttempt(page, terminalAttemptId),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('row-fetch-timeout')), 4_000)),
+      ]);
+    } catch (e) {
+      call1Row = { error: (e as Error).message };
+    }
+  }
+  return { label, ...(state as object), call1_terminal_row: call1Row };
+}
+
+async function teacherStartCall(teacherPage: Page, priorCallAttemptId?: string | null): Promise<void> {
+  const cardLoc = teacherPage.locator('.ev-class-card:not(.ev-class-create)').first();
+  const panelLoc = teacherPage.locator('#cv_callPanel');
+  const btnLoc = teacherPage.locator('#cv_callPanel .cv-call-btn');
+
+  try {
+    await expect(cardLoc).toBeVisible({ timeout: 15_000 });
+  } catch (e) {
+    const count = await cardLoc.count().catch(() => -1);
+    const state = await captureCallHelperState(teacherPage, 'class-card-visible-wait-FAILED', priorCallAttemptId);
+    throw new Error(`[teacherStartCall] class card never became visible (count=${count}). state=${JSON.stringify(state)}. ${(e as Error).message}`);
+  }
+
+  try {
+    await cardLoc.click({ timeout: 15_000 });
+  } catch (e) {
+    const state = await captureCallHelperState(teacherPage, 'click-class-card-FAILED', priorCallAttemptId);
+    throw new Error(`[teacherStartCall] click on class card failed/timed out. state=${JSON.stringify(state)}. ${(e as Error).message}`);
+  }
+
+  try {
+    await expect(panelLoc).toBeVisible({ timeout: 15_000 });
+  } catch (e) {
+    const count = await panelLoc.count().catch(() => -1);
+    const state = await captureCallHelperState(teacherPage, 'cv_callPanel-visible-wait-FAILED', priorCallAttemptId);
+    throw new Error(`[teacherStartCall] #cv_callPanel never became visible after class card click (count=${count}). state=${JSON.stringify(state)}. ${(e as Error).message}`);
+  }
+
+  try {
+    await expect(btnLoc).toBeVisible({ timeout: 15_000 });
+    await expect(btnLoc).toBeEnabled({ timeout: 15_000 });
+  } catch (e) {
+    const count = await btnLoc.count().catch(() => -1);
+    const state = await captureCallHelperState(teacherPage, 'call-btn-visible-enabled-wait-FAILED', priorCallAttemptId);
+    throw new Error(`[teacherStartCall] .cv-call-btn never became visible/enabled (count=${count}). state=${JSON.stringify(state)}. ${(e as Error).message}`);
+  }
+
+  try {
+    await btnLoc.click({ timeout: 15_000 });
+  } catch (e) {
+    const state = await captureCallHelperState(teacherPage, 'click-call-btn-FAILED', priorCallAttemptId);
+    throw new Error(`[teacherStartCall] click on call button failed/timed out. state=${JSON.stringify(state)}. ${(e as Error).message}`);
+  }
 }
 
 const CLASSROOM_VIEW_ALLOWED_BAD_RESPONSES: AllowedBadResponse[] = [
@@ -441,7 +520,7 @@ test.describe('CALL-MULTITAB -- duplicate-session behaviour for call_attempts (s
       teacherPage.on('response', call2ResListener);
 
       await test.step('call 2: teacher starts call', async () => {
-        await teacherStartCall(teacherPage);
+        await teacherStartCall(teacherPage, staleAttemptId);
         checkpoint('call2-start_call-invoked');
       });
 
