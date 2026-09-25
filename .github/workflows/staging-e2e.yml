@@ -1137,7 +1137,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with: { name: staging-call-b-chromium-report, path: tests/e2e-legacy/playwright-report, retention-days: 7 }
 
-    chromium-call-multitab:
+  chromium-call-multitab:
     name: "Staging CALL-MULTITAB -- Chromium (multi-tab / duplicate-session, Phase 4 hardening)"
     needs: chromium-call-b
     if: always() && needs.chromium-call-b.result == 'success'
