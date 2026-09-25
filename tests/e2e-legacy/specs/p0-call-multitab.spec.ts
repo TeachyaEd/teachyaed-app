@@ -268,12 +268,67 @@ test.describe('CALL-MULTITAB -- duplicate-session behaviour for call_attempts (s
   });
 
   test('multitab-04: hangup ends the call on every open tab, and an idle stale tab cannot affect a newer, unrelated call attempt with a leftover action', async ({ browser }) => {
+    // Diagnostic instrumentation (test-only, no app changes): this test has
+    // been hitting Playwright's global 90s test timeout with no further
+    // detail on every observed run. Per-step bounded timeouts (all well
+    // below 90s) plus explicit checkpoint tracking mean that whichever
+    // await actually hangs will report its own informative timeout error
+    // (with the last completed checkpoint and a best-effort snapshot of
+    // page state / the relevant call_attempts row attached) well before the
+    // global timeout could fire and swallow that detail. This does not
+    // change what is asserted anywhere in this test.
     const teacherCtx = await browser.newContext();
     const studentCtxA = await browser.newContext();
     const studentCtxB = await browser.newContext();
     const teacherPage = await teacherCtx.newPage();
     const studentPageA = await studentCtxA.newPage();
     const studentPageB = await studentCtxB.newPage();
+
+    let lastCheckpoint = 'contexts-created';
+    const checkpoints: string[] = [lastCheckpoint];
+    function checkpoint(name: string): void {
+      lastCheckpoint = name;
+      checkpoints.push(name);
+    }
+
+    async function captureFailureState(attemptId?: string | null): Promise<string> {
+      const snap = async (page: Page) => {
+        try {
+          return await Promise.race([
+            page.evaluate(() => ({
+              url: location.href,
+              inCall: (window as any).S?.inCall,
+              pendingCallAttemptId: (window as any).S?.pendingCallAttemptId,
+              callAttemptId: (window as any).S?._callAttemptId,
+              incomingCallShown: document.getElementById('incomingCall')?.classList.contains('show') ?? null,
+              jitsiSrc: (document.getElementById('jitsiFrame') as HTMLIFrameElement | null)?.src ?? null,
+              callWindowVisible: document.getElementById('callWindow')?.classList.contains('visible') ?? null,
+            })),
+            new Promise((_, reject) => setTimeout(() => reject(new Error('snapshot-timeout')), 5_000)),
+          ]);
+        } catch (e) {
+          return { error: (e as Error).message };
+        }
+      };
+      const [teacherSnap, aSnap, bSnap] = await Promise.all([snap(teacherPage), snap(studentPageA), snap(studentPageB)]);
+      let row: unknown = null;
+      if (attemptId) {
+        try {
+          row = await Promise.race([
+            fetchCallAttempt(teacherPage, attemptId),
+            new Promise((_, reject) => setTimeout(() => reject(new Error('row-fetch-timeout')), 5_000)),
+          ]);
+        } catch (e) {
+          row = { error: (e as Error).message };
+        }
+      }
+      return JSON.stringify(
+        { lastCheckpoint, checkpoints, teacherSnap, aSnap, bSnap, attemptId: attemptId ?? null, call_attempts_row: row },
+        null,
+        2,
+      );
+    }
+
     try {
       const rtTeacher = attachRealtimeSubscriptionTracker(teacherPage);
       const rtA = attachRealtimeSubscriptionTracker(studentPageA);
@@ -282,27 +337,87 @@ test.describe('CALL-MULTITAB -- duplicate-session behaviour for call_attempts (s
       const stormA = attachRequestStormDetector(studentPageA);
       const stormB = attachRequestStormDetector(studentPageB);
 
-      await Promise.all([loginFresh(teacherPage, teacherCreds), loginFresh(studentPageA, studentCreds), loginFresh(studentPageB, studentCreds)]);
+      await test.step('login all three sessions', async () => {
+        await Promise.all([loginFresh(teacherPage, teacherCreds), loginFresh(studentPageA, studentCreds), loginFresh(studentPageB, studentCreds)]);
+        checkpoint('logged-in');
+      });
 
       // Call 1: A accepts, teacher hangs up. B never acts -- it holds a
       // stale S.pendingCallAttemptId for an attempt that is about to be
       // terminated by someone else's action, the exact scenario this test
       // exists to check.
-      await teacherStartCall(teacherPage);
-      await expect(studentPageA.locator('#incomingCall')).toHaveClass(/show/, { timeout: 20_000 });
-      await expect(studentPageB.locator('#incomingCall')).toHaveClass(/show/, { timeout: 20_000 });
-      const staleAttemptId = await studentPageB.evaluate(() => S.pendingCallAttemptId);
-      const staleRoomId = await studentPageB.evaluate(() => S.pendingRoom);
+      let staleAttemptId = '';
+      let staleRoomId = '';
 
-      await studentPageA.locator('#incomingCall .btn-green').click();
-      await expect(studentPageA.locator('#jitsiFrame')).toHaveAttribute('src', /daily\.co/, { timeout: 15_000 });
-      await expect(studentPageB.locator('#incomingCall')).not.toHaveClass(/show/, { timeout: 20_000 });
+      await test.step('call 1: teacher starts call', async () => {
+        await teacherStartCall(teacherPage);
+        checkpoint('call1-start_call-invoked');
+      });
 
-      await teacherPage.evaluate(() => (window as any).hangUp());
-      await expect(studentPageA.locator('#jitsiFrame')).not.toHaveAttribute('src', /daily\.co/, { timeout: 20_000 });
+      await test.step('call 1: ring reaches student A', async () => {
+        try {
+          await expect(studentPageA.locator('#incomingCall')).toHaveClass(/show/, { timeout: 20_000 });
+        } catch (e) {
+          throw new Error(`[${lastCheckpoint}] call 1 never rang on A: ${(e as Error).message}\n${await captureFailureState()}`);
+        }
+        checkpoint('call1-rang-on-A');
+      });
 
-      const endedRow = await fetchCallAttempt(studentPageA, staleAttemptId);
-      expect(['ended', 'declined']).toContain(endedRow?.state);
+      await test.step('call 1: ring reaches student B', async () => {
+        try {
+          await expect(studentPageB.locator('#incomingCall')).toHaveClass(/show/, { timeout: 20_000 });
+        } catch (e) {
+          throw new Error(`[${lastCheckpoint}] call 1 never rang on B: ${(e as Error).message}\n${await captureFailureState()}`);
+        }
+        checkpoint('call1-rang-on-B');
+      });
+
+      staleAttemptId = await studentPageB.evaluate(() => S.pendingCallAttemptId);
+      staleRoomId = await studentPageB.evaluate(() => S.pendingRoom);
+      checkpoint(`call1-stale-ids-captured(attempt=${staleAttemptId})`);
+
+      await test.step('call 1: student A accepts', async () => {
+        await studentPageA.locator('#incomingCall .btn-green').click();
+        checkpoint('call1-A-clicked-accept');
+      });
+
+      await test.step('call 1: Daily room opens on A', async () => {
+        try {
+          await expect(studentPageA.locator('#jitsiFrame')).toHaveAttribute('src', /daily\.co/, { timeout: 15_000 });
+        } catch (e) {
+          throw new Error(`[${lastCheckpoint}] Daily room never opened on A after accept: ${(e as Error).message}\n${await captureFailureState(staleAttemptId)}`);
+        }
+        checkpoint('call1-daily-open-on-A');
+      });
+
+      await test.step('call 1: incoming UI closes on B', async () => {
+        try {
+          await expect(studentPageB.locator('#incomingCall')).not.toHaveClass(/show/, { timeout: 20_000 });
+        } catch (e) {
+          throw new Error(`[${lastCheckpoint}] incoming UI did not close on B after A accepted: ${(e as Error).message}\n${await captureFailureState(staleAttemptId)}`);
+        }
+        checkpoint('call1-incoming-closed-on-B');
+      });
+
+      await test.step('call 1: teacher hangs up', async () => {
+        await teacherPage.evaluate(() => (window as any).hangUp());
+        checkpoint('call1-teacher-hangup-invoked');
+      });
+
+      await test.step('call 1: Daily room closes on A', async () => {
+        try {
+          await expect(studentPageA.locator('#jitsiFrame')).not.toHaveAttribute('src', /daily\.co/, { timeout: 20_000 });
+        } catch (e) {
+          throw new Error(`[${lastCheckpoint}] Daily room did not close on A after teacher hangup: ${(e as Error).message}\n${await captureFailureState(staleAttemptId)}`);
+        }
+        checkpoint('call1-daily-closed-on-A');
+      });
+
+      await test.step('call 1: verify terminal state in DB', async () => {
+        const endedRow = await fetchCallAttempt(studentPageA, staleAttemptId);
+        expect(['ended', 'declined']).toContain(endedRow?.state);
+        checkpoint('call1-db-terminal-confirmed');
+      });
 
       // Call 2: a fresh, unrelated call to the same student. B is still
       // sitting on the now-terminal attempt 1's id in S.pendingCallAttemptId
@@ -314,12 +429,6 @@ test.describe('CALL-MULTITAB -- duplicate-session behaviour for call_attempts (s
       // attempt_id) must ignore this, exactly as CALL-A's call-09 proves
       // for a single stale reload -- this is the same guard exercised via
       // a second idle tab instead.
-      // Diagnostic-only network capture: if call 2 never rings, we want
-      // the failure to say *why* (RPC never fired vs. fired and errored)
-      // instead of just "Test timeout of 90000ms exceeded" with no other
-      // detail, which is what an unqualified toHaveClass() wait produces
-      // when it is still the pending operation at the moment the overall
-      // test timeout fires. This does not change what is asserted.
       let call2StartCallRequests = 0;
       let call2StartCallLastStatus: number | null = null;
       const call2ReqListener = (req: any) => {
@@ -331,22 +440,32 @@ test.describe('CALL-MULTITAB -- duplicate-session behaviour for call_attempts (s
       teacherPage.on('request', call2ReqListener);
       teacherPage.on('response', call2ResListener);
 
-      await teacherStartCall(teacherPage);
-      try {
-        await expect(studentPageA.locator('#incomingCall')).toHaveClass(/show/, { timeout: 20_000 });
-      } catch (e) {
-        const diag = await teacherPage.evaluate(() => ({
-          inCall: (window as any).S?.inCall,
-          pendingCallAttemptId: (window as any).S?.pendingCallAttemptId,
-          callAttemptId: (window as any).S?._callAttemptId,
-        }));
-        throw new Error(
-          `call 2 never rang on studentPageA. start_call RPC requests seen: ${call2StartCallRequests}, last response status: ${call2StartCallLastStatus}. teacherPage state: ${JSON.stringify(diag)}. Original error: ${(e as Error).message}`,
-        );
-      } finally {
-        teacherPage.off('request', call2ReqListener);
-        teacherPage.off('response', call2ResListener);
-      }
+      await test.step('call 2: teacher starts call', async () => {
+        await teacherStartCall(teacherPage);
+        checkpoint('call2-start_call-invoked');
+      });
+
+      await test.step('call 2: ring reaches student A', async () => {
+        try {
+          await expect(studentPageA.locator('#incomingCall')).toHaveClass(/show/, { timeout: 20_000 });
+        } catch (e) {
+          const diag = await teacherPage
+            .evaluate(() => ({
+              inCall: (window as any).S?.inCall,
+              pendingCallAttemptId: (window as any).S?.pendingCallAttemptId,
+              callAttemptId: (window as any).S?._callAttemptId,
+            }))
+            .catch((err) => ({ error: (err as Error).message }));
+          throw new Error(
+            `[${lastCheckpoint}] call 2 never rang on A. start_call RPC requests seen: ${call2StartCallRequests}, last response status: ${call2StartCallLastStatus}. teacherPage state: ${JSON.stringify(diag)}. Original error: ${(e as Error).message}\n${await captureFailureState(staleAttemptId)}`,
+          );
+        } finally {
+          teacherPage.off('request', call2ReqListener);
+          teacherPage.off('response', call2ResListener);
+        }
+        checkpoint('call2-rang-on-A');
+      });
+
       const freshAttemptId = await studentPageA.evaluate(() => S.pendingCallAttemptId);
       const freshRoomId = await studentPageA.evaluate(() => S.pendingRoom);
       expect(freshAttemptId).not.toBe(staleAttemptId);
@@ -358,32 +477,63 @@ test.describe('CALL-MULTITAB -- duplicate-session behaviour for call_attempts (s
       // must be ignored because its attempt_id no longer matches the
       // caller's active attempt) actually depends on.
       expect(freshRoomId).toBe(staleRoomId);
+      checkpoint(`call2-fresh-ids-captured(attempt=${freshAttemptId})`);
 
-      await studentPageB.evaluate(
-        ({ attemptId, roomId, callerId }) => {
-          const w = window as any;
-          const ch = (sb as any).channel(`notify-${callerId}`, { config: { private: true } });
-          ch.subscribe((status: string) => {
-            if (status === 'SUBSCRIBED') {
-              ch.send({ type: 'broadcast', event: 'decline', payload: { room_id: roomId, attempt_id: attemptId } });
-            }
-          });
-        },
-        { attemptId: staleAttemptId, roomId: staleRoomId, callerId: await teacherPage.evaluate(() => S.profile.id) },
-      );
+      await test.step('call 2: B sends stale decline broadcast for attempt 1', async () => {
+        await studentPageB.evaluate(
+          ({ attemptId, roomId, callerId }) => {
+            const w = window as any;
+            const ch = (sb as any).channel(`notify-${callerId}`, { config: { private: true } });
+            ch.subscribe((status: string) => {
+              if (status === 'SUBSCRIBED') {
+                ch.send({ type: 'broadcast', event: 'decline', payload: { room_id: roomId, attempt_id: attemptId } });
+              }
+            });
+          },
+          { attemptId: staleAttemptId, roomId: staleRoomId, callerId: await teacherPage.evaluate(() => S.profile.id) },
+        );
+        checkpoint('call2-stale-decline-sent');
+      });
 
       // Attempt 2 must survive the stale broadcast untouched: still
       // ringing on A, teacher's active attempt id unchanged.
-      await teacherPage.waitForTimeout(3_000);
-      await expect(studentPageA.locator('#incomingCall')).toHaveClass(/show/, { timeout: 5_000 });
+      await test.step('call 2: wait for stale broadcast to (not) affect state', async () => {
+        await teacherPage.waitForTimeout(3_000);
+        checkpoint('call2-post-stale-wait');
+      });
+
+      await test.step('call 2: verify A survives stale broadcast', async () => {
+        try {
+          await expect(studentPageA.locator('#incomingCall')).toHaveClass(/show/, { timeout: 5_000 });
+        } catch (e) {
+          throw new Error(`[${lastCheckpoint}] A's ring did not survive the stale decline broadcast: ${(e as Error).message}\n${await captureFailureState(freshAttemptId)}`);
+        }
+        checkpoint('call2-A-survived-stale-broadcast');
+      });
+
       const teacherActiveAttemptId = await teacherPage.evaluate(() => S._callAttemptId ?? S.pendingCallAttemptId ?? null);
-      const freshRow = await fetchCallAttempt(studentPageA, freshAttemptId);
-      expect(freshRow?.state).toBe('ringing');
-      expect(teacherActiveAttemptId === freshAttemptId || teacherActiveAttemptId === null).toBe(true);
+
+      await test.step('call 2: verify DB state still ringing', async () => {
+        const freshRow = await fetchCallAttempt(studentPageA, freshAttemptId);
+        expect(freshRow?.state).toBe('ringing');
+        expect(teacherActiveAttemptId === freshAttemptId || teacherActiveAttemptId === null).toBe(true);
+        checkpoint('call2-db-still-ringing-confirmed');
+      });
 
       // Clean teardown.
-      await studentPageA.locator('#incomingCall .btn-red').click();
-      await expect(teacherPage.locator('#callWindow')).not.toHaveClass(/visible/, { timeout: 20_000 });
+      await test.step('call 2: teardown - student A declines', async () => {
+        await studentPageA.locator('#incomingCall .btn-red').click();
+        checkpoint('call2-A-clicked-decline');
+      });
+
+      await test.step('call 2: teardown - teacher call window closes', async () => {
+        try {
+          await expect(teacherPage.locator('#callWindow')).not.toHaveClass(/visible/, { timeout: 20_000 });
+        } catch (e) {
+          throw new Error(`[${lastCheckpoint}] teacher call window did not close after A declined: ${(e as Error).message}\n${await captureFailureState(freshAttemptId)}`);
+        }
+        checkpoint('call2-teardown-complete');
+      });
 
       rtTeacher.assertNoDuplicateSubscriptions();
       rtA.assertNoDuplicateSubscriptions();
