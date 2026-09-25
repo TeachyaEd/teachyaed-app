@@ -1,3 +1,27 @@
+> **2026-09-25 update: calling architecture superseded.** Wherever this
+> document describes `call_signals` + `call_room_participants` (trigger
+> populated, 2h TTL) as the authoritative signalling mechanism for 1:1
+> calls, that is no longer accurate. As of the `call_attempts` migration
+> (see `docs/ROLLBACK_READINESS.md` for the current production/staging
+> version state), **`call_attempts` is the authoritative call state
+> machine** for 1:1 calling: a durable table (`ringing`/`accepted`/
+> `declined`/`ended`/`failed`) written only via `SECURITY DEFINER` RPCs
+> (`start_call`, `accept_call`, `decline_call`, `end_call`, `fail_call`)
+> that derive caller/callee identity from `auth.uid()` server-side, never
+> from client-supplied values. Realtime delivery uses private Broadcast
+> channels (`notify-<profile_id>`) as a fast path plus Postgres Changes on
+> `call_attempts` as a fallback, authorized by `realtime.messages` RLS
+> policies. `call_signals` and `call_room_participants` still exist and
+> are still referenced by the legacy `realtime_room_select`/
+> `realtime_room_insert` policies for the separate `ty-cls-*` class-room
+> Broadcast path (unchanged, additive-only), but they are no longer the
+> mechanism 1:1 call signalling relies on. The rest of this document below
+> is preserved as the PHASE 0 discovery snapshot and should be read with
+> that correction in mind wherever it references `call_signals` as
+> authoritative for calling.
+
+---
+
 # TeachyaED — Legacy Frontend Migration Inventory
 
 Source of record: `index.html`, pinned to commit `86651cfe322900d695a00c78384db0cb1c7b7895`, fetched via GitHub Contents API (not raw.githubusercontent.com — known CDN staleness), 663,492 bytes / 11,206 lines / 5 `<script>` blocks, single file, no build step.

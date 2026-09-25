@@ -1,3 +1,39 @@
+# TeachyaED — Staging Environment
+
+> **2026-09-25 update: staging now exists and is in active use.** The
+> "BLOCKED / NOT YET CREATED" status and the rest of this document below
+> the banner are preserved as a historical record of the PHASE 0 discovery
+> finding, but they are no longer accurate. Current state:
+>
+> - A second, real Supabase project exists: **teachyaed-staging**
+>   (project ref `lqyetodkoxodwjyqxukq`), distinct from production
+>   (`juwvlyrepwdcndkqiqna`). It carries its own `call_attempts` schema,
+>   RLS policies and RPCs (`start_call`/`accept_call`/`decline_call`/
+>   `end_call`/`fail_call`), applied and verified independently of
+>   production.
+> - A GitHub Actions workflow, `.github/workflows/staging-e2e.yml` on the
+>   `call-attempts-architecture` branch, runs Playwright E2E specs against
+>   staging (`workflow_dispatch`-only, not yet wired into required checks
+>   on `main`). It covers P0 auth/session, schedule read, and the full
+>   `call_attempts` calling flow (signalling, accept/media, reload
+>   recovery, multi-tab, staleness), plus diagnostics.
+> - Test identities exist as GitHub Actions repo secrets:
+>   `STAGING_TEACHER_EMAIL`/`STAGING_TEACHER_PASSWORD`,
+>   `STAGING_STUDENT_EMAIL`/`STAGING_STUDENT_PASSWORD`, and
+>   `STAGING_SUPABASE_ANON_KEY`. **Still missing** (blocking the
+>   recovery/staleness/stranger-security/concurrency gates specifically):
+>   `STAGING_SERVICE_ROLE_KEY` (for fixture provisioning) and
+>   `STAGING_STRANGER_EMAIL`/`STAGING_STRANGER_PASSWORD`.
+> - Deploys remain manual for the legacy `index.html` client (GitHub web
+>   upload UI to `main`, no CI-driven deploy pipeline yet) — that part of
+>   the original finding below is still accurate.
+>
+> See `docs/ROLLBACK_READINESS.md` for the current production/staging
+> client and Edge Function version state, and the CI workflow file itself
+> for the exact job graph.
+
+---
+
 # TeachyaED — Staging Environment: STATUS = BLOCKED / NOT YET CREATED
 
 No staging environment or CI pipeline currently exists for TeachyaED. This is stated plainly rather than substituted with production, per explicit instruction: if staging can't be created now, block the phases that require it instead of testing against production.
