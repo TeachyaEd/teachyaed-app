@@ -168,36 +168,45 @@ check(
 }
 
 // ---------------------------------------------------------------------------
-// 5. 1:1 call insert (callContact) carries an explicit per-attempt UUID
+// 5. callContact() explicitly generates an attempt id and threads it through
+// the start_call RPC (call_attempts architecture). Replaces the old
+// "call_signals insert carries explicit id" check: callContact() no longer
+// inserts into call_signals at all for new calls — it calls
+// sb.rpc('start_call', {p_id: attemptId, ...}), so the explicit-id guarantee
+// now lives in the RPC call args instead of an insert() object literal.
 // ---------------------------------------------------------------------------
 {
   const body = extractFunctionBody(src, 'callContact');
   const hasUuid = !!body && /crypto\.randomUUID\(\)/.test(body);
-  const stmts = body ? extractTableStatements(body, 'call_signals').filter(s => s.includes('.insert(')) : [];
-  const insertHasId = stmts.some(s => {
-    const arg = extractInsertArg(s);
-    return arg && objectHasKey(arg, 'id');
-  });
+  const startCallMatch = body && body.match(/sb\.rpc\('start_call',\s*\{([^}]*)\}/);
+  const startCallArgs = startCallMatch ? startCallMatch[1] : '';
+  const rpcArgsCarryExplicitId = /p_id\s*:\s*attemptId\b/.test(startCallArgs);
   check(
-    'callContact() generates crypto.randomUUID() and 1:1 call_signals insert carries explicit id',
-    !!body && hasUuid && insertHasId,
-    !body ? 'callContact() not found' : `randomUUID present=${hasUuid}, insert has id key=${insertHasId}`
+    "callContact() generates crypto.randomUUID() and passes it as start_call's explicit p_id (call_attempts architecture)",
+    !!body && hasUuid && rpcArgsCarryExplicitId,
+    !body ? 'callContact() not found' : `randomUUID present=${hasUuid}, start_call p_id=attemptId=${rpcArgsCarryExplicitId}`
   );
 }
-
 // ---------------------------------------------------------------------------
-// 6. PG handler forwards sig.id and sig.from_profile_id into handleIncomingCall
+// 6. call_attempts changes are delivered via a server-filtered Postgres
+// Changes subscription (call_attempts architecture). Replaces the retired
+// "_ensurePgNotifyChannel() forwards sig.id/sig.from_profile_id" check —
+// that function no longer handles calls at all (see
+// _ensureCallAttemptsChannel() instead). The filter is evaluated
+// server-side against auth.uid(), so a row can only ever reach a client
+// whose own profile is the callee/caller — there is no client-supplied
+// identity to forward or spoof in the first place.
 // ---------------------------------------------------------------------------
 {
-  const body = extractFunctionBody(src, '_ensurePgNotifyChannel');
-  const ok = !!body && body.includes('sig.from_profile_id') && body.includes('sig.id') && body.includes('handleIncomingCall(');
+  const body = extractFunctionBody(src, '_ensureCallAttemptsChannel');
+  const insertFilterOk = !!body && /table:'call_attempts'[\s\S]{0,80}filter:`callee_profile_id=eq\.\${S\.profile\.id\}`/.test(body);
+  const forwardsRow = !!body && /_resolveCallerAndShow\(row\)/.test(body) && /_reconcileCallAttempt\(row\.id,row\)/.test(body);
   check(
-    '_ensurePgNotifyChannel() forwards sig.id and sig.from_profile_id to handleIncomingCall()',
-    ok,
-    !body ? '_ensurePgNotifyChannel() not found' : `has sig.from_profile_id=${body.includes('sig.from_profile_id')}, has sig.id=${body.includes('sig.id')}`
+    '_ensureCallAttemptsChannel() subscribes to call_attempts INSERT filtered server-side by callee_profile_id=eq.<own id> and forwards the authoritative row (call_attempts architecture)',
+    insertFilterOk && forwardsRow,
+    !body ? '_ensureCallAttemptsChannel() not found' : `server-filtered INSERT subscription=${insertFilterOk}, forwards authoritative row=${forwardsRow}`
   );
 }
-
 // ---------------------------------------------------------------------------
 // 7. Broadcast ring path re-reads call_signals authoritatively (does not trust
 //    raw broadcast payload for identity)
@@ -217,21 +226,25 @@ check(
 }
 
 // ---------------------------------------------------------------------------
-// 8. decline correlation requires BOTH room id and attempt id
+// 8. every call_attempts state transition is gated on the row's own id
+// matching client-tracked state (call_attempts architecture). Replaces the
+// old "decline correlation requires both room id and attempt id" check —
+// decline/end/fail now arrive over the same Postgres Changes UPDATE path as
+// check 6 rather than a separate broadcast 'decline' event, and
+// _reconcileCallAttempt() never acts on a row whose id doesn't match a
+// client-tracked attempt: S._callAttemptId (caller/in-call side) or
+// S.pendingCallAttemptId (callee/ringing side).
 // ---------------------------------------------------------------------------
 {
-  const body = extractFunctionBody(src, '_ensureBcNotifyChannel');
-  const declineMatch = body && body.match(/\.on\('broadcast',\{event:'decline'\}[\s\S]*?\}\)\s*\n\s*\.subscribe\(/);
-  const declineHandler = declineMatch ? declineMatch[0] : '';
-  const usesRoomId = declineHandler.includes('S._callRoomId');
-  const usesAttemptId = declineHandler.includes('S._callAttemptId');
+  const body = extractFunctionBody(src, '_reconcileCallAttempt');
+  const gatesOnCallerAttempt = !!body && /S\._callAttemptId===row\.id/.test(body);
+  const gatesOnPendingAttempt = !!body && /S\.pendingCallAttemptId===row\.id/.test(body);
   check(
-    'decline handler requires both S._callRoomId and S._callAttemptId to match before hangUp()',
-    usesRoomId && usesAttemptId,
-    !body ? '_ensureBcNotifyChannel() not found' : `uses room id=${usesRoomId}, uses attempt id=${usesAttemptId}`
+    "_reconcileCallAttempt() gates every state transition on the row's own id matching a client-tracked S._callAttemptId or S.pendingCallAttemptId (call_attempts architecture)",
+    gatesOnCallerAttempt && gatesOnPendingAttempt,
+    !body ? '_reconcileCallAttempt() not found' : `gates on S._callAttemptId===row.id=${gatesOnCallerAttempt}, gates on S.pendingCallAttemptId===row.id=${gatesOnPendingAttempt}`
   );
 }
-
 // ---------------------------------------------------------------------------
 // 9. PG/BC notification lifecycles remain decoupled (neither ensure-fn calls
 //    the other from inside its own body/retry path)
@@ -248,6 +261,7 @@ check(
   );
 }
 
+// ---------------------------------------------------------------------------
 // ---------------------------------------------------------------------------
 // 10. Bounded, single retry timer per channel (no unbounded fanout)
 // ---------------------------------------------------------------------------
