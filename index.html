@@ -5292,6 +5292,15 @@ async function hangUp(opts){
   C('jitsiFrame').src='about:blank';
   C('callWindow').classList.remove('visible');C('dialBtn').classList.remove('incall');C('dialBtn').textContent='📞';
   S.inCall=false;closeWb();
+  // multitab-04 fix (staging-only, UI-state only): hangUp() previously left
+  // #classroomView.open set after the call ended. Since enterClassLesson()
+  // (bound to every .ev-class-card click) always opens #classroomView as a
+  // full-screen position:fixed overlay, and cv_callPanel/the call button
+  // live inside it, a stale .open class permanently blocked pointer events
+  // on the class-card grid underneath, so a second call could never be
+  // started by returning to the class-card/call-start flow. This clears
+  // only the stale overlay state -- no RPC/Realtime/call-architecture change.
+  const _cvEl=C('classroomView');if(_cvEl)_cvEl.classList.remove('open');
   S.pendingRoom=null;
   S.pendingPartner=null;
   S.pendingCallerId=null;
