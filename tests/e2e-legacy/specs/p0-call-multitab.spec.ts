@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { attachErrorCollectors, assertNoUnexpectedErrors, type AllowedBadResponse } from '../helpers/error-collectors';
+import { attachErrorCollectors, assertNoUnexpectedErrors, type AllowedBadResponse, type AllowedRequestFailure } from '../helpers/error-collectors';
 import { attachRequestStormDetector, attachRealtimeSubscriptionTracker } from '../helpers/request-storm-detector';
 import { login, requireTeacherCredentials, requireStudentCredentials } from '../helpers/auth';
 
@@ -191,6 +191,56 @@ const CLASSROOM_VIEW_ALLOWED_BAD_RESPONSES: AllowedBadResponse[] = [
   { hostname: '127.0.0.1', status: 404, path: '/${_iUrl}' },
 ];
 
+// 2026-09-25 evidence (CI run 36151936045, serialized attempts 1-3, jobs
+// 108127083307 / (attempt-2 job) / (attempt-3 job); artifacts
+// diag-call-multitab-01-attempt-{1,2,3}-report): the Daily.co embedded
+// call UI (iframe at https://teachyaed.daily.co/, every request carrying
+// referer: https://teachyaed.daily.co/ and sec-fetch-dest: audio --
+// unambiguously the Daily SDK, not app code) preloads 3 call-UI sound
+// assets -- join.mp3, knock.mp3, error.mp3 -- from its CDN host
+// c.daily.co under a stable, SDK-version-pinned asset-bundle hash path.
+// Across all 3 independent serialized CI attempts (3 separate call
+// rooms/fixture instances), the exact same 3 URLs recurred byte-for-byte
+// (proving the hash is a stable SDK asset-bundle version, not
+// per-call-random), each with a full, successful HTTP 206 Partial
+// Content response already recorded on the SAME request (status 206,
+// Content-Length/Content-Range matching the complete asset size) before
+// Playwright's 'requestfailed' listener additionally reported
+// net::ERR_ABORTED on that same request -- the identical
+// response-then-requestfailed CDP/Chromium artifact already documented
+// and exempted above via ALLOWED_LOGOUT_ABORT in
+// p0-teacher-student.spec.ts for the 204 case (microsoft/playwright#42786
+// / #42787), here observed for 206. All 3 requests occurred only in the
+// teacher's browser context (trace context index 0 / teacherPage;
+// studentCtxA and studentCtxB never exhibited this signature), clustered
+// tightly around call teardown. No Daily media/join/call-specific
+// assertion in this spec failed in any of the 3 attempts -- execution
+// reached this final, generic network-error check every time, meaning
+// every earlier explicit assertion (call state, attempt/room id
+// convergence, DB row state) passed. This exact URL+failure signature
+// was not found in any other spec's CI logs. The exception below can
+// only match a request that (a) is a GET, (b) has one of these exact 3
+// URLs, (c) failed with exactly 'net::ERR_ABORTED', AND (d) already
+// received an HTTP response on the same request with status exactly 206
+// -- condition (d) alone rules out a genuinely broken/never-loaded
+// asset. Scoped deliberately narrow: applied only to teacherErrors
+// (where the aborts were observed) in multitab-01, and matches nothing
+// but these 3 exact URLs with this exact failure and exact responded
+// status. Must never be widened to other Daily hosts/paths/assets, to
+// generic ERR_ABORTED, or copied into other specs.
+const DAILY_AUDIO_PRELOAD_ABORT_HOSTPATH =
+  'https://c.daily.co/call-ui/14cb902192c59ebf192053434ea1f88ccf891063/';
+const ALLOWED_DAILY_AUDIO_PRELOAD_ABORTS: AllowedRequestFailure[] = [
+  'join.mp3',
+  'knock.mp3',
+  'error.mp3',
+].map((name) => ({
+  method: 'GET',
+  url: `${DAILY_AUDIO_PRELOAD_ABORT_HOSTPATH}${name}`,
+  failure: 'net::ERR_ABORTED',
+  requireRespondedStatus: 206,
+}));
+
 test.describe('CALL-MULTITAB -- duplicate-session behaviour for call_attempts (staging only)', () => {
   test('multitab-01: one incoming call reaches both student tabs, creates exactly one call_attempts row, and both tabs converge on the same attempt/room id', async ({ browser }) => {
     const teacherCtx = await browser.newContext();
@@ -252,7 +302,7 @@ test.describe('CALL-MULTITAB -- duplicate-session behaviour for call_attempts (s
       stripKnownBad(teacherErrors);
       stripKnownBad(studentAErrors);
       stripKnownBad(studentBErrors);
-      assertNoUnexpectedErrors(teacherErrors, { allowBadResponses: CLASSROOM_VIEW_ALLOWED_BAD_RESPONSES });
+      assertNoUnexpectedErrors(teacherErrors, { allowBadResponses: CLASSROOM_VIEW_ALLOWED_BAD_RESPONSES, allowRequestFailures: ALLOWED_DAILY_AUDIO_PRELOAD_ABORTS });
       assertNoUnexpectedErrors(studentAErrors, { allowBadResponses: CLASSROOM_VIEW_ALLOWED_BAD_RESPONSES });
       assertNoUnexpectedErrors(studentBErrors, { allowBadResponses: CLASSROOM_VIEW_ALLOWED_BAD_RESPONSES });
     } finally {
