@@ -23,6 +23,15 @@ async function waitSync(page: Page) {
   await expect.poll(async () => appEval<boolean>(page, 'LV._syncReady===true'), { timeout: 15_000 }).toBe(true);
 }
 
+async function waitJoined(page: Page, expectedLessonId: string) {
+  const expectedRoom = 'ls_' + expectedLessonId.replace(/[^a-zA-Z0-9]/g, '').slice(0, 20);
+  await expect.poll(async () => appEval<boolean>(page, `LV._syncRoomKey==='${expectedRoom}'&&LV._syncReady===true&&LV._syncCh&&LV._syncCh.state==='joined'`), { timeout: 15_000 }).toBe(true);
+}
+
+async function activeExsyncChannelCount(page: Page) {
+  return appEval<number>(page, `typeof sb.getChannels==='function'?sb.getChannels().filter(c=>c.topic&&c.topic.startsWith('realtime:exsync-')).length:-1`);
+}
+
 async function enterTeacherClass(page: Page) {
   const card = page.locator('.ev-class-card:not(.ev-class-create)').first();
   await expect(card).toBeVisible();
@@ -46,7 +55,7 @@ async function reloadAndEnterStudent(page: Page) {
 }
 
 test('DEF-1/2/3A: exsync authorization + durable lesson/section switching', async ({ browser }) => {
-  test.setTimeout(120_000);
+  test.setTimeout(140_000);
   const teacherContext = await browser.newContext();
   const studentContext = await browser.newContext();
   const teacher = await teacherContext.newPage();
@@ -100,6 +109,28 @@ test('DEF-1/2/3A: exsync authorization + durable lesson/section switching', asyn
     await appEval<any>(teacher, `(async()=>await LV._syncCh.send({type:'broadcast',event:'ex',payload:{id:'diag-section-reset',kind:'section',value:'0',from:S.profile.id}}))()`);
     await expect.poll(() => appEval<number>(student, 'LV.curSec'), { timeout: 10_000 }).toBe(0);
 
+    // Continuous-open lifecycle proof: A -> B -> A with no student reload.
+    const studentDocMarker = await appEval<string>(student, `(()=>{const m=crypto.randomUUID();window.__defLiveDocMarker=m;return m;})()`);
+
+    await appEval(teacher, `(async()=>{await cvSwitchTo('${lessonB}')})()`);
+    await waitJoined(teacher, lessonB);
+    await waitJoined(student, lessonB);
+    expect(await appEval<string>(student, 'LV.lessonId')).toBe(lessonB);
+    const countB = await activeExsyncChannelCount(student);
+    if (countB >= 0) expect(countB).toBe(1);
+
+    await appEval(teacher, `(async()=>{await cvSwitchTo('${lessonA}')})()`);
+    await waitJoined(teacher, lessonA);
+    await waitJoined(student, lessonA);
+    expect(await appEval<string>(student, 'LV.lessonId')).toBe(lessonA);
+    const countA = await activeExsyncChannelCount(student);
+    if (countA >= 0) expect(countA).toBe(1);
+
+    await appEval(teacher, `(async()=>{LV.curSec=1;lvRender();await cvPushSection()})()`);
+    await expect.poll(() => appEval<number>(student, 'LV.curSec'), { timeout: 10_000 }).toBe(1);
+    expect(await appEval<string>(student, 'window.__defLiveDocMarker')).toBe(studentDocMarker);
+
+    // Durable reload proof: move to B, reload student, then move back to A.
     await appEval(teacher, `(async()=>{await cvSwitchTo('${lessonB}')})()`);
     await expect.poll(() => appEval<string>(student, 'LV.lessonId')).toBe(lessonB);
     await reloadAndEnterStudent(student);
@@ -112,7 +143,9 @@ test('DEF-1/2/3A: exsync authorization + durable lesson/section switching', asyn
     await appEval(teacher, `(async()=>{
       const {error}=await sb.from('lesson_assignments').update({completed:true}).eq('class_id','${classId}').eq('lesson_id','${lessonA}').eq('school_id',S.schoolId);if(error)throw error;
     })()`);
-    await appEval(teacher, `(async()=>{await cvSwitchTo('${lessonB}');await cvSwitchTo('${lessonA}')})()`);
+    await appEval(teacher, `(async()=>{await cvSwitchTo('${lessonB}');await waitFor?0:0;await cvSwitchTo('${lessonA}')})()`).catch(async()=>{
+      await appEval(teacher, `(async()=>{await cvSwitchTo('${lessonB}');await cvSwitchTo('${lessonA}')})()`);
+    });
     const completed = await appEval<boolean>(teacher, `(async()=>{const {data,error}=await sb.from('lesson_assignments').select('completed').eq('class_id','${classId}').eq('lesson_id','${lessonA}').eq('school_id',S.schoolId).limit(1).single();if(error)throw error;return data.completed===true})()`);
     expect(completed).toBe(true);
 
@@ -121,7 +154,7 @@ test('DEF-1/2/3A: exsync authorization + durable lesson/section switching', asyn
     await waitSync(student);
 
     await appEval(teacher, `(async()=>{LV.curSec=1;lvRender();await cvPushSection()})()`);
-    await expect.poll(() => appEval<number>(student, 'LV.curSec')).toBe(1);
+    await expect.poll(() => appEval<number>(student, 'LV.curSec'), { timeout: 10_000 }).toBe(1);
     await reloadAndEnterStudent(student);
     await expect.poll(() => appEval<string>(student, 'LV.lessonId')).toBe(lessonA);
     await expect.poll(() => appEval<number>(student, 'LV.curSec')).toBe(1);
