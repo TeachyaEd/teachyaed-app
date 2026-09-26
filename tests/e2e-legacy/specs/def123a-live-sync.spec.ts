@@ -70,7 +70,6 @@ test('DEF-1/2/3A: exsync authorization + durable lesson/section switching', asyn
     await login(teacher, teacherCreds);
     await login(student, studentCreds);
 
-    // Diagnostic only: explicitly arm Realtime Authorization with the current session token.
     await setRealtimeAuth(teacher);
     await setRealtimeAuth(student);
 
@@ -132,20 +131,23 @@ test('DEF-1/2/3A: exsync authorization + durable lesson/section switching', asyn
 
     // Durable reload proof: move to B, reload student, then move back to A.
     await appEval(teacher, `(async()=>{await cvSwitchTo('${lessonB}')})()`);
+    await waitJoined(teacher, lessonB);
     await expect.poll(() => appEval<string>(student, 'LV.lessonId')).toBe(lessonB);
     await reloadAndEnterStudent(student);
     await expect.poll(() => appEval<string>(student, 'LV.lessonId')).toBe(lessonB);
     await waitSync(student);
 
     await appEval(teacher, `(async()=>{await cvSwitchTo('${lessonA}')})()`);
+    await waitJoined(teacher, lessonA);
     await expect.poll(() => appEval<string>(student, 'LV.lessonId')).toBe(lessonA);
 
     await appEval(teacher, `(async()=>{
       const {error}=await sb.from('lesson_assignments').update({completed:true}).eq('class_id','${classId}').eq('lesson_id','${lessonA}').eq('school_id',S.schoolId);if(error)throw error;
     })()`);
-    await appEval(teacher, `(async()=>{await cvSwitchTo('${lessonB}');await waitFor?0:0;await cvSwitchTo('${lessonA}')})()`).catch(async()=>{
-      await appEval(teacher, `(async()=>{await cvSwitchTo('${lessonB}');await cvSwitchTo('${lessonA}')})()`);
-    });
+    await appEval(teacher, `(async()=>{await cvSwitchTo('${lessonB}')})()`);
+    await waitJoined(teacher, lessonB);
+    await appEval(teacher, `(async()=>{await cvSwitchTo('${lessonA}')})()`);
+    await waitJoined(teacher, lessonA);
     const completed = await appEval<boolean>(teacher, `(async()=>{const {data,error}=await sb.from('lesson_assignments').select('completed').eq('class_id','${classId}').eq('lesson_id','${lessonA}').eq('school_id',S.schoolId).limit(1).single();if(error)throw error;return data.completed===true})()`);
     expect(completed).toBe(true);
 
