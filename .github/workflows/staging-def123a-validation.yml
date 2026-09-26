@@ -1,0 +1,88 @@
+name: Staging DEF-1 DEF-2 DEF-3A Validation
+
+on:
+  push:
+    branches:
+      - staging-def1-def2-def3a-fix
+  workflow_dispatch: {}
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      STAGING_SUPABASE_REF: lqyetodkoxodwjyqxukq
+      STAGING_SUPABASE_ANON_KEY: ${{ secrets.STAGING_SUPABASE_ANON_KEY }}
+      STAGING_TEACHER_EMAIL: ${{ secrets.STAGING_TEACHER_EMAIL }}
+      STAGING_TEACHER_PASSWORD: ${{ secrets.STAGING_TEACHER_PASSWORD }}
+      STAGING_STUDENT_EMAIL: ${{ secrets.STAGING_STUDENT_EMAIL }}
+      STAGING_STUDENT_PASSWORD: ${{ secrets.STAGING_STUDENT_PASSWORD }}
+      CI: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: tests/e2e-legacy/package-lock.json
+
+      - name: Verify required staging secrets
+        shell: bash
+        run: |
+          missing=()
+          [ -z "$STAGING_SUPABASE_ANON_KEY" ] && missing+=("STAGING_SUPABASE_ANON_KEY")
+          [ -z "$STAGING_TEACHER_EMAIL" ] && missing+=("STAGING_TEACHER_EMAIL")
+          [ -z "$STAGING_TEACHER_PASSWORD" ] && missing+=("STAGING_TEACHER_PASSWORD")
+          [ -z "$STAGING_STUDENT_EMAIL" ] && missing+=("STAGING_STUDENT_EMAIL")
+          [ -z "$STAGING_STUDENT_PASSWORD" ] && missing+=("STAGING_STUDENT_PASSWORD")
+          if [ ${#missing[@]} -ne 0 ]; then
+            printf 'Missing required staging secrets: %s\n' "${missing[*]}"
+            exit 1
+          fi
+
+      - name: Install dependencies
+        working-directory: tests/e2e-legacy
+        run: npm ci
+
+      - name: Generate patched staging artifact
+        working-directory: tests/e2e-legacy
+        run: node ci/generate-staging-artifact.mjs ../../index.html .staging-artifact
+
+      - name: Verify patched artifact is staging-only
+        working-directory: tests/e2e-legacy
+        shell: bash
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFileSync } from 'node:fs';
+          const s = readFileSync('.staging-artifact/index.html','utf8');
+          const staging = 'lqyetodkoxodwjyqxukq';
+          const prod = 'juwvlyrepwdcndkqiqna';
+          const required = [
+            "upsert(rows,{onConflict:'class_id,lesson_id,student_id',ignoreDuplicates:true})",
+            'current_section:LV.curSec||0',
+            "async function cvPushSection()",
+            'c.current_section',
+            'cached.current_section'
+          ];
+          if (s.includes(prod)) throw new Error('production Supabase ref remains in generated artifact');
+          if (!s.includes(staging)) throw new Error('staging Supabase ref missing from generated artifact');
+          for (const needle of required) if (!s.includes(needle)) throw new Error(`missing approved patch marker: ${needle}`);
+          console.log('artifact checks passed');
+          NODE
+
+      - name: Install Chromium
+        working-directory: tests/e2e-legacy
+        run: npx playwright install --with-deps chromium
+
+      - name: Run staging smoke
+        working-directory: tests/e2e-legacy
+        run: npx playwright test specs/smoke.spec.ts --project=chromium
+
+      - name: Run teacher/student P0
+        working-directory: tests/e2e-legacy
+        run: npx playwright test specs/p0-teacher-student.spec.ts --project=chromium
+
+      - name: Run session reload P0
+        working-directory: tests/e2e-legacy
+        run: npx playwright test specs/p0-session-reload.spec.ts --project=chromium
