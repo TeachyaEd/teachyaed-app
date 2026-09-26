@@ -33,6 +33,7 @@
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'fs';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
+import { applyDef123aPatch } from './patch-def1-def2-def3a.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -71,7 +72,12 @@ if (!existsSync(sourcePath)) {
   fail(`source index.html not found at ${sourcePath}`, 2);
 }
 
-const src = readFileSync(sourcePath, 'utf8');
+let src = readFileSync(sourcePath, 'utf8');
+try {
+  src = applyDef123aPatch(src);
+} catch (err) {
+  fail(err?.message || String(err));
+}
 
 // --- Step 1: sanity-check the overall occurrence count before touching anything ---
 const refOccurrences = (src.match(new RegExp(PROD_REF, 'g')) || []).length;
@@ -128,6 +134,7 @@ mkdirSync(outputDir, { recursive: true });
 writeFileSync(outputPath, out, 'utf8');
 
 console.log(`[generate-staging-artifact] PASS: wrote ${outputPath}`);
+console.log('[generate-staging-artifact] DEF-1/DEF-2/DEF-3A branch patch applied with exact-anchor checks');
 console.log(`[generate-staging-artifact] production ref occurrences before: ${refOccurrences} (all 4 anchors matched)`);
 console.log(`[generate-staging-artifact] production ref present after: false`);
 console.log(`[generate-staging-artifact] staging ref occurrences after: ${stagingRefOccurrences}`);
