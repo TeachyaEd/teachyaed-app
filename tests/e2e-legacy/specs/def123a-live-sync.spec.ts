@@ -69,22 +69,34 @@ test('DEF-1/2/3A: exsync authorization + durable lesson/section switching', asyn
     await enterTeacherClass(teacher);
     await enterStudentClass(student);
 
-    // DEF-3A: both legitimate participants must be able to subscribe to private exsync.
     await waitSync(teacher);
     await waitSync(student);
 
+    const teacherSync = await appEval<any>(teacher, `({room:LV._syncRoomKey,ready:LV._syncReady,state:LV._syncCh&&LV._syncCh.state,lesson:LV.lessonId,profile:S.profile&&S.profile.id})`);
+    const studentSync = await appEval<any>(student, `({room:LV._syncRoomKey,ready:LV._syncReady,state:LV._syncCh&&LV._syncCh.state,lesson:LV.lessonId,profile:S.profile&&S.profile.id})`);
+    console.log('[DEF123A sync diagnostic before]', JSON.stringify({teacherSync,studentSync,lessonA,lessonB}));
+    expect(teacherSync.room).toBe(studentSync.room);
+    expect(teacherSync.profile).not.toBe(studentSync.profile);
+
+    // Transport-level broadcast check independent of cvSwitchTo.
+    const directSend = await appEval<any>(teacher, `(async()=>await LV._syncCh.send({type:'broadcast',event:'ex',payload:{id:'diag-section',kind:'section',value:'1',from:S.profile.id}}))()`);
+    console.log('[DEF123A direct send result]', JSON.stringify(directSend));
+    await expect.poll(() => appEval<number>(student, 'LV.curSec'), { timeout: 10_000 }).toBe(1);
+    await appEval<any>(teacher, `(async()=>await LV._syncCh.send({type:'broadcast',event:'ex',payload:{id:'diag-section-reset',kind:'section',value:'0',from:S.profile.id}}))()`);
+    await expect.poll(() => appEval<number>(student, 'LV.curSec'), { timeout: 10_000 }).toBe(0);
+
     // DEF-1: A -> B must propagate live and survive student reload.
     await appEval(teacher, `(async()=>{await cvSwitchTo('${lessonB}')})()`);
+    const afterSwitch = await appEval<any>(teacher, `({room:LV._syncRoomKey,ready:LV._syncReady,state:LV._syncCh&&LV._syncCh.state,lesson:LV.lessonId})`);
+    console.log('[DEF123A teacher after cvSwitchTo]', JSON.stringify(afterSwitch));
     await expect.poll(() => appEval<string>(student, 'LV.lessonId')).toBe(lessonB);
     await reloadAndEnterStudent(student);
     await expect.poll(() => appEval<string>(student, 'LV.lessonId')).toBe(lessonB);
     await waitSync(student);
 
-    // Switch back to an already-known lesson; assigned_at bump must make A authoritative again.
     await appEval(teacher, `(async()=>{await cvSwitchTo('${lessonA}')})()`);
     await expect.poll(() => appEval<string>(student, 'LV.lessonId')).toBe(lessonA);
 
-    // Mark A completed, then B -> A again; current-lesson bumps must not reset completion.
     await appEval(teacher, `(async()=>{
       const {error}=await sb.from('lesson_assignments').update({completed:true}).eq('class_id','${classId}').eq('lesson_id','${lessonA}').eq('school_id',S.schoolId);if(error)throw error;
     })()`);
@@ -96,7 +108,6 @@ test('DEF-1/2/3A: exsync authorization + durable lesson/section switching', asyn
     await expect.poll(() => appEval<string>(student, 'LV.lessonId')).toBe(lessonA);
     await waitSync(student);
 
-    // DEF-2: section push must propagate live and survive reload.
     await appEval(teacher, `(async()=>{LV.curSec=1;lvRender();await cvPushSection()})()`);
     await expect.poll(() => appEval<number>(student, 'LV.curSec')).toBe(1);
     await reloadAndEnterStudent(student);
