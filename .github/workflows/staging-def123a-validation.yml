@@ -73,14 +73,19 @@ jobs:
         working-directory: tests/e2e-legacy
         run: npx playwright install --with-deps chromium
 
-      - name: Run staging smoke
+      - name: Run staging Chromium regression
         working-directory: tests/e2e-legacy
-        run: npx playwright test specs/smoke.spec.ts --project=chromium
-
-      - name: Run teacher/student P0
-        working-directory: tests/e2e-legacy
-        run: npx playwright test specs/p0-teacher-student.spec.ts --project=chromium
-
-      - name: Run session reload P0
-        working-directory: tests/e2e-legacy
-        run: npx playwright test specs/p0-session-reload.spec.ts --project=chromium
+        shell: bash
+        run: |
+          set -euo pipefail
+          node ci/serve-static.mjs .staging-artifact > /tmp/teachyaed-static.log 2>&1 &
+          SERVER_PID=$!
+          trap 'kill "$SERVER_PID" 2>/dev/null || true' EXIT
+          for i in $(seq 1 20); do
+            if curl -fsS http://127.0.0.1:4173/ >/dev/null; then break; fi
+            sleep 0.5
+          done
+          curl -fsS http://127.0.0.1:4173/ >/dev/null
+          npx playwright test specs/smoke.spec.ts --project=chromium
+          npx playwright test specs/p0-teacher-student.spec.ts --project=chromium
+          npx playwright test specs/p0-session-reload.spec.ts --project=chromium
