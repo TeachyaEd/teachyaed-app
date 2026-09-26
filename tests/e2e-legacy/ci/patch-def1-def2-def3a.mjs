@@ -106,7 +106,8 @@ const NEW_SWITCH = `async function cvSwitchTo(lessonId){
   C('cv_lessonName').textContent=l.title;
   lvRender();
   if(S._liveId){sb.from('class_live').update({lesson_id:l.id}).eq('id',S._liveId).eq('school_id',S.schoolId).then(({error})=>{if(error)console.warn('[live switch]',error);});}
-  lvSyncSend('lesson','lesson',l.id);
+  await lvSyncSend('lesson','lesson',l.id);
+  lvSyncInit('ls_'+String(l.id).replace(/[^a-zA-Z0-9]/g,'').slice(0,20));
   showToast('🔄 '+t('Материалы урока заменены')+': '+l.title);
 }`;
 
