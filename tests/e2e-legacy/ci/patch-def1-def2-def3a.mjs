@@ -142,6 +142,8 @@ const OLD_OPEN_C = `openClassroomView(c.lesson?.title||'Урок',_s,assignId,nu
 const NEW_OPEN_C = `openClassroomView(c.lesson?.title||'Урок',_s,assignId,null,_m,c.lesson?.id||null,c.current_section);`;
 const OLD_OPEN_CACHED = `openClassroomView(cached.lesson?.title||'Урок',_s,assignId,null,_m,cached.lesson?.id||null);`;
 const NEW_OPEN_CACHED = `openClassroomView(cached.lesson?.title||'Урок',_s,assignId,null,_m,cached.lesson?.id||null,cached.current_section);`;
+const OLD_LV_LESSON = `    } else if(p.kind==='lesson'&&p.value){\n      (async()=>{\n        try{\n          const{data:l}=await sb.from('lessons').select('*').eq('id',p.value).eq('school_id',S.schoolId).maybeSingle();\n          if(!l)return;\n          const{sections:_ns,materials:_nm}=_parseLessonContent(l.content);\n          LV.sections=_ns;LV.materials=Array.isArray(_nm)?_nm:[];LV.curSec=0;LV.curEx=0;LV.lessonId=l.id;window._matchState={};lvFilterForStudent();\n          const _mb=C('cv_matBtn');if(_mb)_mb.style.display=LV.materials.length?'':'none';\n          C('cv_lessonName').textContent=l.title;\n          lvRender();\n          showToast('🔄 '+t('Учитель сменил урок')+': '+l.title);\n        }catch(_e){console.warn('[exsync lesson]',_e);}\n      })();\n    }`;
+const NEW_LV_LESSON = `    } else if(p.kind==='lesson'&&p.value){\n      (async()=>{\n        try{\n          const _targetRoom='ls_'+String(p.value).replace(/[^a-zA-Z0-9]/g,'').slice(0,20);\n          if(p.value===LV.lessonId && LV._syncRoomKey===_targetRoom)return;\n          const{data:l}=await sb.from('lessons').select('*').eq('id',p.value).eq('school_id',S.schoolId).maybeSingle();\n          if(!l)return;\n          const{sections:_ns,materials:_nm}=_parseLessonContent(l.content);\n          LV.sections=_ns;LV.materials=Array.isArray(_nm)?_nm:[];LV.curSec=0;LV.curEx=0;LV.lessonId=l.id;window._matchState={};lvFilterForStudent();\n          const _mb=C('cv_matBtn');if(_mb)_mb.style.display=LV.materials.length?'':'none';\n          C('cv_lessonName').textContent=l.title;\n          lvRender();\n          showToast('🔄 '+t('Учитель сменил урок')+': '+l.title);\n          lvSyncInit(_targetRoom);\n        }catch(_e){console.warn('[exsync lesson]',_e);}\n      })();\n    }`;
 
 export function applyDef123aPatch(src) {
   let out = src;
@@ -151,5 +153,6 @@ export function applyDef123aPatch(src) {
   out = replaceExactlyOnce(out, OLD_OPEN, NEW_OPEN, 'openClassroomView signature/init');
   out = replaceExactlyOnce(out, OLD_OPEN_C, NEW_OPEN_C, 'openLessonView uncached call');
   out = replaceExactlyOnce(out, OLD_OPEN_CACHED, NEW_OPEN_CACHED, 'openLessonView cached call');
+  out = replaceExactlyOnce(out, OLD_LV_LESSON, NEW_LV_LESSON, 'lvSyncApply lesson rebind');
   return out;
 }
