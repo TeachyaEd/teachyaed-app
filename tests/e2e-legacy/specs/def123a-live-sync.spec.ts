@@ -8,6 +8,17 @@ async function appEval<T>(page: Page, expression: string): Promise<T> {
   return page.evaluate((expr) => (0, eval)(expr), expression) as Promise<T>;
 }
 
+async function setRealtimeAuth(page: Page) {
+  await appEval(page, `(async()=>{
+    const {data,error}=await sb.auth.getSession();
+    if(error)throw error;
+    const token=data&&data.session&&data.session.access_token;
+    if(!token)throw new Error('no access token for realtime.setAuth probe');
+    await sb.realtime.setAuth(token);
+    return true;
+  })()`);
+}
+
 async function waitSync(page: Page) {
   await expect.poll(async () => appEval<boolean>(page, 'LV._syncReady===true'), { timeout: 15_000 }).toBe(true);
 }
@@ -30,6 +41,7 @@ async function enterStudentClass(page: Page) {
 async function reloadAndEnterStudent(page: Page) {
   await page.reload();
   await expect(page.locator('#app')).toBeVisible();
+  await setRealtimeAuth(page);
   await enterStudentClass(page);
 }
 
@@ -48,6 +60,10 @@ test('DEF-1/2/3A: exsync authorization + durable lesson/section switching', asyn
   try {
     await login(teacher, teacherCreds);
     await login(student, studentCreds);
+
+    // Diagnostic only: explicitly arm Realtime Authorization with the current session token.
+    await setRealtimeAuth(teacher);
+    await setRealtimeAuth(student);
 
     const fixture = await appEval<{ classId: string; lessonA: string; lessonB: string }>(teacher, `(async()=>{
       const {data:classes,error:ce}=await sb.from('classes').select('id').eq('school_id',S.schoolId).eq('teacher_id',S.profile.id).limit(1);
@@ -78,17 +94,13 @@ test('DEF-1/2/3A: exsync authorization + durable lesson/section switching', asyn
     expect(teacherSync.room).toBe(studentSync.room);
     expect(teacherSync.profile).not.toBe(studentSync.profile);
 
-    // Transport-level broadcast check independent of cvSwitchTo.
     const directSend = await appEval<any>(teacher, `(async()=>await LV._syncCh.send({type:'broadcast',event:'ex',payload:{id:'diag-section',kind:'section',value:'1',from:S.profile.id}}))()`);
     console.log('[DEF123A direct send result]', JSON.stringify(directSend));
     await expect.poll(() => appEval<number>(student, 'LV.curSec'), { timeout: 10_000 }).toBe(1);
     await appEval<any>(teacher, `(async()=>await LV._syncCh.send({type:'broadcast',event:'ex',payload:{id:'diag-section-reset',kind:'section',value:'0',from:S.profile.id}}))()`);
     await expect.poll(() => appEval<number>(student, 'LV.curSec'), { timeout: 10_000 }).toBe(0);
 
-    // DEF-1: A -> B must propagate live and survive student reload.
     await appEval(teacher, `(async()=>{await cvSwitchTo('${lessonB}')})()`);
-    const afterSwitch = await appEval<any>(teacher, `({room:LV._syncRoomKey,ready:LV._syncReady,state:LV._syncCh&&LV._syncCh.state,lesson:LV.lessonId})`);
-    console.log('[DEF123A teacher after cvSwitchTo]', JSON.stringify(afterSwitch));
     await expect.poll(() => appEval<string>(student, 'LV.lessonId')).toBe(lessonB);
     await reloadAndEnterStudent(student);
     await expect.poll(() => appEval<string>(student, 'LV.lessonId')).toBe(lessonB);
