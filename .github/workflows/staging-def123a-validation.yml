@@ -48,13 +48,13 @@ jobs:
           const s=readFileSync('.staging-artifact/index.html','utf8');
           if(s.includes('juwvlyrepwdcndkqiqna')) throw new Error('production ref remains');
           if(!s.includes('lqyetodkoxodwjyqxukq')) throw new Error('staging ref missing');
-          for(const x of ["upsert(rows,{onConflict:'class_id,lesson_id,student_id',ignoreDuplicates:true})",'current_section:LV.curSec||0',"async function cvPushSection()",'c.current_section','cached.current_section']) if(!s.includes(x)) throw new Error('missing patch marker: '+x);
+          for(const x of ["upsert(rows,{onConflict:'class_id,lesson_id,student_id',ignoreDuplicates:true})",'current_section:LV.curSec||0',"async function cvPushSection()",'c.current_section','cached.current_section','LV._syncGen===_syncGen']) if(!s.includes(x)) throw new Error('missing patch marker: '+x);
           console.log('artifact checks passed');
           NODE
       - name: Install Chromium
         working-directory: tests/e2e-legacy
         run: npx playwright install --with-deps chromium
-      - name: Run exsync wire diagnostic
+      - name: Run targeted DEF-1 DEF-2 DEF-3A regression
         working-directory: tests/e2e-legacy
         shell: bash
         run: |
@@ -64,4 +64,17 @@ jobs:
           trap 'kill "$SERVER_PID" 2>/dev/null || true' EXIT
           for i in $(seq 1 20); do if curl -fsS http://127.0.0.1:4173/ >/dev/null; then break; fi; sleep 0.5; done
           curl -fsS http://127.0.0.1:4173/ >/dev/null
-          npx playwright test specs/diag-exsync-wire.spec.ts --project=chromium --retries=0
+          npx playwright test specs/def123a-live-sync.spec.ts --project=chromium --retries=0
+      - name: Run baseline Chromium regression
+        working-directory: tests/e2e-legacy
+        shell: bash
+        run: |
+          set -euo pipefail
+          node ci/serve-static.mjs .staging-artifact > /tmp/teachyaed-static-baseline.log 2>&1 &
+          SERVER_PID=$!
+          trap 'kill "$SERVER_PID" 2>/dev/null || true' EXIT
+          for i in $(seq 1 20); do if curl -fsS http://127.0.0.1:4173/ >/dev/null; then break; fi; sleep 0.5; done
+          curl -fsS http://127.0.0.1:4173/ >/dev/null
+          npx playwright test specs/smoke.spec.ts --project=chromium
+          npx playwright test specs/p0-teacher-student.spec.ts --project=chromium
+          npx playwright test specs/p0-session-reload.spec.ts --project=chromium
