@@ -89,3 +89,4 @@ jobs:
           npx playwright test specs/smoke.spec.ts --project=chromium
           npx playwright test specs/p0-teacher-student.spec.ts --project=chromium
           npx playwright test specs/p0-session-reload.spec.ts --project=chromium
+          npx playwright test specs/def123a-live-sync.spec.ts --project=chromium
