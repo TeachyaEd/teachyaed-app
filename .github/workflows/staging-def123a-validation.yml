@@ -24,8 +24,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: npm
-          cache-dependency-path: tests/e2e-legacy/package-lock.json
 
       - name: Verify required staging secrets
         shell: bash
@@ -43,7 +41,7 @@ jobs:
 
       - name: Install dependencies
         working-directory: tests/e2e-legacy
-        run: npm ci
+        run: npm install
 
       - name: Generate patched staging artifact
         working-directory: tests/e2e-legacy
