@@ -1,0 +1,95 @@
+name: Diagnostic — literal-placeholder request initiator capture
+
+on:
+  push:
+    branches:
+      - staging-ablation-p0-investigation
+  workflow_dispatch:
+    inputs:
+      iterations:
+        description: 'Number of repeated observation runs against the same clean artifact'
+        default: '15'
+
+jobs:
+  diag-initiator:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      STAGING_SUPABASE_REF: lqyetodkoxodwjyqxukq
+      STAGING_SUPABASE_ANON_KEY: ${{ secrets.STAGING_SUPABASE_ANON_KEY }}
+      STAGING_TEACHER_EMAIL: ${{ secrets.STAGING_TEACHER_EMAIL }}
+      STAGING_TEACHER_PASSWORD: ${{ secrets.STAGING_TEACHER_PASSWORD }}
+      STAGING_STUDENT_EMAIL: ${{ secrets.STAGING_STUDENT_EMAIL }}
+      STAGING_STUDENT_PASSWORD: ${{ secrets.STAGING_STUDENT_PASSWORD }}
+      CI: true
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Install e2e-legacy dependencies
+        working-directory: tests/e2e-legacy
+        run: npm install
+
+      - name: Generate the SAME clean artifact used in the identity check
+        working-directory: tests/e2e-legacy
+        run: |
+          git fetch origin main
+          git show origin/main:tests/e2e-legacy/ci/generate-staging-artifact.mjs > ci/generate-staging-artifact-main.mjs
+          node ci/generate-staging-artifact-main.mjs ../../index.html .diag-clean
+
+      - name: Install Chromium
+        working-directory: tests/e2e-legacy
+        run: npx playwright install --with-deps chromium
+
+      - name: Serve clean artifact
+        working-directory: tests/e2e-legacy
+        run: |
+          node ci/serve-static.mjs .diag-clean > /tmp/teachyaed-diag-static.log 2>&1 &
+          echo $! > /tmp/diag-server.pid
+          for i in $(seq 1 20); do
+            if curl -fsS http://127.0.0.1:4173/ >/dev/null; then break; fi
+            sleep 0.5
+          done
+          curl -fsS http://127.0.0.1:4173/ >/dev/null
+
+      - name: Run diagnostic spec repeatedly
+        working-directory: tests/e2e-legacy
+        env:
+          DIAG_TARGET_URL: http://127.0.0.1:4173/
+        run: |
+          set +e
+          ITER="${{ github.event.inputs.iterations }}"
+          if [ -z "$ITER" ]; then ITER=15; fi
+          for i in $(seq 1 "$ITER"); do
+            echo "=== diag iteration $i/$ITER ==="
+            DIAG_OUT_FILE="diag-initiator-capture-run${i}.jsonl" \
+              npx playwright test specs/diag-placeholder-404-initiator.spec.ts --project=chromium --retries=0
+          done
+          exit 0
+
+      - name: Stop static server
+        if: always()
+        working-directory: tests/e2e-legacy
+        run: kill "$(cat /tmp/diag-server.pid)" 2>/dev/null || true
+
+      - name: Summarize matches across all iterations
+        if: always()
+        working-directory: tests/e2e-legacy
+        run: |
+          echo "=== combined initiator captures across all iterations ==="
+          cat diag-initiator-capture-run*.jsonl 2>/dev/null || echo "(no matches captured in any iteration)"
+
+      - name: Upload capture files and Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: diag-placeholder-404-initiator-captures
+          path: |
+            tests/e2e-legacy/diag-initiator-capture-run*.jsonl
+            tests/e2e-legacy/playwright-report/**
+          retention-days: 14
+          if-no-files-found: warn
