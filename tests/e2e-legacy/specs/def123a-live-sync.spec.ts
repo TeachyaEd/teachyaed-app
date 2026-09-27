@@ -96,10 +96,26 @@ test('DEF-1/2/3A: exsync authorization + durable lesson/section switching', asyn
     await waitSync(teacher);
     await waitSync(student);
 
+    // Deterministically establish the shared precondition for the
+    // continuity proof below: both teacher and student joined to
+    // roomA, both applying lessonA. enterTeacherClass/enterStudentClass
+    // above only open whatever lesson each classroom view already
+    // happens to be on — not necessarily lessonA. Use the same
+    // cvSwitchTo() path the rest of this test already exercises for
+    // A/B switching, and the existing waitJoined() poll (no fixed
+    // sleep) to prove both clients actually reached roomA before
+    // asserting anything about room equality.
+    await appEval(teacher, `(async()=>{await cvSwitchTo('${lessonA}')})()`);
+    await waitJoined(teacher, lessonA);
+    await waitJoined(student, lessonA);
+    await expect.poll(() => appEval<string>(teacher, 'LV.lessonId'), { timeout: 15_000 }).toBe(lessonA);
+    await expect.poll(() => appEval<string>(student, 'LV.lessonId'), { timeout: 15_000 }).toBe(lessonA);
+
     const teacherSync = await appEval<any>(teacher, `({room:LV._syncRoomKey,ready:LV._syncReady,state:LV._syncCh&&LV._syncCh.state,lesson:LV.lessonId,profile:S.profile&&S.profile.id})`);
     const studentSync = await appEval<any>(student, `({room:LV._syncRoomKey,ready:LV._syncReady,state:LV._syncCh&&LV._syncCh.state,lesson:LV.lessonId,profile:S.profile&&S.profile.id})`);
-    console.log('[DEF123A sync diagnostic before]', JSON.stringify({teacherSync,studentSync,lessonA,lessonB}));
+    console.log('[DEF123A sync diagnostic after establishing lessonA]', JSON.stringify({teacherSync,studentSync,lessonA,lessonB}));
     expect(teacherSync.room).toBe(studentSync.room);
+    expect(teacherSync.room).toBe('ls_' + lessonA.replace(/[^a-zA-Z0-9]/g, '').slice(0, 20));
     expect(teacherSync.profile).not.toBe(studentSync.profile);
 
     const directSend = await appEval<any>(teacher, `(async()=>await LV._syncCh.send({type:'broadcast',event:'ex',payload:{id:'diag-section',kind:'section',value:'1',from:S.profile.id}}))()`);
