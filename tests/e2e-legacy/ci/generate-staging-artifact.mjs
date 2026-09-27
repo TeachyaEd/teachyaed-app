@@ -8,6 +8,7 @@ import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { applyDef123aPatch } from './patch-def1-def2-def3a.mjs';
 import { applyLvSyncLifecyclePatch } from './patch-lvsync-lifecycle.mjs';
+import { applyLvSyncSendAwaitPatch } from './patch-lvsync-send-await.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PROD_REF = 'juwvlyrepwdcndkqiqna';
@@ -36,6 +37,7 @@ let src=readFileSync(sourcePath,'utf8');
 try {
   src=applyDef123aPatch(src);
   src=applyLvSyncLifecyclePatch(src);
+  src=applyLvSyncSendAwaitPatch(src);
 } catch(err) { fail(err?.message||String(err)); }
 
 const refOccurrences=(src.match(new RegExp(PROD_REF,'g'))||[]).length;
@@ -61,7 +63,7 @@ if(!out.includes(`'${stagingKey}'`)) fail('staging key missing from createClient
 mkdirSync(outputDir,{recursive:true});
 writeFileSync(outputPath,out,'utf8');
 console.log(`[generate-staging-artifact] PASS: wrote ${outputPath}`);
-console.log('[generate-staging-artifact] DEF-1/DEF-2/DEF-3A + lvSync lifecycle patches applied');
+console.log('[generate-staging-artifact] DEF-1/DEF-2/DEF-3A + lvSync lifecycle + awaitable send patches applied');
 console.log(`[generate-staging-artifact] production ref occurrences before: ${refOccurrences}`);
 console.log('[generate-staging-artifact] production ref present after: false');
 console.log(`[generate-staging-artifact] staging ref occurrences after: ${stagingRefOccurrences}`);
