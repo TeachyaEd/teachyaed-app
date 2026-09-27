@@ -9,6 +9,7 @@ jobs:
   ablation:
     strategy:
       fail-fast: false
+      max-parallel: 1
       matrix:
         variant: [A, B, C, D]
     runs-on: ubuntu-latest
