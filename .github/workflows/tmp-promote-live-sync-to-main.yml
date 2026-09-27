@@ -1,0 +1,80 @@
+name: Temporary Promote Validated Live Sync To Main
+
+on:
+  push:
+    branches:
+      - staging-def1-def2-def3a-fix
+    paths:
+      - .github/workflows/tmp-promote-live-sync-to-main.yml
+
+permissions:
+  contents: write
+
+jobs:
+  promote:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout production main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Verify exact production base
+        shell: bash
+        run: |
+          set -euo pipefail
+          ACTUAL="$(git rev-parse HEAD)"
+          EXPECTED="e46577a2116d575dfc1742ad4ae831f9ee0d783a"
+          test "$ACTUAL" = "$EXPECTED" || { echo "main drifted: $ACTUAL != $EXPECTED"; exit 1; }
+
+      - name: Fetch validated staging transforms
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin staging-def1-def2-def3a-fix
+          mkdir -p /tmp/teachyaed-promote
+          for f in patch-def1-def2-def3a.mjs patch-lvsync-lifecycle.mjs patch-lvsync-send-await.mjs; do
+            git show origin/staging-def1-def2-def3a-fix:tests/e2e-legacy/ci/$f > /tmp/teachyaed-promote/$f
+          done
+
+      - name: Apply exact validated transforms to production index
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > /tmp/teachyaed-promote/apply.mjs <<'NODE'
+          import { readFileSync, writeFileSync } from 'node:fs';
+          import { applyDef123aPatch } from './patch-def1-def2-def3a.mjs';
+          import { applyLvSyncLifecyclePatch } from './patch-lvsync-lifecycle.mjs';
+          import { applyLvSyncSendAwaitPatch } from './patch-lvsync-send-await.mjs';
+          let src=readFileSync(process.cwd()+'/index.html','utf8');
+          src=applyDef123aPatch(src);
+          src=applyLvSyncLifecyclePatch(src);
+          src=applyLvSyncSendAwaitPatch(src);
+          writeFileSync(process.cwd()+'/index.html',src);
+          NODE
+          (cd /tmp/teachyaed-promote && node apply.mjs)
+
+      - name: Verify promotion scope and production config
+        shell: bash
+        run: |
+          set -euo pipefail
+          CHANGED="$(git diff --name-only)"
+          test "$CHANGED" = "index.html" || { echo "Unexpected changed files:"; printf '%s\n' "$CHANGED"; exit 1; }
+          grep -q "juwvlyrepwdcndkqiqna" index.html
+          if grep -q "lqyetodkoxodwjyqxukq" index.html; then echo "staging ref leaked into production index"; exit 1; fi
+          grep -q "async function cvPushSection()" index.html
+          grep -q "lesson_assignments_class_lesson_student_uniq\|onConflict:'class_id,lesson_id,student_id'" index.html
+          grep -q "LV._syncGen===_syncGen" index.html
+          grep -q "return Promise.resolve(_ch.send(_pl))" index.html
+          git diff --check
+
+      - name: Commit atomic production forward-fix
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "TeachyaEd"
+          git config user.email "teachya.english@gmail.com"
+          git add index.html
+          git commit -m "FORWARD-FIX: promote validated DEF-1/DEF-2/DEF-3A + live-sync lifecycle" -m "Promotes the green-gate staging client behavior atomically: durable lesson/section assignment, current_section resume, lesson-room rebind, lvSyncInit generation guard, and awaitable lvSyncSend. Production DB prerequisites were applied and verified first. No staging/test/CI files are included in this main commit."
+          git push origin HEAD:main
