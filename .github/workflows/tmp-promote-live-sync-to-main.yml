@@ -47,11 +47,12 @@ jobs:
           import { applyDef123aPatch } from './patch-def1-def2-def3a.mjs';
           import { applyLvSyncLifecyclePatch } from './patch-lvsync-lifecycle.mjs';
           import { applyLvSyncSendAwaitPatch } from './patch-lvsync-send-await.mjs';
-          let src=readFileSync(process.cwd()+'/index.html','utf8');
+          const target=process.env.GITHUB_WORKSPACE+'/index.html';
+          let src=readFileSync(target,'utf8');
           src=applyDef123aPatch(src);
           src=applyLvSyncLifecyclePatch(src);
           src=applyLvSyncSendAwaitPatch(src);
-          writeFileSync(process.cwd()+'/index.html',src);
+          writeFileSync(target,src);
           NODE
           (cd /tmp/teachyaed-promote && node apply.mjs)
 
@@ -64,7 +65,7 @@ jobs:
           grep -q "juwvlyrepwdcndkqiqna" index.html
           if grep -q "lqyetodkoxodwjyqxukq" index.html; then echo "staging ref leaked into production index"; exit 1; fi
           grep -q "async function cvPushSection()" index.html
-          grep -q "lesson_assignments_class_lesson_student_uniq\|onConflict:'class_id,lesson_id,student_id'" index.html
+          grep -q "onConflict:'class_id,lesson_id,student_id'" index.html
           grep -q "LV._syncGen===_syncGen" index.html
           grep -q "return Promise.resolve(_ch.send(_pl))" index.html
           git diff --check
