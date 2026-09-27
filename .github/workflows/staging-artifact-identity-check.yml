@@ -1,0 +1,71 @@
+name: Staging artifact identity check (main generator vs ablation generator, variant A)
+
+on:
+  workflow_dispatch: {}
+  push:
+    branches: [staging-ablation-p0-investigation]
+
+jobs:
+  identity-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      STAGING_SUPABASE_REF: lqyetodkoxodwjyqxukq
+      STAGING_SUPABASE_ANON_KEY: ${{ secrets.STAGING_SUPABASE_ANON_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 24 }
+
+      - name: Install e2e-legacy dependencies
+        working-directory: tests/e2e-legacy
+        run: npm install
+
+      - name: Fetch main's generate-staging-artifact.mjs (unmodified, original generator)
+        working-directory: tests/e2e-legacy
+        run: |
+          git fetch origin main
+          git show origin/main:tests/e2e-legacy/ci/generate-staging-artifact.mjs > ci/generate-staging-artifact-main.mjs
+
+      - name: Generate CLEAN artifact via main's original generator
+        working-directory: tests/e2e-legacy
+        run: node ci/generate-staging-artifact-main.mjs ../../index.html .identity-clean
+
+      - name: Generate variant A via ablation generator (no patches applied)
+        working-directory: tests/e2e-legacy
+        env:
+          ABLATION_VARIANT: A
+        run: node ci/generate-staging-artifact-ablation.mjs ../../index.html .identity-A
+
+      - name: SHA-256 of both generated index.html files
+        working-directory: tests/e2e-legacy
+        run: |
+          echo "=== main-generator output ==="
+          sha256sum .identity-clean/index.html
+          echo "=== ablation-generator variant A output ==="
+          sha256sum .identity-A/index.html
+
+      - name: cmp/diff the two generated files
+        working-directory: tests/e2e-legacy
+        run: |
+          set +e
+          cmp .identity-clean/index.html .identity-A/index.html
+          CMP_STATUS=$?
+          echo "cmp exit code: $CMP_STATUS"
+          if [ $CMP_STATUS -ne 0 ]; then
+            echo "--- diff output ---"
+            diff -u .identity-clean/index.html .identity-A/index.html || true
+          else
+            echo "Files are byte-identical."
+          fi
+          exit 0
+
+      - name: Upload both generated artifacts for inspection
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: identity-check-artifacts
+          path: |
+            tests/e2e-legacy/.identity-clean/index.html
+            tests/e2e-legacy/.identity-A/index.html
+          retention-days: 7
