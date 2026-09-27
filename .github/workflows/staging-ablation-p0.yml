@@ -2,6 +2,8 @@ name: Staging Ablation - P0 4-variant isolation (DEF-1/2/3A vs lvSync lifecycle)
 
 on:
   workflow_dispatch: {}
+  push:
+    branches: [staging-ablation-p0-investigation]
 
 jobs:
   ablation:
