@@ -7506,16 +7506,32 @@ async function cvSwitchTo(lessonId){
   closeM('mLessonPicker');
   const{data:l}=await sb.from('lessons').select('*').eq('id',lessonId).eq('school_id',S.schoolId).maybeSingle();
   if(!l){showToast(t('Урок не найден'),'error');return;}
+
+  let _durableOk=false;
+  try{
+    const{data:cs}=await sb.from('class_students').select('student_id').eq('class_id',S.currentClassId).eq('school_id',S.schoolId);
+    const stuIds=(cs||[]).map(c=>c.student_id).filter(Boolean);
+    if(stuIds.length){
+      const rows=stuIds.map(sid=>({school_id:S.schoolId,lesson_id:l.id,student_id:sid,class_id:S.currentClassId,completed:false}));
+      const{error:_upErr}=await sb.from('lesson_assignments').upsert(rows,{onConflict:'class_id,lesson_id,student_id',ignoreDuplicates:true});
+      if(_upErr)throw _upErr;
+      const{error:_bumpErr}=await sb.from('lesson_assignments').update({assigned_at:new Date().toISOString()}).eq('lesson_id',l.id).eq('class_id',S.currentClassId).eq('school_id',S.schoolId).in('student_id',stuIds);
+      if(_bumpErr)throw _bumpErr;
+    }
+    _durableOk=true;
+  }catch(e){console.warn('[cvSwitchTo] durable assign:',e);}
+  if(!_durableOk){showToast(t('Не удалось сохранить смену урока — попробуйте ещё раз'),'error');return;}
+
   window._lessonCache=window._lessonCache||{};window._lessonCache[l.id]=l;
   const{sections:_s,materials:_m}=_parseLessonContent(l.content);
   LV.sections=_s;LV.materials=Array.isArray(_m)?_m:[];LV.curSec=0;LV.curEx=0;LV.lessonId=l.id;window._matchState={};lvFilterForStudent();
   const matBtn=C('cv_matBtn');if(matBtn)matBtn.style.display=LV.materials.length?'':'none';
   C('cv_lessonName').textContent=l.title;
   lvRender();
-  showToast('🔄 '+t('Материалы урока заменены')+': '+l.title);
-  // Live-сессия: обновляем урок и переключаем учеников
   if(S._liveId){sb.from('class_live').update({lesson_id:l.id}).eq('id',S._liveId).eq('school_id',S.schoolId).then(({error})=>{if(error)console.warn('[live switch]',error);});}
-  lvSyncSend('lesson','lesson',l.id);
+  await lvSyncSend('lesson','lesson',l.id);
+  lvSyncInit('ls_'+String(l.id).replace(/[^a-zA-Z0-9]/g,'').slice(0,20));
+  showToast('🔄 '+t('Материалы урока заменены')+': '+l.title);
 }
 
 // Запуск конкретного урока (из вкладки «Программа»)
@@ -7533,23 +7549,30 @@ async function cdpPickLesson(id){
   closeM('mLessonPicker');
   const l=window._lessonCache&&window._lessonCache[id];
   if(!l){showToast('Ошибка: урок не найден в кэше','error');return;}
-  const className=S._currentClassData?.name||'Класс';
-  const{sections:_s,materials:_m}=_parseLessonContent(l.content);
-  openClassroomView(l.title,_s,null,className,_m,l.id);
-  LV.lessonId=l.id; // A3: для complete_lesson_for_class
-  startLiveLesson(l.id,l.title); // 🔴 live: ученики увидят баннер «Урок идёт»
 
-  // Автоматически назначаем урок всем ученикам класса — учитель просто выбрал урок, и он сразу виден ученику
+  let _assignOk=false;
   try{
     const{data:cs}=await sb.from('class_students').select('student_id').eq('class_id',S.currentClassId).eq('school_id',S.schoolId);
     const stuIds=(cs||[]).map(c=>c.student_id).filter(Boolean);
     if(stuIds.length){
-      const{data:existing}=await sb.from('lesson_assignments').select('student_id').eq('lesson_id',l.id).eq('class_id',S.currentClassId).eq('school_id',S.schoolId).in('student_id',stuIds);
-      const already=new Set((existing||[]).map(e=>e.student_id));
-      const toInsert=stuIds.filter(sid=>!already.has(sid)).map(sid=>({school_id:S.schoolId,lesson_id:l.id,student_id:sid,class_id:S.currentClassId,completed:false}));
-      if(toInsert.length)await sb.from('lesson_assignments').insert(toInsert);
+      const rows=stuIds.map(sid=>({school_id:S.schoolId,lesson_id:l.id,student_id:sid,class_id:S.currentClassId,completed:false}));
+      const{error:_upErr}=await sb.from('lesson_assignments').upsert(rows,{onConflict:'class_id,lesson_id,student_id',ignoreDuplicates:true});
+      if(_upErr)throw _upErr;
+      const{error:_bumpErr}=await sb.from('lesson_assignments').update({assigned_at:new Date().toISOString()}).eq('lesson_id',l.id).eq('class_id',S.currentClassId).eq('school_id',S.schoolId).in('student_id',stuIds);
+      if(_bumpErr)throw _bumpErr;
     }
+    _assignOk=true;
   }catch(e){console.warn('auto-assign lesson:',e);}
+  if(!_assignOk){
+    showToast(t('Не удалось сохранить назначение урока для учеников — урок не запущен, попробуйте ещё раз'),'error');
+    return;
+  }
+
+  const className=S._currentClassData?.name||'Класс';
+  const{sections:_s,materials:_m}=_parseLessonContent(l.content);
+  openClassroomView(l.title,_s,null,className,_m,l.id);
+  LV.lessonId=l.id;
+  startLiveLesson(l.id,l.title);
 }
 
 // ─── LIVE LESSON (живой урок класса) ─────────────────────────────────────────
@@ -8875,8 +8898,8 @@ function _parseLessonContent(content){
   return{sections:secs,materials:Array.isArray(raw?.materials)?raw.materials:[]};
 }
 
-function openClassroomView(title,sections,assignId,studentName,materials,lessonId){
-  LV.sections=sections;LV.materials=Array.isArray(materials)?materials:[];LV.curSec=0;LV.curEx=0;LV.assignId=assignId;LV.lessonId=lessonId||null;LV.viewAll=false;
+function openClassroomView(title,sections,assignId,studentName,materials,lessonId,initSection){
+  LV.sections=sections;LV.materials=Array.isArray(materials)?materials:[];LV.curSec=(typeof initSection==='number'&&initSection>=0&&initSection<(sections||[]).length)?initSection:0;LV.curEx=0;LV.assignId=assignId;LV.lessonId=lessonId||null;LV.viewAll=false;
   LV.hwId=null;LV.hwAnswers={};if(lessonId){LV._hwFromLesson=null;LV._lesBackup=null;}try{var _hsp=document.getElementById('hwSidePanel');if(_hsp)_hsp.remove();}catch(e){}if(LV._hwCh){try{sb.removeChannel(LV._hwCh);}catch(e){}LV._hwCh=null;}
   lvFilterForStudent();
   const matBtn=C('cv_matBtn');if(matBtn)matBtn.style.display=LV.materials.length?'':'none';
@@ -8954,13 +8977,13 @@ async function openLessonView(assignId){
       if(!c)return;
       const{sections:_s,materials:_m}=_parseLessonContent(c.lesson?.content||[]);
       if(S.role==='student')await _resolveClassForLesson(c.lesson?.id||null);
-      openClassroomView(c.lesson?.title||'Урок',_s,assignId,null,_m,c.lesson?.id||null);
+      openClassroomView(c.lesson?.title||'Урок',_s,assignId,null,_m,c.lesson?.id||null,c.current_section);
     }).catch(e=>showToast('Ошибка загрузки: '+(e?.message||e),'error'));
     return;
   }
   const{sections:_s,materials:_m}=_parseLessonContent(cached.lesson?.content||[]);
   if(S.role==='student')await _resolveClassForLesson(cached.lesson?.id||null);
-  openClassroomView(cached.lesson?.title||'Урок',_s,assignId,null,_m,cached.lesson?.id||null);
+  openClassroomView(cached.lesson?.title||'Урок',_s,assignId,null,_m,cached.lesson?.id||null,cached.current_section);
 }
 
 // ── Служебные разделы урока: «Для домашней работы» и «Дополнительно» ──
@@ -9562,12 +9585,28 @@ if(b.type==='word_order'){
 
 // ─── LIVE-СИНХРОНИЗАЦИЯ УПРАЖНЕНИЙ (учитель ↔ ученик видят один ввод) ────────
 // Учитель переключает раздел у учеников
-function cvPushSection(){
+async function cvPushSection(){
   if(!['teacher','admin','owner'].includes(S.role))return;
-  lvSyncSend('section','section',LV.curSec||0);
+  let _durableOk=false;
+  try{
+    if(LV.lessonId&&S.currentClassId){
+      const{data:cs}=await sb.from('class_students').select('student_id').eq('class_id',S.currentClassId).eq('school_id',S.schoolId);
+      const stuIds=(cs||[]).map(c=>c.student_id).filter(Boolean);
+      if(stuIds.length){
+        const rows=stuIds.map(sid=>({school_id:S.schoolId,lesson_id:LV.lessonId,student_id:sid,class_id:S.currentClassId,completed:false}));
+        const{error:_upErr}=await sb.from('lesson_assignments').upsert(rows,{onConflict:'class_id,lesson_id,student_id',ignoreDuplicates:true});
+        if(_upErr)throw _upErr;
+        const{error:_secErr}=await sb.from('lesson_assignments').update({assigned_at:new Date().toISOString(),current_section:LV.curSec||0}).eq('lesson_id',LV.lessonId).eq('class_id',S.currentClassId).eq('school_id',S.schoolId).in('student_id',stuIds);
+        if(_secErr)throw _secErr;
+      }
+    }
+    _durableOk=true;
+  }catch(e){console.warn('[push section durable]:',e);}
+  if(!_durableOk){showToast(t('Не удалось сохранить раздел — попробуйте ещё раз'),'error');return;}
   if(LV.lessonId&&S.currentClassId){
     sb.from('class_live').update({cur_section:LV.curSec||0}).eq('lesson_id',LV.lessonId).eq('class_id',S.currentClassId).eq('school_id',S.schoolId).eq('active',true).then(function(r){if(r&&r.error)console.warn('[push section persist]',r.error);});
   }
+  lvSyncSend('section','section',LV.curSec||0);
   showToast('👥 '+t('Ученики переключены на этот раздел'));
 }
 // Ответ ученика прилетел из базы — показываем его учителю прямо в упражнении
@@ -9649,6 +9688,7 @@ async function dictAddToLesson(pair){
 function lvSyncInit(roomKey){
   try{
     if(!roomKey)return;
+    LV._syncGen=(LV._syncGen||0)+1;const _syncGen=LV._syncGen;
     if(LV._syncCh){try{sb.removeChannel(LV._syncCh);}catch(e){}LV._syncCh=null;}
     LV._syncReady=false;
     LV._syncRoomKey=roomKey;
@@ -9658,7 +9698,7 @@ function lvSyncInit(roomKey){
         LV._syncReady=(status==='SUBSCRIBED');
         if(status==='CLOSED'||status==='CHANNEL_ERROR'||status==='TIMED_OUT'){
           LV._syncReady=false;
-          setTimeout(function(){if(LV._syncRoomKey===roomKey)lvSyncInit(roomKey);},1500);
+          setTimeout(function(){if(LV._syncGen===_syncGen&&LV._syncRoomKey===roomKey)lvSyncInit(roomKey);},1500);
         }
       });
     // Резервный канал: раздел храним прямо в class_live.cur_section — переживает обрыв broadcast-канала
@@ -9700,13 +9740,22 @@ function lvSyncSendDebounced(id,kind,value){
   _syncTimers[id]=setTimeout(()=>lvSyncSend(id,kind,value),200);
 }
 function lvSyncSend(id,kind,value,extra){
-  if(LV._syncApplying||!LV._syncCh)return;
+  if(LV._syncApplying||!LV._syncCh)return Promise.resolve();
   var _pl={type:'broadcast',event:'ex',payload:{id,kind,value:String(value==null?'':value).slice(0,2000),from:S.profile?.id||'',extra:extra||null}};
   var _ch=LV._syncCh;
   try{
-    if(LV._syncReady){_ch.send(_pl);}
-    else{setTimeout(function(){try{if(LV._syncCh===_ch)_ch.send(_pl);}catch(e){}},700);}
-  }catch(e){}
+    if(LV._syncReady){
+      return Promise.resolve(_ch.send(_pl)).catch(function(e){});
+    }
+    return new Promise(function(resolve){
+      setTimeout(function(){
+        try{
+          if(LV._syncCh===_ch){Promise.resolve(_ch.send(_pl)).then(function(){resolve();},function(){resolve();});}
+          else{resolve();}
+        }catch(e){resolve();}
+      },700);
+    });
+  }catch(e){return Promise.resolve();}
 }
 function lvSyncApply(p){
   if(!p||p.from===S.profile?.id)return;
@@ -9743,6 +9792,8 @@ function lvSyncApply(p){
       // Учитель сменил урок — подтягиваем новый контент
       (async()=>{
         try{
+          const _targetRoom='ls_'+String(p.value).replace(/[^a-zA-Z0-9]/g,'').slice(0,20);
+          if(p.value===LV.lessonId && LV._syncRoomKey===_targetRoom)return;
           const{data:l}=await sb.from('lessons').select('*').eq('id',p.value).eq('school_id',S.schoolId).maybeSingle();
           if(!l)return;
           const{sections:_ns,materials:_nm}=_parseLessonContent(l.content);
@@ -9751,6 +9802,7 @@ function lvSyncApply(p){
           C('cv_lessonName').textContent=l.title;
           lvRender();
           showToast('🔄 '+t('Учитель сменил урок')+': '+l.title);
+          lvSyncInit(_targetRoom);
         }catch(_e){console.warn('[exsync lesson]',_e);}
       })();
     }
