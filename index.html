@@ -4093,7 +4093,7 @@ async function callInviteFunction(email,role,firstName,lastName,opts={}){
       body:JSON.stringify({
         email,role,first_name:firstName,last_name:lastName,
         school_id:S.schoolId,
-        language:opts.language||'',level:opts.level||'A1',phone:opts.phone||'',
+        language:opts.language||'',level:opts.level||'A1',phone:opts.phone||'',auto_password:!!opts.autoPassword,
         redirect_to:window.location.origin+window.location.pathname
       }),
       signal:_invCtrl.signal
@@ -7174,6 +7174,31 @@ async function saveMaterial(){
 
 // ─── STUDENTS CRUD ────────────────────────────────────────────────────────────
 function openAddStudent(){['st_first','st_last','st_email','st_phone'].forEach(id=>C(id).value='');openM('mAddStudent');}
+function showStudentCreds(email,password,name){
+  const old=document.getElementById('studentCredsOv');if(old)old.remove();
+  const ov=document.createElement('div');
+  ov.id='studentCredsOv';
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:99999;display:flex;align-items:center;justify-content:center;padding:16px';
+  const box=document.createElement('div');
+  box.style.cssText='background:#fff;border-radius:20px;padding:28px;max-width:380px;width:100%;font-family:var(--font);box-shadow:0 20px 60px rgba(0,0,0,.3)';
+  const h=document.createElement('div');h.style.cssText='font-weight:800;font-size:1.15rem;margin-bottom:6px';h.textContent='Данные для входа';
+  const sub=document.createElement('div');sub.style.cssText='font-size:.85rem;color:#6b7280;margin-bottom:14px';sub.textContent=(name?name+' · ':'')+'пароль виден только сейчас — скопируй и отправь ученику. Ученик сможет сменить его в профиле.';
+  const pre=document.createElement('div');pre.style.cssText='background:#f3f0ff;border-radius:12px;padding:12px 14px;font-size:.95rem;line-height:1.7;word-break:break-all;user-select:all';
+  const l1=document.createElement('div');l1.textContent='Логин: '+email;
+  const l2=document.createElement('div');l2.textContent='Пароль: '+password;
+  const l3=document.createElement('div');l3.textContent='Вход: '+window.location.origin+window.location.pathname;
+  pre.append(l1,l2,l3);
+  const row=document.createElement('div');row.style.cssText='display:flex;gap:8px;margin-top:14px';
+  const cp=document.createElement('button');cp.className='btn btn-purple';cp.style.flex='1';cp.textContent='Копировать';
+  cp.onclick=async()=>{
+    const txt='Логин: '+email+'\nПароль: '+password+'\nВход: '+window.location.origin+window.location.pathname;
+    try{await navigator.clipboard.writeText(txt);cp.textContent='Скопировано ✓';}
+    catch(e){const r=document.createRange();r.selectNodeContents(pre);const sel=window.getSelection();sel.removeAllRanges();sel.addRange(r);cp.textContent='Выделено — нажми Cmd/Ctrl+C';}
+  };
+  const cl=document.createElement('button');cl.className='btn';cl.textContent='Закрыть';cl.onclick=()=>ov.remove();
+  row.append(cp,cl);
+  box.append(h,sub,pre,row);ov.append(box);document.body.append(ov);
+}
 async function saveStudent(){
   if(saveStudent._saving)return;saveStudent._saving=true;
   if(!['teacher','admin','owner'].includes(S.role)){showToast('Нет прав','error');saveStudent._saving=false;return;}
@@ -7192,10 +7217,11 @@ async function saveStudent(){
     closeM('mAddStudent');
     // Send invite email
     try{
-      await callInviteFunction(email,'student',f,l,{language:C('st_lang').value,level:C('st_level').value,phone:C('st_phone').value.trim()});
-      showToast('Ученик добавлен — письмо отправлено! 💌');
+      const _inv=await callInviteFunction(email,'student',f,l,{language:C('st_lang').value,level:C('st_level').value,phone:C('st_phone').value.trim(),autoPassword:true});
+      if(_inv&&_inv.password){showStudentCreds(_inv.email||email,_inv.password,(f+' '+l).trim());}
+      else showToast('Ученик добавлен — письмо отправлено! 💌');
     }catch(e){
-      showToast(t('Ученик добавлен, но письмо не отправлено:')+' '+e.message);
+      showToast(t('Ученик добавлен, но аккаунт не создан:')+' '+e.message);
     }
     if(S.screen==='a_students')renderAdminStudents();else if(S.screen==='o_students')renderOwnerStudents();
   }finally{
