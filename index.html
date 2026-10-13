@@ -11435,7 +11435,7 @@ function _vtMatchPick(side,idx){
 function _vtHide(){if(_vtBox){try{_vtBox.remove();}catch(e){}_vtBox=null;}}
 function _vtOnSelect(ev){
   try{
-    if(!S||S.role!=='student')return;
+    if(!S||(S.role!=='student'&&!_vtIsStaff()))return;
     if(_vtBox&&ev&&ev.target&&_vtBox.contains(ev.target))return;
     setTimeout(function(){
       const sel=window.getSelection();
@@ -11489,8 +11489,8 @@ async function _vtDoTranslate(txt,ctx,target,out,go){
   go.disabled=false;
   out.innerHTML='';
   const res=document.createElement('div');res.style.cssText='font-weight:700;color:var(--purple);margin-bottom:8px;word-break:break-word';res.textContent=tr;
-  const add=document.createElement('button');add.className='btn btn-green btn-sm';add.textContent='➕ '+_vl('В словарь','Add to dictionary');
-  add.onclick=function(){_vtSaveWord(txt,tr,ctx,target,add);};
+  const add=document.createElement('button');add.className='btn btn-green btn-sm';add.textContent=_vtIsStaff()?'➕ Добавить ученикам':'➕ '+_vl('В словарь','Add to dictionary');
+  add.onclick=function(){(_vtIsStaff()?_vtStaffSave:_vtSaveWord)(txt,tr,ctx,target,add);};
   out.append(res,add);
 }
 async function _vtSaveWord(word,tr,ctx,target,btn){
@@ -11516,6 +11516,103 @@ async function _vtSaveWord(word,tr,ctx,target,btn){
     }catch(e){}
   },0);
 })();
+
+// ─── STAFF VOCAB: teacher/admin/owner add translated words to students + view student dictionary ───
+function _vtIsStaff(){return !!S&&['teacher','admin','owner'].includes(S.role);}
+async function _vtProfilesForStudents(stuIds){
+  if(!stuIds||!stuIds.length)return[];
+  const{data:stu}=await sb.from('students').select('id,email,first_name,last_name').in('id',stuIds).eq('school_id',S.schoolId);
+  const byEmail={};(stu||[]).forEach(function(s){if(s.email)byEmail[String(s.email).toLowerCase()]=((s.first_name||'')+' '+(s.last_name||'')).trim();});
+  const emails=Object.keys(byEmail);
+  if(!emails.length)return[];
+  const{data:profs}=await sb.from('profiles').select('id,email').eq('school_id',S.schoolId).eq('role','student').in('email',emails);
+  return(profs||[]).map(function(p){return{id:p.id,name:byEmail[String(p.email||'').toLowerCase()]||''};});
+}
+async function _vtStaffTargets(){
+  let ids=[];
+  if(S._cvStudentId)ids=[S._cvStudentId];
+  else if(S.currentClassId){
+    const{data}=await sb.from('class_students').select('student_id').eq('class_id',S.currentClassId).eq('school_id',S.schoolId);
+    ids=(data||[]).map(function(x){return x.student_id;});
+  }
+  return _vtProfilesForStudents(ids);
+}
+async function _vtStaffSave(word,tr,ctx,target,btn){
+  btn.disabled=true;
+  const tg=await _vtStaffTargets();
+  if(!tg.length){showToast('Некому добавить: у учеников нет аккаунтов или не открыт класс','error');btn.disabled=false;return;}
+  let ok=0,dup=0,fail=0;
+  for(const p of tg){
+    const row={school_id:S.schoolId,student_profile_id:p.id,word:word.slice(0,200),translation:tr.slice(0,400),source:'translate',target_lang:target,context:ctx||null};
+    try{if(LV&&LV.lessonId)row.lesson_id=LV.lessonId;}catch(e){}
+    const r=await sb.from('student_vocab').insert(row);
+    if(!r.error)ok++;else if(r.error.code==='23505')dup++;else fail++;
+  }
+  btn.textContent='✓ '+ok+(dup?' (+'+dup+' уже было)':'');
+  showToast(fail?'Часть слов не добавлена ('+fail+')':'📚 Добавлено в словарь учеников: '+ok);
+  if(fail)btn.disabled=false;
+}
+function _svEl(tag,css,text){const e=document.createElement(tag);if(css)e.style.cssText=css;if(text!=null)e.textContent=text;return e;}
+async function openStudentVocab(studentId,name){
+  const old=document.getElementById('stVocabOv');if(old)old.remove();
+  const ov=_svEl('div','position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:99997;display:flex;align-items:center;justify-content:center;padding:16px');
+  ov.id='stVocabOv';
+  const box=_svEl('div','background:#fff;border-radius:20px;padding:22px;max-width:560px;width:100%;max-height:88vh;overflow:auto;font-family:var(--font);box-shadow:0 20px 60px rgba(0,0,0,.3)');
+  const top=_svEl('div','display:flex;justify-content:space-between;align-items:center;margin-bottom:12px');
+  top.append(_svEl('div','font-weight:800;font-size:1.1rem','📚 Словарь: '+(name||'')));
+  const cx=_svEl('button','background:none;border:none;font-size:1.2rem;cursor:pointer','✕');cx.onclick=function(){ov.remove();};
+  top.append(cx);
+  const body=_svEl('div','',null);body.append(_svEl('div','text-align:center;padding:20px;color:var(--text3)','Загрузка...'));
+  box.append(top,body);ov.append(box);document.body.append(ov);
+  ov.addEventListener('mousedown',function(e){if(e.target===ov)ov.remove();});
+  try{
+    const ps=await _vtProfilesForStudents([studentId]);
+    if(!ps.length){body.textContent='У ученика ещё нет аккаунта — словарь появится после первого входа.';return;}
+    const pid=ps[0].id;
+    const render=async function(){
+      const{data,error}=await sb.from('student_vocab').select('*').eq('student_profile_id',pid).order('created_at',{ascending:false}).limit(500);
+      body.innerHTML='';
+      if(error){body.textContent='Не удалось загрузить словарь';return;}
+      const rows=data||[];
+      const learned=rows.filter(function(r){return r.known_count>=3&&r.known_count>r.wrong_count;}).length;
+      const weak=rows.filter(function(r){return r.wrong_count>r.known_count;}).length;
+      let last=null;rows.forEach(function(r){if(r.last_trained_at&&(!last||r.last_trained_at>last))last=r.last_trained_at;});
+      const st=_svEl('div','display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px');
+      [['Слов',rows.length],['Выучено',learned],['Слабых',weak],['Тренировка',last?new Date(last).toLocaleDateString('ru-RU'):'—']].forEach(function(x){
+        const c=_svEl('div','background:#f3f0ff;border-radius:12px;padding:8px;text-align:center');
+        c.append(_svEl('div','font-weight:800;font-size:1.05rem',String(x[1])),_svEl('div','font-size:.72rem;color:var(--text3)',x[0]));st.append(c);
+      });
+      body.append(st);
+      const f=_svEl('div','display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap');
+      const iw=_svEl('input','flex:1;min-width:120px;padding:8px;border:1px solid var(--gray-border);border-radius:8px');iw.placeholder='Слово';iw.maxLength=200;
+      const it=_svEl('input','flex:1;min-width:120px;padding:8px;border:1px solid var(--gray-border);border-radius:8px');it.placeholder='Перевод';it.maxLength=400;
+      const ab=_svEl('button',null,'➕ Добавить');ab.className='btn btn-purple btn-sm';
+      ab.onclick=async function(){
+        const w=iw.value.trim(),tr=it.value.trim();if(!w||!tr)return;
+        ab.disabled=true;
+        const r=await sb.from('student_vocab').insert({school_id:S.schoolId,student_profile_id:pid,word:w,translation:tr,source:'manual'});
+        if(r.error&&r.error.code!=='23505'){showToast('Не удалось добавить','error');ab.disabled=false;return;}
+        render();
+      };
+      f.append(iw,it,ab);body.append(f);
+      if(!rows.length){body.append(_svEl('div','color:var(--text3);padding:10px','Пока пусто'));return;}
+      rows.forEach(function(r){
+        const row=_svEl('div','display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--gray-border)');
+        const tx=_svEl('div','flex:1;min-width:0;word-break:break-word');
+        tx.append(_svEl('span','font-weight:700',r.word),_svEl('span','color:var(--text3)',' — '+r.translation));
+        const sc=_svEl('div','font-size:.78rem;white-space:nowrap','✅ '+(r.known_count||0)+'  ❌ '+(r.wrong_count||0));
+        row.append(tx,sc);
+        if(r.source!=='lesson'){
+          const d=_svEl('button','background:none;border:none;cursor:pointer','🗑');
+          d.onclick=async function(){d.disabled=true;const x=await sb.from('student_vocab').delete().eq('id',r.id);if(x.error){showToast('Не удалось удалить','error');d.disabled=false;return;}render();};
+          row.append(d);
+        }
+        body.append(row);
+      });
+    };
+    await render();
+  }catch(e){body.textContent='Ошибка загрузки';}
+}
 
 // ─── FEATURE 4: PLACEMENT TEST ────────────────────────────────────────────────
 let _ptStudentId='',_ptStudentName='';
@@ -11721,6 +11818,7 @@ async function exportICal(){
     <div class="btn-row" style="flex-wrap:wrap;gap:8px">
       <button class="btn btn-purple" onclick="saveStudentCard()">💾 Сохранить</button>
       <button class="btn btn-outline" onclick="openStudentProgress(C('sc_student_id').value,C('sc_name_display').textContent)">📊 Прогресс</button>
+      <button class="btn btn-outline" onclick="openStudentVocab(C('sc_student_id').value,C('sc_name_display').textContent)">📚 Словарь</button>
       <button class="btn btn-outline" onclick="openPlacementTest(C('sc_student_id').value,C('sc_name_display').textContent)">🎯 Тест на уровень</button>
       <button class="btn btn-outline" onclick="closeM('mStudentCard')">Отмена</button>
     </div>
