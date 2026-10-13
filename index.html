@@ -411,6 +411,11 @@ body[data-theme="dark"] .wb-tool{color:var(--text2)}
 .qz-gap{display:inline-block;min-width:70px;padding:0 8px;margin:0 3px;border-bottom:2px solid var(--purple);text-align:center;font-weight:700}
 .qz-gap.ok{color:#065F46;background:var(--green-light);border-color:var(--green);border-radius:6px 6px 0 0}
 .qz-gap.bad{color:#991B1B;background:#FEE2E2;border-color:var(--red);border-radius:6px 6px 0 0}
+[id^="fb_res_"],[id^="tf_res_"],[id^="wb_res_"],[id^="wo_res_"],[id^="sq_res_"],[id^="match_res_"]{display:none!important}
+.ans-fix{display:inline-block;margin:0 4px;padding:1px 8px;border-radius:6px;background:var(--green-light);color:#065F46;font-weight:700;font-size:.85em;vertical-align:middle}
+.ans-fix::before{content:'\2713  '}
+.in-ok{border-color:var(--green)!important;background:var(--green-light)!important;color:#065F46!important}
+.in-bad{border-color:var(--red)!important;background:#FEE2E2!important;color:#991B1B!important}
 .tf-btn{padding:10px 28px;border:2px solid var(--gray-border);border-radius:10px;font-size:.95rem;font-weight:700;cursor:pointer;font-family:var(--font);transition:.15s;background:#fff}
 .tf-btn:hover{border-color:var(--purple);background:var(--purple-light)}
 .tf-btn.correct{border-color:var(--green);background:var(--green-light);color:#065F46}
@@ -9777,6 +9782,33 @@ function ceInsertQuizGap(){
   el.dispatchEvent(new Event('input',{bubbles:true}));
   el.focus();try{el.selectionStart=el.selectionEnd=a+3;}catch(e){}
 }
+function tyFix(el,text,where){
+  try{
+    if(!el)return;
+    var host=(where==='inside')?el:el.parentNode;if(!host)return;
+    var old=(where==='inside')?el.querySelector(':scope > .ans-fix'):(el.nextElementSibling&&el.nextElementSibling.classList.contains('ans-fix')?el.nextElementSibling:null);
+    if(old)old.remove();
+    if(!text)return;
+    var sp=document.createElement('span');sp.className='ans-fix';sp.textContent=text;
+    if(where==='inside')el.appendChild(sp);else el.insertAdjacentElement('afterend',sp);
+  }catch(e){}
+}
+function tyFbFixes(inputs,answer,ok){
+  var parts=String(answer||'').trim().split(/\s+/);
+  inputs.forEach(function(inp,bi){
+    var want=(inputs.length===1)?String(answer||'').trim():(parts[bi]||'');
+    var bad=!ok&&want&&inp.value.trim().toLowerCase()!==want.toLowerCase();
+    tyFix(inp,bad?want:'');
+    if(!ok&&inputs.length===1)tyFix(inp,want);
+  });
+}
+function tySqPaint(i){
+  var st=window['_sq_'+i];var box=document.getElementById('sq_list_'+i);if(!st||!box)return;
+  Array.prototype.forEach.call(box.children,function(row,pos){
+    row.classList.remove('in-ok','in-bad');row.classList.add(st.order[pos]===pos?'in-ok':'in-bad');
+    row.style.border='2px solid transparent';
+  });
+}
 // Ответ ученика показываем в самом упражнении (индивидуальный класс, ДЗ, сам ученик)
 function tyApplyInlineAnswer(exKey,answer,correct){
   try{
@@ -9812,12 +9844,14 @@ function tyApplyInlineAnswer(exKey,answer,correct){
     }
     if(b.type==='word_bank'){
       var wb=document.getElementById('wb_blank_'+k);if(!wb)return false;
-      if(ans)wb.textContent=ans;paint(wb);put('wb_res_'+k,verdict);return true;
+      if(ans)wb.textContent=ans;wb.classList.remove('in-ok','in-bad');if(correct===true||correct===false)wb.classList.add(correct?'in-ok':'in-bad');
+      tyFix(wb,correct===false?String(b.answer||''):'');return true;
     }
     if(b.type==='word_order'){
       var ws=document.getElementById('wo_sentence_'+k);if(!ws)return false;
-      if(ans){ws.innerHTML='<span></span>';var sp=ws.firstChild;sp.textContent=ans;paint(sp);}
-      put('wo_res_'+k,verdict);return true;
+      if(ans){ws.innerHTML='<span></span>';ws.firstChild.textContent=ans;}
+      ws.classList.remove('in-ok','in-bad');if(correct===true||correct===false)ws.classList.add(correct?'in-ok':'in-bad');
+      tyFix(ws,correct===false?String(b.correct||''):'','inside');return true;
     }
     if(b.type==='fill_blank'){
       var subs=Array.prototype.slice.call(document.querySelectorAll('[id^="fb_'+k+'_"]')).filter(function(x){return x.tagName==='INPUT';});
@@ -9827,15 +9861,27 @@ function tyApplyInlineAnswer(exKey,answer,correct){
         if(document.activeElement!==el)el.value=(subs.length===1)?ans:(parts[bi]||'');
         el.classList.toggle('correct',correct===true);el.classList.toggle('wrong',correct===false);
       });
-      put('fb_res_'+k,verdict);return true;
+      if(correct===true||correct===false)tyFbFixes(subs,String(b.answer||''),correct);return true;
     }
     if(b.type==='openq'||b.type==='video'){
       var oq=document.getElementById('oq_'+k)||document.getElementById('vq_'+k);if(!oq)return false;
       if(document.activeElement!==oq)oq.value=ans;return true;
     }
-    if(b.type==='matching'||b.type==='sequence'){
-      var rid=(b.type==='matching'?'match_res_':'sq_res_')+k;var rr=document.getElementById(rid);if(!rr)return false;
-      rr.innerHTML=verdict+(ans?' <span style="opacity:.85"></span>':'');if(ans&&rr.lastChild)rr.lastChild.textContent=ans;
+    if(b.type==='sequence'){
+      var sst=window['_sq_'+k];var sbox=document.getElementById('sq_list_'+k);if(!sst||!sbox)return false;
+      var names=ans.split(' \u2192 ');var ord=[];
+      names.forEach(function(nm){var ix=(sst.items||[]).findIndex(function(x,xi){return String(x).trim()===nm.trim()&&ord.indexOf(xi)<0;});if(ix>=0)ord.push(ix);});
+      if(ord.length===(sst.items||[]).length){sst.order=ord;sbox.innerHTML=sqRenderRows(k);}
+      tySqPaint(k);return true;
+    }
+    if(b.type==='matching'){
+      var mst=window._matchState&&window._matchState[k];if(!mst)return false;
+      var got=ans.replace(/\s*\(\d+\/\d+\)\s*$/,'').split(';').map(function(x){return x.trim();}).filter(Boolean);
+      (mst.pairs||[]).forEach(function(pp,pi){
+        if(got.indexOf(pp.left+' \u2192 '+pp.right)<0)return;
+        var l=document.getElementById('ml_'+k+'_'+pi);if(l)l.classList.add('matched');
+        var ri=(mst.rights||[]).indexOf(pp.right);var r=document.getElementById('mr_'+k+'_'+ri);if(r)r.classList.add('matched');
+      });
       return true;
     }
     return false;
@@ -10200,6 +10246,7 @@ function checkFillBlank(i,answer){
   const ans=answer.trim().toLowerCase();
   const correct=val===ans;
   inputs.forEach(inp=>{inp.classList.toggle('correct',correct);inp.classList.toggle('wrong',!correct);});
+  tyFbFixes(inputs,answer,correct);
   if(correct){res.innerHTML=`<span style="color:var(--green)">✅ ${t('Правильно!')}</span>`;}
   else{res.innerHTML=`<span style="color:var(--red)">❌ ${t('Неверно.')} ${t('Правильный ответ')}: <b>${_escHtml(answer)}</b></span>`;}
   saveLessonAnswer(i,'fill_blank',val,correct);
@@ -10275,6 +10322,7 @@ function checkWordOrder(i){
   const answer=st.chosen.map(c=>c.word).join(' ');
   const correct=st.correct.trim();
   const _woOk=answer.toLowerCase()===correct.toLowerCase();
+  const _wos=C(`wo_sentence_${i}`);if(_wos){_wos.classList.remove('in-ok','in-bad');_wos.classList.add(_woOk?'in-ok':'in-bad');tyFix(_wos,_woOk?'':correct,'inside');}
   C(`wo_res_${i}`).innerHTML=_woOk?
     `<span style="color:var(--green)">✅ ${t('Правильно!')}</span>`:
     `<span style="color:var(--red)">❌ ${t('Неверно.')} ${t('Правильно')}: <b>${_escHtml(correct)}</b></span>`;
@@ -10300,6 +10348,7 @@ function checkSequence(i){
   const st=window[`_sq_${i}`];if(!st)return;
   const ok=st.order.every((v,idx)=>v===idx);
   const answer=st.order.map(idx=>st.items[idx]).join(' → ');
+  tySqPaint(i);
   C(`sq_res_${i}`).innerHTML=ok?
     `<span style="color:var(--green)">✅ ${t('Правильно!')}</span>`:
     `<span style="color:var(--red)">❌ ${t('Неверно, попробуй ещё раз')}</span>`;
@@ -10320,6 +10369,7 @@ function checkWordBank(i){
   const st=window[`_wb_${i}`];if(!st)return;
   if(st.chosen==null){showToast(t('Сначала выбери слово'));return;}
   const ok=st.chosen.trim().toLowerCase()===st.correct.toLowerCase();
+  const _wbb=C(`wb_blank_${i}`);if(_wbb){_wbb.classList.remove('in-ok','in-bad');_wbb.classList.add(ok?'in-ok':'in-bad');tyFix(_wbb,ok?'':st.correct);}
   C(`wb_res_${i}`).innerHTML=ok?
     `<span style="color:var(--green)">✅ ${t('Правильно!')}</span>`:
     `<span style="color:var(--red)">❌ ${t('Неверно.')} ${t('Правильно')}: <b>${_escHtml(st.correct)}</b></span>`;
@@ -10328,7 +10378,7 @@ function checkWordBank(i){
 function resetWordBank(i){
   const st=window[`_wb_${i}`];if(!st)return;
   st.chosen=null;
-  const el=C(`wb_blank_${i}`);if(el)el.textContent='___';
+  const el=C(`wb_blank_${i}`);if(el){el.textContent='___';el.classList.remove('in-ok','in-bad');tyFix(el,'');}
   const res=C(`wb_res_${i}`);if(res)res.innerHTML='';
 }
 
