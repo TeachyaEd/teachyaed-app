@@ -416,6 +416,13 @@ body[data-theme="dark"] .wb-tool{color:var(--text2)}
 .ans-fix::before{content:'\2713  '}
 .in-ok{border-color:var(--green)!important;background:var(--green-light)!important;color:#065F46!important}
 .in-bad{border-color:var(--red)!important;background:#FEE2E2!important;color:#991B1B!important}
+#cv_exerciseContent,.cv-content-scroll>.cv-section-heading,.cv-content-scroll>.cv-mob-secs{max-width:780px;margin-left:auto;margin-right:auto}
+.cv-content-scroll{overflow-x:hidden}
+#cv_exerciseContent .lesson-view-block{max-width:100%;overflow-wrap:anywhere}
+#cv_exerciseContent img,#cv_exerciseContent video,#cv_exerciseContent iframe{max-width:100%}
+.oq-list{margin:2px 0 12px;padding-left:22px;line-height:1.55;font-size:.97rem}
+.oq-list li{margin:5px 0;padding-left:2px}
+.oq-oral{font-size:.78rem;color:var(--text3);margin-top:2px}
 .tf-btn{padding:10px 28px;border:2px solid var(--gray-border);border-radius:10px;font-size:.95rem;font-weight:700;cursor:pointer;font-family:var(--font);transition:.15s;background:#fff}
 .tf-btn:hover{border-color:var(--purple);background:var(--purple-light)}
 .tf-btn.correct{border-color:var(--green);background:var(--green-light);color:#065F46}
@@ -8634,9 +8641,12 @@ if(b.type==='word_order')return`
     <div class="form-group" style="margin:0"><label>Подпись (необяз.)</label>${ci(b.caption,'caption','Подпись к картинке...')}</div>`;
 
   if(b.type==='openq')return`
-    <div class="form-group" style="margin:0 0 8px"><label>Вопрос</label>
-    <textarea oninput="${P}.question=this.value" style="min-height:70px;width:100%;padding:8px 10px;border:2px solid var(--gray-border);border-radius:6px;font-family:var(--font)">${_escHtml(b.question||'')}</textarea></div>
-    <div style="font-size:.78rem;color:var(--text3)">Ученик напишет ответ в свободной форме</div>`;
+    <div class="form-group" style="margin:0 0 8px"><label>Вопросы — каждый с новой строки</label>
+    <textarea oninput="${P}.question=this.value" placeholder="What did you do last weekend?
+Where did you go?
+Who were you with?" style="min-height:110px;width:100%;padding:8px 10px;border:2px solid var(--gray-border);border-radius:6px;font-family:var(--font);line-height:1.5">${_escHtml(b.question||'')}</textarea></div>
+    <label style="display:flex;align-items:center;gap:8px;font-size:.85rem;cursor:pointer;margin-bottom:4px"><input type="checkbox" ${b.oral?'checked':''} onchange="${P}.oral=this.checked" style="width:16px;height:16px;accent-color:var(--purple)"> 🗣 Устное обсуждение (без поля для ответа)</label>
+    <div style="font-size:.78rem;color:var(--text3)">Несколько вопросов ученик увидит нумерованным списком</div>`;
 
   return'';
 }
@@ -9706,11 +9716,13 @@ if(b.type==='word_order'){
     ${_iUrl?`<img src="${_iUrl}" style="max-width:100%;border-radius:10px;display:block;margin:0 auto 8px">`:`<div style="text-align:center;padding:30px;color:var(--text3);border:2px dashed var(--gray-border);border-radius:10px">🖼 Изображение не добавлено</div>`}
     ${b.caption?`<p style="font-size:.85rem;color:var(--text3);text-align:center;margin:0">${_escHtml(b.caption)}</p>`:''}
   </div>`;}
-  if(b.type==='openq') return`<div class="lesson-view-block">
-    <div style="font-weight:700;margin-bottom:10px">💬 ${_escHtml(b.question||'Вопрос')}</div>
-    <textarea id="oq_${i}" style="width:100%;padding:10px 12px;border:2px solid var(--gray-border);border-radius:8px;font-family:var(--font);min-height:80px;font-size:.92rem" placeholder="Напиши свой ответ..."></textarea>
-    ${S.role==='student'?`<button class="btn btn-purple btn-sm" style="margin-top:8px" onclick="saveOpenAnswer('${i}','oq')">💾 ${t('Сохранить ответ')}</button><div id="oq_res_${i}" style="margin-top:6px;font-size:.85rem"></div>`:''}
-  </div>`;
+  if(b.type==='openq'){const _qs=oqQuestions(b.question);return`<div class="lesson-view-block">
+    ${_qs.length>1
+      ?`<div style="font-weight:700;margin-bottom:6px">💬 ${b.oral?t('Обсудите'):t('Ответь на вопросы')}</div><ol class="oq-list">${_qs.map(q=>`<li>${_escHtml(q)}</li>`).join('')}</ol>`
+      :`<div style="font-weight:700;margin-bottom:10px">💬 ${_escHtml(_qs[0]||'Вопрос')}</div>`}
+    ${b.oral?`<div class="oq-oral">🗣 ${t('Устно, без письменного ответа')}</div>`:`<textarea id="oq_${i}" style="width:100%;padding:10px 12px;border:2px solid var(--gray-border);border-radius:8px;font-family:var(--font);min-height:80px;font-size:.92rem" placeholder="Напиши свой ответ..."></textarea>
+    ${S.role==='student'?`<button class="btn btn-purple btn-sm" style="margin-top:8px" onclick="saveOpenAnswer('${i}','oq')">💾 ${t('Сохранить ответ')}</button><div id="oq_res_${i}" style="margin-top:6px;font-size:.85rem"></div>`:''}`}
+  </div>`;}
   return'';
 }
 
@@ -9769,6 +9781,14 @@ async function lvAnsBoard(){
     var host=document.getElementById('cvRightSidebar');if(!host)return;
     host.insertAdjacentHTML('afterbegin','<div id="lvAnsBoard"><div class="hw-side-hd">'+t('Прогресс учеников')+'</div>'+rows+'</div>');
   }catch(e){}
+}
+// Открытый вопрос: строки → список; одна строка с несколькими «?» тоже делится
+function oqQuestions(q){
+  var lines=String(q||'').split(/\r?\n/).map(function(x){return x.replace(/^\s*(?:\d+[.)]|[-•*])\s*/,'').trim();}).filter(Boolean);
+  if(lines.length===1&&(lines[0].match(/\?/g)||[]).length>1){
+    lines=lines[0].split(/(?<=\?)\s+/).map(function(x){return x.trim();}).filter(Boolean);
+  }
+  return lines;
 }
 // Тест: «___» в вопросе → пропуск, куда встаёт выбранный вариант
 function qzQuestionHtml(q,i){
