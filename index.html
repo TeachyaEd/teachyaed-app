@@ -9040,7 +9040,7 @@ async function lvPersistSections(){
 }
 function cvOpenHWSection(){return cvOpenSpecial("hw");}
 function cvOpenExtraSection(){return cvOpenSpecial("extra");}
-function cvOpenVocabSection(){return cvOpenSpecial("vocab");}
+/* cvOpenVocabSection moved to one-dictionary module */
 function cvOpenReflectSection(){return cvOpenSpecial("reflect");}
 async function cvOpenSpecial(kind){
   if(!["teacher","admin","owner"].includes(S.role)){showToast(t("Нет прав"),"error");return;}
@@ -11173,28 +11173,7 @@ async function renderStudentVocab(){
       if(r0.data&&r0.data.id)S.studentRowId=r0.data.id;
     }
     // 1) words from vocab blocks of lessons assigned to this student (live, so new cards appear at once)
-    const lessonWords=[];
-    if(S.studentRowId){
-      const ra=await sb.from('lesson_assignments').select('lesson_id').eq('student_id',S.studentRowId).eq('school_id',S.schoolId);
-      const lessonIds=Array.from(new Set((ra.data||[]).map(function(a){return a.lesson_id;}).filter(Boolean)));
-      if(lessonIds.length){
-        const rl=await sb.from('lessons').select('id,content').in('id',lessonIds).eq('school_id',S.schoolId);
-        (rl.data||[]).forEach(function(lesson){
-          let cont;try{cont=typeof lesson.content==='string'?JSON.parse(lesson.content):lesson.content;}catch(e){return;}
-          if(!cont||!Array.isArray(cont.sections))return;
-          cont.sections.forEach(function(sec){
-            if(!sec||!Array.isArray(sec.exercises))return;
-            sec.exercises.forEach(function(blk){
-              if(blk&&blk.type==='vocab'&&Array.isArray(blk.words)){
-                blk.words.forEach(function(w){
-                  if(w&&w.word&&w.trans)lessonWords.push({word:String(w.word).trim(),trans:String(w.trans).trim(),lesson_id:lesson.id});
-                });
-              }
-            });
-          });
-        });
-      }
-    }
+    const lessonWords=S.studentRowId?await _vtLessonWordsForStudent(S.studentRowId):[];
     if(S.screen!==snap)return;
     // 2) the student's saved dictionary
     const rs=await sb.from('student_vocab').select('*').eq('student_profile_id',S.profile.id).order('created_at',{ascending:false}).limit(3000);
@@ -11553,7 +11532,7 @@ async function _vtStaffSave(word,tr,ctx,target,btn){
   if(fail)btn.disabled=false;
 }
 function _svEl(tag,css,text){const e=document.createElement(tag);if(css)e.style.cssText=css;if(text!=null)e.textContent=text;return e;}
-async function openStudentVocab(studentId,name){
+async function openStudentVocab(studentId,name,ownPid){
   const old=document.getElementById('stVocabOv');if(old)old.remove();
   const ov=_svEl('div','position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:99997;display:flex;align-items:center;justify-content:center;padding:16px');
   ov.id='stVocabOv';
@@ -11566,9 +11545,10 @@ async function openStudentVocab(studentId,name){
   box.append(top,body);ov.append(box);document.body.append(ov);
   ov.addEventListener('mousedown',function(e){if(e.target===ov)ov.remove();});
   try{
-    const ps=await _vtProfilesForStudents([studentId]);
+    const ps=ownPid?[{id:ownPid}]:await _vtProfilesForStudents([studentId]);
     if(!ps.length){body.textContent='У ученика ещё нет аккаунта — словарь появится после первого входа.';return;}
     const pid=ps[0].id;
+    await _vtSyncLessonWords(studentId,pid);
     const render=async function(){
       const{data,error}=await sb.from('student_vocab').select('*').eq('student_profile_id',pid).order('created_at',{ascending:false}).limit(500);
       body.innerHTML='';
@@ -11612,6 +11592,72 @@ async function openStudentVocab(studentId,name){
     };
     await render();
   }catch(e){body.textContent='Ошибка загрузки';}
+}
+
+// ─── ONE DICTIONARY: lesson words (assignments + class lessons) shared by student view, teacher card and in-class button ───
+async function _vtLessonWordsForStudent(stuId){
+  const out=[];if(!stuId)return out;
+  const ids={};
+  const ra=await sb.from('lesson_assignments').select('lesson_id').eq('student_id',stuId).eq('school_id',S.schoolId);
+  (ra.data||[]).forEach(function(a){if(a.lesson_id)ids[a.lesson_id]=1;});
+  const rc=await sb.from('class_students').select('class_id').eq('student_id',stuId).eq('school_id',S.schoolId);
+  const cids=(rc.data||[]).map(function(c){return c.class_id;}).filter(Boolean);
+  if(cids.length){
+    const rl=await sb.from('class_lessons').select('lesson_id').in('class_id',cids).eq('school_id',S.schoolId);
+    (rl.data||[]).forEach(function(a){if(a.lesson_id)ids[a.lesson_id]=1;});
+  }
+  const lessonIds=Object.keys(ids);
+  if(!lessonIds.length)return out;
+  const rls=await sb.from('lessons').select('id,content').in('id',lessonIds).eq('school_id',S.schoolId);
+  (rls.data||[]).forEach(function(lesson){
+    let cont;try{cont=typeof lesson.content==='string'?JSON.parse(lesson.content):lesson.content;}catch(e){return;}
+    if(!cont||!Array.isArray(cont.sections))return;
+    cont.sections.forEach(function(sec){
+      if(!sec||!Array.isArray(sec.exercises))return;
+      sec.exercises.forEach(function(blk){
+        if(blk&&blk.type==='vocab'&&Array.isArray(blk.words)){
+          blk.words.forEach(function(w){if(w&&w.word&&w.trans)out.push({word:String(w.word).trim(),trans:String(w.trans).trim(),lesson_id:lesson.id});});
+        }
+      });
+    });
+  });
+  return out;
+}
+async function _vtSyncLessonWords(stuId,pid){
+  try{
+    const lw=await _vtLessonWordsForStudent(stuId);if(!lw.length)return;
+    const ex=await sb.from('student_vocab').select('word,translation').eq('student_profile_id',pid).limit(3000);
+    const seen={};(ex.data||[]).forEach(function(r){seen[_vkey(r.word,r.translation)]=1;});
+    const rows=[];
+    lw.forEach(function(w){const k=_vkey(w.word,w.trans);if(seen[k])return;seen[k]=1;rows.push({school_id:S.schoolId,student_profile_id:pid,word:w.word.slice(0,200),translation:w.trans.slice(0,400),source:'lesson',lesson_id:w.lesson_id});});
+    if(rows.length)await sb.from('student_vocab').insert(rows);
+  }catch(e){}
+}
+async function cvOpenVocabSection(){
+  if(S&&S.role==='student'){
+    if(!S.studentRowId&&S.profile&&S.profile.email){const r0=await sb.from('students').select('id').ilike('email',S.profile.email).eq('school_id',S.schoolId).maybeSingle();if(r0.data&&r0.data.id)S.studentRowId=r0.data.id;}
+    openStudentVocab(S.studentRowId,((S.profile.first_name||'')+' '+(S.profile.last_name||'')).trim(),S.profile.id);return;
+  }
+  if(!_vtIsStaff())return;
+  let ids=[];
+  if(S._cvStudentId)ids=[S._cvStudentId];
+  else if(S.currentClassId){
+    const r=await sb.from('class_students').select('student_id').eq('class_id',S.currentClassId).eq('school_id',S.schoolId);
+    ids=(r.data||[]).map(function(x){return x.student_id;});
+  }
+  if(!ids.length){showToast('В классе нет учеников','error');return;}
+  const rs=await sb.from('students').select('id,first_name,last_name').in('id',ids).eq('school_id',S.schoolId);
+  const list=(rs.data||[]).map(function(x){return{id:x.id,name:((x.first_name||'')+' '+(x.last_name||'')).trim()};});
+  if(list.length===1){openStudentVocab(list[0].id,list[0].name);return;}
+  const old=document.getElementById('stVocabPick');if(old)old.remove();
+  const ov=_svEl('div','position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:99996;display:flex;align-items:center;justify-content:center;padding:16px');
+  ov.id='stVocabPick';
+  const box=_svEl('div','background:#fff;border-radius:20px;padding:22px;max-width:380px;width:100%;max-height:80vh;overflow:auto;font-family:var(--font)');
+  box.append(_svEl('div','font-weight:800;margin-bottom:12px','📚 Чей словарь открыть?'));
+  list.forEach(function(p){const b=_svEl('button',null,p.name||'Ученик');b.className='btn btn-outline';b.style.cssText='display:block;width:100%;margin-bottom:8px';b.onclick=function(){ov.remove();openStudentVocab(p.id,p.name);};box.append(b);});
+  const c=_svEl('button',null,'Закрыть');c.className='btn';c.onclick=function(){ov.remove();};box.append(c);
+  ov.append(box);document.body.append(ov);
+  ov.addEventListener('mousedown',function(e){if(e.target===ov)ov.remove();});
 }
 
 // ─── FEATURE 4: PLACEMENT TEST ────────────────────────────────────────────────
