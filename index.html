@@ -5144,6 +5144,10 @@ async function _reconcileCallAttempt(attemptId,rowOpt){
   }
 }
 
+// Звонок «принадлежит» вкладке, где его приняли или откуда позвонили (sessionStorage — у каждой вкладки свой).
+// Автоматически вернуться в звонок (после перезагрузки) может только она; другие вкладки и устройства — нет.
+function _tyCallMark(id){try{if(id)sessionStorage.setItem('ty_call_'+id,'1');}catch(_e){}}
+function _tyCallMine(id){try{return !!id&&sessionStorage.getItem('ty_call_'+id)==='1';}catch(_e){return false;}}
 async function _reconcileActiveCallAttempt(){
   if(!S.profile?.id)return;
   // Guard against transient fetch failures right after login/reload (observed
@@ -5192,6 +5196,7 @@ async function _reconcileActiveCallAttempt(){
     return;
   }
   if(row.state==='ringing' && row.caller_profile_id===S.profile.id){
+    if(!_tyCallMine(row.id))return;
     S._restoredRingingIds=S._restoredRingingIds||new Set();
     if(S._restoredRingingIds.has(row.id))return;
     S._restoredRingingIds.add(row.id);
@@ -5199,6 +5204,7 @@ async function _reconcileActiveCallAttempt(){
     return;
   }
   if(row.state==='accepted' && (row.caller_profile_id===S.profile.id || row.callee_profile_id===S.profile.id)){
+    if(!_tyCallMine(row.id))return;
     S._rejoinedAttemptIds=S._rejoinedAttemptIds||new Set();
     if(S._rejoinedAttemptIds.has(row.id))return;
     S._rejoinedAttemptIds.add(row.id);
@@ -5277,6 +5283,7 @@ async function callContact(partnerId,partnerName,partnerRole){
   }
   S._callRoomId=roomId;
   S._callAttemptId=row.id;
+  _tyCallMark(row.id);
   const rPayload={from_name:`${S.profile.first_name} ${S.profile.last_name}`,from_role:S.role,room_id:roomId,from_id:S.profile?.id,attempt_id:row.id};
   const notifyCh=sb.channel(`notify-${ringId}`,{config:{private:true}});
   notifyCh.subscribe(st=>{
@@ -5316,6 +5323,7 @@ async function acceptCall(){
   S.inCall=true;  // close race window
   S._callRoomId=room;
   S._callAttemptId=attemptId;
+  _tyCallMark(attemptId);
   S.pendingRoom=null;S.pendingPartner=null;S.pendingCallerId=null;S.pendingCallAttemptId=null;
   await initCall(room,partner,true);
 }
