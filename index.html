@@ -11711,6 +11711,11 @@ async function _vtDoTranslate(txt,ctx,target,out,go){
     if(r.error||!r.data||!r.data.translation){
       const st=r.error&&r.error.context&&r.error.context.status;
       out.textContent=st===429?_vl('Слишком много запросов, подожди минуту','Too many requests, wait a minute'):(st===404?_vl('Переводчик ещё не подключён','Translator is not connected yet'):_vl('Не удалось перевести','Could not translate'));
+      try{
+        let _why='';
+        if(r.error&&r.error.context&&typeof r.error.context.json==='function'){const _j=await r.error.context.clone().json().catch(()=>null);if(_j)_why=_j.reason||_j.message||_j.error||'';}
+        if(_why||st){const _d=document.createElement('div');_d.style.cssText='font-size:.75rem;opacity:.75;margin-top:4px;word-break:break-word';_d.textContent=(_why?_why:'')+(st?(_why?' · ':'')+st:'');out.appendChild(_d);console.warn('[translate]',st,_why);}
+      }catch(_e){}
       go.disabled=false;return;
     }
     tr=String(r.data.translation);
