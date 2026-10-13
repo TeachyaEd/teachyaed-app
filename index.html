@@ -8,7 +8,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>TeachyaED v7</title>
+<title>Classvana</title>
 <!-- Единые шрифты на всех ОС (Windows/Mac/Linux/Android выглядят одинаково) -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -198,6 +198,9 @@ body[data-theme="dark"] .ev-class-card{background:var(--white)!important;border-
 .login-box input:focus{outline:none;border-color:var(--purple)}
 .btn-login{width:100%;padding:13px;background:linear-gradient(135deg,var(--purple),var(--pink));color:#fff;border:none;border-radius:var(--radius);font-size:1rem;font-weight:700;cursor:pointer;font-family:var(--font)}
 #loginErr{color:var(--pink);font-size:.85rem;margin-top:8px;text-align:center;display:none}
+.su-kind{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:10px 6px;border:2px solid var(--gray-border);border-radius:var(--radius);background:#fff;font-family:var(--font);font-size:.9rem;font-weight:700;cursor:pointer;color:#374151}
+.su-kind small{font-size:.72rem;font-weight:400;color:#6b7280}
+.su-kind.active{border-color:var(--purple);background:#f5f3ff;color:var(--purple)}
 /* ── INVITE / SET PASSWORD SCREEN ── */
 #inviteScreen{display:none;align-items:center;justify-content:center;min-height:100vh;background:linear-gradient(135deg,#7C3AED 0%,#EC4899 100%)}
 .invite-box{background:#fff;border-radius:20px;padding:40px;width:380px;box-shadow:0 20px 60px rgba(0,0,0,.2)}
@@ -1030,14 +1033,14 @@ body[data-theme="dark"] .badge-gray{background:rgba(255,255,255,.07)!important;c
 <body>
 <!-- Сплэш при загрузке: показывается пока проверяем сессию, чтобы логин не мигал -->
 <div id="bootSplash" style="position:fixed;inset:0;z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;background:linear-gradient(135deg,#7C3AED 0%,#EC4899 100%)">
-  <div style="font-size:2rem;font-weight:800;color:#fff;letter-spacing:-.5px">TeachyaED</div>
+  <div style="font-size:2rem;font-weight:800;color:#fff;letter-spacing:-.5px">Classvana</div>
   <div style="width:36px;height:36px;border:4px solid rgba(255,255,255,.35);border-top-color:#fff;border-radius:50%;animation:tySpin .8s linear infinite"></div>
 </div>
 <div id="loginScreen" style="display:none">
   <div class="login-box">
     <div class="login-logo">
-      <span>TeachyaED</span>
-      <p>Платформа языковой школы</p>
+      <span>Classvana</span>
+      <p>Платформа для школ и репетиторов</p>
       <p id="loginBuild" style="font-size:.65rem;opacity:.55;margin-top:4px"></p>
     </div>
     <!-- Login form -->
@@ -1048,6 +1051,27 @@ body[data-theme="dark"] .badge-gray{background:rgba(255,255,255,.07)!important;c
       <div id="loginErr">Неверный email или пароль</div>
       <div style="text-align:center;margin-top:14px">
         <button onclick="showForgotPw()" style="background:none;border:none;color:#7C3AED;font-size:.85rem;cursor:pointer;font-family:var(--font);text-decoration:underline">Забыли пароль?</button>
+      </div>
+      <div style="text-align:center;margin-top:18px;padding-top:14px;border-top:1px solid var(--gray-border);font-size:.85rem;color:#6b7280">Нет аккаунта?
+        <button onclick="showSignup()" style="background:none;border:none;color:#7C3AED;font-size:.85rem;font-weight:700;cursor:pointer;font-family:var(--font);text-decoration:underline">Зарегистрироваться бесплатно</button>
+      </div>
+    </div>
+    <!-- Signup form -->
+    <div id="signupForm" style="display:none">
+      <div style="display:flex;gap:8px;margin-bottom:12px">
+        <button type="button" class="su-kind" id="su_kind_tutor" onclick="setSignupKind('tutor')">🧑‍🏫 Я репетитор<small>работаю один</small></button>
+        <button type="button" class="su-kind" id="su_kind_school" onclick="setSignupKind('school')">🏫 Я школа<small>есть сотрудники</small></button>
+      </div>
+      <input type="text" id="su_school" placeholder="Название школы" maxlength="80" style="display:none">
+      <input type="text" id="su_first" placeholder="Имя" maxlength="60" autocomplete="given-name">
+      <input type="text" id="su_last" placeholder="Фамилия" maxlength="60" autocomplete="family-name">
+      <input type="email" id="su_email" placeholder="Email" autocomplete="email">
+      <input type="password" id="su_pass" placeholder="Пароль (мин. 8 символов)" autocomplete="new-password" onkeydown="if(event.key==='Enter')doSignup()">
+      <input type="text" id="su_website" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0">
+      <button class="btn-login" onclick="doSignup()" id="su_btn">Создать аккаунт</button>
+      <div id="su_msg" style="font-size:.85rem;text-align:center;margin-top:10px;display:none"></div>
+      <div style="text-align:center;margin-top:12px">
+        <button onclick="hideSignup()" style="background:none;border:none;color:#7C3AED;font-size:.85rem;cursor:pointer;font-family:var(--font);text-decoration:underline">← Уже есть аккаунт? Войти</button>
       </div>
     </div>
     <!-- Forgot password form -->
@@ -1067,11 +1091,11 @@ body[data-theme="dark"] .badge-gray{background:rgba(255,255,255,.07)!important;c
 <div id="inviteScreen">
   <div class="invite-box">
     <div class="inv-logo">
-      <span>TeachyaED</span>
+      <span>Classvana</span>
       <p style="color:var(--gray);font-size:.85rem;margin-top:4px">Добро пожаловать! 🎉</p>
     </div>
     <h3 id="inviteTitle" style="text-align:center;margin-bottom:6px;font-size:1.05rem">Создайте пароль</h3>
-    <p id="inviteSubtitle" style="text-align:center;font-size:.83rem;color:var(--text3);margin-bottom:16px">Вас пригласили в TeachyaED. Придумайте пароль для входа.</p>
+    <p id="inviteSubtitle" style="text-align:center;font-size:.83rem;color:var(--text3);margin-bottom:16px">Вас пригласили в Classvana. Придумайте пароль для входа.</p>
     <div class="inv-email" id="inv_email"></div>
     <input type="password" id="inv_pass1" placeholder="Новый пароль (мин. 8 символов)" autocomplete="new-password" onkeydown="if(event.key==='Enter')document.getElementById('inv_pass2').focus();">
     <input type="password" id="inv_pass2" placeholder="Повторите пароль" autocomplete="new-password" onkeydown="if(event.key==='Enter')setInvitePassword()">
@@ -1082,7 +1106,7 @@ body[data-theme="dark"] .badge-gray{background:rgba(255,255,255,.07)!important;c
 <div id="app">
   <div id="topBar">
     <button id="menuBtn" onclick="toggleSidebar()" aria-label="Меню">☰</button>
-    <div class="logo">TeachyaED</div>
+    <div class="logo">Classvana</div>
     <button id="userChip" onclick="openProfile()" style="display:flex;align-items:center;gap:8px;background:none;border:none;cursor:pointer;padding:4px 8px;border-radius:20px;transition:.15s" onmouseover="this.style.background='var(--gray-light)'" onmouseout="this.style.background='none'"><span id="userAvatar" style="width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.75rem;color:#fff;flex-shrink:0"></span><span id="userNameChip" style="font-size:.8rem;color:var(--text3);white-space:nowrap;max-width:120px;overflow:hidden;text-overflow:ellipsis"></span></button>
     <span id="roleChip"></span>
     <button id="notifBell" onclick="openNotifPanel()" title="Уведомления">🔔<span id="notifBadge"></span></button>
@@ -1964,7 +1988,7 @@ const TRANSLATIONS={
   'Войти в систему →':'Log in →',
   'Добро пожаловать!':'Welcome!',
   'добро пожаловать!':'Welcome!',
-  'Вас пригласили в TeachyaED. Придумайте пароль для входа.':'You have been invited to TeachyaED. Create a password to log in.',
+  'Вас пригласили в Classvana. Придумайте пароль для входа.':'You have been invited to Classvana. Create a password to log in.',
   'Создайте пароль':'Create a password',
   'Пароли не совпадают':'Passwords do not match',
   'Пароль должен быть не менее 8 символов':'Password must be at least 8 characters',
@@ -2627,7 +2651,7 @@ const TRANSLATIONS_GE={
   'Войти':'შესვლა','Войти в систему →':'სისტემაში შესვლა →',
   'Добро пожаловать!':'კეთილი იყოს თქვენი მობრძანება!',
   'добро пожаловать!':'კეთილი იყოს თქვენი მობრძანება!',
-  'Вас пригласили в TeachyaED. Придумайте пароль для входа.':'თქვენ მოწვეული ხართ TeachyaED-ში. შექმენი პაროლი.',
+  'Вас пригласили в Classvana. Придумайте пароль для входа.':'თქვენ მოწვეული ხართ Classvana-ში. შექმენი პაროლი.',
   'Создайте пароль':'შექმენი პაროლი',
   'Пароли не совпадают':'პაროლები არ ემთხვევა',
   'Пароль должен быть не менее 8 символов':'პაროლი მინ. 8 სიმბოლო',
@@ -3223,7 +3247,7 @@ function _applyLang(prevLang){
     a_students:renderAdminStudents,a_teachers:renderAdminTeachers,a_payments:renderPayments,a_salaries:renderSalaries,a_materials:renderMaterials,
     a_messages:renderMessenger,a_tasks:renderTasks,
     o_home:renderOwnerHome,o_classes:renderClasses,o_schedule:renderSchedule,
-    o_users:renderOwnerUsers,o_students:renderOwnerStudents,o_payments:renderPayments,o_salaries:renderSalaries,o_materials:renderMaterials,
+    o_users:renderOwnerUsers,o_platform:renderPlatformSchools,o_students:renderOwnerStudents,o_payments:renderPayments,o_salaries:renderSalaries,o_materials:renderMaterials,
     o_messages:renderMessenger,o_tasks:renderTasks,
     t_library:renderLibrary,a_library:renderLibrary,o_library:renderLibrary
   ,t_pd:renderPD,o_pd:renderPD};
@@ -3536,6 +3560,16 @@ const NAV={
   ,{sec:'Обучение'},{id:'o_pd',icon:'🎓',l:'Повышение квалификации'}]
 };
 const ROLE_L={owner:'Владелец',admin:'Администратор',teacher:'Учитель',student:'Ученик'};
+// Репетитор: нет сотрудников (пользователи, зарплаты). Владелец платформы видит «Школы».
+const TUTOR_HIDDEN=['o_users','o_salaries'];
+function _applySchoolKindNav(){
+  if(!NAV._ownerFull)NAV._ownerFull=NAV.owner;
+  let nav=NAV._ownerFull;
+  if(S.schoolKind==='tutor')nav=nav.filter(n=>!TUTOR_HIDDEN.includes(n.id));
+  if(S.role==='owner'&&S.schoolId==='00000000-0000-0000-0000-000000000001')nav=nav.concat([{sec:'Платформа'},{id:'o_platform',icon:'🌍',l:'Школы'}]);
+  NAV.owner=nav;
+  ROLE_L.owner=S.schoolKind==='tutor'?'Репетитор':'Владелец';
+}
 
 // ─── TOOL PANELS ──────────────────────────────────────────────────────────────
 const TOOL_CONTENT={
@@ -4007,7 +4041,7 @@ async function checkInviteToken(){
     C('inv_btn').textContent='Сохранить новый пароль';
   } else {
     C('inviteTitle').textContent='Создайте пароль';
-    C('inviteSubtitle').textContent='Вас пригласили в TeachyaED. Придумайте пароль для входа.';
+    C('inviteSubtitle').textContent='Вас пригласили в Classvana. Придумайте пароль для входа.';
     C('inv_btn').textContent='Войти в систему →';
   }
 
@@ -4031,6 +4065,45 @@ function showForgotPw(){
 function hideForgotPw(){
   C('forgotPwForm').style.display='none';
   C('loginForm').style.display='block';
+}
+// ─── САМОСТОЯТЕЛЬНАЯ РЕГИСТРАЦИЯ (школа / репетитор) ────────────────────────
+let _signupKind=null;
+function showSignup(){
+  C('loginForm').style.display='none';C('forgotPwForm').style.display='none';
+  C('signupForm').style.display='block';C('su_msg').style.display='none';
+  if(!C('su_email').value)C('su_email').value=C('loginEmail').value||'';
+}
+function hideSignup(){
+  C('signupForm').style.display='none';
+  C('loginForm').style.display='block';
+}
+function setSignupKind(k){
+  _signupKind=k;
+  C('su_kind_tutor').classList.toggle('active',k==='tutor');
+  C('su_kind_school').classList.toggle('active',k==='school');
+  C('su_school').style.display=k==='school'?'':'none';
+}
+function _suMsg(text,ok){const m=C('su_msg');m.textContent=text;m.style.color=ok?'var(--green)':'var(--pink)';m.style.display='block';}
+async function doSignup(){
+  const btn=C('su_btn');if(btn.disabled)return;
+  const body={kind:_signupKind,school_name:C('su_school').value.trim(),first_name:C('su_first').value.trim(),
+    last_name:C('su_last').value.trim(),email:C('su_email').value.trim(),password:C('su_pass').value,website:C('su_website').value};
+  if(!body.kind)return _suMsg('Выберите: репетитор или школа');
+  if(body.kind==='school'&&body.school_name.length<2)return _suMsg('Укажите название школы');
+  if(!body.first_name)return _suMsg('Укажите имя');
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(body.email))return _suMsg('Проверьте email');
+  if(body.password.length<8)return _suMsg('Пароль — минимум 8 символов');
+  btn.disabled=true;btn.textContent='Создаём...';
+  try{
+    const{data,error}=await sb.functions.invoke('register-school',{body});
+    let errText=data&&data.error;
+    if(error&&!errText){try{const j=await error.context.json();errText=j&&j.error;}catch(_e){}errText=errText||error.message;}
+    if(errText)return _suMsg(errText);
+    C('su_pass').value='';
+    _suMsg('Готово! Мы отправили письмо на '+body.email+'. Подтвердите почту и войдите.',true);
+    C('loginEmail').value=body.email;
+  }catch(e){_suMsg('Ошибка: '+(e&&e.message||e));}
+  finally{btn.disabled=false;btn.textContent='Создать аккаунт';}
 }
 async function sendResetEmail(){
   const email=C('resetEmail').value.trim();
@@ -4158,6 +4231,9 @@ async function afterLogin(user){
   }
   const _VALID_ROLES=['owner','admin','teacher','student'];if(!_VALID_ROLES.includes(prof.role)){showToast('Неизвестная роль: '+prof.role+'. Обратитесь к администратору.','error');await sb.auth.signOut();C('loginScreen').style.display='flex';return;}
   S.profile=prof;S.role=prof.role;S.schoolId=prof.school_id;S.userId=prof.id;
+  S.schoolKind='school';
+  try{const{data:_sk}=await sb.rpc('get_my_school_kind');if(_sk==='tutor')S.schoolKind='tutor';}catch(_e){}
+  _applySchoolKindNav();
   _mergeLocalAvatar(); // merge avatar prefs from localStorage
   C('loginScreen').style.display='none';
   C('app').style.display='flex';
@@ -4584,7 +4660,7 @@ function showNewVersionBanner(){
   var b=document.createElement('div');
   b.id='newVersionBanner';
   b.style.cssText='position:fixed;top:0;left:0;right:0;z-index:99999;background:#8b5cf6;color:#fff;padding:12px 16px;text-align:center;font-weight:600;font-size:.9rem;display:flex;align-items:center;justify-content:center;gap:12px;box-shadow:0 2px 8px rgba(0,0,0,.25)';
-  b.innerHTML="✨ Вышла новая версия TeachyaED — обнови страницу<button id='newVersionReloadBtn' style='background:#fff;color:#8b5cf6;border:none;border-radius:6px;padding:6px 14px;font-weight:700;cursor:pointer;margin-left:8px'>Обновить</button>";
+  b.innerHTML="✨ Вышла новая версия Classvana — обнови страницу<button id='newVersionReloadBtn' style='background:#fff;color:#8b5cf6;border:none;border-radius:6px;padding:6px 14px;font-weight:700;cursor:pointer;margin-left:8px'>Обновить</button>";
   document.body.appendChild(b);
   var _rb2=document.getElementById('newVersionReloadBtn');
   if(_rb2)_rb2.onclick=function(){location.reload();};
@@ -4702,7 +4778,7 @@ function showScreen(id){
   // Get allowed screen IDs for current role
   const _allowedIds=(typeof NAV!=='undefined'&&NAV[S.role]||[]).map(n=>n.id).filter(Boolean);
   // Also allow screens that have no NAV entry but are valid sub-screens
-  const _extraAllowed={student:['s_vocab'],teacher:['t_lessons','t_homework','t_students'],admin:['a_home','t_lessons','t_homework','t_students'],owner:['o_home','o_users','t_lessons','t_homework','t_students']};
+  const _extraAllowed={student:['s_vocab'],teacher:['t_lessons','t_homework','t_students'],admin:['a_home','t_lessons','t_homework','t_students'],owner:S.schoolKind==='tutor'?['o_home','t_lessons','t_homework','t_students']:['o_home','o_users','t_lessons','t_homework','t_students']};
   if(_allowedIds.length&&!_allowedIds.includes(id)&&!(_extraAllowed[S.role]||[]).includes(id)){
     console.warn('[showScreen] Access denied:',id,'for role:',S.role);
     return;
@@ -4724,7 +4800,7 @@ function showScreen(id){
     a_students:renderAdminStudents,a_teachers:renderAdminTeachers,a_payments:renderPayments,a_salaries:renderSalaries,a_materials:renderMaterials,
     a_messages:renderMessenger,a_tasks:renderTasks,
     o_home:renderOwnerHome,o_classes:renderClasses,o_schedule:renderSchedule,
-    o_users:renderOwnerUsers,o_students:renderOwnerStudents,o_payments:renderPayments,o_salaries:renderSalaries,o_materials:renderMaterials,
+    o_users:renderOwnerUsers,o_platform:renderPlatformSchools,o_students:renderOwnerStudents,o_payments:renderPayments,o_salaries:renderSalaries,o_materials:renderMaterials,
     o_messages:renderMessenger,o_tasks:renderTasks,
     t_library:renderLibrary,a_library:renderLibrary,o_library:renderLibrary,
     t_pd:renderPD,o_pd:renderPD
@@ -6656,6 +6732,24 @@ async function renderAdminStudents(){
   console.error('renderAdminStudents error:',e);
   setContent('<div class="empty-state"><div class="ei">⚠️</div><p>'+t('Ошибка загрузки')+'</p></div>');
 }finally{renderAdminStudents._loading=false;}
+}
+async function renderPlatformSchools(){
+  const _snap=S.screen;showSkel();
+  try{
+    const{data,error}=await sb.rpc('platform_list_schools');
+    if(S.screen!==_snap)return;
+    if(error)throw error;
+    const kindL={tutor:'🧑‍🏫 Репетитор',school:'🏫 Школа'};
+    const rows=(data||[]).map(r=>`<tr><td><div style="font-weight:600">${_esc(r.name||'—')}</div><div style="font-size:.75rem;color:var(--text3)">${_esc(r.owner_email||'')}</div></td>
+      <td>${_esc(kindL[r.kind]||r.kind)}</td><td>${Number(r.users_count)||0}</td><td>${Number(r.students_count)||0}</td>
+      <td style="font-size:.8rem;color:var(--text3)">${r.created_at?_esc(new Date(r.created_at).toLocaleDateString()):''}</td></tr>`).join('')
+      ||`<tr><td colspan="5" style="text-align:center;color:var(--text3)">${t('Пока нет')}</td></tr>`;
+    setContent(`<div class="section-header"><h2>🌍 ${t('Школы')} <span style="font-size:.9rem;color:var(--text3);font-weight:500">${(data||[]).length}</span></h2></div>
+      <div class="card" style="padding:0;overflow:auto"><table><thead><tr><th>${t('Название')}</th><th>${t('Формат')}</th><th>${t('Пользователи')}</th><th>${t('Ученики')}</th><th>${t('Создана')}</th></tr></thead><tbody>${rows}</tbody></table></div>`);
+  }catch(e){
+    console.error('renderPlatformSchools error:',e);
+    setContent('<div class="empty-state"><div class="ei">⚠️</div><p>'+t('Ошибка загрузки')+'</p></div>');
+  }
 }
 async function renderAdminTeachers(){
   if(renderAdminTeachers._loading)return;renderAdminTeachers._loading=true;
@@ -10996,7 +11090,7 @@ function showTaskNotification(tk){
   showToastCard(t('⏰ Напоминание'),tk.title||'','task','✅',10000);
   updateNotifBadge(1);
   if('Notification' in window&&Notification.permission==='granted'){
-    new Notification('TeachyaED: '+tk.title,{body:tk.description||'Время выполнить задачу!',icon:'/favicon.ico'});
+    new Notification('Classvana: '+tk.title,{body:tk.description||'Время выполнить задачу!',icon:'/favicon.ico'});
   }
 }
 
@@ -11775,9 +11869,9 @@ async function exportICal(){
   else _icalQ=_icalQ.eq('class_id','__no_class__');}
   const{data:evs}=await _icalQ;
   {
-    const calName=_icalEsc('TeachyaED');
+    const calName=_icalEsc('Classvana');
     const lines=['BEGIN:VCALENDAR','VERSION:2.0','CALSCALE:GREGORIAN',
-      'PRODID:-//TeachyaED//TeachyaED//EN',`X-WR-CALNAME:${calName}`,'METHOD:PUBLISH'];
+      'PRODID:-//Classvana//Classvana//EN',`X-WR-CALNAME:${calName}`,'METHOD:PUBLISH'];
     (evs||[]).forEach(ev=>{
       if(!ev.event_date)return;
       const _evTime=(ev.event_time||'09:00').substring(0,5); // "HH:MM" only
@@ -11803,7 +11897,7 @@ async function exportICal(){
     const _icalUrl=URL.createObjectURL(blob);
     const a=document.createElement('a');
     a.href=_icalUrl;
-    a.download='teachyaed-schedule.ics';
+    a.download='classvana-schedule.ics';
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
