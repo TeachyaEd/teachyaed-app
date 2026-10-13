@@ -423,6 +423,11 @@ body[data-theme="dark"] .wb-tool{color:var(--text2)}
 .oq-list{margin:2px 0 12px;padding-left:22px;line-height:1.55;font-size:.97rem}
 .oq-list li{margin:5px 0;padding-left:2px}
 .oq-oral{font-size:.78rem;color:var(--text3);margin-top:2px}
+.quiz-opts{display:flex;flex-wrap:wrap;gap:10px}
+.quiz-opts .quiz-opt{margin:0;min-width:110px;max-width:100%;text-align:center;padding:10px 18px}
+.vocab-grid{display:flex;flex-wrap:wrap;gap:10px;justify-content:center}
+.vocab-grid .vocab-card-lesson{margin:0;width:170px}
+@media(max-width:767px){.vocab-grid .vocab-card-lesson{width:calc(50% - 5px)}.quiz-opts .quiz-opt{flex:1 1 auto}}
 .tf-btn{padding:10px 28px;border:2px solid var(--gray-border);border-radius:10px;font-size:.95rem;font-weight:700;cursor:pointer;font-family:var(--font);transition:.15s;background:#fff}
 .tf-btn:hover{border-color:var(--purple);background:var(--purple-light)}
 .tf-btn.correct{border-color:var(--green);background:var(--green-light);color:#065F46}
@@ -9605,9 +9610,9 @@ function renderBlockView(b,i){
   </div>`;
   if(b.type==='vocab') return`<div class="lesson-view-block">
     <div style="font-weight:700;margin-bottom:10px">🃏 Карточки <small style="color:var(--text3)">(кликни чтобы перевернуть)</small></div>
-    ${(b.words||[]).map((w)=>`<div class="vocab-card vocab-card-lesson" onclick="this.classList.toggle('flipped')">
+    <div class="vocab-grid">${(b.words||[]).map((w)=>`<div class="vocab-card vocab-card-lesson" onclick="this.classList.toggle('flipped')">
       <div class="vocab-inner"><div class="vocab-front">${_escHtml(w.word)}</div><div class="vocab-back">${_escHtml(w.trans)}</div></div>
-    </div>`).join('')}
+    </div>`).join('')}</div>
   </div>`;
   if(b.type==='fill_blank'){window[`_fbAns_${i}`]=b.answer||'';return`<div class="lesson-view-block">
     <div style="font-weight:700;margin-bottom:10px">✏️ Заполни пропуск</div>
@@ -9619,7 +9624,7 @@ function renderBlockView(b,i){
   </div>`;}
   if(b.type==='quiz') return`<div class="lesson-view-block">
     <div style="font-weight:700;margin-bottom:10px">🎯 ${qzQuestionHtml(b.question||'Вопрос',i)}${b.time_limit?`<span id="qz_timer_${i}" style="float:right;font-weight:400;font-size:.85rem;color:var(--text3)"></span>`:''}</div>
-    ${(b.options||[]).map((opt,oi)=>String(opt==null?'':opt).trim()?`<div class="quiz-opt" id="qo_${i}_${oi}" onclick="checkQuiz('${i}',${oi},${Number.isInteger(b.correct)?b.correct:parseInt(b.correct)||0})">${_escHtml(opt)}</div>`:'').join('')}
+    <div class="quiz-opts">${(b.options||[]).map((opt,oi)=>String(opt==null?'':opt).trim()?`<div class="quiz-opt" id="qo_${i}_${oi}" onclick="checkQuiz('${i}',${oi},${Number.isInteger(b.correct)?b.correct:parseInt(b.correct)||0})">${_escHtml(opt)}</div>`:'').join('')}</div>
   </div>${b.time_limit?`<img src="x" style="display:none" onerror="startQuizTimer(${i},${b.time_limit},${Number.isInteger(b.correct)?b.correct:parseInt(b.correct)||0})">`:''}`;
   if(b.type==='truefalse'){const _tfa=(b.answer===true||b.answer===false)?b.answer:true;return`<div class="lesson-view-block">
     <div style="font-weight:700;margin-bottom:12px">✅ Верно или Неверно?</div>
