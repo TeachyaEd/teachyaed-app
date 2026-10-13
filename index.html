@@ -11149,102 +11149,373 @@ async function openStudentProgress(studentId,name){
 
 // ─── FEATURE 3: STUDENT VOCABULARY TRAINER ───────────────────────────────────
 let _vocabWords=[];let _vocabIdx=0;let _vocabTraining=false;let _vocabMissed=[];
+// ─── STUDENT VOCAB v2: personal dictionary + in-lesson translate + trainer ───
+// _vocabWords/_vocabIdx/_vocabTraining/_vocabMissed are kept: logout resets them by name.
+let _vocabMode='list';let _vq=null;let _vtBox=null;
+const _VT_LANGS=[['ru','Русский'],['ka','ქართული'],['en','English'],['uk','Українська'],['tr','Türkçe'],['az','Azərbaycan'],['hy','Հայերեն'],['de','Deutsch'],['fr','Français'],['es','Español'],['it','Italiano']];
+function _vl(ru,en){return S.lang==='en'?en:ru;}
+function _vtLang(){try{const v=localStorage.getItem('ty_vocab_lang');if(v&&_VT_LANGS.some(function(l){return l[0]===v;}))return v;}catch(e){}return 'ru';}
+function _vtSetLang(v){try{localStorage.setItem('ty_vocab_lang',v);}catch(e){}}
+function _vkey(w,tr){return String(w||'').trim().toLowerCase()+'|'+String(tr||'').trim().toLowerCase();}
+function _vtShuffle(a){a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));const x=a[i];a[i]=a[j];a[j]=x;}return a;}
+function _vtNorm(s){return String(s||'').trim().toLowerCase().replace(/\s+/g,' ');}
+function _vtLangOptions(sel){return _VT_LANGS.map(function(l){return '<option value="'+l[0]+'"'+(l[0]===sel?' selected':'')+'>'+_escHtml(l[1])+'</option>';}).join('');}
+
 async function renderStudentVocab(){
   if(S._loadingVocab)return;S._loadingVocab=true;
   try{
-  const _svSnap=S.screen;
-  showSkel();
-  _vocabWords=[];_vocabTraining=false;_vocabIdx=0;
-  const isEn=S.lang==='en';
-  // Only load vocab from lessons assigned to this student
-  if(!S.studentRowId){
-    // Try to get studentRowId
-    if(!S.profile?.email){setContent('<div class="empty-state"><p>'+t('Ошибка загрузки')+'</p></div>');S._loadingVocab=false;return;}
-    const{data:stuRow}=await sb.from('students').select('id').ilike('email',S.profile.email).eq('school_id',S.schoolId).single();
-    if(stuRow?.id)S.studentRowId=stuRow.id;
-  }
-  const{data:assigns}=await sb.from('lesson_assignments').select('lesson_id').eq('student_id',S.studentRowId||'').eq('school_id',S.schoolId);
-  const lessonIds=(assigns||[]).map(a=>a.lesson_id).filter(Boolean);
-  if(S.screen!==_svSnap)return;
-  if(!lessonIds.length){
-    setContent('<div class="empty-state"><div class="ei">📖</div><p>Нет назначенных уроков</p></div>');
-    return;
-  }
-  const{data:lessons}=await sb.from('lessons').select('title,content').in('id',lessonIds).eq('school_id',S.schoolId);
-  if(S.screen!==_svSnap)return;
-  (lessons||[]).forEach(lesson=>{
-    let cont;try{cont=typeof lesson.content==='string'?JSON.parse(lesson.content):lesson.content;}catch(e){return;}
-    if(!cont||!cont.sections)return;
-    cont.sections.forEach(sec=>{
-      if(!sec.exercises)return;
-      sec.exercises.forEach(blk=>{
-        if(blk.type==='vocab'&&Array.isArray(blk.words)){
-          blk.words.forEach(w=>{
-            if(w.word&&w.trans&&!_vocabWords.find(x=>x.word===w.word&&x.trans===w.trans)){
-              _vocabWords.push({word:w.word,trans:w.trans});
-            }
+    const snap=S.screen;
+    showSkel();
+    _vocabWords=[];_vocabIdx=0;_vocabTraining=false;_vocabMissed=[];_vocabMode='list';_vq=null;
+    if(!S.profile||!S.profile.id){setContent('<div class="empty-state"><p>'+_vl('Ошибка загрузки','Load error')+'</p></div>');return;}
+    if(!S.studentRowId&&S.profile.email){
+      const r0=await sb.from('students').select('id').ilike('email',S.profile.email).eq('school_id',S.schoolId).maybeSingle();
+      if(r0.data&&r0.data.id)S.studentRowId=r0.data.id;
+    }
+    // 1) words from vocab blocks of lessons assigned to this student (live, so new cards appear at once)
+    const lessonWords=[];
+    if(S.studentRowId){
+      const ra=await sb.from('lesson_assignments').select('lesson_id').eq('student_id',S.studentRowId).eq('school_id',S.schoolId);
+      const lessonIds=Array.from(new Set((ra.data||[]).map(function(a){return a.lesson_id;}).filter(Boolean)));
+      if(lessonIds.length){
+        const rl=await sb.from('lessons').select('id,content').in('id',lessonIds).eq('school_id',S.schoolId);
+        (rl.data||[]).forEach(function(lesson){
+          let cont;try{cont=typeof lesson.content==='string'?JSON.parse(lesson.content):lesson.content;}catch(e){return;}
+          if(!cont||!Array.isArray(cont.sections))return;
+          cont.sections.forEach(function(sec){
+            if(!sec||!Array.isArray(sec.exercises))return;
+            sec.exercises.forEach(function(blk){
+              if(blk&&blk.type==='vocab'&&Array.isArray(blk.words)){
+                blk.words.forEach(function(w){
+                  if(w&&w.word&&w.trans)lessonWords.push({word:String(w.word).trim(),trans:String(w.trans).trim(),lesson_id:lesson.id});
+                });
+              }
+            });
           });
-        }
-      });
+        });
+      }
+    }
+    if(S.screen!==snap)return;
+    // 2) the student's saved dictionary
+    const rs=await sb.from('student_vocab').select('*').eq('student_profile_id',S.profile.id).order('created_at',{ascending:false}).limit(3000);
+    if(S.screen!==snap)return;
+    const saved=rs.data||[];
+    const seen={};
+    saved.forEach(function(r){
+      seen[_vkey(r.word,r.translation)]=1;
+      _vocabWords.push({id:r.id,word:r.word,trans:r.translation,source:r.source,known:r.known_count||0,wrong:r.wrong_count||0});
     });
-  });
-  _renderVocabScreen();
+    // 3) lesson words not saved yet -> show now and persist (best effort)
+    const fresh=[];
+    lessonWords.forEach(function(w){
+      const k=_vkey(w.word,w.trans);
+      if(seen[k])return;seen[k]=1;fresh.push(w);
+    });
+    if(fresh.length){
+      const rows=fresh.map(function(w){return {school_id:S.schoolId,student_profile_id:S.profile.id,word:w.word.slice(0,200),translation:w.trans.slice(0,400),source:'lesson',lesson_id:w.lesson_id};});
+      let inserted=null;
+      try{const ri=await sb.from('student_vocab').insert(rows).select('id,word,translation');if(!ri.error)inserted=ri.data;}catch(e){}
+      const idMap={};
+      (inserted||[]).forEach(function(r){idMap[_vkey(r.word,r.translation)]=r.id;});
+      fresh.forEach(function(w){_vocabWords.push({id:idMap[_vkey(w.word,w.trans)]||null,word:w.word,trans:w.trans,source:'lesson',known:0,wrong:0});});
+    }
+    if(S.screen!==snap)return;
+    _renderVocabScreen();
   }finally{S._loadingVocab=false;}
 }
-function _renderVocabScreen(){
-  const isEn=S.lang==='en';
-  const lblTitle=isEn?'📚 Vocabulary':'📚 Словарь';
-  const lblBack=isEn?'← All cards':'← Все карточки';
-  if(_vocabWords.length===0){
-    setContent(`<div class="section-header"><h2>${lblTitle}</h2></div>
-      <div class="empty-state"><div class="ei">📚</div><p>${isEn?'No words yet. Words appear from published lessons.':'Нет слов. Слова появятся из опубликованных уроков вашей школы.'}</p></div>`);
-    return;
-  }
-  if(_vocabTraining){
-    if(_vocabIdx>=_vocabWords.length){
-      const missedCount=_vocabMissed.length;
-      setContent(`<div class="section-header"><h2>${lblTitle}</h2><button class="btn btn-outline" onclick="_vocabTraining=false;_renderVocabScreen()">${lblBack}</button></div>
-        <div class="card" style="text-align:center;padding:40px">
-          <div style="font-size:3rem;margin-bottom:12px">🎉</div>
-          <h3 style="margin-bottom:8px">${isEn?'Training complete!':'Тренировка завершена!'}</h3>
-          <p style="color:var(--text3);margin-bottom:20px">${isEn?'Marked "Again":':'Отмечено «Ещё раз»:'} <b>${missedCount}</b> ${isEn?'words':'слов'}</p>
-          ${missedCount>0?`<button class="btn btn-purple" onclick="_vocabWords=[..._vocabMissed];_vocabIdx=0;_vocabMissed=[];_renderVocabScreen()">🔁 ${isEn?'Repeat hard words':'Повторить сложные'} (${missedCount})</button>`:''}
-          <button class="btn btn-outline" style="margin-left:10px" onclick="_vocabTraining=false;_renderVocabScreen()">${lblBack}</button>
-        </div>`);
-      return;
-    }
-    const w=_vocabWords[_vocabIdx];
-    setContent(`<div class="section-header"><h2>📚 ${isEn?'Training':'Тренировка'} <span class="badge badge-purple">${_vocabIdx+1}/${_vocabWords.length}</span></h2><button class="btn btn-outline" onclick="_vocabTraining=false;_renderVocabScreen()">${lblBack}</button></div>
-      <div style="max-width:400px;margin:40px auto;text-align:center">
-        <div class="vocab-card" id="trainCard" onclick="this.classList.toggle('flipped')" style="height:160px;margin-bottom:24px">
-          <div class="vocab-inner" style="height:160px">
-            <div class="vocab-front" style="font-size:1.5rem">${_escHtml(w.word)}</div>
-            <div class="vocab-back" style="font-size:1.3rem">${_escHtml(w.trans)}</div>
-          </div>
-        </div>
-        <p style="color:var(--text3);font-size:.85rem;margin-bottom:20px">${isEn?'Tap the card to reveal the translation':'Нажмите на карточку, чтобы увидеть перевод'}</p>
-        <div style="display:flex;gap:12px;justify-content:center">
-          <button class="btn btn-green" onclick="_vocabIdx++;_renderVocabScreen()">✅ ${isEn?'I know it':'Знаю'}</button>
-          <button class="btn btn-outline" style="border-color:var(--pink);color:var(--pink)" onclick="_vocabMissed.push(_vocabWords[_vocabIdx]);_vocabIdx++;_renderVocabScreen()">❌ ${isEn?'Again':'Ещё раз'}</button>
-        </div>
-      </div>`);
-    return;
-  }
-  const cards=_vocabWords.map(w=>`
-    <div class="vocab-card" onclick="this.classList.toggle('flipped')" style="margin-bottom:12px">
-      <div class="vocab-inner">
-        <div class="vocab-front">${_escHtml(w.word)}</div>
-        <div class="vocab-back">${_escHtml(w.trans)}</div>
-      </div>
-    </div>`).join('');
-  setContent(`<div class="section-header"><h2>${lblTitle} <span class="badge badge-purple">${_vocabWords.length} ${isEn?'words':'слов'}</span></h2>
-      <div style="display:flex;gap:8px">
-        <button class="btn btn-outline" onclick="_vocabWords=[..._vocabWords].sort(()=>Math.random()-.5);_renderVocabScreen()">🔀 ${isEn?'Shuffle':'Перемешать'}</button>
-        <button class="btn btn-purple" onclick="_vocabTraining=true;_vocabIdx=0;_vocabMissed=[];_renderVocabScreen()">▶️ ${isEn?'Training mode':'Режим тренировки'}</button>
-      </div>
-    </div>
-    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;padding-top:4px">${cards}</div>`);
+
+function _vtRecord(item,ok){
+  if(!item)return;
+  if(ok)item.known=(item.known||0)+1;else item.wrong=(item.wrong||0)+1;
+  if(!item.id)return;
+  try{
+    sb.from('student_vocab').update({known_count:item.known,wrong_count:item.wrong,last_trained_at:new Date().toISOString()}).eq('id',item.id).then(function(){},function(){});
+  }catch(e){}
 }
+
+function _vtHeader(title,showBack){
+  return '<div class="section-header"><h2>'+title+'</h2>'+(showBack?'<button class="btn btn-outline" onclick="_vtGo(\'list\')">'+_vl('← Словарь','← Dictionary')+'</button>':'')+'</div>';
+}
+function _vtGo(mode){
+  _vocabMode=mode;_vq=null;
+  if(mode==='flash')_vtStartFlash();
+  else if(mode==='quiz')_vtStartQuiz();
+  else if(mode==='write')_vtStartWrite();
+  else if(mode==='match')_vtStartMatch();
+  _renderVocabScreen();
+}
+
+function _renderVocabScreen(){
+  const title='📚 '+_vl('Словарь','Vocabulary');
+  if(_vocabMode!=='list'&&_vq){
+    if(_vocabMode==='flash')return _vtRenderFlash(title);
+    if(_vocabMode==='quiz')return _vtRenderQuiz(title);
+    if(_vocabMode==='write')return _vtRenderWrite(title);
+    if(_vocabMode==='match')return _vtRenderMatch(title);
+  }
+  _vocabMode='list';
+  const n=_vocabWords.length;
+  const modeBtn=function(m,label,min){return '<button class="btn btn-outline" '+(n<min?'disabled title="'+_vl('Нужно минимум '+min+' слова','Need at least '+min+' words')+'" ':'')+'onclick="_vtGo(\''+m+'\')">'+label+'</button>';};
+  const add='<div class="card" style="padding:14px;margin-bottom:14px"><div style="font-weight:700;margin-bottom:8px">➕ '+_vl('Добавить слово','Add a word')+'</div>'
+    +'<div style="display:flex;gap:8px;flex-wrap:wrap"><input id="vt_new_w" type="text" maxlength="200" placeholder="'+_vl('Слово','Word')+'" style="flex:1;min-width:140px;padding:10px;border:2px solid var(--gray-border);border-radius:10px">'
+    +'<input id="vt_new_t" type="text" maxlength="400" placeholder="'+_vl('Перевод','Translation')+'" style="flex:1;min-width:140px;padding:10px;border:2px solid var(--gray-border);border-radius:10px">'
+    +'<button class="btn btn-purple" onclick="_vtAddManual()">'+_vl('Добавить','Add')+'</button></div>'
+    +'<div style="font-size:.8rem;color:var(--text3);margin-top:8px">'+_vl('Совет: выдели любое слово в тексте урока — появится кнопка «Перевести».','Tip: select any word in a lesson text to get a Translate button.')+'</div></div>';
+  const trainer='<div class="card" style="padding:14px;margin-bottom:14px"><div style="font-weight:700;margin-bottom:8px">🎯 '+_vl('Тренажёр','Trainer')+'</div><div style="display:flex;gap:8px;flex-wrap:wrap">'
+    +modeBtn('flash','🃏 '+_vl('Карточки','Flashcards'),1)
+    +modeBtn('quiz','✅ '+_vl('Тест','Quiz'),2)
+    +modeBtn('write','⌨️ '+_vl('Написать слово','Type it'),1)
+    +modeBtn('match','🧩 '+_vl('Подбор пар','Match'),3)
+    +'</div></div>';
+  let cards;
+  if(!n){
+    cards='<div class="empty-state"><div class="ei">📚</div><p>'+_vl('Пока нет слов. Они появятся из карточек уроков, а ещё ты можешь переводить слова прямо в тексте урока.','No words yet. They appear from lesson cards, and you can translate words right inside lesson texts.')+'</p></div>';
+  }else{
+    cards='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;padding-top:4px">'+_vocabWords.map(function(w,i){
+      const del=(w.source!=='lesson'&&w.id)?'<button title="'+_vl('Удалить','Delete')+'" onclick="event.stopPropagation();_vtDelete(\''+_escJS(w.id)+'\')" style="position:absolute;top:2px;right:4px;z-index:3;background:none;border:none;cursor:pointer;font-size:.9rem">🗑</button>':'';
+      return '<div style="position:relative">'+del+'<div class="vocab-card" onclick="this.classList.toggle(\'flipped\')" style="margin-bottom:12px"><div class="vocab-inner"><div class="vocab-front">'+_escHtml(w.word)+'</div><div class="vocab-back">'+_escHtml(w.trans)+'</div></div></div></div>';
+    }).join('')+'</div>';
+  }
+  setContent('<div class="section-header"><h2>'+title+' <span class="badge badge-purple">'+n+' '+_vl('слов','words')+'</span></h2></div>'+add+(n?trainer:'')+cards);
+}
+
+async function _vtAddManual(){
+  const w=(C('vt_new_w').value||'').trim(),tr=(C('vt_new_t').value||'').trim();
+  if(!w||!tr){showToast(_vl('Заполни слово и перевод','Fill in word and translation'));return;}
+  const r=await sb.from('student_vocab').insert({school_id:S.schoolId,student_profile_id:S.profile.id,word:w.slice(0,200),translation:tr.slice(0,400),source:'manual',target_lang:_vtLang()}).select('id').single();
+  if(r.error){showToast(r.error.code==='23505'?_vl('Это слово уже в словаре','Already in your dictionary'):_vl('Не удалось добавить','Could not add'),'error');return;}
+  _vocabWords.unshift({id:r.data.id,word:w,trans:tr,source:'manual',known:0,wrong:0});
+  showToast('✅ '+_vl('Добавлено','Added'));
+  _renderVocabScreen();
+}
+async function _vtDelete(id){
+  if(!id)return;
+  if(!confirm(_vl('Удалить слово из словаря?','Delete this word?')))return;
+  const r=await sb.from('student_vocab').delete().eq('id',id);
+  if(r.error){showToast(_vl('Не удалось удалить','Could not delete'),'error');return;}
+  _vocabWords=_vocabWords.filter(function(w){return w.id!==id;});
+  _renderVocabScreen();
+}
+
+// ── results screen (shared) ──
+function _vtFinish(title,score,total,missed,extra){
+  const ids=missed.length;
+  setContent(_vtHeader(title,true)+'<div class="card" style="text-align:center;padding:40px"><div style="font-size:3rem;margin-bottom:12px">🎉</div>'
+    +'<h3 style="margin-bottom:8px">'+_vl('Готово!','Done!')+'</h3>'
+    +'<p style="color:var(--text3);margin-bottom:20px">'+_vl('Верно','Correct')+': <b>'+score+'</b> / '+total+(extra?' · '+extra:'')+'</p>'
+    +(ids?'<button class="btn btn-purple" onclick="_vtRetryMissed()">🔁 '+_vl('Повторить ошибки','Repeat mistakes')+' ('+ids+')</button> ':'')
+    +'<button class="btn btn-outline" onclick="_vtGo(\''+_vocabMode+'\')" style="margin-left:8px">'+_vl('Ещё раз','Again')+'</button></div>');
+  window._vtLastMissed=missed;
+}
+function _vtRetryMissed(){
+  const m=window._vtLastMissed||[];if(!m.length)return;
+  const mode=_vocabMode;
+  if(mode==='flash')_vq={items:_vtShuffle(m),i:0,score:0,missed:[],flip:false};
+  else if(mode==='quiz')_vq={items:_vtShuffle(m),i:0,score:0,missed:[],answered:false};
+  else if(mode==='write')_vq={items:_vtShuffle(m),i:0,score:0,missed:[],answered:false};
+  else {_vtGo('match');return;}
+  _renderVocabScreen();
+}
+
+// ── flashcards ──
+function _vtStartFlash(){_vq={items:_vtShuffle(_vocabWords),i:0,score:0,missed:[],flip:false};}
+function _vtRenderFlash(title){
+  const q=_vq;
+  if(q.i>=q.items.length){_vtFinish(title,q.score,q.items.length,q.missed);return;}
+  const w=q.items[q.i];
+  setContent(_vtHeader(title+' · '+_vl('Карточки','Flashcards'),true)
+    +'<div class="card" style="text-align:center;padding:30px"><div style="color:var(--text3);margin-bottom:12px">'+(q.i+1)+' / '+q.items.length+'</div>'
+    +'<div class="vocab-card" onclick="this.classList.toggle(\'flipped\')" style="max-width:360px;margin:0 auto 20px"><div class="vocab-inner" style="height:140px"><div class="vocab-front" style="font-size:1.4rem">'+_escHtml(w.word)+'</div><div class="vocab-back" style="font-size:1.4rem">'+_escHtml(w.trans)+'</div></div></div>'
+    +'<div style="color:var(--text3);font-size:.85rem;margin-bottom:16px">'+_vl('Нажми на карточку, чтобы перевернуть','Tap the card to flip it')+'</div>'
+    +'<div style="display:flex;gap:12px;justify-content:center"><button class="btn btn-green" onclick="_vtFlashAns(true)">✅ '+_vl('Знаю','I know it')+'</button>'
+    +'<button class="btn btn-outline" style="border-color:var(--pink);color:var(--pink)" onclick="_vtFlashAns(false)">❌ '+_vl('Ещё раз','Again')+'</button></div></div>');
+}
+function _vtFlashAns(ok){
+  const q=_vq;if(!q)return;const w=q.items[q.i];
+  _vtRecord(w,ok);if(ok)q.score++;else q.missed.push(w);
+  q.i++;_renderVocabScreen();
+}
+
+// ── multiple-choice quiz ──
+function _vtStartQuiz(){_vq={items:_vtShuffle(_vocabWords),i:0,score:0,missed:[],answered:false};}
+function _vtRenderQuiz(title){
+  const q=_vq;
+  if(q.i>=q.items.length){_vtFinish(title,q.score,q.items.length,q.missed);return;}
+  const w=q.items[q.i];
+  if(!q.opts){
+    const others=_vtShuffle(_vocabWords.filter(function(x){return _vtNorm(x.trans)!==_vtNorm(w.trans);}));
+    const pool=[];others.forEach(function(x){if(pool.length<3&&pool.indexOf(x.trans)<0)pool.push(x.trans);});
+    q.opts=_vtShuffle([w.trans].concat(pool));
+  }
+  const btns=q.opts.map(function(o,i){return '<button class="btn btn-outline" id="vtq_'+i+'" style="width:100%;margin-bottom:8px;text-align:left" onclick="_vtQuizAns('+i+')">'+_escHtml(o)+'</button>';}).join('');
+  setContent(_vtHeader(title+' · '+_vl('Тест','Quiz'),true)
+    +'<div class="card" style="padding:24px;max-width:520px;margin:0 auto"><div style="color:var(--text3);margin-bottom:8px">'+(q.i+1)+' / '+q.items.length+'</div>'
+    +'<div style="font-size:1.5rem;font-weight:800;margin-bottom:16px;text-align:center">'+_escHtml(w.word)+'</div>'+btns+'</div>');
+}
+function _vtQuizAns(i){
+  const q=_vq;if(!q||q.answered)return;q.answered=true;
+  const w=q.items[q.i];const ok=_vtNorm(q.opts[i])===_vtNorm(w.trans);
+  _vtRecord(w,ok);if(ok)q.score++;else q.missed.push(w);
+  q.opts.forEach(function(o,j){
+    const b=document.getElementById('vtq_'+j);if(!b)return;
+    b.disabled=true;
+    if(_vtNorm(o)===_vtNorm(w.trans)){b.style.borderColor='var(--green)';b.style.background='rgba(16,185,129,.12)';}
+    else if(j===i){b.style.borderColor='var(--pink)';b.style.background='rgba(236,72,153,.12)';}
+  });
+  setTimeout(function(){if(_vq!==q)return;q.i++;q.opts=null;q.answered=false;_renderVocabScreen();},ok?650:1300);
+}
+
+// ── type the word ──
+function _vtStartWrite(){_vq={items:_vtShuffle(_vocabWords),i:0,score:0,missed:[],answered:false};}
+function _vtRenderWrite(title){
+  const q=_vq;
+  if(q.i>=q.items.length){_vtFinish(title,q.score,q.items.length,q.missed);return;}
+  const w=q.items[q.i];
+  setContent(_vtHeader(title+' · '+_vl('Написать слово','Type it'),true)
+    +'<div class="card" style="padding:24px;max-width:520px;margin:0 auto"><div style="color:var(--text3);margin-bottom:8px">'+(q.i+1)+' / '+q.items.length+'</div>'
+    +'<div style="font-size:1.4rem;font-weight:800;margin-bottom:6px;text-align:center">'+_escHtml(w.trans)+'</div>'
+    +'<div style="color:var(--text3);font-size:.85rem;text-align:center;margin-bottom:14px">'+_vl('Напиши слово на изучаемом языке','Type the word in the language you learn')+'</div>'
+    +'<input id="vtw_in" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" style="width:100%;padding:12px;border:2px solid var(--gray-border);border-radius:10px;font-size:1.1rem;margin-bottom:10px" onkeydown="if(event.key===\'Enter\'){_vtWriteAns()}">'
+    +'<div id="vtw_fb" style="min-height:24px;text-align:center;margin-bottom:8px"></div>'
+    +'<button class="btn btn-purple" id="vtw_btn" style="width:100%" onclick="_vtWriteAns()">'+_vl('Проверить','Check')+'</button></div>');
+  const inp=document.getElementById('vtw_in');if(inp)inp.focus();
+}
+function _vtWriteAns(){
+  const q=_vq;if(!q)return;
+  const w=q.items[q.i];
+  if(q.answered){q.i++;q.answered=false;_renderVocabScreen();return;}
+  const inp=document.getElementById('vtw_in'),fb=document.getElementById('vtw_fb'),btn=document.getElementById('vtw_btn');
+  if(!inp)return;
+  const ok=_vtNorm(inp.value)===_vtNorm(w.word);
+  q.answered=true;_vtRecord(w,ok);if(ok)q.score++;else q.missed.push(w);
+  inp.disabled=true;
+  fb.innerHTML=ok?'<span style="color:var(--green);font-weight:700">✅ '+_vl('Верно!','Correct!')+'</span>':'<span style="color:var(--pink);font-weight:700">❌ '+_vl('Правильно:','Correct:')+' '+_escHtml(w.word)+'</span>';
+  btn.textContent=_vl('Дальше →','Next →');
+  if(ok)setTimeout(function(){if(_vq===q&&q.answered&&q.items[q.i]===w){q.i++;q.answered=false;_renderVocabScreen();}},700);
+}
+
+// ── match pairs ──
+function _vtStartMatch(){
+  const pick=_vtShuffle(_vocabWords).slice(0,6);
+  _vq={items:pick,left:_vtShuffle(pick),right:_vtShuffle(pick),done:{},selL:null,selR:null,mistakes:0,t0:Date.now(),i:0,score:0,missed:[]};
+}
+function _vtRenderMatch(title){
+  const q=_vq;
+  const total=q.items.length;
+  if(Object.keys(q.done).length>=total){
+    const sec=Math.round((Date.now()-q.t0)/1000);
+    window._vtLastMissed=[];
+    setContent(_vtHeader(title+' · '+_vl('Подбор пар','Match'),true)+'<div class="card" style="text-align:center;padding:40px"><div style="font-size:3rem;margin-bottom:12px">🎉</div><h3 style="margin-bottom:8px">'+_vl('Все пары найдены!','All pairs found!')+'</h3>'
+      +'<p style="color:var(--text3);margin-bottom:20px">'+_vl('Время','Time')+': <b>'+sec+' '+_vl('сек','s')+'</b> · '+_vl('Ошибок','Mistakes')+': <b>'+q.mistakes+'</b></p>'
+      +'<button class="btn btn-purple" onclick="_vtGo(\'match\')">🔁 '+_vl('Ещё раунд','Another round')+'</button></div>');
+    return;
+  }
+  const mk=function(arr,side,sel,txtFn){return arr.map(function(w,idx){
+    const k=_vkey(w.word,w.trans);const done=q.done[k];
+    const on=sel===idx;
+    return '<button class="btn btn-outline" '+(done?'disabled ':'')+'style="width:100%;margin-bottom:8px;'+(done?'opacity:.35;':'')+(on?'border-color:var(--purple);background:rgba(124,58,237,.12);':'')+'" onclick="_vtMatchPick(\''+side+'\','+idx+')">'+_escHtml(txtFn(w))+'</button>';
+  }).join('');};
+  setContent(_vtHeader(title+' · '+_vl('Подбор пар','Match'),true)
+    +'<div class="card" style="padding:20px;max-width:640px;margin:0 auto"><div style="color:var(--text3);margin-bottom:12px;text-align:center">'+_vl('Соедини слово с переводом','Match each word with its translation')+' · '+_vl('Ошибок','Mistakes')+': '+q.mistakes+'</div>'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px"><div>'+mk(q.left,'L',q.selL,function(w){return w.word;})+'</div><div>'+mk(q.right,'R',q.selR,function(w){return w.trans;})+'</div></div></div>');
+}
+function _vtMatchPick(side,idx){
+  const q=_vq;if(!q)return;
+  if(side==='L')q.selL=(q.selL===idx?null:idx);else q.selR=(q.selR===idx?null:idx);
+  if(q.selL!==null&&q.selR!==null){
+    const a=q.left[q.selL],b=q.right[q.selR];
+    if(a===b){q.done[_vkey(a.word,a.trans)]=1;_vtRecord(a,true);}
+    else{q.mistakes++;_vtRecord(a,false);}
+    q.selL=null;q.selR=null;
+  }
+  _renderVocabScreen();
+}
+
+// ─── translate selected text inside lesson exercises (students) ───
+function _vtHide(){if(_vtBox){try{_vtBox.remove();}catch(e){}_vtBox=null;}}
+function _vtOnSelect(ev){
+  try{
+    if(!S||S.role!=='student')return;
+    if(_vtBox&&ev&&ev.target&&_vtBox.contains(ev.target))return;
+    setTimeout(function(){
+      const sel=window.getSelection();
+      if(!sel||sel.isCollapsed||!sel.rangeCount){_vtHide();return;}
+      const txt=sel.toString().replace(/\s+/g,' ').trim();
+      if(!txt||txt.length>200)return;
+      const rng=sel.getRangeAt(0);
+      let node=rng.commonAncestorContainer;node=(node&&node.nodeType===1)?node:(node?node.parentElement:null);
+      if(!node||!node.closest||!node.closest('#cv_exerciseContent'))return;
+      if(node.closest('input,textarea,select,[contenteditable="true"]'))return;
+      const ctx=(node.textContent||'').replace(/\s+/g,' ').trim().slice(0,300);
+      const r=rng.getBoundingClientRect();
+      _vtShowBox(txt,ctx,r);
+    },12);
+  }catch(e){}
+}
+function _vtShowBox(txt,ctx,rect){
+  _vtHide();
+  const box=document.createElement('div');
+  box.id='vtBox';
+  box.style.cssText='position:fixed;z-index:99998;background:#fff;border:2px solid var(--purple);border-radius:14px;box-shadow:0 10px 30px rgba(0,0,0,.25);padding:10px 12px;max-width:290px;min-width:200px;font-family:var(--font);font-size:.9rem';
+  const w=Math.min(300,window.innerWidth-16);
+  let left=Math.max(8,Math.min(rect.left,window.innerWidth-w-8));
+  let top=rect.bottom+8;if(top>window.innerHeight-130)top=Math.max(8,rect.top-120);
+  box.style.left=left+'px';box.style.top=top+'px';
+  const lang=_vtLang();
+  const head=document.createElement('div');head.style.cssText='font-weight:700;margin-bottom:6px;word-break:break-word';head.textContent=txt;
+  const row=document.createElement('div');row.style.cssText='display:flex;gap:6px;align-items:center';
+  const sel=document.createElement('select');sel.style.cssText='padding:6px;border:1px solid var(--gray-border);border-radius:8px;font-size:.8rem;max-width:110px';sel.innerHTML=_vtLangOptions(lang);
+  const go=document.createElement('button');go.className='btn btn-purple btn-sm';go.textContent='🌐 '+_vl('Перевести','Translate');
+  const x=document.createElement('button');x.textContent='✕';x.style.cssText='margin-left:auto;background:none;border:none;cursor:pointer;font-size:1rem';x.onclick=_vtHide;
+  row.append(sel,go,x);
+  const out=document.createElement('div');out.style.cssText='margin-top:8px';
+  box.append(head,row,out);document.body.appendChild(box);_vtBox=box;
+  sel.onchange=function(){_vtSetLang(sel.value);};
+  go.onclick=function(){_vtDoTranslate(txt,ctx,sel.value,out,go);};
+}
+async function _vtDoTranslate(txt,ctx,target,out,go){
+  _vtSetLang(target);
+  go.disabled=true;out.textContent='⏳ '+_vl('Перевожу…','Translating…');
+  let tr='';
+  try{
+    const r=await sb.functions.invoke('translate-word',{body:{text:txt,target:target}});
+    if(r.error||!r.data||!r.data.translation){
+      const st=r.error&&r.error.context&&r.error.context.status;
+      out.textContent=st===429?_vl('Слишком много запросов, подожди минуту','Too many requests, wait a minute'):(st===404?_vl('Переводчик ещё не подключён','Translator is not connected yet'):_vl('Не удалось перевести','Could not translate'));
+      go.disabled=false;return;
+    }
+    tr=String(r.data.translation);
+  }catch(e){out.textContent=_vl('Ошибка сети','Network error');go.disabled=false;return;}
+  go.disabled=false;
+  out.innerHTML='';
+  const res=document.createElement('div');res.style.cssText='font-weight:700;color:var(--purple);margin-bottom:8px;word-break:break-word';res.textContent=tr;
+  const add=document.createElement('button');add.className='btn btn-green btn-sm';add.textContent='➕ '+_vl('В словарь','Add to dictionary');
+  add.onclick=function(){_vtSaveWord(txt,tr,ctx,target,add);};
+  out.append(res,add);
+}
+async function _vtSaveWord(word,tr,ctx,target,btn){
+  btn.disabled=true;
+  const row={school_id:S.schoolId,student_profile_id:S.profile.id,word:word.slice(0,200),translation:tr.slice(0,400),source:'translate',target_lang:target,context:ctx||null};
+  try{if(typeof LV!=='undefined'&&LV.lessonId)row.lesson_id=LV.lessonId;}catch(e){}
+  const r=await sb.from('student_vocab').insert(row).select('id').single();
+  if(r.error){
+    if(r.error.code==='23505'){showToast(_vl('Это слово уже в словаре','Already in your dictionary'));btn.textContent='✓';}
+    else{showToast(_vl('Не удалось добавить','Could not add'),'error');btn.disabled=false;}
+    return;
+  }
+  btn.textContent='✓ '+_vl('Добавлено','Added');
+  showToast('📚 '+_vl('Слово добавлено в словарь','Added to your dictionary'));
+}
+(function(){
+  setTimeout(function(){
+    try{
+      document.addEventListener('mouseup',_vtOnSelect);
+      document.addEventListener('touchend',_vtOnSelect);
+      document.addEventListener('keydown',function(e){if(e.key==='Escape')_vtHide();});
+      document.addEventListener('mousedown',function(e){if(_vtBox&&!_vtBox.contains(e.target))_vtHide();});
+    }catch(e){}
+  },0);
+})();
 
 // ─── FEATURE 4: PLACEMENT TEST ────────────────────────────────────────────────
 let _ptStudentId='',_ptStudentName='';
