@@ -408,6 +408,9 @@ body[data-theme="dark"] .wb-tool{color:var(--text2)}
 .quiz-opt:hover{border-color:var(--purple);background:var(--purple-light)}
 .quiz-opt.correct{border-color:var(--green);background:var(--green-light);color:#065F46}
 .quiz-opt.wrong{border-color:var(--red);background:#FEE2E2;color:#991B1B}
+.qz-gap{display:inline-block;min-width:70px;padding:0 8px;margin:0 3px;border-bottom:2px solid var(--purple);text-align:center;font-weight:700}
+.qz-gap.ok{color:#065F46;background:var(--green-light);border-color:var(--green);border-radius:6px 6px 0 0}
+.qz-gap.bad{color:#991B1B;background:#FEE2E2;border-color:var(--red);border-radius:6px 6px 0 0}
 .tf-btn{padding:10px 28px;border:2px solid var(--gray-border);border-radius:10px;font-size:.95rem;font-weight:700;cursor:pointer;font-family:var(--font);transition:.15s;background:#fff}
 .tf-btn:hover{border-color:var(--purple);background:var(--purple-light)}
 .tf-btn.correct{border-color:var(--green);background:var(--green-light);color:#065F46}
@@ -6074,7 +6077,7 @@ function _hwpRenderEx(ex,i){
     body=`<div style="font-size:1rem;line-height:2.4">${sent}</div>`;
   } else if(ex.type==='quiz'){
     body=`<div style="font-weight:600;margin-bottom:10px">${_esc(ex.question||'')}</div>
-      ${(ex.options||[]).map((o,oi)=>`<div class="hwp-mc-opt" id="hwp_mc_${i}_${oi}" onclick="hwpSelectMC(${i},${oi})">${_esc(o)}</div>`).join('')}`;
+      ${(ex.options||[]).map((o,oi)=>String(o==null?'':o).trim()?`<div class="hwp-mc-opt" id="hwp_mc_${i}_${oi}" onclick="hwpSelectMC(${i},${oi})">${_esc(o)}</div>`:'').join('')}`;
   } else if(ex.type==='matching'){
     // each left item gets its own select with shuffled rights
     const rights=[...(ex.pairs||[]).map(p=>p.right)].sort(()=>Math.random()-.5);
@@ -8560,12 +8563,15 @@ function ceEditorHTML(b){
     <div class="form-group" style="margin:0"><label>Правильный ответ</label>${ci(b.answer,'answer','am')}</div>`;
 
   if(b.type==='quiz')return`
-    <div class="form-group" style="margin:0 0 8px"><label>Вопрос</label>${ci(b.question,'question','Вопрос...')}</div>
+    <div class="form-group" style="margin:0 0 8px"><label>Вопрос</label>
+      <input id="ceQuizQ" value="${(b.question||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#39;')}" oninput="${P}.question=this.value" placeholder="She ___ to school every day." style="width:100%;padding:8px 10px;border:2px solid var(--gray-border);border-radius:6px;font-family:var(--font);font-size:.88rem">
+      <button type="button" class="btn btn-outline btn-sm" style="margin-top:6px" onclick="ceInsertQuizGap()">+ Вставить пропуск ___</button>
+    </div>
     ${(b.options||['','','','']).map((o,oi)=>`<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
       <input type="radio" name="ceq" ${b.correct===oi?'checked':''} onchange="${P}.correct=${oi}" style="accent-color:var(--green);width:16px;height:16px">
-      <input value="${(o||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;')}" oninput="${P}.options[${oi}]=this.value" placeholder="Вариант ${oi+1}" style="flex:1;padding:8px 10px;border:2px solid var(--gray-border);border-radius:6px;font-family:var(--font)">
+      <input value="${(o||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;')}" oninput="${P}.options[${oi}]=this.value" placeholder="Вариант ${oi+1}${oi>=2?' (необязательно)':''}" style="flex:1;padding:8px 10px;border:2px solid var(--gray-border);border-radius:6px;font-family:var(--font)">
     </div>`).join('')}
-    <div style="font-size:.75rem;color:var(--text3)">● = правильный ответ</div>
+    <div style="font-size:.75rem;color:var(--text3)">● = правильный ответ · пустые варианты ученик не увидит</div>
     <div class="form-group" style="margin-top:8px"><label>${t('Лимит времени (сек, необязательно)')}</label><input type="number" min="5" value="${b.time_limit||''}"  oninput="${P}.time_limit=this.value?parseInt(this.value):null" style="max-width:140px"></div>`;
 
   if(b.type==='matching')return`
@@ -9561,7 +9567,7 @@ function startQuizTimer(i,seconds,correct){
   const render=()=>{const el=C('qz_timer_'+i);if(el)el.textContent='⏱ '+remain+'с';};
   render();
   window['_qzTimer_'+i]=setInterval(()=>{
-    const firstOpt=document.getElementById('qo_'+i+'_0');
+    const firstOpt=document.querySelector('[id^="qo_'+i+'_"]');
     if(!firstOpt||!firstOpt.onclick){clearInterval(window['_qzTimer_'+i]);window['_qzTimer_'+i]=null;const el=C('qz_timer_'+i);if(el)el.textContent='';return;}
     remain--;
     if(remain<=0){
@@ -9597,8 +9603,8 @@ function renderBlockView(b,i){
     <div id="fb_res_${i}" style="margin-top:6px;font-size:.85rem"></div>
   </div>`;}
   if(b.type==='quiz') return`<div class="lesson-view-block">
-    <div style="font-weight:700;margin-bottom:10px">🎯 ${_escHtml(b.question||'Вопрос')}${b.time_limit?`<span id="qz_timer_${i}" style="float:right;font-weight:400;font-size:.85rem;color:var(--text3)"></span>`:''}</div>
-    ${(b.options||[]).map((opt,oi)=>`<div class="quiz-opt" id="qo_${i}_${oi}" onclick="checkQuiz('${i}',${oi},${Number.isInteger(b.correct)?b.correct:parseInt(b.correct)||0})">${_escHtml(opt)}</div>`).join('')}
+    <div style="font-weight:700;margin-bottom:10px">🎯 ${qzQuestionHtml(b.question||'Вопрос',i)}${b.time_limit?`<span id="qz_timer_${i}" style="float:right;font-weight:400;font-size:.85rem;color:var(--text3)"></span>`:''}</div>
+    ${(b.options||[]).map((opt,oi)=>String(opt==null?'':opt).trim()?`<div class="quiz-opt" id="qo_${i}_${oi}" onclick="checkQuiz('${i}',${oi},${Number.isInteger(b.correct)?b.correct:parseInt(b.correct)||0})">${_escHtml(opt)}</div>`:'').join('')}
   </div>${b.time_limit?`<img src="x" style="display:none" onerror="startQuizTimer(${i},${b.time_limit},${Number.isInteger(b.correct)?b.correct:parseInt(b.correct)||0})">`:''}`;
   if(b.type==='truefalse'){const _tfa=(b.answer===true||b.answer===false)?b.answer:true;return`<div class="lesson-view-block">
     <div style="font-weight:700;margin-bottom:12px">✅ Верно или Неверно?</div>
@@ -9758,6 +9764,82 @@ async function lvAnsBoard(){
     var host=document.getElementById('cvRightSidebar');if(!host)return;
     host.insertAdjacentHTML('afterbegin','<div id="lvAnsBoard"><div class="hw-side-hd">'+t('Прогресс учеников')+'</div>'+rows+'</div>');
   }catch(e){}
+}
+// Тест: «___» в вопросе → пропуск, куда встаёт выбранный вариант
+function qzQuestionHtml(q,i){
+  var n=0;
+  return _escHtml(q).replace(/_{3,}/g,function(){n++;return '<span class="qz-gap"'+(n===1?' id="qg_'+i+'"':'')+'>&nbsp;</span>';});
+}
+function ceInsertQuizGap(){
+  var el=document.getElementById('ceQuizQ');if(!el)return;
+  var a=(el.selectionStart==null)?el.value.length:el.selectionStart,z=(el.selectionEnd==null)?a:el.selectionEnd;
+  el.value=el.value.slice(0,a)+'___'+el.value.slice(z);
+  el.dispatchEvent(new Event('input',{bubbles:true}));
+  el.focus();try{el.selectionStart=el.selectionEnd=a+3;}catch(e){}
+}
+// Ответ ученика показываем в самом упражнении (индивидуальный класс, ДЗ, сам ученик)
+function tyApplyInlineAnswer(exKey,answer,correct){
+  try{
+    var k=String(exKey);var p=k.split('_');
+    var b=LV&&LV.sections&&LV.sections[+p[0]]&&(LV.sections[+p[0]].exercises||[])[+p[1]];
+    if(!b)return false;
+    var ans=String(answer==null?'':answer).trim();
+    var put=function(id,html){var r=document.getElementById(id);if(r)r.innerHTML=html;};
+    var verdict=correct===true?'<span style="color:var(--green)">✅ '+t('Правильно!')+'</span>':(correct===false?'<span style="color:var(--red)">❌ '+t('Неверно.')+'</span>':'');
+    var paint=function(el){if(!el)return;el.style.borderRadius='6px';el.style.padding='2px 8px';
+      if(correct===true){el.style.background='var(--green-light)';el.style.color='#065F46';}
+      else if(correct===false){el.style.background='#FEE2E2';el.style.color='#991B1B';}};
+    if(b.type==='quiz'){
+      var opts=document.querySelectorAll('[id^="qo_'+k+'_"]');if(!opts.length)return false;
+      var ci=Number.isInteger(b.correct)?b.correct:(parseInt(b.correct)||0);
+      var hit=null;
+      opts.forEach(function(o){o.classList.remove('correct','wrong');o.onclick=null;if(!hit&&o.textContent.trim()===ans)hit=o;});
+      var ce=document.getElementById('qo_'+k+'_'+ci);if(ce)ce.classList.add('correct');
+      if(hit&&hit!==ce)hit.classList.add('wrong');
+      var g=document.getElementById('qg_'+k);
+      if(g&&ans){g.textContent=ans;g.classList.remove('ok','bad');g.classList.add((hit&&hit===ce)||correct===true?'ok':'bad');}
+      return true;
+    }
+    if(b.type==='truefalse'){
+      var ch=/^true$/i.test(ans),cv=(b.answer===true||b.answer===false)?b.answer:true;
+      var bt=document.getElementById('tf_'+k+'_t'),bf=document.getElementById('tf_'+k+'_f');
+      if(!bt&&!bf)return false;
+      [bt,bf].forEach(function(x){if(x){x.classList.remove('correct','wrong');x.onclick=null;}});
+      if(cv===true)bt&&bt.classList.add('correct');else if(ch===true)bt&&bt.classList.add('wrong');
+      if(cv===false)bf&&bf.classList.add('correct');else if(ch===false)bf&&bf.classList.add('wrong');
+      put('tf_res_'+k,verdict);var ex=document.getElementById('tf_exp_'+k);if(ex)ex.style.display='block';
+      return true;
+    }
+    if(b.type==='word_bank'){
+      var wb=document.getElementById('wb_blank_'+k);if(!wb)return false;
+      if(ans)wb.textContent=ans;paint(wb);put('wb_res_'+k,verdict);return true;
+    }
+    if(b.type==='word_order'){
+      var ws=document.getElementById('wo_sentence_'+k);if(!ws)return false;
+      if(ans){ws.innerHTML='<span></span>';var sp=ws.firstChild;sp.textContent=ans;paint(sp);}
+      put('wo_res_'+k,verdict);return true;
+    }
+    if(b.type==='fill_blank'){
+      var subs=Array.prototype.slice.call(document.querySelectorAll('[id^="fb_'+k+'_"]')).filter(function(x){return x.tagName==='INPUT';});
+      if(!subs.length)return false;
+      var parts=ans.split(' ');
+      subs.forEach(function(el,bi){
+        if(document.activeElement!==el)el.value=(subs.length===1)?ans:(parts[bi]||'');
+        el.classList.toggle('correct',correct===true);el.classList.toggle('wrong',correct===false);
+      });
+      put('fb_res_'+k,verdict);return true;
+    }
+    if(b.type==='openq'||b.type==='video'){
+      var oq=document.getElementById('oq_'+k)||document.getElementById('vq_'+k);if(!oq)return false;
+      if(document.activeElement!==oq)oq.value=ans;return true;
+    }
+    if(b.type==='matching'||b.type==='sequence'){
+      var rid=(b.type==='matching'?'match_res_':'sq_res_')+k;var rr=document.getElementById(rid);if(!rr)return false;
+      rr.innerHTML=verdict+(ans?' <span style="opacity:.85"></span>':'');if(ans&&rr.lastChild)rr.lastChild.textContent=ans;
+      return true;
+    }
+    return false;
+  }catch(e){console.warn('[ans inline]',e);return false;}
 }
 function lvApplyStudentAnswer(row){
   try{
@@ -10021,24 +10103,14 @@ function hwApplyAnswers(){
         if(_r)_r.innerHTML=_ok?('<span style="color:var(--green)">\u2705 '+t('Правильно!')+'</span>'):('<span style="color:var(--red)">\u274C '+t('Неверно.')+'</span>');
         subs.forEach(function(el){el.classList.toggle('correct',_ok);el.classList.toggle('wrong',!_ok);});
       }
+      if(typeof tyApplyInlineAnswer==='function')tyApplyInlineAnswer(k,sval,_ok);
     });
     if(["teacher","admin","owner"].includes(S.role)&&LV.hwId){
       var box=C("cv_exerciseContent");if(!box)return;
       var old=document.getElementById("hwAnsSummary");if(old)old.remove();
-      var html='<div id="hwAnsSummary" class="card" style="margin-top:14px;border-left:4px solid var(--purple)">'
-        +'<div style="font-weight:700;margin-bottom:8px">✍️ '+t("Ответы ученика")+'</div>';
-      if(!keys.length){html+='<div style="font-size:.85rem;color:var(--text3)">'+t("Ученик ещё не отвечал")+'</div>';}
-      var ord=function(k){var p=String(k).split("_");var s=Number(p[0]),e=Number(p[1]);
-        if(isFinite(s)&&isFinite(e))return (s+1)+"."+(e+1);
-        return isFinite(Number(k))?String(Number(k)+1):String(k);};
-      keys.sort(function(x,y){var px=String(x).split("_").map(Number),py=String(y).split("_").map(Number);
-        return (px[0]-py[0])||(px[1]-py[1]);}).forEach(function(k){
-        var v=a[k];var val=(v&&typeof v==="object")?v.answer:v;
-        var ok=(v&&typeof v==="object")?v.correct:null;
-        var mark=ok===true?"✅ ":(ok===false?"❌ ":"• ");
-        html+='<div style="font-size:.85rem;margin-bottom:4px">'+mark+'<b>'+ord(k)+'</b> '+_escHtml(String(val==null?"":val).slice(0,300))+'</div>';
-      });
-      html+='<button class="btn btn-sm btn-green" style="margin-top:10px" onclick="hwMarkReviewed()">✅ '+t("Отметить проверенным")+'</button></div>';
+      var html='<div id="hwAnsSummary" style="margin-top:14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">'
+        +(keys.length?'':'<span style="font-size:.85rem;color:var(--text3)">'+t("Ученик ещё не отвечал")+'</span>')
+        +'<button class="btn btn-sm btn-green" onclick="hwMarkReviewed()">✅ '+t("Отметить проверенным")+'</button></div>';
       box.insertAdjacentHTML("beforeend",html);
     }
   }catch(e){console.warn("[hw answers]",e);}
@@ -10142,6 +10214,7 @@ function checkQuiz(blockI,chosen,correct){
   const _correctEl=C(`qo_${blockI}_${correct}`);
   if(_correctEl)_correctEl.classList.add('correct');
   if(chosen!==correct){const _chosenEl=C(`qo_${blockI}_${chosen}`);if(_chosenEl)_chosenEl.classList.add('wrong');}
+  const _gap=C('qg_'+blockI);if(_gap&&_chosenTxt){_gap.textContent=_chosenTxt;_gap.classList.remove('ok','bad');_gap.classList.add(chosen===correct?'ok':'bad');}
   saveLessonAnswer(blockI,'quiz',_chosenTxt,chosen===correct);
   lvSyncSend('q_'+blockI,'quiz','',{key:blockI,chosen,correct});
 }
@@ -12077,6 +12150,7 @@ async function tyInlineAnswerBoard(){
       var wrap=tyExFindWrapper(row.ex_key);
       if(!wrap)return;
       var bid='tyAnsBadge_'+row.ex_key+'_'+row.student_id;
+      if(!multi&&typeof window.tyApplyInlineAnswer==='function'&&window.tyApplyInlineAnswer(row.ex_key,row.answer,row.correct)){var _ob=document.getElementById(bid);if(_ob)_ob.remove();return;}
       var el=document.getElementById(bid);
       if(!el){el=document.createElement('div');el.id=bid;wrap.appendChild(el);}
       var ok=row.correct;
