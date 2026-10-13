@@ -4112,7 +4112,7 @@ async function sendResetEmail(){
   let error;
   try{
     ({error}=await sb.auth.resetPasswordForEmail(email,{
-      redirectTo:'https://teachyaed.github.io/teachyaed-app/'
+      redirectTo:window.location.origin+window.location.pathname
     }));
     if(error){
       C('resetMsg').textContent='Ошибка: '+error.message;
