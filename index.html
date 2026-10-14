@@ -8715,6 +8715,17 @@ async function saveFromCE(publish){
     language:C('ce_lang').value,level:C('ce_level').value,
     content:{sections:CE.sections,materials:CE.materials},published:publish,
     exercise_count:(CE.sections||[]).reduce((a,s)=>a+((s.exercises||[]).length),0)};
+  if(CE.lessonId){
+    try{
+      const _pv=await sb.from('lessons').select('content').eq('id',CE.lessonId).eq('school_id',S.schoolId).maybeSingle();
+      let _pc=_pv.data?_pv.data.content:null;if(typeof _pc==='string'){try{_pc=JSON.parse(_pc);}catch(_e){_pc=null;}}
+      const _ps=Array.isArray(_pc)?[{exercises:_pc}]:((_pc&&_pc.sections)||[]);
+      const _old=_ps.reduce((a,s)=>a+((s&&s.exercises||[]).length),0);
+      if(_old>=3&&data.exercise_count<Math.ceil(_old/2)){
+        if(!await tyConfirm('⚠️ '+t('В уроке сейчас')+' '+_old+' '+t('упражнений, после сохранения останется')+' '+data.exercise_count+'. '+t('Похоже, урок открылся не полностью. Всё равно сохранить?')))return;
+      }
+    }catch(_e){console.warn('[save guard]',_e);}
+  }
   let err=null;
   if(CE.lessonId){
     const res=await sb.from('lessons').update(data).eq('id',CE.lessonId).eq('school_id',S.schoolId).select().single();
@@ -8747,7 +8758,7 @@ async function renderTeacherLessons(){
   if(S.screen!==_tlSnap){return;}
   C('assign_student').innerHTML=(sts||[]).map(s=>`<option value="${_esc(s.id)}">${_esc(s.first_name)} ${_esc(s.last_name)}</option>`).join('');
   window._lessonCache=window._lessonCache||{};
-  (lessons||[]).forEach(l=>{window._lessonCache[l.id]=l;});
+  (lessons||[]).forEach(l=>{const _o=window._lessonCache[l.id];if(!(_o&&_o.content!==undefined))window._lessonCache[l.id]=l;});
   const cards=(lessons||[]).map(l=>{
     const cnt=l.exercise_count??0;
     return`<div class="card" style="margin-bottom:12px">
@@ -9221,7 +9232,7 @@ async function cvOpenSpecial(kind){
     var _tt={hw:"Для домашней работы",extra:"Дополнительно",vocab:"Словарь",reflect:"Рефлексия"};var sec={title:t(_tt[kind]||"Раздел"),exercises:[]};
     sec[kind]=true;
     LV.sections.push(sec);idx=LV.sections.length-1;
-    await lvPersistSections();
+    await lvSaveSpecialSection(sec);
   }
   LV.curSec=idx;LV.curEx=0;LV.viewAll=false;
   lvRender();
@@ -9241,14 +9252,52 @@ function cvSpecialNote(){
       : t("Здесь можно собрать дополнительные упражнения к уроку. Ученики увидят раздел, только когда в нём появятся задания.");
     if(sec.vocab)txt=t("Словарь урока: собери сюда слова и выражения. Ученик видит раздел, когда в нём есть задания.");
     if(sec.reflect)txt=t("Рефлексия и отзыв преподавателя: итоги урока — что получилось и над чем работать.");
-    var btns='<button class="btn btn-sm btn-outline" style="margin-top:10px" onclick="cvEditInBuilder()">✏️ '+t("Редактировать в конструкторе")+'</button>';
+    var btns=(sec.extra||sec.hw)?'<button class="btn btn-sm btn-purple" style="margin-top:10px" onclick="cvQuickAdd(\'link\')">🔗 '+t("Ссылка или видео")+'</button> <button class="btn btn-sm btn-purple" style="margin-top:10px" onclick="cvQuickAdd(\'text\')">📝 '+t("Текст")+'</button> ':'';
+    btns+='<button class="btn btn-sm btn-outline" style="margin-top:10px" onclick="cvEditInBuilder()">✏️ '+t("Редактировать в конструкторе")+'</button>';
     if(sec.hw)btns+=' <button class="btn btn-sm btn-purple" style="margin-top:10px" onclick="cvGiveSectionAsHW()">📤 '+t("Выдать как ДЗ")+'</button>';
     box.insertAdjacentHTML("afterbegin",'<div id="cvSpecNote" class="card" style="margin-bottom:14px;border-left:4px solid var(--purple)"><div style="font-size:.88rem">🙈 '+txt+'</div>'+btns+'</div>');
   }catch(e){console.warn("[spec note]",e);}
 }
+// Сохраняет только служебный раздел: перечитывает урок из базы и меняет один раздел — остальное не трогает
+async function lvSaveSpecialSection(sec){
+  try{
+    if(!LV.lessonId||!sec)return false;
+    var kind=['extra','hw','vocab','reflect'].filter(function(k){return sec[k];})[0];if(!kind)return false;
+    var q=await sb.from('lessons').select('content').eq('id',LV.lessonId).eq('school_id',S.schoolId).maybeSingle();
+    if(q.error||!q.data){showToast('❌ '+t('Урок не найден'),'error');return false;}
+    var raw=q.data.content;if(typeof raw==='string'){try{raw=JSON.parse(raw);}catch(e){raw=null;}}
+    if(Array.isArray(raw))raw={sections:[{title:'Урок',exercises:raw}],materials:[]};
+    if(!raw||typeof raw!=='object')raw={sections:[]};
+    if(!Array.isArray(raw.sections))raw.sections=[];
+    var i=-1;for(var j=0;j<raw.sections.length;j++){if(raw.sections[j]&&raw.sections[j][kind]){i=j;break;}}
+    if(i<0)raw.sections.push(sec);else raw.sections[i]=sec;
+    var up=await sb.from('lessons').update({content:raw,exercise_count:raw.sections.reduce(function(a,x){return a+((x&&x.exercises||[]).length);},0)}).eq('id',LV.lessonId).eq('school_id',S.schoolId);
+    if(up.error){showToast('❌ '+up.error.message,'error');return false;}
+    if(window._lessonCache&&window._lessonCache[LV.lessonId])window._lessonCache[LV.lessonId].content=raw;
+    return true;
+  }catch(e){console.warn('[special save]',e);return false;}
+}
+// Быстро добавить ссылку/видео/текст прямо в «Дополнительно» (или «Для ДЗ»)
+async function cvQuickAdd(kind){
+  var sec=(LV.sections||[])[LV.curSec];if(!sec||!(sec.extra||sec.hw))return;
+  var ex=null;
+  if(kind==='link'){
+    var u=await tyPrompt(t('Вставьте ссылку (YouTube, Google Drive, сайт)'),'');if(!u)return;
+    u=String(u).trim();if(!/^https?:\/\//i.test(u))u='https://'+u;
+    if(/youtu\.?be|vimeo\.com|loom\.com|drive\.google\.com|docs\.google\.com/i.test(u))ex={type:'video',url:u,note:'',question:''};
+    else{var ti=await tyPrompt(t('Подпись к ссылке (необязательно)'),'');ex={type:'text',text:'🔗 ['+String(ti||u).replace(/[\[\]]/g,'')+']('+u+')'};}
+  }else if(kind==='text'){
+    var tx=await tyPrompt(t('Текст'),'');if(!tx)return;ex={type:'text',text:String(tx)};
+  }
+  if(!ex)return;
+  sec.exercises=sec.exercises||[];sec.exercises.push(ex);
+  if(!await lvSaveSpecialSection(sec)){sec.exercises.pop();return;}
+  lvRender();setTimeout(cvSpecialNote,120);showToast('✅ '+t('Добавлено'));
+}
 function cvEditInBuilder(){
   if(!LV.lessonId)return;
   var l=(window._lessonCache||{})[LV.lessonId];
+  if(l&&(l.content===undefined||l.content===null))l=null; // в кэше бывает урок без содержимого — грузим из базы
   closeClassroomView();
   if(l&&typeof openLessonEditor==="function"){openLessonEditor(l.id,l.title,l.language||"Английский",l.level||"A1",l.content||[]);return;}
   sb.from("lessons").select("*").eq("id",LV.lessonId).eq("school_id",S.schoolId).maybeSingle().then(function(q){
@@ -9614,6 +9663,7 @@ function mdFormat(raw){
   let s=_escHtml(raw||'').replace(/\n/g,'<br>');
   s=s.replace(/\*\*(.+?)\*\*/g,'<b>$1</b>');
   s=s.replace(/\*(.+?)\*/g,'<i>$1</i>');
+  s=s.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g,'<a href="$2" target="_blank" rel="noopener">$1</a>');
   return s;
 }
 function ceWrapSel(id,marker){
