@@ -408,6 +408,17 @@ body[data-theme="dark"] .wb-tool{color:var(--text2)}
 .quiz-opt:hover{border-color:var(--purple);background:var(--purple-light)}
 .quiz-opt.correct{border-color:var(--green);background:var(--green-light);color:#065F46}
 .quiz-opt.wrong{border-color:var(--red);background:#FEE2E2;color:#991B1B}
+.lp-top{position:sticky;top:0;background:var(--white,#fff);padding-bottom:8px;z-index:1}
+.lp-search{width:100%;padding:10px 12px;border:2px solid var(--gray-border);border-radius:10px;font-family:var(--font);font-size:.92rem;margin-bottom:8px}
+.lp-tabs{display:flex;gap:6px;margin-bottom:8px}.lp-tab{flex:1;padding:8px;border:2px solid var(--gray-border);border-radius:10px;background:none;font-family:var(--font);font-weight:700;font-size:.82rem;cursor:pointer;color:var(--text2)}
+.lp-tab.on{border-color:var(--purple);background:var(--purple-light);color:var(--purple)}.lp-tab span{opacity:.6;font-weight:600}
+.lp-chips{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:6px}.lp-chip{padding:3px 10px;border:1.5px solid var(--gray-border);border-radius:14px;background:none;font-size:.74rem;cursor:pointer;font-family:var(--font);color:var(--text2)}
+.lp-chip.on{border-color:var(--purple);background:var(--purple);color:#fff}
+.lp-group{font-weight:800;font-size:.75rem;color:var(--text3);text-transform:uppercase;letter-spacing:.04em;margin:12px 2px 6px}.lp-group span{opacity:.6}
+.lp-row{display:flex;align-items:center;gap:8px;padding:8px 12px;border:1.5px solid var(--gray-border);border-radius:10px;margin-bottom:5px;cursor:pointer;transition:.12s}
+.lp-row:hover{border-color:var(--purple);background:var(--purple-light)}.lp-main{flex:1;min-width:0}
+.lp-title{font-weight:700;font-size:.9rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.lp-meta{font-size:.72rem;color:var(--text3)}
+.lp-pin{font-size:.7rem;padding:2px 8px;flex-shrink:0}.lp-empty{text-align:center;color:var(--text3);padding:24px}
 .qz-gap{display:inline-block;min-width:70px;padding:0 8px;margin:0 3px;border-bottom:2px solid var(--purple);text-align:center;font-weight:700}
 .qz-gap.ok{color:#065F46;background:var(--green-light);border-color:var(--green);border-radius:6px 6px 0 0}
 .qz-gap.bad{color:#991B1B;background:#FEE2E2;border-color:var(--red);border-radius:6px 6px 0 0}
@@ -7600,18 +7611,48 @@ async function cvOpenSwitchLesson(){
     if(!lessons||!lessons.length){showToast(t('Уроков пока нет'));return;}
     const progIds=(prog||[]).map(p=>p.lesson_id);
     const progSet=new Set(progIds);
-    const item=l=>{const _id=_esc(l.id).replace(/'/g,"&#39;");return`<div onclick="cvSwitchTo('${_id}')" style="padding:11px 14px;cursor:pointer;border-radius:10px;border:2px solid var(--gray-border);margin-bottom:6px;transition:.15s" onmouseover="this.style.borderColor='var(--purple)'" onmouseout="this.style.borderColor='var(--gray-border)'">
-      <div style="display:flex;align-items:center;gap:8px"><div style="font-weight:700;flex:1">${_escHtml(l.title)}</div>${l.published?'<span class="badge badge-green" style="font-size:.66rem">✓</span>':'<span class="badge badge-gray" style="font-size:.66rem">Черновик</span>'}${(S.currentClassId&&['teacher','admin','owner'].includes(S.role))?`<button class="btn btn-sm btn-outline" title="Закрепить за классом" style="font-size:.7rem;padding:2px 8px;flex-shrink:0" onclick="event.stopPropagation();cvPinLessonToClass('${_id}','${_escJS(l.title)}',this)">📌</button>`:''}</div>
-      <div style="font-size:.76rem;color:var(--text3)">${_escHtml(l.language||'—')} · ${_escHtml(l.level||'—')}</div>
-    </div>`;};
-    const byId={};lessons.forEach(l=>{byId[l.id]=l;});
-    const progHtml=progIds.map(id=>byId[id]).filter(Boolean).map(item).join('');
-    const restHtml=lessons.filter(l=>!progSet.has(l.id)).map(item).join('');
-    C('lessonPickerList').innerHTML=
-      (progHtml?`<div style="font-weight:700;font-size:.8rem;color:var(--purple);margin-bottom:8px">🛤 ${t('Уроки программы')}</div>${progHtml}`:'')+
-      (restHtml?`<div style="font-weight:700;font-size:.8rem;color:var(--text3);margin:12px 0 8px">📚 ${t('Все материалы платформы')}</div>${restHtml}`:'');
+    window._lp={lessons:lessons,progIds:progIds,tab:progIds.length?'class':'all',q:'',level:'',lang:''};
+    lpRender();
     openM('mLessonPicker');
   }finally{cvOpenSwitchLesson._busy=false;}
+}
+// ─── Окно выбора урока: поиск, вкладки, фильтры, группы по уровням ───
+function lpSet(k,v){var st=window._lp;if(!st)return;st[k]=(st[k]===v&&k!=='tab'&&k!=='q')?'':v;lpRender(k==='q');}
+function lpRender(keepFocus){
+  var st=window._lp;var box=C('lessonPickerList');if(!st||!box)return;
+  var canPin=!!(S.currentClassId&&['teacher','admin','owner'].includes(S.role));
+  var byId={};st.lessons.forEach(function(l){byId[l.id]=l;});
+  var progSet=new Set(st.progIds);
+  var src=st.tab==='class'?st.progIds.map(function(id){return byId[id];}).filter(Boolean):st.lessons;
+  var q=(st.q||'').trim().toLowerCase();
+  var list=src.filter(function(l){
+    if(q&&String(l.title||'').toLowerCase().indexOf(q)<0)return false;
+    if(st.level&&(l.level||'—')!==st.level)return false;
+    if(st.lang&&(l.language||'—')!==st.lang)return false;
+    return true;});
+  var levels=Array.from(new Set(st.lessons.map(function(l){return l.level||'—';}))).sort();
+  var langs=Array.from(new Set(st.lessons.map(function(l){return l.language||'—';}))).sort();
+  var chip=function(k,v,lbl){var on=st[k]===v;return '<button type="button" class="lp-chip'+(on?' on':'')+'" onclick="lpSet(\''+k+'\',\''+_escJS(v)+'\')">'+_escHtml(lbl||v)+'</button>';};
+  var row=function(l){var _id=_esc(l.id).replace(/'/g,"&#39;");var inCls=progSet.has(l.id);
+    return '<div class="lp-row" onclick="cvSwitchTo(\''+_id+'\')"><div class="lp-main"><div class="lp-title">'+_escHtml(l.title||'—')+'</div>'
+      +'<div class="lp-meta">'+_escHtml(l.language||'—')+' · '+_escHtml(l.level||'—')+(l.published?'':' · '+t('Черновик'))+(inCls&&st.tab!=='class'?' · 🛤 '+t('в классе'):'')+'</div></div>'
+      +(canPin&&!inCls?'<button class="btn btn-sm btn-outline lp-pin" title="'+t('Закрепить за классом')+'" onclick="event.stopPropagation();cvPinLessonToClass(\''+_id+'\',\''+_escJS(l.title||'')+'\',this)">📌</button>':'')+'</div>';};
+  var body='';
+  if(!list.length){body='<div class="lp-empty">'+t('Ничего не найдено')+'</div>';}
+  else if(st.tab==='class'){body=list.map(row).join('');}
+  else{
+    var groups={};list.forEach(function(l){var k=l.level||'—';(groups[k]=groups[k]||[]).push(l);});
+    body=Object.keys(groups).sort().map(function(k){return '<div class="lp-group">'+_escHtml(k)+' <span>'+groups[k].length+'</span></div>'+groups[k].map(row).join('');}).join('');
+  }
+  var classCnt=st.progIds.filter(function(id){return byId[id];}).length;
+  box.innerHTML='<div class="lp-top">'
+    +'<input id="lpSearch" class="lp-search" placeholder="🔍 '+t('Поиск урока')+'" value="'+_escHtml(st.q||'')+'" oninput="lpSet(\'q\',this.value)">'
+    +'<div class="lp-tabs">'+(S.currentClassId?'<button type="button" class="lp-tab'+(st.tab==='class'?' on':'')+'" onclick="lpSet(\'tab\',\'class\')">🛤 '+t('Уроки класса')+' <span>'+classCnt+'</span></button>':'')
+    +'<button type="button" class="lp-tab'+(st.tab==='all'?' on':'')+'" onclick="lpSet(\'tab\',\'all\')">📚 '+t('Все уроки')+' <span>'+st.lessons.length+'</span></button></div>'
+    +(levels.length>1?'<div class="lp-chips">'+levels.map(function(v){return chip('level',v);}).join('')+'</div>':'')
+    +(langs.length>1?'<div class="lp-chips">'+langs.map(function(v){return chip('lang',v);}).join('')+'</div>':'')
+    +'</div><div class="lp-body">'+body+'</div>';
+  if(keepFocus){var inp=C('lpSearch');if(inp){inp.focus();var n=inp.value.length;try{inp.setSelectionRange(n,n);}catch(e){}}}
 }
 // Закрепить текущий открытый урок за классом: в программу + назначить всем ученикам
 async function cvPinLessonToClass(_argLid,_argTitle,_argBtn){
