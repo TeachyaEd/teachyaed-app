@@ -8705,7 +8705,8 @@ function ceEditorHTML(b){
     <div class="form-group" style="margin:0 0 8px"><label>Вопросы и варианты</label>
     <textarea id="ceQuizQ" oninput="${P}.list=this.value" placeholder="She ___ to school every day.&#10;+ goes&#10;- go&#10;- going&#10;&#10;They ___ football on Sundays.&#10;+ play&#10;- plays" style="min-height:170px;width:100%;padding:8px 10px;border:2px solid var(--gray-border);border-radius:6px;font-family:var(--font);line-height:1.6">${_escHtml(b.list||(b.question?(b.question+'\n'+(b.options||[]).filter(o=>String(o||'').trim()).map(o=>((b.options.indexOf(o)===(parseInt(b.correct)||0))?'+ ':'- ')+o).join('\n')):''))}</textarea>
     <button type="button" class="btn btn-outline btn-sm" style="margin-top:6px" onclick="ceInsertQuizGap()">+ Вставить пропуск ___</button>
-    <div style="font-size:.75rem;color:var(--text3);margin-top:4px">Строка — вопрос, под ним варианты: <b>+</b> правильный, <b>-</b> неправильный. Вопросов сколько угодно. Ученику варианты покажутся вперемешку.</div></div>`;
+    <div style="font-size:.75rem;color:var(--text3);margin-top:4px">Строка — вопрос, под ним варианты: <b>+</b> правильный, <b>-</b> неправильный. Вопросов сколько угодно. Ученику варианты покажутся вперемешку.</div></div>
+    <div class="form-group" style="margin-top:8px"><label>${t('Лимит времени (сек, необязательно)')}</label><input type="number" min="5" value="${b.time_limit||''}"  oninput="${P}.time_limit=this.value?parseInt(this.value):null" style="max-width:140px"></div>`;
 
   if(b.type==='matching')return`
     <div>${(b.pairs||[]).map((p,pi)=>`<div style="display:grid;grid-template-columns:1fr auto 1fr auto;gap:6px;align-items:center;margin-bottom:6px">
@@ -10050,7 +10051,24 @@ function qmRender(b,i){
     return '<div class="qm-q"><div class="qm-t"><b>'+(k+1)+'.</b> '+q+'</div><div class="quiz-opts">'
       +os.map(function(y){return '<div class="quiz-opt" id="qm_'+i+'_'+k+'_'+y.oi+'" data-ok="'+(y.o.ok?1:0)+'" onclick="qmPick(\''+i+'\','+k+','+y.oi+')">'+_escHtml(y.o.t)+'</div>';}).join('')
       +'</div></div>';}).join('');
-  return '<div class="lesson-view-block"><div style="font-weight:700;margin-bottom:4px">🎯 '+t('Выбери правильный ответ')+'</div>'+rows+'</div>';
+  var tl=parseInt(b.time_limit)||0;
+  return '<div class="lesson-view-block"><div style="font-weight:700;margin-bottom:4px">🎯 '+t('Выбери правильный ответ')
+    +(tl?'<span id="qm_timer_'+i+'" style="float:right;font-weight:400;font-size:.85rem;color:var(--text3)"></span>':'')+'</div>'+rows+'</div>'
+    +(tl?'<img src="x" style="display:none" onerror="qmStartTimer(\''+i+'\','+tl+')">':'');
+}
+function qmStartTimer(i,sec){
+  if(window['_qmT_'+i])clearInterval(window['_qmT_'+i]);
+  var left=parseInt(sec),el=function(){return document.getElementById('qm_timer_'+i);};
+  var show=function(){var e=el();if(e)e.textContent='⏱ '+left+'с';};show();
+  window['_qmT_'+i]=setInterval(function(){
+    var st=(window._qm||{})[i];
+    if(!st||!document.getElementById('qm_timer_'+i)||Object.keys(st.pick).length>=st.n){clearInterval(window['_qmT_'+i]);var e=el();if(e)e.textContent='';return;}
+    left--;show();
+    if(left<=0){clearInterval(window['_qmT_'+i]);var e2=el();if(e2)e2.textContent='⏱ '+t('Время вышло');
+      for(var k=0;k<st.n;k++)if(st.pick[k]==null){st.pick[k]='-';st.ok[k]=false;qmMark(i,k,null);}
+      var v=[],all=true;for(var n=0;n<st.n;n++){v.push(st.pick[n]||'-');if(!st.ok[n])all=false;}
+      saveLessonAnswer(i,'quiz',v.join(' | '),all);}
+  },1000);
 }
 function qmMark(i,k,el){
   document.querySelectorAll('[id^="qm_'+i+'_'+k+'_"]').forEach(function(o){o.onclick=null;o.classList.remove('correct','wrong');if(o.dataset.ok==='1')o.classList.add('correct');});
