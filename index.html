@@ -449,6 +449,9 @@ body[data-theme="dark"] .wb2-chip{background:var(--white)}
 .oq-list li{margin:5px 0;padding-left:2px}
 .oq-oral{font-size:.78rem;color:var(--text3);margin-top:2px}
 .quiz-opts{display:flex;flex-wrap:wrap;gap:10px}
+.qm-q{padding:10px 0;border-bottom:1px solid var(--gray-border)}.qm-q:last-child{border-bottom:none}
+.qm-t{margin-bottom:8px;font-size:.98rem;line-height:1.9}
+.qm-q .quiz-opts{gap:8px}.qm-q .quiz-opt{padding:7px 14px;min-width:80px}
 .quiz-opts .quiz-opt{margin:0;min-width:110px;max-width:100%;text-align:center;padding:10px 18px}
 .vocab-grid{display:flex;flex-wrap:wrap;gap:10px;justify-content:center}
 .vocab-grid .vocab-card-lesson{margin:0;width:170px}
@@ -8699,16 +8702,10 @@ function ceEditorHTML(b){
     ${String(b.sentence||'').includes('{{blank}}')?`<div class="form-group" style="margin:0"><label>Правильный ответ (старый формат с {{blank}})</label>${ci(b.answer,'answer','am')}</div>`:''}`;
 
   if(b.type==='quiz')return`
-    <div class="form-group" style="margin:0 0 8px"><label>Вопрос</label>
-      <input id="ceQuizQ" value="${(b.question||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#39;')}" oninput="${P}.question=this.value" placeholder="She ___ to school every day." style="width:100%;padding:8px 10px;border:2px solid var(--gray-border);border-radius:6px;font-family:var(--font);font-size:.88rem">
-      <button type="button" class="btn btn-outline btn-sm" style="margin-top:6px" onclick="ceInsertQuizGap()">+ Вставить пропуск ___</button>
-    </div>
-    ${(b.options||['','','','']).map((o,oi)=>`<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
-      <input type="radio" name="ceq" ${b.correct===oi?'checked':''} onchange="${P}.correct=${oi}" style="accent-color:var(--green);width:16px;height:16px">
-      <input value="${(o||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;')}" oninput="${P}.options[${oi}]=this.value" placeholder="Вариант ${oi+1}${oi>=2?' (необязательно)':''}" style="flex:1;padding:8px 10px;border:2px solid var(--gray-border);border-radius:6px;font-family:var(--font)">
-    </div>`).join('')}
-    <div style="font-size:.75rem;color:var(--text3)">● = правильный ответ · пустые варианты ученик не увидит</div>
-    <div class="form-group" style="margin-top:8px"><label>${t('Лимит времени (сек, необязательно)')}</label><input type="number" min="5" value="${b.time_limit||''}"  oninput="${P}.time_limit=this.value?parseInt(this.value):null" style="max-width:140px"></div>`;
+    <div class="form-group" style="margin:0 0 8px"><label>Вопросы и варианты</label>
+    <textarea id="ceQuizQ" oninput="${P}.list=this.value" placeholder="She ___ to school every day.&#10;+ goes&#10;- go&#10;- going&#10;&#10;They ___ football on Sundays.&#10;+ play&#10;- plays" style="min-height:170px;width:100%;padding:8px 10px;border:2px solid var(--gray-border);border-radius:6px;font-family:var(--font);line-height:1.6">${_escHtml(b.list||(b.question?(b.question+'\n'+(b.options||[]).filter(o=>String(o||'').trim()).map(o=>((b.options.indexOf(o)===(parseInt(b.correct)||0))?'+ ':'- ')+o).join('\n')):''))}</textarea>
+    <button type="button" class="btn btn-outline btn-sm" style="margin-top:6px" onclick="ceInsertQuizGap()">+ Вставить пропуск ___</button>
+    <div style="font-size:.75rem;color:var(--text3);margin-top:4px">Строка — вопрос, под ним варианты: <b>+</b> правильный, <b>-</b> неправильный. Вопросов сколько угодно. Ученику варианты покажутся вперемешку.</div></div>`;
 
   if(b.type==='matching')return`
     <div>${(b.pairs||[]).map((p,pi)=>`<div style="display:grid;grid-template-columns:1fr auto 1fr auto;gap:6px;align-items:center;margin-bottom:6px">
@@ -9844,6 +9841,7 @@ function ceMakeGap(){var ta=document.getElementById('ceGapText');if(!ta)return;v
 function renderBlockView(b,i){
   if((b.type==='fill_blank'||b.type==='word_bank')&&gapHas(b.sentence))return b.type==='fill_blank'?gapRenderFB(b,i):gapRenderWB(b,i);
   if(b.type==='truefalse'&&tfmHas(b))return tfmRender(b,i);
+  if(b.type==='quiz'&&qmHas(b))return qmRender(b,i);
   if(b.type==='text') return`<div class="lesson-view-block">
     ${b.image&&/^https:\/\//i.test(b.image)?`<img src="${_escHtml(b.image)}" style="max-width:100%;border-radius:8px;margin-bottom:10px">`:''}
     <div style="font-size:.95rem;line-height:1.8">${mdFormat(b.text||'')}</div>
@@ -10036,6 +10034,34 @@ function oqQuestions(q){
   return lines;
 }
 // Тест: «___» в вопросе → пропуск, куда встаёт выбранный вариант
+// ── Тест из нескольких вопросов ──
+function qmHas(b){return !!String(b&&b.list||'').trim();}
+function qmItems(b){var out=[],cur=null;
+  String(b.list||'').split(/\r?\n/).forEach(function(l){l=l.trim();if(!l)return;
+    var m=l.match(/^([+\-−–*])\s*(.*)$/);
+    if(m&&cur){if(m[2])cur.o.push({t:m[2],ok:m[1]==='+'||m[1]==='*'});}
+    else{cur={q:l.replace(/^\d+[.)]\s*/,''),o:[]};out.push(cur);}});
+  return out.filter(function(x){return x.o.length;});}
+function qmRender(b,i){
+  var it=qmItems(b);window._qm=window._qm||{};window._qm[i]={n:it.length,pick:{},ok:{}};
+  var rows=it.map(function(x,k){var n=0;
+    var q=_escHtml(x.q).replace(/_{3,}/g,function(){n++;return '<span class="qz-gap"'+(n===1?' id="qmg_'+i+'_'+k+'"':'')+'>&nbsp;</span>';});
+    var os=x.o.map(function(o,oi){return {o:o,oi:oi};}).sort(function(){return Math.random()-.5;});
+    return '<div class="qm-q"><div class="qm-t"><b>'+(k+1)+'.</b> '+q+'</div><div class="quiz-opts">'
+      +os.map(function(y){return '<div class="quiz-opt" id="qm_'+i+'_'+k+'_'+y.oi+'" data-ok="'+(y.o.ok?1:0)+'" onclick="qmPick(\''+i+'\','+k+','+y.oi+')">'+_escHtml(y.o.t)+'</div>';}).join('')
+      +'</div></div>';}).join('');
+  return '<div class="lesson-view-block"><div style="font-weight:700;margin-bottom:4px">🎯 '+t('Выбери правильный ответ')+'</div>'+rows+'</div>';
+}
+function qmMark(i,k,el){
+  document.querySelectorAll('[id^="qm_'+i+'_'+k+'_"]').forEach(function(o){o.onclick=null;o.classList.remove('correct','wrong');if(o.dataset.ok==='1')o.classList.add('correct');});
+  var ok=!!(el&&el.dataset.ok==='1');if(el&&!ok)el.classList.add('wrong');
+  var g=document.getElementById('qmg_'+i+'_'+k);if(g&&el){g.textContent=el.textContent;g.classList.remove('ok','bad');g.classList.add(ok?'ok':'bad');}
+  return ok;}
+function qmPick(i,k,oi){var st=(window._qm||{})[i];if(!st||st.pick[k]!=null)return;
+  var el=document.getElementById('qm_'+i+'_'+k+'_'+oi);st.pick[k]=(el?el.textContent:'').trim();st.ok[k]=qmMark(i,k,el);
+  if(Object.keys(st.pick).length<st.n)return;
+  var v=[],all=true;for(var n=0;n<st.n;n++){v.push(st.pick[n]||'-');if(!st.ok[n])all=false;}
+  saveLessonAnswer(i,'quiz',v.join(' | '),all);}
 function qzQuestionHtml(q,i){
   var n=0;
   return _escHtml(q).replace(/_{3,}/g,function(){n++;return '<span class="qz-gap"'+(n===1?' id="qg_'+i+'"':'')+'>&nbsp;</span>';});
@@ -10098,6 +10124,15 @@ function tyApplyInlineAnswer(exKey,answer,correct){
     var paint=function(el){if(!el)return;el.style.borderRadius='6px';el.style.padding='2px 8px';
       if(correct===true){el.style.background='var(--green-light)';el.style.color='#065F46';}
       else if(correct===false){el.style.background='#FEE2E2';el.style.color='#991B1B';}};
+    if(b.type==='quiz'&&qmHas(b)){
+      if(!document.querySelector('[id^="qm_'+k+'_0_"]'))return false;
+      var _qst=(window._qm||{})[k];
+      ans.split(' | ').forEach(function(v,n){v=v.trim();var hit=null;
+        document.querySelectorAll('[id^="qm_'+k+'_'+n+'_"]').forEach(function(o){if(!hit&&o.textContent.trim()===v)hit=o;});
+        if(_qst){_qst.pick[n]=v;_qst.ok[n]=!!(hit&&hit.dataset.ok==='1');}
+        qmMark(k,n,hit);});
+      return true;
+    }
     if(b.type==='quiz'){
       var opts=document.querySelectorAll('[id^="qo_'+k+'_"]');if(!opts.length)return false;
       var ci=Number.isInteger(b.correct)?b.correct:(parseInt(b.correct)||0);
