@@ -11936,7 +11936,7 @@ async function renderStudentVocab(){
     if(fresh.length){
       const rows=fresh.map(function(w){return {school_id:S.schoolId,student_profile_id:S.profile.id,word:w.word.slice(0,200),translation:w.trans.slice(0,400),source:'lesson',lesson_id:w.lesson_id};});
       let inserted=null;
-      try{const ri=await sb.from('student_vocab').insert(rows).select('id,word,translation');if(!ri.error)inserted=ri.data;}catch(e){}
+      try{inserted=await vbInsertSafe(rows,true);}catch(e){}
       const idMap={};
       (inserted||[]).forEach(function(r){idMap[_vkey(r.word,r.translation)]=r.id;});
       fresh.forEach(function(w){_vocabWords.push({id:idMap[_vkey(w.word,w.trans)]||null,word:w.word,trans:w.trans,source:'lesson',known:0,wrong:0});});
@@ -12413,8 +12413,15 @@ async function _vtSyncLessonWords(stuId,pid){
     const seen={};(ex.data||[]).forEach(function(r){seen[_vkey(r.word,r.translation)]=1;});
     const rows=[];
     lw.forEach(function(w){const k=_vkey(w.word,w.trans);if(seen[k])return;seen[k]=1;rows.push({school_id:S.schoolId,student_profile_id:pid,word:w.word.slice(0,200),translation:w.trans.slice(0,400),source:'lesson',lesson_id:w.lesson_id});});
-    if(rows.length)await sb.from('student_vocab').insert(rows);
+    if(rows.length)await vbInsertSafe(rows,false);
   }catch(e){}
+}
+// Пакетом; при ошибке (дубликат и т.п.) — по одному, пропуская неудачные
+async function vbInsertSafe(rows,ret){
+  var r=ret?await sb.from('student_vocab').insert(rows).select('id,word,translation'):await sb.from('student_vocab').insert(rows);
+  if(!r.error)return r.data||[];
+  var out=[];for(var n=0;n<rows.length;n++){var x=ret?await sb.from('student_vocab').insert(rows[n]).select('id,word,translation').maybeSingle():await sb.from('student_vocab').insert(rows[n]);if(!x.error&&x.data)out.push(x.data);}
+  return out;
 }
 async function cvOpenVocabSection(){
   if(S&&S.role==='student'){
