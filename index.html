@@ -409,6 +409,12 @@ body[data-theme="dark"] .wb-tool{color:var(--text2)}
 .quiz-opt.correct{border-color:var(--green);background:var(--green-light);color:#065F46}
 .quiz-opt.wrong{border-color:var(--red);background:#FEE2E2;color:#991B1B}
 .gap-text{font-size:1.02rem;line-height:2.4}
+.tfm-row{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--gray-border);flex-wrap:wrap}
+.tfm-s{flex:1;min-width:200px;font-size:.98rem;line-height:1.5}.tfm-btns{display:flex;gap:6px;flex-wrap:wrap}
+.tfm-b{padding:6px 12px;border:2px solid var(--gray-border);border-radius:8px;background:#fff;font-weight:700;cursor:pointer;font-family:var(--font);font-size:.84rem;color:var(--text2)}
+.tfm-b.sel{border-color:var(--purple);background:var(--purple-light);color:var(--purple)}
+.tfm-b.correct{border-color:var(--green);background:var(--green-light);color:#065F46}.tfm-b.wrong{border-color:var(--red);background:#FEE2E2;color:#991B1B}
+body[data-theme="dark"] .tfm-b{background:var(--white)}
 .gap-inp{min-width:4ch;text-align:center;margin:0 2px}
 .wb2-bank{display:flex;flex-wrap:wrap;gap:8px;padding:10px;background:var(--gray-light);border-radius:12px;margin-bottom:12px}
 .wb2-chip{padding:6px 14px;border:2px solid var(--purple);border-radius:20px;background:#fff;color:var(--purple);font-weight:700;font-family:var(--font);cursor:pointer;font-size:.92rem;transition:.12s}
@@ -8714,13 +8720,9 @@ function ceEditorHTML(b){
     <button class="btn btn-outline" style="font-size:.8rem;margin-top:6px" onclick="${P}.pairs.push({left:'',right:''});ceExercise()">+ Пара</button></div>`;
 
   if(b.type==='truefalse')return`
-    <div class="form-group" style="margin:0 0 8px"><label>Утверждение</label>${ci(b.statement,'statement','The sky is green.')}</div>
-    <div class="form-group" style="margin:0 0 8px"><label>Правильный ответ</label>
-      <select onchange="${P}.answer=this.value==='true'" style="width:100%;padding:8px 10px;border:2px solid var(--gray-border);border-radius:6px;font-family:var(--font)">
-        <option value="true" ${b.answer?'selected':''}>✅ Верно (True)</option>
-        <option value="false" ${!b.answer?'selected':''}>❌ Неверно (False)</option>
-      </select>
-    </div>
+    <div class="form-group" style="margin:0 0 8px"><label>Утверждения — каждое с новой строки</label>
+    <textarea oninput="${P}.list=this.value" placeholder="+ London is the capital of the UK.&#10;- Bob is a writer.&#10;? Bob likes coffee." style="min-height:110px;width:100%;padding:8px 10px;border:2px solid var(--gray-border);border-radius:6px;font-family:var(--font);line-height:1.6">${_escHtml(b.list||(b.statement?((b.answer===false?'- ':'+ ')+b.statement):''))}</textarea>
+    <div style="font-size:.75rem;color:var(--text3);margin-top:4px">В начале строки: <b>+</b> верно, <b>-</b> неверно, <b>?</b> в тексте не сказано (тогда у ученика появится кнопка Not Stated).</div></div>
     <div class="form-group" style="margin:0"><label>Объяснение (необяз.)</label>${ci(b.explanation,'explanation','Объяснение...')}</div>`;
 
   if(b.type==='word_bank')return`
@@ -9767,6 +9769,31 @@ function startQuizTimer(i,seconds,correct){
 }
 
 // ── Пропуски нового формата: [ответ] прямо в тексте, несколько вариантов через «/» ──
+// ── Истина / Ложь / Not Stated: список утверждений («+ » верно, «- » неверно, «? » не сказано) ──
+var TFM_L={T:'True',F:'False',NS:'Not Stated'};
+function tfmHas(b){return !!String(b&&b.list||'').trim();}
+function tfmItems(b){return String(b.list||'').split(/\r?\n/).map(function(l){l=l.trim();if(!l)return null;var a='T';
+  if(/^[-−–]\s*/.test(l)){a='F';l=l.replace(/^[-−–]\s*/,'');}else if(/^\?\s*/.test(l)){a='NS';l=l.replace(/^\?\s*/,'');}else if(/^\+\s*/.test(l)){l=l.replace(/^\+\s*/,'');}
+  return l?{s:l,a:a}:null;}).filter(Boolean);}
+function tfmOpts(it){return it.some(function(x){return x.a==='NS';})?['T','F','NS']:['T','F'];}
+function tfmRender(b,i){
+  var it=tfmItems(b),opts=tfmOpts(it);window._tfm=window._tfm||{};window._tfm[i]={pick:{},done:false};
+  var rows=it.map(function(x,k){return '<div class="tfm-row"><div class="tfm-s"><b>'+(k+1)+'.</b> '+_escHtml(x.s)+'</div><div class="tfm-btns">'
+    +opts.map(function(o){return '<button type="button" class="tfm-b" id="tfmb_'+i+'_'+k+'_'+o+'" data-ok="'+(x.a===o?1:0)+'" onclick="tfmPick(\''+i+'\','+k+',\''+o+'\')">'+TFM_L[o]+'</button>';}).join('')+'</div></div>';}).join('');
+  return '<div class="lesson-view-block"><div style="font-weight:700;margin-bottom:6px">✅ '+t('Истина или ложь')+'</div>'+rows
+    +'<button class="btn btn-purple btn-sm" style="margin-top:12px" onclick="tfmCheck(\''+i+'\')">'+t('Проверить')+'</button>'
+    +(b.explanation?'<div id="tf_exp_'+i+'" style="display:none;margin-top:10px;padding:10px;background:var(--blue-light);border-radius:8px;font-size:.85rem">💡 '+_escHtml(b.explanation)+'</div>':'')+'</div>';
+}
+function tfmPick(i,k,o){var st=(window._tfm||{})[i];if(!st||st.done)return;st.pick[k]=o;
+  document.querySelectorAll('[id^="tfmb_'+i+'_'+k+'_"]').forEach(function(x){x.classList.toggle('sel',x.id==='tfmb_'+i+'_'+k+'_'+o);});}
+function tfmMark(i,picks){var n=0,all=true;
+  while(document.getElementById('tfmb_'+i+'_'+n+'_T')){var k=n;var p=picks[k]||'';
+    document.querySelectorAll('[id^="tfmb_'+i+'_'+k+'_"]').forEach(function(x){var o=x.id.split('_').pop();x.classList.remove('sel','correct','wrong');
+      if(x.dataset.ok==='1')x.classList.add('correct');else if(o===p)x.classList.add('wrong');});
+    var good=document.getElementById('tfmb_'+i+'_'+k+'_'+p);if(!(good&&good.dataset.ok==='1'))all=false;n++;}
+  var ex=document.getElementById('tf_exp_'+i);if(ex)ex.style.display='block';return {all:all,n:n};}
+function tfmCheck(i){var st=(window._tfm||{})[i];if(!st||st.done)return;var r=tfmMark(i,st.pick);st.done=true;
+  var vals=[];for(var k=0;k<r.n;k++)vals.push(st.pick[k]||'-');saveLessonAnswer(i,'truefalse',vals.join(' | '),r.all);}
 function gapHas(src){return /\[[^\]\n]+\]/.test(String(src||''));}
 function gapParts(src){var out=[],re=/\[([^\]\n]+)\]/g,last=0,m;src=String(src||'');while((m=re.exec(src))){if(m.index>last)out.push({t:src.slice(last,m.index)});out.push({g:m[1]});last=re.lastIndex;}if(last<src.length)out.push({t:src.slice(last)});return out;}
 function gapAlts(a){return String(a||'').split('/').map(function(x){return x.trim();}).filter(Boolean);}
@@ -9816,6 +9843,7 @@ function wb2Reset(i){var st=(window._wb2||{})[i];if(!st)return;st.fill={};wb2Pai
 function ceMakeGap(){var ta=document.getElementById('ceGapText');if(!ta)return;var a=ta.selectionStart,z=ta.selectionEnd,v=ta.value;var sel=v.slice(a,z).trim();var ins='['+sel+']';ta.value=v.slice(0,a)+ins+v.slice(z);ta.dispatchEvent(new Event('input',{bubbles:true}));ta.focus();var p=a+(sel?ins.length:1);try{ta.selectionStart=ta.selectionEnd=p;}catch(e){}}
 function renderBlockView(b,i){
   if((b.type==='fill_blank'||b.type==='word_bank')&&gapHas(b.sentence))return b.type==='fill_blank'?gapRenderFB(b,i):gapRenderWB(b,i);
+  if(b.type==='truefalse'&&tfmHas(b))return tfmRender(b,i);
   if(b.type==='text') return`<div class="lesson-view-block">
     ${b.image&&/^https:\/\//i.test(b.image)?`<img src="${_escHtml(b.image)}" style="max-width:100%;border-radius:8px;margin-bottom:10px">`:''}
     <div style="font-size:.95rem;line-height:1.8">${mdFormat(b.text||'')}</div>
@@ -10080,6 +10108,11 @@ function tyApplyInlineAnswer(exKey,answer,correct){
       var g=document.getElementById('qg_'+k);
       if(g&&ans){g.textContent=ans;g.classList.remove('ok','bad');g.classList.add((hit&&hit===ce)||correct===true?'ok':'bad');}
       return true;
+    }
+    if(b.type==='truefalse'&&tfmHas(b)){
+      if(!document.getElementById('tfmb_'+k+'_0_T'))return false;
+      var _p={};ans.split(' | ').forEach(function(v,n){_p[n]=v.trim();});
+      if(window._tfm&&window._tfm[k])window._tfm[k].done=true;tfmMark(k,_p);return true;
     }
     if(b.type==='truefalse'){
       var ch=/^true$/i.test(ans),cv=(b.answer===true||b.answer===false)?b.answer:true;
