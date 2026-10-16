@@ -638,6 +638,18 @@ body[data-theme="dark"] .wb-tool{color:var(--text2)}
 #toast.toast-success{background:var(--green,#10B981)!important;color:#fff!important}
 
 /* ── МОБИЛЬНАЯ НАВИГАЦИЯ ── */
+body.stu-mode #sidebar,body.stu-mode #menuBtn,body.stu-mode #sidebarBackdrop{display:none!important}
+#stuHomeBtn{display:none;align-items:center;gap:6px;background:var(--purple-light);color:var(--purple);border:none;border-radius:20px;padding:8px 14px;font-weight:800;font-size:.95rem;font-family:var(--font);cursor:pointer;flex-shrink:0}
+body.stu-mode:not(.stu-at-home) #stuHomeBtn{display:flex}
+.stu-home{max-width:820px;margin:0 auto}.stu-hello{font-size:1.5rem;font-weight:800;margin:6px 0 2px}.stu-hello-sub{color:var(--text3);font-size:.9rem;margin-bottom:18px}
+.stu-tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px}
+.stu-tile{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;min-height:150px;padding:18px 12px;background:#fff;border:2px solid var(--gray-border);border-radius:20px;cursor:pointer;font-family:var(--font);box-shadow:var(--shadow);transition:.15s;color:var(--text)}
+.stu-tile:hover,.stu-tile:active{border-color:var(--purple);background:var(--purple-light)}
+.stu-tile-ic{font-size:2.6rem;line-height:1}.stu-tile-t{font-size:1.15rem;font-weight:800;text-align:center}.stu-tile-s{font-size:.82rem;color:var(--text3);text-align:center}
+.stu-tile-b{position:absolute;top:10px;right:12px;min-width:26px;height:26px;padding:0 7px;border-radius:13px;background:var(--pink,#EC4899);color:#fff;font-weight:800;font-size:.85rem;display:flex;align-items:center;justify-content:center}
+.stu-hint{margin-top:18px;text-align:center;color:var(--text3);font-size:.88rem}
+body[data-theme="dark"] .stu-tile{background:var(--white)}
+@media(max-width:767px){.stu-tiles{grid-template-columns:1fr 1fr;gap:10px}.stu-tile{min-height:130px}.stu-tile-t{font-size:1rem}.stu-hello{font-size:1.25rem}#stuHomeBtn span{display:inline}}
 #menuBtn{display:none;background:none;border:none;font-size:1.3rem;cursor:pointer;color:var(--text2);padding:6px 8px;border-radius:8px;line-height:1;flex-shrink:0;-webkit-tap-highlight-color:transparent}
 #menuBtn:hover{background:var(--gray-light)}
 #sidebarBackdrop{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:198}
@@ -1137,6 +1149,7 @@ body[data-theme="dark"] .badge-gray{background:rgba(255,255,255,.07)!important;c
 <div id="app">
   <div id="topBar">
     <button id="menuBtn" onclick="toggleSidebar()" aria-label="Меню">☰</button>
+    <button id="stuHomeBtn" onclick="showScreen('s_home')" aria-label="Главная">🏠 <span>Главная</span></button>
     <div class="logo">Classvana</div>
     <button id="userChip" onclick="openProfile()" style="display:flex;align-items:center;gap:8px;background:none;border:none;cursor:pointer;padding:4px 8px;border-radius:20px;transition:.15s" onmouseover="this.style.background='var(--gray-light)'" onmouseout="this.style.background='none'"><span id="userAvatar" style="width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.75rem;color:#fff;flex-shrink:0"></span><span id="userNameChip" style="font-size:.8rem;color:var(--text3);white-space:nowrap;max-width:120px;overflow:hidden;text-overflow:ellipsis"></span></button>
     <span id="roleChip"></span>
@@ -4265,6 +4278,7 @@ async function afterLogin(user){
   S.schoolKind='school';
   try{const{data:_sk}=await sb.rpc('get_my_school_kind');if(_sk==='tutor')S.schoolKind='tutor';}catch(_e){}
   _applySchoolKindNav();
+  document.body.classList.toggle('stu-mode',S.role==='student');
   _mergeLocalAvatar(); // merge avatar prefs from localStorage
   C('loginScreen').style.display='none';
   C('app').style.display='flex';
@@ -4282,7 +4296,7 @@ async function afterLogin(user){
     if(_saved&&(NAV[S.role]||[]).some(n=>n.id===_saved))_startId=_saved;
   }catch(_e){}
   const firstItem=(NAV[S.role]||[]).find(n=>n.id);
-  showScreen(_startId||(firstItem&&firstItem.id));
+  showScreen(S.role==='student'?'s_home':(_startId||(firstItem&&firstItem.id)));
   // Apply translations to all static elements on page load
   setTimeout(()=>{
     if(S.lang==='en')applyEN(document.body);
@@ -4815,6 +4829,7 @@ function showScreen(id){
     return;
   }
   S.screen=id;
+  try{document.body.classList.toggle('stu-at-home',id==='s_home');}catch(_e){}
   try{if(S.userId)localStorage.setItem('ty_last_screen_'+S.userId,id);}catch(_e){}
   closeSidebar(); // Закрываем мобильный sidebar при переходе
   document.querySelectorAll('.nav-item').forEach(el=>el.classList.toggle('active',el.id===`nav_${id}`));
@@ -5816,13 +5831,18 @@ async function renderStudentHome(){
     stuId?sb.from('lesson_assignments').select('id').eq('student_id',stuId).eq('school_id',S.schoolId).eq('completed',false):Promise.resolve({data:[]})
   ]);
   if(S.screen!==_shSnap)return;
-  setContent(`<div class="stats-row">
-    <div class="stat-card"><div class="stat-val">${hw?.length||0}</div><div class="stat-lbl">Заданий ждут</div></div>
-    <div class="stat-card pink"><div class="stat-val">${assigns?.length||0}</div><div class="stat-lbl">Уроков не пройдено</div></div>
-  </div>
-  <div class="card"><div class="card-title">👋 ${_escHtml(S.profile.first_name||'')}, добро пожаловать!</div>
-    <p style="color:var(--text3);font-size:.88rem">Язык: <b>${_escHtml(stu?.language||'—')}</b> · Уровень: <b>${_escHtml(stu?.level||'—')}</b></p>
-    <hr class="divider"><p style="font-size:.85rem;color:var(--text3)">Для звонка с учителем — кнопка 📞 справа внизу.</p>
+  const _tile=(id,ic,title,sub,badge)=>`<button class="stu-tile" onclick="showScreen('${id}')"><span class="stu-tile-ic">${ic}</span><span class="stu-tile-t">${t(title)}</span>${sub?`<span class="stu-tile-s">${t(sub)}</span>`:''}${badge?`<span class="stu-tile-b">${badge}</span>`:''}</button>`;
+  setContent(`<div class="stu-home">
+    <div class="stu-hello">👋 ${_escHtml(S.profile.first_name||'')}${S.profile.first_name?', ':''}${t('добро пожаловать!')}</div>
+    <div class="stu-hello-sub">${_escHtml(stu?.language||'')}${stu?.level?' · '+_escHtml(stu.level):''}</div>
+    <div class="stu-tiles">
+      ${_tile('s_classes','🎓','Мой класс','Войти на урок')}
+      ${_tile('s_homework','📋','Домашнее задание',hw?.length?'Есть новые задания':'Всё сделано',hw?.length||0)}
+      ${_tile('s_vocab','📚','Мой словарь','Слова и тренажёр')}
+      ${_tile('s_lessons','📖','Уроки',assigns?.length?'Не пройдено: '+assigns.length:'',0)}
+      ${_tile('s_materials','📁','Материалы','')}
+    </div>
+    <div class="stu-hint">📞 ${t('Чтобы позвонить учителю — кнопка внизу справа')}</div>
   </div>`);
   }finally{renderStudentHome._loading=false;}
 }
