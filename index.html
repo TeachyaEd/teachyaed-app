@@ -8722,7 +8722,8 @@ function ceEditorHTML(b){
       <input value="${(w.trans||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#39;')}" oninput="${P}.words[${wi}].trans=this.value" placeholder="Перевод" style="flex:1;padding:8px 10px;border:2px solid var(--gray-border);border-radius:6px;font-family:var(--font)">
       <button onclick="${P}.words.splice(${wi},1);ceExercise()" style="border:none;background:none;color:var(--red);cursor:pointer;font-size:1.1rem">✕</button>
     </div>`).join('')}
-    <button class="btn btn-outline" style="font-size:.8rem;margin-top:6px" onclick="${P}.words.push({word:'',trans:''});ceExercise()">+ Слово</button></div>`;
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px"><button class="btn btn-outline" style="font-size:.8rem" onclick="${P}.words.push({word:'',trans:''});ceExercise()">+ Слово</button>
+    <button class="btn btn-outline" style="font-size:.8rem" onclick="vbBulkOpen(function(ws){var b=${P};b.words=(b.words||[]).filter(function(x){return (x.word||'').trim()||(x.trans||'').trim();}).concat(ws);ceExercise();})">📋 Вставить списком / из файла</button></div></div>`;
 
   if(b.type==='fill_blank')return`
     <div class="form-group" style="margin:0 0 8px"><label>Текст. Слова в [квадратных скобках] станут пропусками</label>
@@ -12321,7 +12322,15 @@ async function openStudentVocab(studentId,name,ownPid){
         if(r.error&&r.error.code!=='23505'){showToast('Не удалось добавить','error');ab.disabled=false;return;}
         render();
       };
-      f.append(iw,it,ab);body.append(f);
+      const bb=_svEl('button',null,'📋 Списком / из файла');bb.className='btn btn-outline btn-sm';
+      bb.onclick=function(){vbBulkOpen(async function(ws){
+        const ex={};rows.forEach(function(r){ex[_vkey(r.word,r.translation)]=1;});
+        const ins=[];ws.forEach(function(w){const k=_vkey(w.word,w.trans);if(ex[k])return;ex[k]=1;ins.push({school_id:S.schoolId,student_profile_id:pid,word:w.word.slice(0,200),translation:w.trans.slice(0,400),source:'manual'});});
+        if(!ins.length){showToast('ℹ️ Все эти слова уже в словаре');return;}
+        let ok=0;for(let n=0;n<ins.length;n+=200){const r=await sb.from('student_vocab').insert(ins.slice(n,n+200));if(!r.error)ok+=Math.min(200,ins.length-n);}
+        showToast('📚 Добавлено слов: '+ok);render();
+      });};
+      f.append(iw,it,ab,bb);body.append(f);
       if(!rows.length){body.append(_svEl('div','color:var(--text3);padding:10px','Пока пусто'));return;}
       rows.forEach(function(r){
         const row=_svEl('div','display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--gray-border)');
@@ -12341,6 +12350,33 @@ async function openStudentVocab(studentId,name,ownPid){
   }catch(e){body.textContent='Ошибка загрузки';}
 }
 
+// Разбор списка слов: «word — перевод» / «word - перевод» / «word = перевод» / «word<TAB>перевод» / «word;перевод»
+function vbParse(txt){var out=[];
+  String(txt||'').split(/\r?\n/).forEach(function(l){l=l.replace(/^\s*\d+[.)]\s*/,'').trim();if(!l)return;
+    var m=l.split(/\t|\s+[—–-]\s+|\s*=\s*|\s*;\s*/);if(m.length<2){m=l.split(/\s*,\s*/);}
+    if(m.length<2)return;var w=m[0].trim(),tr=m.slice(1).join(', ').replace(/^["']|["']$/g,'').trim();
+    if(w&&tr)out.push({word:w.replace(/^["']|["']$/g,''),trans:tr});});
+  return out;}
+function vbBulkOpen(onDone){
+  var old=document.getElementById('vbBulkOv');if(old)old.remove();
+  var ov=_svEl('div','position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:99998;display:flex;align-items:center;justify-content:center;padding:16px');ov.id='vbBulkOv';
+  var box=_svEl('div','background:var(--white,#fff);border-radius:20px;padding:22px;max-width:520px;width:100%;max-height:88vh;overflow:auto;font-family:var(--font)');
+  box.append(_svEl('div','font-weight:800;font-size:1.05rem;margin-bottom:6px','📋 Добавить слова списком'));
+  box.append(_svEl('div','font-size:.8rem;color:var(--text3);margin-bottom:10px','Каждое слово с новой строки: слово — перевод. Подойдёт копия из Excel/Google Таблиц (две колонки) или файл .txt / .csv.'));
+  var ta=document.createElement('textarea');ta.placeholder='apple — яблоко\nhouse — дом\nto go = идти';
+  ta.style.cssText='width:100%;min-height:200px;padding:10px;border:2px solid var(--gray-border);border-radius:10px;font-family:var(--font);line-height:1.6';
+  var cnt=_svEl('div','font-size:.8rem;color:var(--text3);margin-top:6px','Распознано: 0');
+  ta.oninput=function(){cnt.textContent='Распознано: '+vbParse(ta.value).length;};
+  var fl=document.createElement('label');fl.className='btn btn-outline btn-sm';fl.style.cssText='cursor:pointer;margin-top:8px';fl.textContent='📎 Загрузить файл (.txt, .csv)';
+  var fi=document.createElement('input');fi.type='file';fi.accept='.txt,.csv,text/plain,text/csv';fi.style.display='none';
+  fi.onchange=function(){var f=fi.files[0];if(!f)return;var rd=new FileReader();rd.onload=function(){ta.value=(ta.value?ta.value+'\n':'')+String(rd.result||'');ta.oninput();};rd.readAsText(f);};
+  fl.append(fi);
+  var row=_svEl('div','display:flex;gap:8px;margin-top:14px;flex-wrap:wrap');
+  var ok=_svEl('button',null,'Добавить');ok.className='btn btn-purple';
+  ok.onclick=function(){var ws=vbParse(ta.value);if(!ws.length){showToast('Не нашла ни одной пары «слово — перевод»','error');return;}ov.remove();onDone(ws);};
+  var c=_svEl('button',null,'Отмена');c.className='btn btn-outline';c.onclick=function(){ov.remove();};
+  row.append(ok,c);box.append(ta,cnt,fl,row);ov.append(box);document.body.append(ov);ta.focus();
+}
 // ─── ONE DICTIONARY: lesson words (assignments + class lessons) shared by student view, teacher card and in-class button ───
 async function _vtLessonWordsForStudent(stuId){
   const out=[];if(!stuId)return out;
