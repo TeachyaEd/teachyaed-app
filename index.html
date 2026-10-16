@@ -408,6 +408,14 @@ body[data-theme="dark"] .wb-tool{color:var(--text2)}
 .quiz-opt:hover{border-color:var(--purple);background:var(--purple-light)}
 .quiz-opt.correct{border-color:var(--green);background:var(--green-light);color:#065F46}
 .quiz-opt.wrong{border-color:var(--red);background:#FEE2E2;color:#991B1B}
+.gap-text{font-size:1.02rem;line-height:2.4}
+.gap-inp{min-width:4ch;text-align:center;margin:0 2px}
+.wb2-bank{display:flex;flex-wrap:wrap;gap:8px;padding:10px;background:var(--gray-light);border-radius:12px;margin-bottom:12px}
+.wb2-chip{padding:6px 14px;border:2px solid var(--purple);border-radius:20px;background:#fff;color:var(--purple);font-weight:700;font-family:var(--font);cursor:pointer;font-size:.92rem;transition:.12s}
+.wb2-chip:hover{background:var(--purple-light)}.wb2-chip.used{opacity:.25;pointer-events:none}
+.wb2-gap{display:inline-block;min-width:72px;padding:0 10px;margin:0 3px;border-bottom:2px dashed var(--purple);text-align:center;font-weight:700;cursor:pointer;line-height:1.7;vertical-align:baseline}
+.wb2-gap:empty::before{content:'\00a0'}.wb2-gap.filled{border-bottom-style:solid;background:var(--purple-light);border-radius:6px 6px 0 0}
+body[data-theme="dark"] .wb2-chip{background:var(--white)}
 .lp-top{position:sticky;top:0;background:var(--white,#fff);padding-bottom:8px;z-index:1}
 .lp-search{width:100%;padding:10px 12px;border:2px solid var(--gray-border);border-radius:10px;font-family:var(--font);font-size:.92rem;margin-bottom:8px}
 .lp-tabs{display:flex;gap:6px;margin-bottom:8px}.lp-tab{flex:1;padding:8px;border:2px solid var(--gray-border);border-radius:10px;background:none;font-family:var(--font);font-weight:700;font-size:.82rem;cursor:pointer;color:var(--text2)}
@@ -8678,10 +8686,11 @@ function ceEditorHTML(b){
     <button class="btn btn-outline" style="font-size:.8rem;margin-top:6px" onclick="${P}.words.push({word:'',trans:''});ceExercise()">+ Слово</button></div>`;
 
   if(b.type==='fill_blank')return`
-    <div class="form-group" style="margin:0 0 8px"><label>Предложение (нажми кнопку ниже, чтобы вставить пропуск)</label>${ci(b.sentence,'sentence','I {{blank}} a student')}
-      <button type="button" class="btn btn-outline btn-sm" style="margin-top:6px" onclick="${P}.sentence=(${P}.sentence||'')+'{{blank}}';ceExercise()">+ Вставить пропуск</button>
-    </div>
-    <div class="form-group" style="margin:0"><label>Правильный ответ</label>${ci(b.answer,'answer','am')}</div>`;
+    <div class="form-group" style="margin:0 0 8px"><label>Текст. Слова в [квадратных скобках] станут пропусками</label>
+    <textarea id="ceGapText" oninput="${P}.sentence=this.value" placeholder="I [am] a student. She [has been/'s been] to London twice." style="min-height:100px;width:100%;padding:8px 10px;border:2px solid var(--gray-border);border-radius:6px;font-family:var(--font);line-height:1.6">${_escHtml(b.sentence||'')}</textarea>
+    <button type="button" class="btn btn-outline btn-sm" style="margin-top:6px" onclick="ceMakeGap()">[ ] Сделать пропуском</button>
+    <div style="font-size:.75rem;color:var(--text3);margin-top:4px">Выделите слово и нажмите кнопку. Несколько верных ответов — через «/»: [am/'m]</div></div>
+    ${String(b.sentence||'').includes('{{blank}}')?`<div class="form-group" style="margin:0"><label>Правильный ответ (старый формат с {{blank}})</label>${ci(b.answer,'answer','am')}</div>`:''}`;
 
   if(b.type==='quiz')return`
     <div class="form-group" style="margin:0 0 8px"><label>Вопрос</label>
@@ -8715,11 +8724,11 @@ function ceEditorHTML(b){
     <div class="form-group" style="margin:0"><label>Объяснение (необяз.)</label>${ci(b.explanation,'explanation','Объяснение...')}</div>`;
 
   if(b.type==='word_bank')return`
-    <div class="form-group" style="margin:0 0 8px"><label>Предложение (нажми кнопку ниже, чтобы вставить пропуск)</label>${ci(b.sentence,'sentence','I {{blank}} a student')}
-      <button type="button" class="btn btn-outline btn-sm" style="margin-top:6px" onclick="${P}.sentence=(${P}.sentence||'')+'{{blank}}';ceExercise()">+ Вставить пропуск</button>
-    </div>
-    <div class="form-group" style="margin:0 0 8px"><label>Правильное слово</label>${ci(b.answer,'answer','am')}</div>
-    <div class="form-group" style="margin:0"><label>Другие варианты в списке (через запятую)</label><input value="${_esc((b.distractors||[]).join(', '))}" oninput="${P}.distractors=this.value.split(',').map(s=>s.trim()).filter(Boolean)"></div>`;
+    <div class="form-group" style="margin:0 0 8px"><label>Текст. Слова в [квадратных скобках] станут пропусками и попадут в список</label>
+    <textarea id="ceGapText" oninput="${P}.sentence=this.value" placeholder="Yesterday I [went] to the cinema and [saw] a great film." style="min-height:100px;width:100%;padding:8px 10px;border:2px solid var(--gray-border);border-radius:6px;font-family:var(--font);line-height:1.6">${_escHtml(b.sentence||'')}</textarea>
+    <button type="button" class="btn btn-outline btn-sm" style="margin-top:6px" onclick="ceMakeGap()">[ ] Сделать пропуском</button></div>
+    ${String(b.sentence||'').includes('{{blank}}')?`<div class="form-group" style="margin:0 0 8px"><label>Правильное слово (старый формат с {{blank}})</label>${ci(b.answer,'answer','am')}</div>`:''}
+    <div class="form-group" style="margin:0"><label>Лишние слова для списка (через запятую, необязательно)</label><input value="${_esc((b.distractors||[]).join(', '))}" oninput="${P}.distractors=this.value.split(',').map(s=>s.trim()).filter(Boolean)"></div>`;
   if(b.type==='sequence')return`
     <div class="form-group" style="margin:0 0 8px"><label>Пункты по порядку (как должно быть в правильном ответе)</label></div>
     ${(b.items||[]).map((it,idx)=>`
@@ -9757,7 +9766,56 @@ function startQuizTimer(i,seconds,correct){
   },1000);
 }
 
+// ── Пропуски нового формата: [ответ] прямо в тексте, несколько вариантов через «/» ──
+function gapHas(src){return /\[[^\]\n]+\]/.test(String(src||''));}
+function gapParts(src){var out=[],re=/\[([^\]\n]+)\]/g,last=0,m;src=String(src||'');while((m=re.exec(src))){if(m.index>last)out.push({t:src.slice(last,m.index)});out.push({g:m[1]});last=re.lastIndex;}if(last<src.length)out.push({t:src.slice(last)});return out;}
+function gapAlts(a){return String(a||'').split('/').map(function(x){return x.trim();}).filter(Boolean);}
+function gapNorm(x){return String(x||'').trim().toLowerCase().replace(/\s+/g,' ').replace(/[’`ʼ]/g,"'");}
+function gapOk(val,a){var v=gapNorm(val);return !!v&&gapAlts(a).some(function(x){return gapNorm(x)===v;});}
+function gapTxt(x){return _escHtml(x).replace(/\n/g,'<br>');}
+function gapRenderFB(b,i){
+  var k=0;
+  var html=gapParts(b.sentence).map(function(p){
+    if(p.t!=null)return gapTxt(p.t);
+    var w=Math.max(4,Math.min(24,(gapAlts(p.g)[0]||'').length+2));
+    var h='<input class="fill-blank-input gap-inp" id="fb_'+i+'_'+k+'" data-ans="'+_escHtml(p.g)+'" style="width:'+w+'ch" autocomplete="off" autocapitalize="off" spellcheck="false" onkeydown="if(event.key===\'Enter\')gapCheckFB(\''+i+'\')">';
+    k++;return h;}).join('');
+  return '<div class="lesson-view-block"><div style="font-weight:700;margin-bottom:10px">✏️ '+t('Заполни пропуски')+'</div><div class="gap-text">'+html+'</div>'
+    +'<button class="btn btn-purple btn-sm" style="margin-top:10px" onclick="gapCheckFB(\''+i+'\')">'+t('Проверить')+'</button><div id="fb_res_'+i+'"></div></div>';
+}
+function gapCheckFB(i){
+  var ins=Array.prototype.slice.call(document.querySelectorAll('[id^="fb_'+i+'_"]')).filter(function(x){return x.tagName==='INPUT'&&x.dataset.ans!=null;});
+  if(!ins.length)return;var all=true;
+  ins.forEach(function(inp){var ok=gapOk(inp.value,inp.dataset.ans);if(!ok)all=false;inp.classList.toggle('correct',ok);inp.classList.toggle('wrong',!ok);tyFix(inp,ok?'':gapAlts(inp.dataset.ans)[0]);});
+  saveLessonAnswer(i,'fill_blank',ins.map(function(x){return x.value.trim();}).join(' | '),all);
+}
+function gapRenderWB(b,i){
+  var ans=[],k=0;
+  var html=gapParts(b.sentence).map(function(p){
+    if(p.t!=null)return gapTxt(p.t);
+    var h='<span class="wb2-gap" id="wbg_'+i+'_'+k+'" data-ans="'+_escHtml(p.g)+'" onclick="wb2Gap(\''+i+'\','+k+')"></span>';
+    ans.push(gapAlts(p.g)[0]||'');k++;return h;}).join('');
+  var words=ans.concat((b.distractors||[]).filter(Boolean)).sort(function(){return Math.random()-.5;});
+  window._wb2=window._wb2||{};window._wb2[i]={words:words,fill:{}};
+  return '<div class="lesson-view-block"><div style="font-weight:700;margin-bottom:10px">🧩 '+t('Заполни пропуски словами из списка')+'</div>'
+    +'<div class="wb2-bank">'+words.map(function(w,wi){return '<button type="button" class="wb2-chip" id="wbc_'+i+'_'+wi+'" onclick="wb2Pick(\''+i+'\','+wi+')">'+_escHtml(w)+'</button>';}).join('')+'</div>'
+    +'<div class="gap-text">'+html+'</div>'
+    +'<div style="display:flex;gap:8px;margin-top:10px"><button class="btn btn-purple btn-sm" onclick="wb2Check(\''+i+'\')">'+t('Проверить')+'</button><button class="btn btn-outline btn-sm" onclick="wb2Reset(\''+i+'\')">'+t('Сбросить')+'</button></div><div id="wb_res_'+i+'"></div></div>';
+}
+function wb2Used(st,wi){return Object.keys(st.fill).some(function(k){return st.fill[k]===wi;});}
+function wb2Pick(i,wi){var st=(window._wb2||{})[i];if(!st||wb2Used(st,wi))return;
+  var gaps=document.querySelectorAll('[id^="wbg_'+i+'_"]');for(var k=0;k<gaps.length;k++){if(st.fill[k]==null){st.fill[k]=wi;wb2Paint(i);return;}}}
+function wb2Gap(i,k){var st=(window._wb2||{})[i];if(!st||st.fill[k]==null)return;delete st.fill[k];wb2Paint(i);}
+function wb2Paint(i){var st=window._wb2[i];
+  document.querySelectorAll('[id^="wbg_'+i+'_"]').forEach(function(g,k){var wi=st.fill[k];g.textContent=wi!=null?st.words[wi]:'';g.classList.toggle('filled',wi!=null);g.classList.remove('in-ok','in-bad');tyFix(g,'');});
+  document.querySelectorAll('[id^="wbc_'+i+'_"]').forEach(function(c,wi){c.classList.toggle('used',wb2Used(st,wi));});}
+function wb2Check(i){var st=(window._wb2||{})[i];if(!st)return;var all=true,vals=[];
+  document.querySelectorAll('[id^="wbg_'+i+'_"]').forEach(function(g,k){var v=st.fill[k]!=null?st.words[st.fill[k]]:'';vals.push(v);var ok=gapOk(v,g.dataset.ans);if(!ok)all=false;g.classList.remove('in-ok','in-bad');g.classList.add(ok?'in-ok':'in-bad');tyFix(g,ok?'':gapAlts(g.dataset.ans)[0]);});
+  saveLessonAnswer(i,'word_bank',vals.join(' | '),all);}
+function wb2Reset(i){var st=(window._wb2||{})[i];if(!st)return;st.fill={};wb2Paint(i);}
+function ceMakeGap(){var ta=document.getElementById('ceGapText');if(!ta)return;var a=ta.selectionStart,z=ta.selectionEnd,v=ta.value;var sel=v.slice(a,z).trim();var ins='['+sel+']';ta.value=v.slice(0,a)+ins+v.slice(z);ta.dispatchEvent(new Event('input',{bubbles:true}));ta.focus();var p=a+(sel?ins.length:1);try{ta.selectionStart=ta.selectionEnd=p;}catch(e){}}
 function renderBlockView(b,i){
+  if((b.type==='fill_blank'||b.type==='word_bank')&&gapHas(b.sentence))return b.type==='fill_blank'?gapRenderFB(b,i):gapRenderWB(b,i);
   if(b.type==='text') return`<div class="lesson-view-block">
     ${b.image&&/^https:\/\//i.test(b.image)?`<img src="${_escHtml(b.image)}" style="max-width:100%;border-radius:8px;margin-bottom:10px">`:''}
     <div style="font-size:.95rem;line-height:1.8">${mdFormat(b.text||'')}</div>
@@ -9995,6 +10053,18 @@ function tyApplyInlineAnswer(exKey,answer,correct){
     var b=LV&&LV.sections&&LV.sections[+p[0]]&&(LV.sections[+p[0]].exercises||[])[+p[1]];
     if(!b)return false;
     var ans=String(answer==null?'':answer).trim();
+    if((b.type==='fill_blank'||b.type==='word_bank')&&gapHas(b.sentence)){
+      var _vals=ans.indexOf(' | ')>=0?ans.split(' | '):(ans?ans.split(' '):[]);
+      var _sel=b.type==='fill_blank'?'[id^="fb_'+k+'_"]':'[id^="wbg_'+k+'_"]';
+      var _els=Array.prototype.slice.call(document.querySelectorAll(_sel)).filter(function(x){return x.dataset&&x.dataset.ans!=null;});
+      if(!_els.length)return false;
+      _els.forEach(function(el,n){var v=(_vals[n]||'').trim();
+        if(b.type==='fill_blank'){if(document.activeElement!==el)el.value=v;}else{el.textContent=v;el.classList.toggle('filled',!!v);}
+        if(correct===true||correct===false){var ok=gapOk(v,el.dataset.ans);
+          if(b.type==='fill_blank'){el.classList.toggle('correct',ok);el.classList.toggle('wrong',!ok);}else{el.classList.remove('in-ok','in-bad');el.classList.add(ok?'in-ok':'in-bad');}
+          tyFix(el,ok?'':gapAlts(el.dataset.ans)[0]);}});
+      return true;
+    }
     var put=function(id,html){var r=document.getElementById(id);if(r)r.innerHTML=html;};
     var verdict=correct===true?'<span style="color:var(--green)">✅ '+t('Правильно!')+'</span>':(correct===false?'<span style="color:var(--red)">❌ '+t('Неверно.')+'</span>':'');
     var paint=function(el){if(!el)return;el.style.borderRadius='6px';el.style.padding='2px 8px';
