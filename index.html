@@ -450,6 +450,22 @@ body[data-theme="dark"] .wb2-chip{background:var(--white)}
 .oq-oral{font-size:.78rem;color:var(--text3);margin-top:2px}
 .quiz-opts{display:flex;flex-wrap:wrap;gap:10px}
 .qm-q{padding:10px 0;border-bottom:1px solid var(--gray-border)}.qm-q:last-child{border-bottom:none}
+.dd-sel{padding:3px 8px;margin:0 3px;border:2px solid var(--purple);border-radius:8px;background:var(--white,#fff);color:var(--text);font-family:var(--font);font-size:.95rem;font-weight:600;max-width:100%}
+.lt-row{padding:10px 0;border-bottom:1px solid var(--gray-border)}.lt-row:last-child{border-bottom:none}
+.lt-top{margin-bottom:6px}.lt-hint{color:var(--text3)}
+.lt-ans{min-height:40px;padding:6px 12px;border:2px dashed var(--gray-border);border-radius:8px;font-size:1.15rem;font-weight:700;letter-spacing:.12em;margin-bottom:8px;cursor:pointer}
+.lt-tiles{display:flex;flex-wrap:wrap;gap:6px}
+.lt-t{min-width:38px;height:38px;border:2px solid var(--gray-border);border-radius:8px;background:var(--white,#fff);color:var(--text);font-weight:700;font-size:1rem;cursor:pointer;font-family:var(--font)}
+.lt-t:hover{border-color:var(--purple)}.lt-t:disabled{opacity:.25;cursor:default}
+.col-pool{display:flex;flex-wrap:wrap;gap:8px;min-height:46px;padding:10px;background:var(--gray-light);border-radius:10px;margin-bottom:12px}
+.col-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.col-box{min-height:110px;padding:8px;border:2px dashed var(--gray-border);border-radius:10px;display:flex;flex-wrap:wrap;gap:6px;align-content:flex-start;cursor:pointer}
+.col-h{width:100%;font-weight:700;font-size:.88rem;margin-bottom:2px}
+.col-chip{padding:6px 12px;border:2px solid var(--purple);border-radius:20px;background:var(--white,#fff);color:var(--purple);font-weight:600;font-size:.88rem;cursor:pointer}
+.col-chip.sel{background:var(--purple);color:#fff}
+.au-script{margin-top:10px}.au-script summary{cursor:pointer;font-weight:600;color:var(--purple);font-size:.88rem}
+.au-script>div{margin-top:8px;padding:10px 12px;background:var(--gray-light);border-radius:8px;line-height:1.6}
+.es-ta{width:100%;min-height:200px;padding:10px 12px;border:2px solid var(--gray-border);border-radius:8px;font-family:var(--font);font-size:.95rem;line-height:1.6;resize:vertical}
 .qm-t{margin-bottom:8px;font-size:.98rem;line-height:1.9}
 .qm-q .quiz-opts{gap:8px}.qm-q .quiz-opt{padding:7px 14px;min-width:80px}
 .quiz-opts .quiz-opt{margin:0;min-width:110px;max-width:100%;text-align:center;padding:10px 18px}
@@ -3901,6 +3917,20 @@ function ceAddExType(type){
   CE.curEx=sec.exercises.length-1;ceRenderAll();showToast('Упражнение добавлено ✓');
 }
 
+async function ceUploadAudio(input){
+  const file=input.files[0];if(!file)return;
+  if(file.size>20*1024*1024){showToast('Файл слишком большой (макс 20 МБ)');return;}
+  try{
+    showToast('Загрузка…');
+    const ext=(file.name.split('.').pop()||'mp3').replace(/[^a-zA-Z0-9]/g,'').toLowerCase();
+    const path=`${S.schoolId}/exercise-audio/${Date.now()}_${Math.random().toString(36).slice(2,8)}.${ext}`;
+    const{error:upErr}=await sb.storage.from('materials').upload(path,file,{upsert:true,contentType:file.type||undefined});
+    if(upErr){showToast('Ошибка загрузки: '+upErr.message);return;}
+    const{data:urlData}=sb.storage.from('materials').getPublicUrl(path);
+    CE.sections[CE.curSec].exercises[CE.curEx].url=urlData?.publicUrl||'';
+    ceExercise();
+  }catch(e){showToast('Ошибка загрузки аудио');}
+}
 // Upload image file → base64 data URL
 async function ceUploadImage(input){
   const file=input.files[0];if(!file)return;
@@ -8386,7 +8416,7 @@ const BLOCK_META={
   video:{icon:'🎬',name:'Видео',color:'#F3F4F6'},
   image:{icon:'🖼',name:'Картинка',color:'#E0F2FE'},
   openq:{icon:'💬',name:'Открытый вопрос',color:'#FCE7F3'}
-,word_bank:{icon:'🧩',name:'Слова из списка',color:'#FDE68A'},sequence:{icon:'🔢',name:'Порядок действий',color:'#C7D2FE'}};
+,word_bank:{icon:'🧩',name:'Слова из списка',color:'#FDE68A'},sequence:{icon:'🔢',name:'Порядок действий',color:'#C7D2FE'},dropdown:{icon:'🔽',name:'Выбор в пропуске',color:'#DBEAFE'},letters:{icon:'🔤',name:'Слово из букв',color:'#FEF3C7'},columns:{icon:'🗂',name:'Распредели по колонкам',color:'#D1FAE5'},audio:{icon:'🎧',name:'Аудио',color:'#E0F2FE'},record:{icon:'🎙',name:'Запись голоса',color:'#FCE7F3'},essay:{icon:'📄',name:'Эссе',color:'#EDE9FE'}};
 const CE_DEFAULTS={
   text:{type:'text',text:'',image:''},
   vocab:{type:'vocab',words:[{word:'',trans:''}]},
@@ -8398,7 +8428,7 @@ const CE_DEFAULTS={
   video:{type:'video',url:'',question:'',note:''},
   image:{type:'image',url:'',caption:''},
   openq:{type:'openq',question:''}
-,word_bank:{type:'word_bank',sentence:'I {{blank}} a student.',answer:'am',distractors:['is','are']},sequence:{type:'sequence',items:['Шаг 1','Шаг 2','Шаг 3']}};
+,word_bank:{type:'word_bank',sentence:'I {{blank}} a student.',answer:'am',distractors:['is','are']},sequence:{type:'sequence',items:['Шаг 1','Шаг 2','Шаг 3']},dropdown:{type:'dropdown',sentence:''},letters:{type:'letters',list:''},columns:{type:'columns',list:''},audio:{type:'audio',url:'',script:''},record:{type:'record',task:''},essay:{type:'essay',task:'',min_words:null}};
 
 // ─── CLASSROOM EDITOR STATE ──────────────────────────────────────────────────
 const CE={lessonId:null,sections:[],materials:[],curSec:0,curEx:0,mode:'edit',viewAll:false,_saving:false};
@@ -8729,6 +8759,33 @@ function ceEditorHTML(b){
     <button type="button" class="btn btn-outline btn-sm" style="margin-top:6px" onclick="ceMakeGap()">[ ] Сделать пропуском</button></div>
     ${String(b.sentence||'').includes('{{blank}}')?`<div class="form-group" style="margin:0 0 8px"><label>Правильное слово (старый формат с {{blank}})</label>${ci(b.answer,'answer','am')}</div>`:''}
     <div class="form-group" style="margin:0"><label>Лишние слова для списка (через запятую, необязательно)</label><input value="${_esc((b.distractors||[]).join(', '))}" oninput="${P}.distractors=this.value.split(',').map(s=>s.trim()).filter(Boolean)"></div>`;
+  if(b.type==='dropdown')return`
+    <div class="form-group" style="margin:0"><label>Текст с пропусками</label>
+    <textarea id="ceGapText" oninput="${P}.sentence=this.value" placeholder="She [goes/go/going] to school and [likes/like] it." style="min-height:110px;width:100%;padding:8px 10px;border:2px solid var(--gray-border);border-radius:6px;font-family:var(--font);line-height:1.6">${_escHtml(b.sentence||'')}</textarea>
+    <div style="font-size:.75rem;color:var(--text3);margin-top:4px">В [скобках] варианты через «/». <b>Первый — правильный</b>, ученику они покажутся вперемешку.</div></div>`;
+  if(b.type==='letters')return`
+    <div class="form-group" style="margin:0"><label>Слова — каждое с новой строки</label>
+    <textarea oninput="${P}.list=this.value" placeholder="apple = яблоко&#10;house = дом&#10;teacher" style="min-height:110px;width:100%;padding:8px 10px;border:2px solid var(--gray-border);border-radius:6px;font-family:var(--font);line-height:1.6">${_escHtml(b.list||'')}</textarea>
+    <div style="font-size:.75rem;color:var(--text3);margin-top:4px">После «=» можно написать подсказку (перевод). Ученик соберёт слово из перемешанных букв.</div></div>`;
+  if(b.type==='columns')return`
+    <div class="form-group" style="margin:0"><label>Колонки — каждая с новой строки</label>
+    <textarea oninput="${P}.list=this.value" placeholder="Fruits: apple, banana, pear&#10;Vegetables: carrot, potato" style="min-height:110px;width:100%;padding:8px 10px;border:2px solid var(--gray-border);border-radius:6px;font-family:var(--font);line-height:1.6">${_escHtml(b.list||'')}</textarea>
+    <div style="font-size:.75rem;color:var(--text3);margin-top:4px">Название колонки, двоеточие, слова через запятую. Ученик разложит перемешанные слова по колонкам.</div></div>`;
+  if(b.type==='audio')return`
+    <div class="form-group" style="margin:0 0 8px"><label>Аудио: ссылка или файл</label>${ci(b.url,'url','https://...mp3')}
+    <label class="btn btn-outline btn-sm" style="margin-top:6px;cursor:pointer">📎 Загрузить файл<input type="file" accept="audio/*" style="display:none" onchange="ceUploadAudio(this)"></label>
+    ${/^https:\/\//i.test(b.url||'')?`<audio controls src="${_escHtml(b.url)}" style="width:100%;margin-top:8px"></audio>`:''}</div>
+    <div class="form-group" style="margin:0"><label>Текст аудио (необязательно)</label>
+    <textarea oninput="${P}.script=this.value" style="min-height:110px;width:100%;padding:8px 10px;border:2px solid var(--gray-border);border-radius:6px;font-family:var(--font);line-height:1.6">${_escHtml(b.script||'')}</textarea>
+    <div style="font-size:.75rem;color:var(--text3);margin-top:4px">Ученик сможет открыть текст кнопкой «Показать текст».</div></div>`;
+  if(b.type==='record')return`
+    <div class="form-group" style="margin:0"><label>Задание</label>
+    <textarea oninput="${P}.task=this.value" placeholder="Tell about your last holiday (1 minute)." style="min-height:110px;width:100%;padding:8px 10px;border:2px solid var(--gray-border);border-radius:6px;font-family:var(--font);line-height:1.6">${_escHtml(b.task||'')}</textarea>
+    <div style="font-size:.75rem;color:var(--text3);margin-top:4px">Ученик запишет голосовой ответ, вы услышите его в ответах.</div></div>`;
+  if(b.type==='essay')return`
+    <div class="form-group" style="margin:0 0 8px"><label>Тема / задание</label>
+    <textarea oninput="${P}.task=this.value" placeholder="Write about your favourite city." style="min-height:110px;width:100%;padding:8px 10px;border:2px solid var(--gray-border);border-radius:6px;font-family:var(--font);line-height:1.6">${_escHtml(b.task||'')}</textarea></div>
+    <div class="form-group" style="margin:0"><label>Минимум слов (необязательно)</label><input type="number" min="1" value="${b.min_words||''}" oninput="${P}.min_words=this.value?parseInt(this.value):null" style="max-width:140px"></div>`;
   if(b.type==='sequence')return`
     <div class="form-group" style="margin:0 0 8px"><label>Пункты по порядку (как должно быть в правильном ответе)</label></div>
     ${(b.items||[]).map((it,idx)=>`
@@ -9843,6 +9900,12 @@ function renderBlockView(b,i){
   if((b.type==='fill_blank'||b.type==='word_bank')&&gapHas(b.sentence))return b.type==='fill_blank'?gapRenderFB(b,i):gapRenderWB(b,i);
   if(b.type==='truefalse'&&tfmHas(b))return tfmRender(b,i);
   if(b.type==='quiz'&&qmHas(b))return qmRender(b,i);
+  if(b.type==='dropdown')return ddRender(b,i);
+  if(b.type==='letters')return ltRender(b,i);
+  if(b.type==='columns')return colRender(b,i);
+  if(b.type==='audio')return auRender(b,i);
+  if(b.type==='record')return recRender(b,i);
+  if(b.type==='essay')return esRender(b,i);
   if(b.type==='text') return`<div class="lesson-view-block">
     ${b.image&&/^https:\/\//i.test(b.image)?`<img src="${_escHtml(b.image)}" style="max-width:100%;border-radius:8px;margin-bottom:10px">`:''}
     <div style="font-size:.95rem;line-height:1.8">${mdFormat(b.text||'')}</div>
@@ -10035,6 +10098,127 @@ function oqQuestions(q){
   return lines;
 }
 // Тест: «___» в вопросе → пропуск, куда встаёт выбранный вариант
+// ── Новые типы упражнений ──
+function nxShuffle(a){a=a.slice();for(var n=a.length-1;n>0;n--){var r=Math.floor(Math.random()*(n+1));var x=a[n];a[n]=a[r];a[r]=x;}return a;}
+function nxHead(ic,txt){return '<div style="font-weight:700;margin-bottom:10px">'+ic+' '+_escHtml(t(txt))+'</div>';}
+function nxBtns(chk,rst){return '<div style="margin-top:12px;display:flex;gap:8px"><button class="btn btn-purple btn-sm" onclick="'+chk+'">'+t('Проверить')+'</button>'+(rst?'<button class="btn btn-outline btn-sm" onclick="'+rst+'">'+t('Сбросить')+'</button>':'')+'</div>';}
+function nxNorm(x){return String(x||'').trim().toLowerCase().replace(/\s+/g,' ').replace(/[’`]/g,"'");}
+// Выбор в пропуске: [верный/неверный/...]
+function ddRender(b,i){var n=0;
+  var html=_escHtml(b.sentence||'').replace(/\[([^\]]+)\]/g,function(_m,g){
+    var o=g.split('/').map(function(x){return x.trim();}).filter(Boolean);if(!o.length)return _m;
+    var k=n++;return '<select class="dd-sel" id="dd_'+i+'_'+k+'" data-ok="'+o[0]+'"><option value=""></option>'+nxShuffle(o).map(function(x){return '<option value="'+x+'">'+x+'</option>';}).join('')+'</select>';});
+  return '<div class="lesson-view-block">'+nxHead('🔽','Выбери правильный вариант')+'<div class="gap-text">'+html.replace(/\n/g,'<br>')+'</div>'+nxBtns("ddCheck('"+i+"')")+'</div>';}
+function ddMark(i,vals){var all=true,n=0,el;
+  while((el=document.getElementById('dd_'+i+'_'+n))){var v=vals?vals[n]:el.value;if(vals&&v!=null)el.value=v;
+    var ok=nxNorm(el.value)===nxNorm(el.dataset.ok);if(!ok)all=false;
+    el.classList.remove('in-ok','in-bad');el.classList.add(ok?'in-ok':'in-bad');tyFix(el,ok?'':el.dataset.ok);n++;}
+  return {all:all,n:n};}
+function ddCheck(i){var r=ddMark(i);var v=[];for(var k=0;k<r.n;k++)v.push(document.getElementById('dd_'+i+'_'+k).value||'-');saveLessonAnswer(i,'dropdown',v.join(' | '),r.all);}
+// Слово из букв
+function ltItems(b){return String(b.list||'').split(/\r?\n/).map(function(l){l=l.trim();if(!l)return null;var m=l.split(/\s*=\s*/);return {w:m[0].trim(),h:(m.slice(1).join(' = ')||'').trim()};}).filter(function(x){return x&&x.w;});}
+function ltRender(b,i){var it=ltItems(b);window._lt=window._lt||{};window._lt[i]={it:it,got:{},done:{}};
+  return '<div class="lesson-view-block">'+nxHead('🔤','Собери слово из букв')+it.map(function(x,k){
+    var ch=x.w.replace(/\s+/g,'').split('');var sh=nxShuffle(ch);if(ch.length>1&&sh.join('')===ch.join(''))sh=sh.slice(1).concat(sh[0]);
+    return '<div class="lt-row"><div class="lt-top"><b>'+(k+1)+'.</b>'+(x.h?' <span class="lt-hint">'+_escHtml(x.h)+'</span>':'')+'</div>'
+      +'<div class="lt-ans" id="lta_'+i+'_'+k+'" onclick="ltBack(\''+i+'\','+k+')"></div>'
+      +'<div class="lt-tiles">'+sh.map(function(c,n){return '<button type="button" class="lt-t" id="ltt_'+i+'_'+k+'_'+n+'" onclick="ltPick(\''+i+'\','+k+','+n+')">'+_escHtml(c)+'</button>';}).join('')+'</div></div>';}).join('')+'</div>';}
+function ltShow(i,k){var st=window._lt[i],a=document.getElementById('lta_'+i+'_'+k);if(!a)return;a.textContent=(st.got[k]||[]).map(function(x){return x.c;}).join('');}
+function ltPick(i,k,n){var st=(window._lt||{})[i];if(!st||st.done[k])return;var b=document.getElementById('ltt_'+i+'_'+k+'_'+n);if(!b||b.disabled)return;
+  b.disabled=true;(st.got[k]=st.got[k]||[]).push({c:b.textContent,n:n});ltShow(i,k);
+  if(st.got[k].length===st.it[k].w.replace(/\s+/g,'').length)ltDone(i,k);}
+function ltBack(i,k){var st=(window._lt||{})[i];if(!st||st.done[k]||!(st.got[k]||[]).length)return;var x=st.got[k].pop();
+  var b=document.getElementById('ltt_'+i+'_'+k+'_'+x.n);if(b)b.disabled=false;ltShow(i,k);}
+function ltDone(i,k,val){var st=window._lt[i];st.done[k]=true;var a=document.getElementById('lta_'+i+'_'+k);
+  var want=st.it[k].w;var got=val!=null?val:a.textContent;if(val!=null)a.textContent=val;
+  var ok=nxNorm(got.replace(/\s+/g,''))===nxNorm(want.replace(/\s+/g,''));st.ok=st.ok||{};st.ok[k]=ok;
+  a.classList.add(ok?'in-ok':'in-bad');tyFix(a,ok?'':want);
+  document.querySelectorAll('[id^="ltt_'+i+'_'+k+'_"]').forEach(function(b){b.disabled=true;});
+  if(val!=null)return;
+  if(Object.keys(st.done).length<st.it.length)return;
+  var v=[],all=true;for(var n=0;n<st.it.length;n++){var e=document.getElementById('lta_'+i+'_'+n);v.push(e?e.textContent:'');if(!st.ok[n])all=false;}
+  saveLessonAnswer(i,'letters',v.join(' | '),all);}
+// Распредели по колонкам
+function colItems(b){return String(b.list||'').split(/\r?\n/).map(function(l){var m=l.match(/^([^:]+):(.*)$/);if(!m)return null;
+  return {n:m[1].trim(),w:m[2].split(',').map(function(x){return x.trim();}).filter(Boolean)};}).filter(function(x){return x&&x.n;});}
+function colRender(b,i){var cs=colItems(b),all=[];cs.forEach(function(c,ci){c.w.forEach(function(w){all.push({w:w,c:ci});});});
+  window._col=window._col||{};window._col[i]={sel:null,done:false};
+  return '<div class="lesson-view-block">'+nxHead('🗂','Распредели по колонкам')
+    +'<div class="col-pool" id="colp_'+i+'" onclick="colDrop(\''+i+'\',-1,event)">'+nxShuffle(all.map(function(x,n){x.id=n;return x;})).map(function(x){return '<span class="col-chip" id="colw_'+i+'_'+x.id+'" data-c="'+x.c+'" onclick="colSel(\''+i+'\','+x.id+',event)">'+_escHtml(x.w)+'</span>';}).join('')+'</div>'
+    +'<div class="col-grid">'+cs.map(function(c,ci){return '<div class="col-box" id="colc_'+i+'_'+ci+'" onclick="colDrop(\''+i+'\','+ci+',event)"><div class="col-h">'+_escHtml(c.n)+'</div></div>';}).join('')+'</div>'
+    +nxBtns("colCheck('"+i+"')")+'</div>';}
+function colSel(i,id,ev){var st=(window._col||{})[i];if(!st||st.done)return;ev.stopPropagation();
+  var el=document.getElementById('colw_'+i+'_'+id);var was=st.sel===id;
+  document.querySelectorAll('[id^="colw_'+i+'_"]').forEach(function(x){x.classList.remove('sel');});
+  st.sel=was?null:id;if(!was)el.classList.add('sel');}
+function colDrop(i,ci,ev){var st=(window._col||{})[i];if(!st||st.done||st.sel==null)return;
+  var el=document.getElementById('colw_'+i+'_'+st.sel);var box=document.getElementById(ci<0?'colp_'+i:'colc_'+i+'_'+ci);
+  if(el&&box){box.appendChild(el);el.classList.remove('sel');}st.sel=null;}
+function colCheck(i){var st=(window._col||{})[i];if(!st||st.done)return;
+  if(document.querySelector('#colp_'+i+' .col-chip')){showToast(t('Разложи все слова'));return;}
+  st.done=true;var all=true,out=[],c=0,box;
+  while((box=document.getElementById('colc_'+i+'_'+c))){var ws=[];
+    box.querySelectorAll('.col-chip').forEach(function(x){var ok=+x.dataset.c===c;if(!ok)all=false;x.classList.add(ok?'in-ok':'in-bad');ws.push(x.textContent);});
+    out.push(box.querySelector('.col-h').textContent+': '+ws.join(', '));c++;}
+  saveLessonAnswer(i,'columns',out.join(' | '),all);}
+function colApply(i,ans){var st=(window._col||{})[i];if(!st)return false;
+  ans.split(' | ').forEach(function(part){var m=part.match(/^([^:]+):(.*)$/);if(!m)return;var c=0,box,tb=null;
+    while((box=document.getElementById('colc_'+i+'_'+c))){if(box.querySelector('.col-h').textContent===m[1].trim()){tb=box;break;}c++;}
+    if(!tb)return;m[2].split(',').map(function(x){return x.trim();}).filter(Boolean).forEach(function(w){
+      var ch=Array.prototype.find.call(document.querySelectorAll('#colp_'+i+' .col-chip'),function(x){return x.textContent===w;});
+      if(ch){tb.appendChild(ch);ch.classList.add(+ch.dataset.c===c?'in-ok':'in-bad');}});});
+  st.done=true;return true;}
+// Аудио
+function auRender(b,i){var u=/^https:\/\//i.test(b.url||'')?_escHtml(b.url):'';
+  return '<div class="lesson-view-block">'+nxHead('🎧','Послушай')+(u?'<audio controls preload="metadata" src="'+u+'" style="width:100%"></audio>':'<div style="color:var(--text3)">'+t('Аудио не добавлено')+'</div>')
+    +(String(b.script||'').trim()?'<details class="au-script"><summary>'+t('Показать текст')+'</summary><div>'+_escHtml(b.script).replace(/\n/g,'<br>')+'</div></details>':'')+'</div>';}
+// Запись голоса
+function recRender(b,i){
+  return '<div class="lesson-view-block">'+nxHead('🎙','Запиши ответ голосом')
+    +(String(b.task||'').trim()?'<div style="margin-bottom:10px;line-height:1.55">'+_escHtml(b.task).replace(/\n/g,'<br>')+'</div>':'')
+    +'<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><button type="button" class="btn btn-purple btn-sm" id="rec_btn_'+i+'" onclick="recToggle(\''+i+'\')">🎙 '+t('Записать')+'</button><span id="rec_st_'+i+'" style="font-size:.85rem;color:var(--text3)"></span></div>'
+    +'<div id="rec_out_'+i+'" style="margin-top:10px"></div></div>';}
+async function recToggle(i){
+  var R=window._rec=window._rec||{};var btn=document.getElementById('rec_btn_'+i),st=document.getElementById('rec_st_'+i);
+  if(R[i]&&R[i].mr&&R[i].mr.state==='recording'){R[i].mr.stop();return;}
+  try{
+    var stream=await navigator.mediaDevices.getUserMedia({audio:true});
+    var mr=new MediaRecorder(stream),chunks=[],t0=Date.now();R[i]={mr:mr};
+    mr.ondataavailable=function(e){if(e.data&&e.data.size)chunks.push(e.data);};
+    var tick=setInterval(function(){if(st)st.textContent='● '+Math.round((Date.now()-t0)/1000)+'с';},500);
+    mr.onstop=function(){clearInterval(tick);stream.getTracks().forEach(function(x){x.stop();});
+      var blob=new Blob(chunks,{type:mr.mimeType||'audio/webm'});R[i].blob=blob;
+      btn.innerHTML='🎙 '+t('Записать заново');if(st)st.textContent='';
+      document.getElementById('rec_out_'+i).innerHTML='<audio controls src="'+URL.createObjectURL(blob)+'" style="width:100%"></audio>'
+        +'<button type="button" class="btn btn-purple btn-sm" style="margin-top:8px" onclick="recSend(\''+i+'\')">📤 '+t('Отправить учителю')+'</button>';};
+    mr.start();btn.innerHTML='⏹ '+t('Остановить');document.getElementById('rec_out_'+i).innerHTML='';
+  }catch(e){showToast(t('Нет доступа к микрофону'));}
+}
+async function recSend(i){
+  var R=(window._rec||{})[i];if(!R||!R.blob)return;var out=document.getElementById('rec_out_'+i);
+  try{
+    var ext=/mp4/.test(R.blob.type)?'m4a':(/ogg/.test(R.blob.type)?'ogg':'webm');
+    var path=S.schoolId+'/student-audio/'+Date.now()+'_'+Math.random().toString(36).slice(2,8)+'.'+ext;
+    var up=await sb.storage.from('materials').upload(path,R.blob,{contentType:R.blob.type||'audio/webm'});
+    if(up.error){showToast('❌ '+up.error.message);return;}
+    var url=sb.storage.from('materials').getPublicUrl(path).data.publicUrl;
+    saveLessonAnswer(i,'record',url,null);
+    if(out)out.innerHTML='<audio controls src="'+_escHtml(url)+'" style="width:100%"></audio><div style="color:var(--green);font-size:.85rem;margin-top:6px">✅ '+t('Отправлено — учитель услышит')+'</div>';
+  }catch(e){showToast('❌ '+t('Не удалось отправить запись'));}
+}
+// Эссе
+function esWords(x){return (String(x||'').trim().match(/\S+/g)||[]).length;}
+function esRender(b,i){var mw=parseInt(b.min_words)||0;
+  return '<div class="lesson-view-block">'+nxHead('📄','Эссе')
+    +(String(b.task||'').trim()?'<div style="margin-bottom:10px;line-height:1.55;font-weight:600">'+_escHtml(b.task).replace(/\n/g,'<br>')+'</div>':'')
+    +'<textarea id="es_'+i+'" class="es-ta" oninput="esCount(\''+i+'\','+mw+')" placeholder="'+t('Напиши здесь…')+'"></textarea>'
+    +'<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:6px;flex-wrap:wrap"><span id="es_cnt_'+i+'" style="font-size:.8rem;color:var(--text3)">0 '+t('слов')+(mw?' / '+mw:'')+'</span>'
+    +'<button class="btn btn-purple btn-sm" onclick="esSave(\''+i+'\','+mw+')">💾 '+t('Сохранить')+'</button></div><div id="es_res_'+i+'" style="font-size:.85rem;margin-top:6px"></div></div>';}
+function esCount(i,mw){var n=esWords((document.getElementById('es_'+i)||{}).value);var c=document.getElementById('es_cnt_'+i);
+  if(c){c.textContent=n+' '+t('слов')+(mw?' / '+mw:'');c.style.color=mw&&n>=mw?'var(--green)':'var(--text3)';}}
+function esSave(i,mw){var v=((document.getElementById('es_'+i)||{}).value||'').trim();if(!v){showToast(t('Напиши ответ перед сохранением'));return;}
+  if(mw&&esWords(v)<mw){showToast(t('Нужно минимум')+' '+mw+' '+t('слов'));return;}
+  saveLessonAnswer(i,'essay',v,null);var r=document.getElementById('es_res_'+i);if(r)r.innerHTML='<span style="color:var(--green)">💾 '+t('Сохранено — учитель увидит')+'</span>';}
 // ── Тест из нескольких вопросов ──
 function qmHas(b){return !!String(b&&b.list||'').trim();}
 function qmItems(b){var out=[],cur=null;
@@ -10142,6 +10326,12 @@ function tyApplyInlineAnswer(exKey,answer,correct){
     var paint=function(el){if(!el)return;el.style.borderRadius='6px';el.style.padding='2px 8px';
       if(correct===true){el.style.background='var(--green-light)';el.style.color='#065F46';}
       else if(correct===false){el.style.background='#FEE2E2';el.style.color='#991B1B';}};
+    if(b.type==='dropdown'){if(!document.getElementById('dd_'+k+'_0'))return false;ddMark(k,ans.split(' | ').map(function(x){x=x.trim();return x==='-'?'':x;}));return true;}
+    if(b.type==='letters'){var _lt=(window._lt||{})[k];if(!_lt)return false;ans.split(' | ').forEach(function(v,n){if(n<_lt.it.length)ltDone(k,n,v.trim());});return true;}
+    if(b.type==='columns')return colApply(k,ans);
+    if(b.type==='essay'){var _es=document.getElementById('es_'+k);if(!_es)return false;_es.value=ans;esCount(k,parseInt(b.min_words)||0);return true;}
+    if(b.type==='record'){var _ro=document.getElementById('rec_out_'+k);if(!_ro)return false;
+      if(/^https:\/\//i.test(ans))_ro.innerHTML='<audio controls src="'+_escHtml(ans)+'" style="width:100%"></audio>';return true;}
     if(b.type==='quiz'&&qmHas(b)){
       if(!document.querySelector('[id^="qm_'+k+'_0_"]'))return false;
       var _qst=(window._qm||{})[k];
