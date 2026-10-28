@@ -8263,9 +8263,10 @@ async function openStudentAnswers(sid,name){
               <button class="btn btn-sm btn-outline" style="padding:2px 8px;font-size:.72rem" onclick="editStudentAnswer('${_aid}','${_esc(sid).replace(/'/g,"&#39;")}','${_escJS(name||'')}')">✏️</button>
             </div>
           </div>
-          <div style="font-size:.9rem;margin-top:6px;white-space:pre-wrap">${_escHtml(a.answer||'—')}</div>
+          ${a.ex_type==='record'&&/^https:\/\//i.test(a.answer||'')?`<audio controls data-asrc="${_escHtml(a.answer)}" style="width:100%;margin-top:6px"></audio>`:`<div style="font-size:.9rem;margin-top:6px;white-space:pre-wrap">${_escHtml(a.answer||'—')}</div>`}
         </div>`;
       }).join('');
+      setTimeout(function(){_hydrateAudio(document);},60);
       const okCount=arr.filter(a=>a.correct===true).length;
       const wrCount=arr.filter(a=>a.correct===false).length;
       return`<div style="margin-bottom:20px">
@@ -10318,12 +10319,13 @@ async function recSend(i){
   var R=(window._rec||{})[i];if(!R||!R.blob)return;var out=document.getElementById('rec_out_'+i);
   try{
     var ext=/mp4/.test(R.blob.type)?'m4a':(/ogg/.test(R.blob.type)?'ogg':'webm');
-    var path=S.schoolId+'/student-audio/'+Date.now()+'_'+Math.random().toString(36).slice(2,8)+'.'+ext;
-    var up=await sb.storage.from('materials').upload(path,R.blob,{contentType:R.blob.type||'audio/webm'});
+    var path=S.schoolId+'/'+S.profile.id+'/'+Date.now()+'_'+Math.random().toString(36).slice(2,8)+'.'+ext;
+    var up=await sb.storage.from('student-audio').upload(path,R.blob,{contentType:(R.blob.type||'audio/webm').split(';')[0]});
     if(up.error){showToast('❌ '+up.error.message);return;}
-    var url=sb.storage.from('materials').getPublicUrl(path).data.publicUrl;
+    var url=sb.storage.from('student-audio').getPublicUrl(path).data.publicUrl; // адрес-идентификатор; файл приватный
     saveLessonAnswer(i,'record',url,null);
-    if(out)out.innerHTML='<audio controls src="'+_escHtml(url)+'" style="width:100%"></audio><div style="color:var(--green);font-size:.85rem;margin-top:6px">✅ '+t('Отправлено — учитель услышит')+'</div>';
+    if(out){setTimeout(function(){_hydrateAudio(out);},0);}
+    if(out)out.innerHTML='<audio controls data-asrc="'+_escHtml(url)+'" style="width:100%"></audio><div style="color:var(--green);font-size:.85rem;margin-top:6px">✅ '+t('Отправлено — учитель услышит')+'</div>';
   }catch(e){showToast('❌ '+t('Не удалось отправить запись'));}
 }
 // Эссе
@@ -10451,7 +10453,7 @@ function tyApplyInlineAnswer(exKey,answer,correct){
     if(b.type==='columns')return colApply(k,ans);
     if(b.type==='essay'){var _es=document.getElementById('es_'+k);if(!_es)return false;_es.value=ans;esCount(k,parseInt(b.min_words)||0);return true;}
     if(b.type==='record'){var _ro=document.getElementById('rec_out_'+k);if(!_ro)return false;
-      if(/^https:\/\//i.test(ans))_ro.innerHTML='<audio controls src="'+_escHtml(ans)+'" style="width:100%"></audio>';return true;}
+      if(/^https:\/\//i.test(ans)){_ro.innerHTML='<audio controls data-asrc="'+_escHtml(ans)+'" style="width:100%"></audio>';_hydrateAudio(_ro);}return true;}
     if(b.type==='quiz'&&qmHas(b)){
       if(!document.querySelector('[id^="qm_'+k+'_0_"]'))return false;
       var _qst=(window._qm||{})[k];
@@ -11099,7 +11101,7 @@ async function editLessonById(id){
 
 // ─── MATERIAL PREVIEW ─────────────────────────────────────────────────────────
 // A1: приватные бакеты — подписанные ссылки вместо публичных
-const _STORAGE_PUB_RE=/\/storage\/v1\/object\/(?:public|sign)\/(materials|chat-files)\/([^?]+)/;
+const _STORAGE_PUB_RE=/\/storage\/v1\/object\/(?:public|sign)\/(materials|chat-files|student-audio)\/([^?]+)/;
 async function resolveStorageUrl(url){
   if(!url)return url;
   const m=_STORAGE_PUB_RE.exec(url);
@@ -11109,6 +11111,11 @@ async function resolveStorageUrl(url){
     if(error||!data?.signedUrl)return url;
     return data.signedUrl;
   }catch(_e){return url;}
+}
+// <audio data-asrc> → подписанная ссылка (приватные bucket'ы)
+function _hydrateAudio(root){
+  (root||document).querySelectorAll('audio[data-asrc]').forEach(async function(a){
+    var u=a.dataset.asrc;a.removeAttribute('data-asrc');var s=await resolveStorageUrl(u);if(/^https:\/\//i.test(s))a.src=s;});
 }
 async function openStorageFile(u){
   const s=await resolveStorageUrl(u);
