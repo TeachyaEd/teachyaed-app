@@ -1674,6 +1674,7 @@ body[data-theme="dark"] .badge-gray{background:rgba(255,255,255,.07)!important;c
     <div class="cv-tabs-wrap">
       <button class="cv-tab active" id="cv_tabLesson" onclick="switchCVTab('lesson',this)">Урок</button>
       <button class="cv-tab" id="cv_tabHomework" onclick="switchCVTab('homework',this)">Домашняя работа</button>
+      <button class="cv-tab" id="cv_tabReview" onclick="switchCVTab('review',this)">Повторение</button>
     </div>
     <div class="cv-topbar-spacer"></div>
     <div class="cv-topbar-right">
@@ -9305,7 +9306,7 @@ function openClassroomView(title,sections,assignId,studentName,materials,lessonI
   if(_lzBtn)_lzBtn.style.display=['teacher','admin','owner'].includes(S.role)?'':'none';
   laserBind();
   // reset tab
-  C('cv_tabLesson').classList.add('active');C('cv_tabHomework').classList.remove('active');
+  C('cv_tabLesson').classList.add('active');C('cv_tabHomework').classList.remove('active');if(C('cv_tabReview'))C('cv_tabReview').classList.remove('active');
   lvRender();
   C('classroomView').classList.add('open');
   // Init lesson chat — B16: единая комната ПО УРОКУ (учитель и ученики всегда вместе,
@@ -9637,6 +9638,88 @@ async function cvPostponeHW(hwId){
   showToast('✅ '+t('Срок перенесён')+': '+nv);
   cvLoadHomework();
 }
+// Вкладка «Повторение»: слова/задачи для ученика или класса, не зависит от урока
+var RV_KIND={word:'🔤',task:'✏️',note:'📝'};
+function rvScope(){
+  return {cls:S.currentClassId||null, stu:S._cvStudentId||null};
+}
+async function cvLoadReview(){
+  var box=C("cv_exerciseContent");
+  var isT=["teacher","admin","owner"].includes(S.role);
+  var sc=rvScope();
+  box.innerHTML='<div style="padding:24px;color:var(--text3)">'+t("Загрузка...")+'</div>';
+  try{
+    var q=sb.from("review_items").select("*,student:student_id(first_name,last_name)").eq("school_id",S.schoolId).order("created_at",{ascending:false}).limit(300);
+    if(isT){
+      if(sc.stu)q=sc.cls?q.or("student_id.eq."+sc.stu+",and(class_id.eq."+sc.cls+",student_id.is.null)"):q.eq("student_id",sc.stu);
+      else if(sc.cls)q=q.eq("class_id",sc.cls);
+      else{box.innerHTML='<div class="empty-state" style="padding:40px 0"><div class="ei">🔁</div><p>'+t("Откройте урок из класса или ученика, чтобы добавить повторение")+'</p></div>';return;}
+    }
+    var r=await q;if(r.error)throw r.error;
+    var items=r.data||[];
+    if(!isT&&sc.cls)items=items.filter(function(i){return i.student_id||i.class_id===sc.cls;});
+    var form='';
+    if(isT){
+      var tgt='<select id="rv_target" class="form-control" style="max-width:200px">'
+        +(sc.cls?'<option value="class">'+t("Всему классу")+'</option>':'')
+        +(sc.stu?'<option value="student">'+t("Только этому ученику")+'</option>':'')+'</select>';
+      form='<div class="card" style="margin-bottom:14px;padding:12px 16px">'
+        +'<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">'
+        +'<select id="rv_kind" class="form-control" style="max-width:160px"><option value="word">🔤 '+t("Слова")+'</option><option value="task">✏️ '+t("Задача")+'</option><option value="note">📝 '+t("Заметка")+'</option></select>'+tgt+'</div>'
+        +'<textarea id="rv_text" class="form-control" rows="3" placeholder="'+_escHtml(t("Слова: каждое с новой строки, «слово - перевод». Задача или заметка: любой текст"))+'"></textarea>'
+        +'<div style="margin-top:8px"><button class="btn btn-purple btn-sm" onclick="rvAdd()">+ '+t("Добавить")+'</button></div></div>';
+    }
+    var row=function(i){
+      var id=_escJS(i.id);
+      var who=(isT&&i.student_id)?'<span class="badge badge-purple" style="margin-left:6px">👤 '+_escHtml((i.student&&i.student.first_name)||"")+'</span>':'';
+      var ex=i.extra?(isT?' <span style="color:var(--text3)">— '+_escHtml(i.extra)+'</span>'
+        :' <span style="color:var(--purple);cursor:pointer;font-size:.8rem" onclick="this.textContent=\'— \'+this.dataset.x;this.style.color=\'var(--text3)\'" data-x="'+_escHtml(i.extra)+'">👁 '+t("перевод")+'</span>'):'';
+      var acts=isT?'<span style="margin-left:auto;display:flex;gap:6px"><button class="btn btn-sm btn-outline" style="font-size:.72rem" onclick="rvEdit(\''+id+'\')">✏️</button><button class="btn btn-sm btn-outline" style="font-size:.72rem;color:var(--red)" onclick="rvDel(\''+id+'\')">🗑</button></span>':'';
+      return '<div class="card" style="margin-bottom:6px;padding:10px 14px;display:flex;align-items:flex-start;gap:8px">'
+        +'<span>'+(RV_KIND[i.kind]||'•')+'</span><div style="white-space:pre-wrap;flex:1">'+_escHtml(i.content)+ex+who+'</div>'+acts+'</div>';
+    };
+    var html='<div class="section-header" style="margin-bottom:12px"><span style="font-weight:700">🔁 '+t("Повторение")+'</span></div>'+form;
+    ['word','task','note'].forEach(function(k){
+      var g=items.filter(function(i){return i.kind===k;});
+      if(g.length)html+='<div style="font-size:.75rem;font-weight:700;color:var(--purple);text-transform:uppercase;margin:12px 0 6px">'+t({word:'Слова',task:'Задачи',note:'Заметки'}[k])+' · '+g.length+'</div>'+g.map(row).join('');
+    });
+    if(!items.length)html+='<div class="empty-state" style="padding:30px 0"><div class="ei">🔁</div><p>'+t("Пока нечего повторять")+'</p></div>';
+    box.innerHTML=html;
+  }catch(e){box.innerHTML='<div style="padding:24px;color:var(--pink)">'+t("Ошибка загрузки")+": "+_escHtml(e.message||"")+'</div>';}
+}
+async function rvAdd(){
+  var sc=rvScope();var kind=C('rv_kind').value;var txt=(C('rv_text').value||'').trim();
+  if(!txt)return;
+  var toStu=C('rv_target').value==='student';
+  var base={school_id:S.schoolId,kind:kind,class_id:sc.cls||null,student_id:toStu?sc.stu:null};
+  if(!base.class_id&&!base.student_id)return;
+  var rows=[];
+  if(kind==='word'){
+    txt.split('\n').forEach(function(l){l=l.trim();if(!l)return;
+      var m=l.split(/\s+[-–—=]\s+|\t/);
+      rows.push(Object.assign({},base,{content:m[0].trim().slice(0,4000),extra:m.length>1?m.slice(1).join(' - ').trim().slice(0,4000):null}));});
+  } else rows.push(Object.assign({},base,{content:txt.slice(0,4000)}));
+  var r=await sb.from('review_items').insert(rows);
+  if(r.error){showToast('❌ '+r.error.message,'error');return;}
+  showToast('✅ '+t('Добавлено в повторение')+': '+rows.length);
+  cvLoadReview();
+}
+async function rvEdit(id){
+  var cur=await sb.from('review_items').select('content,extra,kind').eq('id',id).maybeSingle();
+  if(!cur.data)return;
+  var v=await tyPrompt(t('Текст'),cur.data.content);if(v===null)return;v=String(v).trim();if(!v)return;
+  var upd={content:v.slice(0,4000),updated_at:new Date().toISOString()};
+  if(cur.data.kind==='word'){var e=await tyPrompt(t('Перевод'),cur.data.extra||'');if(e!==null)upd.extra=String(e).trim()||null;}
+  var r=await sb.from('review_items').update(upd).eq('id',id);
+  if(r.error){showToast('❌ '+r.error.message,'error');return;}
+  cvLoadReview();
+}
+async function rvDel(id){
+  if(!confirm(t('Удалить из повторения?')))return;
+  var r=await sb.from('review_items').delete().eq('id',id);
+  if(r.error){showToast('❌ '+r.error.message,'error');return;}
+  cvLoadReview();
+}
 function switchCVTab(tab,el){
   document.querySelectorAll('.cv-tab').forEach(t=>t.classList.remove('active'));
   el.classList.add('active');
@@ -9644,6 +9727,10 @@ function switchCVTab(tab,el){
     C('cv_sectionTitle').textContent=t('Домашняя работа');
     C('cv_btnBack').style.display='none';C('cv_btnNext').style.display='none';C('cv_btnFinishSec').style.display='none';
     cvLoadHomework();
+  } else if(tab==='review'){
+    C('cv_sectionTitle').textContent=t('Повторение');
+    C('cv_btnBack').style.display='none';C('cv_btnNext').style.display='none';C('cv_btnFinishSec').style.display='none';
+    cvLoadReview();
   } else {
     C('cv_btnBack').style.display='';C('cv_btnNext').style.display='';
     if(!cvRestoreLesson())lvRender();
