@@ -11275,7 +11275,7 @@ async function loadConvs(){
   if(MS._loadingConvs)return;MS._loadingConvs=true;
   try{
   // Get all conversations user is a member of
-  const{data:members}=await sb.from('conversation_members').select('conversation_id,last_read_at').eq('user_id',S.profile.id).eq('school_id',S.schoolId);
+  const{data:members}=await sb.from('conversation_members').select('conversation_id,last_read_at').eq('user_id',S.profile.id);
   if(!members||!members.length){renderConvList([]);return;}
   const convIds=members.map(m=>m.conversation_id);
   const[{data:convs},{data:lastMsgs},{data:profs}]=await Promise.all([
@@ -11354,7 +11354,7 @@ async function openConv(convId){
   try{
   MS.convId=convId;
   // Mark as read
-  await sb.from('conversation_members').update({last_read_at:new Date().toISOString()}).eq('conversation_id',convId).eq('user_id',S.profile.id).eq('school_id',S.schoolId);
+  await sb.from('conversation_members').update({last_read_at:new Date().toISOString()}).eq('conversation_id',convId).eq('user_id',S.profile.id);
   // Update unread badge
   const c=MS.convs.find(cv=>cv.id===convId);
   if(c)c.unread=0;
@@ -11570,13 +11570,13 @@ async function createConv(){
       if(!uid)return;
       // dedup check — look for existing direct conversation
       if(S.profile?.id){
-        const{data:_myMems}=await sb.from('conversation_members').select('conversation_id').eq('user_id',S.profile.id).eq('school_id',S.schoolId);
+        const{data:_myMems}=await sb.from('conversation_members').select('conversation_id').eq('user_id',S.profile.id);
         if(_myMems&&_myMems.length){
           const _myConvIds=_myMems.map(m=>m.conversation_id);
-          const{data:_theirMems}=await sb.from('conversation_members').select('conversation_id').eq('user_id',uid).eq('school_id',S.schoolId).in('conversation_id',_myConvIds);
+          const{data:_theirMems}=await sb.from('conversation_members').select('conversation_id').eq('user_id',uid).in('conversation_id',_myConvIds);
           if(_theirMems&&_theirMems.length){
             const _sharedConvIds=_theirMems.map(m=>m.conversation_id);
-            const{data:_directConv}=await sb.from('conversations').select('id').eq('type','direct').in('id',_sharedConvIds).maybeSingle();
+            const{data:_directConv}=await sb.from('conversations').select('id').eq('type','direct').eq('school_id',S.schoolId).in('id',_sharedConvIds).maybeSingle();
             if(_directConv){closeM('mNewConv');await openConv(_directConv.id);return;}
           }
         }
@@ -11594,7 +11594,7 @@ async function createConv(){
     const{data:conv,error}=await sb.from('conversations').insert({school_id:S.schoolId,type,name}).select().single();
     if(error){showToastCard(t('Ошибка'),''+error.message,'error','❌');return;}
     // Add members
-    const{error:membErr}=await sb.from('conversation_members').insert(members.map(uid=>({conversation_id:conv.id,user_id:uid,school_id:S.schoolId})));
+    const{error:membErr}=await sb.from('conversation_members').insert(members.map(uid=>({conversation_id:conv.id,user_id:uid})));
     if(membErr){
       try{await sb.from('conversations').delete().eq('id',conv.id).eq('school_id',S.schoolId);}catch(_){}
       showToastCard(t('Ошибка создания чата'),''+membErr.message,'error','❌');
