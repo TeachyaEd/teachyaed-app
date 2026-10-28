@@ -12651,22 +12651,10 @@ async function submitPlacementTest(){
     // Guard: student can only submit their own test
     if(!S.studentRowId||hw.student_id!==S.studentRowId){showToast(isEn?'Access denied':'Доступ запрещён','error');return;}
     if(hw.status!=='pending'){showToast('Тест уже был пройден','error');return;}
-    let questions=[];try{questions=JSON.parse(hw.description)||[];}catch(e){}
-    let score=0;
-    questions.forEach((q,i)=>{if(Number(_ptpAnswers[i])===q.correct)score++;});
-    const cefrLevel=score<=3?'A1':score<=6?'A2':score<=9?'B1':score<=12?'B2':score<=14?'C1':'C2';
-    // Mark homework as reviewed (FIRST — atomic: if students.update fails hw is already done)
-    const{error:hwUpdErr}=await sb.from('homeworks').update({
-      status:'reviewed',
-      student_answer:JSON.stringify(_ptpAnswers),
-      teacher_comment:isEn
-        ?`🎉 Test result: ${score}/15 correct. Level determined: ${cefrLevel}`
-        :`🎉 Результат теста: ${score}/15 правильных. Определён уровень: ${cefrLevel}`
-    }).eq('id',_ptpHwId).eq('school_id',S.schoolId);
-    if(hwUpdErr){showToast('Ошибка: '+hwUpdErr.message,'error');return;}
-    // Update student level (SECOND — non-fatal if fails)
-    const{error:stuLvlErr}=await sb.from('students').update({level:cefrLevel}).eq('id',S.studentRowId).eq('school_id',S.schoolId);
-    if(stuLvlErr)console.warn('[PlacementTest] Level update failed:',stuLvlErr.message);
+    // Подсчёт, статус и уровень — на сервере (ученик не может подделать результат)
+    const{data:_pr,error:_prErr}=await sb.rpc('submit_placement_test',{p_hw:_ptpHwId,p_answers:_ptpAnswers,p_lang:isEn?'en':'ru'});
+    if(_prErr||!_pr||_pr.error){showToast('Ошибка: '+(_prErr?.message||_pr?.error||''),'error');return;}
+    const score=_pr.score,cefrLevel=_pr.level;
     dcInval('homeworks_'+S.schoolId);
     closeM('mPlacementTestPlayer');
     dcInval('students_full_'+S.schoolId);dcInval('students_full_'+S.profile?.id);
