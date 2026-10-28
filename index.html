@@ -4327,6 +4327,9 @@ async function afterLogin(user){
   S.profile=prof;S.role=prof.role;S.schoolId=prof.school_id;S.userId=prof.id;
   S.schoolKind='school';
   try{const{data:_sk}=await sb.rpc('get_my_school_kind');if(_sk==='tutor')S.schoolKind='tutor';}catch(_e){}
+  // Teacher ACL: owner/admin — менеджеры; teacher может иметь право «вся школа» (решает сервер)
+  S.isManager=['owner','admin'].includes(S.role);S.allSchool=S.isManager;
+  try{const{data:_ma,error:_mae}=await sb.rpc('my_access');if(!_mae&&_ma){S.allSchool=!!_ma.all_school;S.isManager=!!_ma.manager;}}catch(_e){}
   _applySchoolKindNav();
   document.body.classList.toggle('stu-mode',S.role==='student');
   _mergeLocalAvatar(); // merge avatar prefs from localStorage
@@ -4921,6 +4924,7 @@ function showToast(m,type){
 // ─── DATA CACHE (30s TTL) ─────────────────────────────────────────────────────
 const _DC={};
 async function dc(key,fn){
+  key=(S&&S.userId?S.userId:'')+'|'+key; // кэш раздельный для каждого пользователя (ACL)
   const now=Date.now();
   if(_DC[key]&&now-_DC[key].ts<30000)return _DC[key].v;
   // B11: in-flight lock — параллельные вызовы получают один и тот же запрос
@@ -4930,7 +4934,7 @@ async function dc(key,fn){
   dc._inflight[key]=p;
   try{return await p;}finally{delete dc._inflight[key];}
 }
-function dcInval(key){delete _DC[key];}
+function dcInval(key){delete _DC[(S&&S.userId?S.userId:'')+'|'+key];}
 function dcInvalAll(){Object.keys(_DC).forEach(k=>delete _DC[k]);}
 
 // ─── SKELETON LOADER ─────────────────────────────────────────────────────────
@@ -6625,8 +6629,7 @@ async function renderTeacherStudents(){
   const cacheKey='students_full_'+(isTeacher?S.profile.id:S.schoolId);
   const{data:sts}=await dc(cacheKey,()=>{
     let q=sb.from('students').select('*').eq('school_id',S.schoolId).order('last_name');
-    if(isTeacher)q=q.eq('teacher_id',S.profile.id);
-    return q;
+    return q; // ACL: какие ученики видны учителю, решает сервер (RLS)
   });
   if(S.screen!==_tsSnap)return;
   const rows=(sts||[]).map(s=>{const sName=_escJS((s.first_name||'')+' '+(s.last_name||''));const sId=_esc(s.id).replace(/'/g,"&#39;");return`<tr>
@@ -6897,11 +6900,13 @@ async function renderAdminTeachers(){
   try{
   const _adtSnap=S.screen;showSkel();
   const{data:ts}=await sb.from('profiles').select('*').eq('school_id',S.schoolId).eq('role','teacher');
+  const _scopes=await aclLoadScopes();
   if(S.screen!==_adtSnap)return;
   const rows=(ts||[]).map(tc=>{const tcName=_escJS((tc.first_name||'')+' '+(tc.last_name||''));const tcId=_esc(tc.id).replace(/'/g,"&#39;");return`<tr><td><div style="display:flex;align-items:center;gap:10px">${avHTML(tc.first_name,tc.last_name)}<div><div style="font-weight:600">${_esc(tc.first_name)} ${_esc(tc.last_name)}</div><div style="font-size:.75rem;color:var(--text3)">${_esc(tc.email||'—')}</div></div></div></td>
     <td><span class="badge badge-green">${t('Учитель')}</span></td>
     <td class="td-actions">
       <button class="btn btn-sm btn-outline" style="font-size:.73rem;padding:4px 8px" onclick="openSetSalary('${tcId}','${tcName}')">💰 ${t('Ставка')}</button>
+      ${aclToggleHTML(tc.id,_scopes)}
       
       <button class="btn-danger" onclick="confirmDeleteUser('${tcId}','${tcName}','teacher')">🗑</button>
     </td></tr>`}).join('')||`<tr><td colspan="3" style="text-align:center;color:var(--text3)">${t('Нет учителей')}</td></tr>`;
@@ -6913,11 +6918,33 @@ async function renderAdminTeachers(){
   setContent('<div class="empty-state"><div class="ei">⚠️</div><p>'+t('Ошибка загрузки')+'</p></div>');
 }finally{renderAdminTeachers._loading=false;}
 }
+// ── Teacher ACL: право «видит все классы и учеников школы» (меняет только owner/admin через RPC) ──
+async function aclLoadScopes(){
+  if(!S.isManager)return null;
+  try{const{data,error}=await sb.from('teacher_access_scopes').select('teacher_id,all_school_access');if(error)return null;
+    const m={};(data||[]).forEach(function(r){m[r.teacher_id]=!!r.all_school_access;});return m;}catch(e){return null;}
+}
+function aclToggleHTML(tid,scopes){
+  if(!S.isManager||!scopes)return '';
+  const on=!!scopes[tid];const id=_esc(String(tid)).replace(/'/g,'&#39;');
+  return '<label title="'+_esc(t('Без прав администратора: только работа с классами и учениками'))+'" style="display:inline-flex;align-items:center;gap:5px;font-size:.73rem;padding:4px 8px;border:1px solid var(--gray-border);border-radius:8px;cursor:pointer;white-space:nowrap">'
+    +'<input type="checkbox" '+(on?'checked':'')+' onchange="aclSetScope(\''+id+'\',this)" style="accent-color:var(--purple)"> '+_esc(t('Вся школа'))+'</label>';
+}
+async function aclSetScope(tid,el){
+  const want=!!el.checked;el.disabled=true;
+  try{
+    const{data,error}=await sb.rpc('set_teacher_all_school_access',{p_teacher_id:tid,p_enabled:want});
+    if(error||!data||data.error){el.checked=!want;showToast('❌ '+(error?.message||data?.error||t('Ошибка')),'error');return;}
+    showToast(want?'✅ '+t('Учитель видит все классы и учеников школы'):'✅ '+t('Учитель видит только свои классы'));
+  }catch(e){el.checked=!want;showToast('❌ '+t('Ошибка'),'error');}
+  finally{el.disabled=false;}
+}
 async function renderOwnerUsers(){
   if(renderOwnerUsers._loading)return;renderOwnerUsers._loading=true;
   try{
   const _ouSnap=S.screen;showSkel();
   const{data:users}=await sb.from('profiles').select('*').eq('school_id',S.schoolId).order('role');
+  const _scopes=await aclLoadScopes();
   if(S.screen!==_ouSnap)return;
   const canDelete=S.role==='owner'||S.role==='admin';
   const rows=(users||[]).map(u=>{const uName=_escJS((u.first_name||'')+' '+(u.last_name||''));const uId=_esc(u.id).replace(/'/g,"&#39;");const uRole=_esc(u.role||'').replace(/'/g,"&#39;");return`<tr>
@@ -6927,6 +6954,7 @@ async function renderOwnerUsers(){
       ${u.id===S.profile.id
         ?`<span style="font-size:.75rem;color:var(--text3)">${t('Это вы')}</span>`
         :`<button class="btn btn-sm btn-outline" style="font-size:.73rem;padding:4px 8px" onclick="openChangeRole('${uId}','${uName}','${uRole}')">✎ ${t('Роль')}</button>
+        ${u.role==='teacher'&&canDelete?aclToggleHTML(u.id,_scopes):''}
         
         ${canDelete&&!(S.role==='admin'&&u.role==='owner')?`<button class="btn-danger" onclick="confirmDeleteUser('${uId}','${uName}','${uRole}')">🗑</button>`:''}`}
     </td>
@@ -7507,9 +7535,10 @@ async function renderClasses(){
   ]);
   if(S.screen!==_clSnap)return;
   C('cl_teacher').innerHTML=(teachers||[]).map(tc=>`<option value="${_esc(tc.id)}">${_esc(tc.first_name)} ${_esc(tc.last_name)}</option>`).join('');
+  {const _tg=C('cl_teacher').closest('.form-group');if(_tg)_tg.style.display=S.isManager?'':'none';}
   _allClasses=classes||[];
   const canCreate=['teacher','admin','owner'].includes(S.role);
-  setContent(`<div class="section-header"><h2>🎓 Классы</h2>${canCreate?'<button class="btn btn-purple" onclick="openNewClass()">+ Новый класс</button>':''}</div>
+  setContent(`<div class="section-header"><h2>🎓 ${S.isManager||S.allSchool?t('Классы школы'):t('Мои классы')}</h2>${canCreate?'<button class="btn btn-purple" onclick="openNewClass()">+ Новый класс</button>':''}</div>
     <div class="classes-toolbar">
       <input class="classes-search" id="classSearch" placeholder="Поиск классов..." oninput="filterClasses()" />
       <div class="ev-filter-tabs">
@@ -7570,6 +7599,7 @@ async function openNewClass(){
   ['cl_name','cl_desc'].forEach(id=>C(id).value='');
   C('cl_emoji').value='📚';C('cl_type').value='individual';C('cl_lang').value='Английский';C('cl_level').value='A1';C('cl_color').value='#7C3AED';
   C('classModalTitle').textContent=t('Новый класс');
+  if(C('cl_teacher'))C('cl_teacher').value=S.profile.id;
   openM('mAddClass');
 }
 async function editClass(id){
@@ -7588,7 +7618,10 @@ async function saveClass(){
   if(btn){btn.disabled=true;btn.textContent=t('Сохранение...');}
   try{
     const name=C('cl_name').value.trim();if(!name){showToast('Введи название!');return;}
-    const data={school_id:S.schoolId,teacher_id:C('cl_teacher').value||S.profile.id,name,type:C('cl_type').value,language:C('cl_lang').value,level:C('cl_level').value,color:C('cl_color').value,emoji:C('cl_emoji').value||'📚',description:C('cl_desc').value.trim()};
+    // Владелец класса: менеджер выбирает; учитель создаёт класс на себя, при правке владелец не меняется
+    const _tid=S.isManager?(C('cl_teacher').value||S.profile.id):(S.editClassId?undefined:S.profile.id);
+    const data={school_id:S.schoolId,teacher_id:_tid,name,type:C('cl_type').value,language:C('cl_lang').value,level:C('cl_level').value,color:C('cl_color').value,emoji:C('cl_emoji').value||'📚',description:C('cl_desc').value.trim()};
+    if(data.teacher_id===undefined)delete data.teacher_id;
     let err;
     if(S.editClassId){({error:err}=await sb.from('classes').update(data).eq('id',S.editClassId).eq('school_id',S.schoolId));}
     else{({error:err}=await sb.from('classes').insert(data));}
@@ -8274,8 +8307,7 @@ async function renderSchedule(){
   const[{data:evs},{data:classes}]=await Promise.all([
     dc(_schedCacheKey(),async()=>{
     let _q=sb.from('schedule_events').select('*,class:class_id(name,color)').eq('school_id',S.schoolId);
-    if(S.role==='teacher'&&S.profile?.id)_q=_q.eq('teacher_id',S.profile.id);
-    else if(S.role==='student'){
+    if(S.role==='student'){
       const{data:_enrolled}=await sb.from('class_students').select('class_id').eq('student_id',S.studentRowId).eq('school_id',S.schoolId);
       const _cids=(_enrolled||[]).map(r=>r.class_id).filter(Boolean);
       if(_cids.length) _q=_q.in('class_id',_cids);
@@ -12557,8 +12589,7 @@ async function exportICal(){
   try{
   const isEn=S.lang==='en';
   let _icalQ=sb.from('schedule_events').select('*').eq('school_id',S.schoolId);
-  if(S.role==='teacher')_icalQ=_icalQ.eq('teacher_id',S.profile.id);
-  else if(S.role==='student'){if(!S.studentRowId){showSessionExpiredBanner();showToast(t('Ошибка')+': '+t('Профиль не загружен'),'error');return;}
+  if(S.role==='student'){if(!S.studentRowId){showSessionExpiredBanner();showToast(t('Ошибка')+': '+t('Профиль не загружен'),'error');return;}
   const{data:_icalEnrolled}=await sb.from('class_students').select('class_id').eq('student_id',S.studentRowId).eq('school_id',S.schoolId);
   const _icalCids=(_icalEnrolled||[]).map(r=>r.class_id).filter(Boolean);
   if(_icalCids.length) _icalQ=_icalQ.in('class_id',_icalCids);
