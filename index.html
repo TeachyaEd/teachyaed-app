@@ -1624,13 +1624,13 @@ body[data-theme="dark"] .badge-gray{background:rgba(255,255,255,.07)!important;c
     <div class="mp-header">
       <span id="mp_icon" style="font-size:1.5rem"></span>
       <span class="mp-title" id="mp_title">Материал</span>
-      <button class="btn btn-sm btn-outline" id="mp_openBtn" onclick="(function(){var u=document.getElementById('mp_openBtn').dataset.url||'';if(/^https?:\/\//i.test(u))window.open(u,'_blank','noopener,noreferrer');else showToast('Некорректная ссылка','error');})()" style="flex-shrink:0">🔗 Открыть</button>
+      <button class="btn btn-sm btn-outline" id="mp_openBtn" onclick="(function(){var u=document.getElementById('mp_openBtn').dataset.url||'';if(/^https?:\/\//i.test(u))window.open(u,'_blank','noopener,noreferrer');else showToast(t('Некорректная ссылка'),'error');})()" style="flex-shrink:0">🔗 Открыть</button>
       <button class="modal-close" style="position:static;margin-left:8px" onclick="closeM('mMatPreview')">✕</button>
     </div>
     <div id="mp_body"></div>
     <div class="mp-footer">
       <span id="mp_meta" style="font-size:.8rem;color:var(--text3)"></span>
-      <button class="btn btn-purple" onclick="(function(){var u=document.getElementById('mp_openBtn').dataset.url||'';if(/^https?:\/\//i.test(u))window.open(u,'_blank','noopener,noreferrer');else showToast('Некорректная ссылка','error');})()">Открыть в новой вкладке ↗</button>
+      <button class="btn btn-purple" onclick="(function(){var u=document.getElementById('mp_openBtn').dataset.url||'';if(/^https?:\/\//i.test(u))window.open(u,'_blank','noopener,noreferrer');else showToast(t('Некорректная ссылка'),'error');})()">Открыть в новой вкладке ↗</button>
     </div>
   </div>
 </div>
@@ -3078,9 +3078,14 @@ const TRANSLATIONS_GE={
   'Превышено время ожидания':'მოლოდინის დრო ამოიწურა',
 };
 
+// Переводы уведомлений (только для t(), не для замены текста на странице)
+const TOAST_TR_EN={"Аккаунт не привязан к школе. Обратитесь к администратору.": "Account is not linked to a school. Contact the administrator.", "В классе нет учеников": "No students in the class", "Введи email для приглашения!": "Enter an email to invite!", "Введи email!": "Enter an email!", "Введи имя!": "Enter a name!", "Введи корректную сумму!": "Enter a valid amount!", "Введи название урока!": "Enter a lesson title!", "Введи название!": "Enter a title!", "Введи новый email": "Enter a new email", "Выбери ученика": "Choose a student", "ДЗ не найдено": "Homework not found", "Доступ запрещён": "Access denied", "Загрузка урока...": "Loading lesson...", "Загрузка…": "Loading…", "Занятие сохранено!": "Session saved!", "Класс не найден": "Class not found", "Класс сохранён!": "Class saved!", "Материал удалён": "Material deleted", "Не нашла ни одной пары «слово — перевод»": "No “word — translation” pairs found", "Не удалось добавить": "Could not add", "Не удалось удалить": "Could not delete", "Небезопасный URL": "Unsafe URL", "Неверный статус": "Invalid status", "Неверный уровень": "Invalid level", "Недопустимая роль": "Invalid role", "Недопустимый формат. Разрешены: JPG, PNG, GIF, WEBP": "Unsupported format. Allowed: JPG, PNG, GIF, WEBP", "Неизвестная роль: ": "Unknown role: ", "Некому добавить: у учеников нет аккаунтов или не открыт класс": "Nobody to add: students have no accounts or no class is open", "Некорректная ссылка": "Invalid link", "Нельзя назначить роль владельца": "Cannot assign the owner role", "Нельзя удалить владельца": "Cannot delete the owner", "Нельзя удалить самого себя": "You cannot delete yourself", "Нет прав": "No permission", "Нет уроков для импорта": "No lessons to import", "Нет уроков. Сначала создай урок.": "No lessons. Create a lesson first.", "Нет учеников в школе": "No students in the school", "Отмечено оплаченным": "Marked as paid", "Ошибка авторизации": "Authorization error", "Ошибка добавления: ": "Add error: ", "Ошибка завершения урока: ": "Error finishing lesson: ", "Ошибка загрузки аудио": "Audio upload error", "Ошибка загрузки изображения": "Image upload error", "Ошибка загрузки учеников: ": "Error loading students: ", "Ошибка загрузки: ": "Loading error: ", "Ошибка импорта": "Import error", "Ошибка назначения: ": "Assignment error: ", "Ошибка отправки ДЗ: ": "Error submitting homework: ", "Ошибка создания ДЗ: ": "Error creating homework: ", "Ошибка сохранения проверки: ": "Error saving review: ", "Ошибка сохранения: ": "Save error: ", "Ошибка удаления задачи: ": "Error deleting task: ", "Ошибка удаления: ": "Delete error: ", "Ошибка чата: ": "Chat error: ", "Ошибка: ": "Error: ", "Ошибка: ID комнаты не задан": "Error: room ID is not set", "Ошибка: ID студента": "Error: student ID", "Ошибка: профиль не загружен": "Error: profile not loaded", "Ошибка: урок не выбран": "Error: no lesson selected", "Ошибка: урок не найден в кэше": "Error: lesson not found in cache", "Ошибка: школа не определена": "Error: school not determined", "Пароли не совпадают": "Passwords do not match", "Пароль должен быть не менее 8 символов": "Password must be at least 8 characters", "Пароль изменён ✓": "Password changed ✓", "Платёж сохранён": "Payment saved", "Приглашение отправлено! 💌": "Invitation sent! 💌", "Проверь почту для подтверждения нового email": "Check your inbox to confirm the new email", "Просмотр завершён ✓": "Review finished ✓", "Профиль не найден. Обратитесь к администратору.": "Profile not found. Contact the administrator.", "Профиль сохранён ✓": "Profile saved ✓", "Роль изменена!": "Role changed!", "Слово сохранено!": "Word saved!", "Сначала открой редактор урока": "Open the lesson editor first", "Собеседник завершил звонок": "The other person ended the call", "Сообщение слишком длинное (макс 4000 символов)": "Message is too long (max 4000 characters)", "Сохранено": "Saved", "Сохранено только на этом устройстве": "Saved on this device only", "Сохранено только на этом устройстве: ": "Saved on this device only: ", "Ставка сохранена": "Rate saved", "Тема слишком длинная (макс 500 символов)": "Subject is too long (max 500 characters)", "Тест уже был пройден": "The test has already been taken", "Только владелец может назначать владельцев": "Only the owner can assign owners", "У этого материала нет ссылки ⚠️": "This material has no link ⚠️", "Уже идёт звонок": "A call is already in progress", "Укажи время!": "Set the time!", "Укажи дату!": "Set the date!", "Упражнение добавлено ✓": "Exercise added ✓", "Урок завершён! 🎉": "Lesson finished! 🎉", "Урок записан": "Lesson logged", "Урок не найден": "Lesson not found", "Ученик добавлен в класс!": "Student added to the class!", "Ученик добавлен — письмо отправлено! 💌": "Student added — email sent! 💌", "Ученик не найден": "Student not found", "Ученик убран": "Student removed", "Файл слишком большой (макс 10MB)": "File is too large (max 10MB)", "Файл слишком большой (макс 20 МБ)": "File is too large (max 20 MB)", "Файл слишком большой (макс 5 МБ)": "File is too large (max 5 MB)", "ℹ️ Все эти слова уже в словаре": "ℹ️ All these words are already in the dictionary", "⏳ Удаляем...": "⏳ Deleting...", "⚠️ Сохранено локально (проверь RLS-политику UPDATE в Supabase)": "⚠️ Saved locally only (server did not accept the change)", "⚠️ У ученика нет аккаунта — уведомление не придёт": "⚠️ The student has no account — no notification will be sent", "✅ ДЗ обновлено!": "✅ Homework updated!", "✅ ДЗ отправлено!": "✅ Homework sent!", "✅ ДЗ проверено!": "✅ Homework reviewed!", "✅ Данные ученика сохранены!": "✅ Student details saved!", "✅ Загружено разделов: ": "✅ Sections loaded: ", "✅ Импортировано ": "✅ Imported ", "✅ Класс «": "✅ Class «", "✅ Урок назначен ученику!": "✅ Lesson assigned to the student!", "❌ Нет прав на создание урока": "❌ No permission to create a lesson", "❌ Ошибка схемы БД (student_id). Обратитесь к администратору.": "❌ Database schema error (student_id). Contact the administrator.", "❌ Ошибка: ": "❌ Error: ", "📚 Добавлено слов: ": "📚 Words added: "};
+const TOAST_TR_GE={"Аккаунт не привязан к школе. Обратитесь к администратору.": "ანგარიში სკოლას არ არის მიბმული. მიმართეთ ადმინისტრატორს.", "В классе нет учеников": "კლასში მოსწავლეები არ არიან", "Введи email для приглашения!": "შეიყვანე ელფოსტა მოსაწვევად!", "Введи email!": "შეიყვანე ელფოსტა!", "Введи имя!": "შეიყვანე სახელი!", "Введи корректную сумму!": "შეიყვანე სწორი თანხა!", "Введи название урока!": "შეიყვანე გაკვეთილის სახელი!", "Введи название!": "შეიყვანე სახელი!", "Введи новый email": "შეიყვანე ახალი ელფოსტა", "Выбери ученика": "აირჩიე მოსწავლე", "ДЗ не найдено": "საშინაო დავალება ვერ მოიძებნა", "Доступ запрещён": "წვდომა აკრძალულია", "Загрузка урока...": "გაკვეთილი იტვირთება...", "Загрузка…": "იტვირთება…", "Занятие сохранено!": "გაკვეთილი შენახულია!", "Класс не найден": "კლასი ვერ მოიძებნა", "Класс сохранён!": "კლასი შენახულია!", "Материал удалён": "მასალა წაიშალა", "Не нашла ни одной пары «слово — перевод»": "„სიტყვა — თარგმანი“ წყვილი ვერ მოიძებნა", "Не удалось добавить": "დამატება ვერ მოხერხდა", "Не удалось удалить": "წაშლა ვერ მოხერხდა", "Небезопасный URL": "სახიფათო URL", "Неверный статус": "არასწორი სტატუსი", "Неверный уровень": "არასწორი დონე", "Недопустимая роль": "დაუშვებელი როლი", "Недопустимый формат. Разрешены: JPG, PNG, GIF, WEBP": "დაუშვებელი ფორმატი. დასაშვებია: JPG, PNG, GIF, WEBP", "Неизвестная роль: ": "უცნობი როლი: ", "Некому добавить: у учеников нет аккаунтов или не открыт класс": "დასამატებელი არავინაა: მოსწავლეებს ანგარიში არ აქვთ ან კლასი არ არის გახსნილი", "Некорректная ссылка": "არასწორი ბმული", "Нельзя назначить роль владельца": "მფლობელის როლის მინიჭება შეუძლებელია", "Нельзя удалить владельца": "მფლობელის წაშლა შეუძლებელია", "Нельзя удалить самого себя": "საკუთარი თავის წაშლა შეუძლებელია", "Нет прав": "უფლება არ გაქვს", "Нет уроков для импорта": "იმპორტისთვის გაკვეთილები არ არის", "Нет уроков. Сначала создай урок.": "გაკვეთილები არ არის. ჯერ შექმენი გაკვეთილი.", "Нет учеников в школе": "სკოლაში მოსწავლეები არ არიან", "Отмечено оплаченным": "მონიშნულია გადახდილად", "Ошибка авторизации": "ავტორიზაციის შეცდომა", "Ошибка добавления: ": "დამატების შეცდომა: ", "Ошибка завершения урока: ": "გაკვეთილის დასრულების შეცდომა: ", "Ошибка загрузки аудио": "აუდიოს ატვირთვის შეცდომა", "Ошибка загрузки изображения": "სურათის ატვირთვის შეცდომა", "Ошибка загрузки учеников: ": "მოსწავლეების ჩატვირთვის შეცდომა: ", "Ошибка загрузки: ": "ჩატვირთვის შეცდომა: ", "Ошибка импорта": "იმპორტის შეცდომა", "Ошибка назначения: ": "დანიშვნის შეცდომა: ", "Ошибка отправки ДЗ: ": "დავალების გაგზავნის შეცდომა: ", "Ошибка создания ДЗ: ": "დავალების შექმნის შეცდომა: ", "Ошибка сохранения проверки: ": "შემოწმების შენახვის შეცდომა: ", "Ошибка сохранения: ": "შენახვის შეცდომა: ", "Ошибка удаления задачи: ": "ამოცანის წაშლის შეცდომა: ", "Ошибка удаления: ": "წაშლის შეცდომა: ", "Ошибка чата: ": "ჩატის შეცდომა: ", "Ошибка: ": "შეცდომა: ", "Ошибка: ID комнаты не задан": "შეცდომა: ოთახის ID არ არის მითითებული", "Ошибка: ID студента": "შეცდომა: მოსწავლის ID", "Ошибка: профиль не загружен": "შეცდომა: პროფილი არ ჩაიტვირთა", "Ошибка: урок не выбран": "შეცდომა: გაკვეთილი არ არის არჩეული", "Ошибка: урок не найден в кэше": "შეცდომა: გაკვეთილი ქეშში ვერ მოიძებნა", "Ошибка: школа не определена": "შეცდომა: სკოლა ვერ განისაზღვრა", "Пароли не совпадают": "პაროლები არ ემთხვევა", "Пароль должен быть не менее 8 символов": "პაროლი უნდა იყოს მინიმუმ 8 სიმბოლო", "Пароль изменён ✓": "პაროლი შეიცვალა ✓", "Платёж сохранён": "გადახდა შენახულია", "Приглашение отправлено! 💌": "მოწვევა გაიგზავნა! 💌", "Проверь почту для подтверждения нового email": "შეამოწმე ფოსტა ახალი ელფოსტის დასადასტურებლად", "Просмотр завершён ✓": "ნახვა დასრულდა ✓", "Профиль не найден. Обратитесь к администратору.": "პროფილი ვერ მოიძებნა. მიმართეთ ადმინისტრატორს.", "Профиль сохранён ✓": "პროფილი შენახულია ✓", "Роль изменена!": "როლი შეიცვალა!", "Слово сохранено!": "სიტყვა შენახულია!", "Сначала открой редактор урока": "ჯერ გახსენი გაკვეთილის რედაქტორი", "Собеседник завершил звонок": "თანამოსაუბრემ ზარი დაასრულა", "Сообщение слишком длинное (макс 4000 символов)": "შეტყობინება ძალიან გრძელია (მაქს. 4000 სიმბოლო)", "Сохранено": "შენახულია", "Сохранено только на этом устройстве": "შენახულია მხოლოდ ამ მოწყობილობაზე", "Сохранено только на этом устройстве: ": "შენახულია მხოლოდ ამ მოწყობილობაზე: ", "Ставка сохранена": "განაკვეთი შენახულია", "Тема слишком длинная (макс 500 символов)": "თემა ძალიან გრძელია (მაქს. 500 სიმბოლო)", "Тест уже был пройден": "ტესტი უკვე გავლილია", "Только владелец может назначать владельцев": "მფლობელების დანიშვნა მხოლოდ მფლობელს შეუძლია", "У этого материала нет ссылки ⚠️": "ამ მასალას ბმული არ აქვს ⚠️", "Уже идёт звонок": "ზარი უკვე მიმდინარეობს", "Укажи время!": "მიუთითე დრო!", "Укажи дату!": "მიუთითე თარიღი!", "Упражнение добавлено ✓": "სავარჯიშო დაემატა ✓", "Урок завершён! 🎉": "გაკვეთილი დასრულდა! 🎉", "Урок записан": "გაკვეთილი ჩაიწერა", "Урок не найден": "გაკვეთილი ვერ მოიძებნა", "Ученик добавлен в класс!": "მოსწავლე დაემატა კლასს!", "Ученик добавлен — письмо отправлено! 💌": "მოსწავლე დაემატა — წერილი გაიგზავნა! 💌", "Ученик не найден": "მოსწავლე ვერ მოიძებნა", "Ученик убран": "მოსწავლე ამოიშალა", "Файл слишком большой (макс 10MB)": "ფაილი ძალიან დიდია (მაქს. 10MB)", "Файл слишком большой (макс 20 МБ)": "ფაილი ძალიან დიდია (მაქს. 20 MB)", "Файл слишком большой (макс 5 МБ)": "ფაილი ძალიან დიდია (მაქს. 5 MB)", "ℹ️ Все эти слова уже в словаре": "ℹ️ ყველა ეს სიტყვა უკვე ლექსიკონშია", "⏳ Удаляем...": "⏳ იშლება...", "⚠️ Сохранено локально (проверь RLS-политику UPDATE в Supabase)": "⚠️ შენახულია მხოლოდ ლოკალურად (სერვერმა ცვლილება არ მიიღო)", "⚠️ У ученика нет аккаунта — уведомление не придёт": "⚠️ მოსწავლეს ანგარიში არ აქვს — შეტყობინება არ მივა", "✅ ДЗ обновлено!": "✅ დავალება განახლდა!", "✅ ДЗ отправлено!": "✅ დავალება გაიგზავნა!", "✅ ДЗ проверено!": "✅ დავალება შემოწმდა!", "✅ Данные ученика сохранены!": "✅ მოსწავლის მონაცემები შენახულია!", "✅ Загружено разделов: ": "✅ ჩაიტვირთა განყოფილებები: ", "✅ Импортировано ": "✅ იმპორტირებულია ", "✅ Класс «": "✅ კლასი «", "✅ Урок назначен ученику!": "✅ გაკვეთილი მიენიჭა მოსწავლეს!", "❌ Нет прав на создание урока": "❌ გაკვეთილის შექმნის უფლება არ გაქვს", "❌ Ошибка схемы БД (student_id). Обратитесь к администратору.": "❌ მონაცემთა ბაზის სქემის შეცდომა (student_id). მიმართეთ ადმინისტრატორს.", "❌ Ошибка: ": "❌ შეცდომა: ", "📚 Добавлено слов: ": "📚 დაემატა სიტყვები: "};
 function t(str){
   if(S.lang==='en'&&str in TRANSLATIONS)return TRANSLATIONS[str];
   if(S.lang==='ge'&&str in TRANSLATIONS_GE)return TRANSLATIONS_GE[str];
+  if(S.lang==='en'&&str in TOAST_TR_EN)return TOAST_TR_EN[str];
+  if(S.lang==='ge'&&str in TOAST_TR_GE)return TOAST_TR_GE[str];
   return str;
 }
 
@@ -3320,7 +3325,7 @@ function _applyLang(prevLang){
   buildSidebar();
   // Re-render current screen
   const fn={
-    s_home:renderStudentHome,s_classes:renderStudentClasses,s_homework:renderStudentHw,s_lessons:renderStudentLessons,s_vocab:renderStudentVocab,s_materials:renderMaterials,
+    s_home:renderStudentHome,s_classes:renderStudentClasses,s_homework:renderStudentHw,s_lessons:renderStudentLessons,s_vocab:renderStudentVocab,s_materials:renderMaterials,s_messages:renderMessenger,
     t_classes:renderClasses,t_schedule:renderSchedule,
     t_students:renderTeacherStudents,t_homework:renderTeacherHw,t_lessons:renderTeacherLessons,t_materials:renderMaterials,
     t_messages:renderMessenger,t_tasks:renderTasks,
@@ -3463,8 +3468,8 @@ function handlePhotoUpload(input){
   const file=input.files[0];
   if(!file)return;
   const _AVATAR_TYPES=['image/jpeg','image/png','image/gif','image/webp'];
-  if(!_AVATAR_TYPES.includes(file.type)){showToast('Недопустимый формат. Разрешены: JPG, PNG, GIF, WEBP','error');return;}
-  if(file.size>10*1024*1024){showToast('Файл слишком большой (макс 10MB)');return;}
+  if(!_AVATAR_TYPES.includes(file.type)){showToast(t('Недопустимый формат. Разрешены: JPG, PNG, GIF, WEBP'),'error');return;}
+  if(file.size>10*1024*1024){showToast(t('Файл слишком большой (макс 10MB)'));return;}
   const reader=new FileReader();
   reader.onload=e=>{
     const img=new Image();
@@ -3502,7 +3507,7 @@ async function saveProfile(){
   const last=(C('prof_last')?.value||'').trim();
   const emoji=(C('prof_emoji')?.value||'').trim()||null;
   const color=_profileAvatarColor();
-  if(!first){showToast('Введи имя!');return;}
+  if(!first){showToast(t('Введи имя!'));return;}
 
   const uid=S.profile.id;
 
@@ -3528,9 +3533,9 @@ async function saveProfile(){
   }
   if(!data||data.length===0){
     // RLS blocked update silently - update local state anyway
-    showToast('⚠️ Сохранено локально (проверь RLS-политику UPDATE в Supabase)');
+    showToast(t('⚠️ Сохранено локально (проверь RLS-политику UPDATE в Supabase)'));
   } else {
-    showToast('Профиль сохранён ✓');
+    showToast(t('Профиль сохранён ✓'));
   }
   dcInval('profile_'+uid);
 
@@ -3580,10 +3585,10 @@ async function changeEmail(){
   if(btn){if(btn.disabled)return;btn.disabled=true;}
   try{
     const newEmail=(C('sec_new_email')?.value||'').trim();
-    if(!newEmail){showToast('Введи новый email');return;}
+    if(!newEmail){showToast(t('Введи новый email'));return;}
     const{error}=await sb.auth.updateUser({email:newEmail});
     if(error){showToast(t('Ошибка')+': '+error.message);return;}
-    showToast('Проверь почту для подтверждения нового email');
+    showToast(t('Проверь почту для подтверждения нового email'));
   }finally{
     if(btn){btn.disabled=false;}
   }
@@ -3596,11 +3601,11 @@ async function changePassword(){
   try{
     const np=(C('sec_new_pass')?.value||'');
     const cp=(C('sec_conf_pass')?.value||'');
-    if(!np||np.length<8){showToast('Пароль должен быть не менее 8 символов');return;}
-    if(np!==cp){showToast('Пароли не совпадают');return;}
+    if(!np||np.length<8){showToast(t('Пароль должен быть не менее 8 символов'));return;}
+    if(np!==cp){showToast(t('Пароли не совпадают'));return;}
     const{error}=await sb.auth.updateUser({password:np});
     if(error){showToast(t('Ошибка')+': '+error.message);return;}
-    showToast('Пароль изменён ✓');
+    showToast(t('Пароль изменён ✓'));
     closeM('mProfile');
   }finally{
     if(btn){btn.disabled=false;}
@@ -3611,7 +3616,7 @@ async function changePassword(){
 const NAV={
   student:[
     {sec:'Учёба'},
-    {id:'s_home',icon:'🏠',l:'Кабинет'},{id:'s_classes',icon:'🎓',l:'Мой класс'},{id:'s_lessons',icon:'📖',l:'Уроки'},{id:'s_homework',icon:'📋',l:'Домашнее задание'},{id:'s_vocab',icon:'📚',l:'Словарь'},{id:'s_materials',icon:'📁',l:'Материалы'}
+    {id:'s_home',icon:'🏠',l:'Кабинет'},{id:'s_classes',icon:'🎓',l:'Мой класс'},{id:'s_lessons',icon:'📖',l:'Уроки'},{id:'s_homework',icon:'📋',l:'Домашнее задание'},{id:'s_vocab',icon:'📚',l:'Словарь'},{id:'s_materials',icon:'📁',l:'Материалы'},{id:'s_messages',icon:'💬',l:'Сообщения'}
   ],
   teacher:[
     {sec:'Классы'},
@@ -3785,9 +3790,9 @@ async function saveToolNotes(){
     var f=await notesQ(c).maybeSingle();
     var row={school_id:c.school_id,lesson_id:c.lesson_id,student_id:c.student_id,teacher_id:(S.profile&&S.profile.id)||null,body:val,updated_at:new Date().toISOString()};
     var r=(f.data&&f.data.id)?await sb.from('lesson_notes').update(row).eq('id',f.data.id):await sb.from('lesson_notes').insert(row);
-    if(r.error){showToast('Сохранено только на этом устройстве: '+r.error.message,'error');return;}
+    if(r.error){showToast(t('Сохранено только на этом устройстве: ')+r.error.message,'error');return;}
     showToast(t('Заметки сохранены')+' \u2713');
-  }catch(e){showToast('Сохранено только на этом устройстве','error');}
+  }catch(e){showToast(t('Сохранено только на этом устройстве'),'error');}
 }
 
 // Dictionary — auto-detects RU or EN
@@ -3893,7 +3898,7 @@ function saveDictWord(w){
   if(!saved.includes(w))saved.push(w);
   localStorage.setItem('teachya_dict',JSON.stringify(saved));
   renderDictSaved();
-  if(['teacher','admin','owner'].includes(S.role)&&LV.lessonId){dictAddToLesson(w);}else{showToast('Слово сохранено!');}
+  if(['teacher','admin','owner'].includes(S.role)&&LV.lessonId){dictAddToLesson(w);}else{showToast(t('Слово сохранено!'));}
 }
 
 function renderDictSaved(){
@@ -3906,7 +3911,7 @@ function renderDictSaved(){
 // Template shortcut in editor
 function ceAddExType(type){
   closeToolPanel();
-  if(typeof CE==='undefined'||!CE.sections.length){showToast('Сначала открой редактор урока');return;}
+  if(typeof CE==='undefined'||!CE.sections.length){showToast(t('Сначала открой редактор урока'));return;}
   const sec=CE.sections[CE.curSec];
   if(!sec)return;
   // Map template panel shorthand → CE_DEFAULTS key
@@ -3915,36 +3920,36 @@ function ceAddExType(type){
   const def=CE_DEFAULTS[actualType];
   if(!def){showToast(t('Неизвестный тип:')+' '+type);return;}
   sec.exercises.push(JSON.parse(JSON.stringify(def)));
-  CE.curEx=sec.exercises.length-1;ceRenderAll();showToast('Упражнение добавлено ✓');
+  CE.curEx=sec.exercises.length-1;ceRenderAll();showToast(t('Упражнение добавлено ✓'));
 }
 
 async function ceUploadAudio(input){
   const file=input.files[0];if(!file)return;
-  if(file.size>20*1024*1024){showToast('Файл слишком большой (макс 20 МБ)');return;}
+  if(file.size>20*1024*1024){showToast(t('Файл слишком большой (макс 20 МБ)'));return;}
   try{
-    showToast('Загрузка…');
+    showToast(t('Загрузка…'));
     const ext=(file.name.split('.').pop()||'mp3').replace(/[^a-zA-Z0-9]/g,'').toLowerCase();
     const path=`${S.schoolId}/exercise-audio/${Date.now()}_${Math.random().toString(36).slice(2,8)}.${ext}`;
     const{error:upErr}=await sb.storage.from('materials').upload(path,file,{upsert:true,contentType:file.type||undefined});
-    if(upErr){showToast('Ошибка загрузки: '+upErr.message);return;}
+    if(upErr){showToast(t('Ошибка загрузки: ')+upErr.message);return;}
     const{data:urlData}=sb.storage.from('materials').getPublicUrl(path);
     CE.sections[CE.curSec].exercises[CE.curEx].url=urlData?.publicUrl||'';
     ceExercise();
-  }catch(e){showToast('Ошибка загрузки аудио');}
+  }catch(e){showToast(t('Ошибка загрузки аудио'));}
 }
 // Upload image file → base64 data URL
 async function ceUploadImage(input){
   const file=input.files[0];if(!file)return;
-  if(file.size>5*1024*1024){showToast('Файл слишком большой (макс 5 МБ)');return;}
+  if(file.size>5*1024*1024){showToast(t('Файл слишком большой (макс 5 МБ)'));return;}
   try{
     const ext=(file.name.split('.').pop()||'jpg').replace(/[^a-zA-Z0-9]/g,'').toLowerCase();
     const path=`${S.schoolId}/exercise-images/${Date.now()}_${Math.random().toString(36).slice(2,8)}.${ext}`;
     const{error:upErr}=await sb.storage.from('materials').upload(path,file,{upsert:true});
-    if(upErr){showToast('Ошибка загрузки: '+upErr.message);return;}
+    if(upErr){showToast(t('Ошибка загрузки: ')+upErr.message);return;}
     const{data:urlData}=sb.storage.from('materials').getPublicUrl(path);
     CE.sections[CE.curSec].exercises[CE.curEx].url=urlData?.publicUrl||'';
     ceExercise();
-  }catch(e){showToast('Ошибка загрузки изображения');}
+  }catch(e){showToast(t('Ошибка загрузки изображения'));}
 }
 
 // ── TIMER ──────────────────────────────────────────────────────────────────────
@@ -4293,7 +4298,7 @@ async function doLogin(){
   }
 }
 async function afterLogin(user){
-  if(!user){showToast('Ошибка авторизации','error');return;}
+  if(!user){showToast(t('Ошибка авторизации'),'error');return;}
   // ── Проактивно гарантируем наличие профиля (обходит RLS, создаёт из метаданных если нет) ──
   let prof=null;
   try{
@@ -4312,19 +4317,19 @@ async function afterLogin(user){
   }
 
   if(!prof){
-    showToast('Профиль не найден. Обратитесь к администратору.');
+    showToast(t('Профиль не найден. Обратитесь к администратору.'));
     await sb.auth.signOut();
     C('inviteScreen').style.display='none';
     C('loginScreen').style.display='flex';
     return;
   }
   if(!prof.school_id){
-    showToast('Аккаунт не привязан к школе. Обратитесь к администратору.','error');
+    showToast(t('Аккаунт не привязан к школе. Обратитесь к администратору.'),'error');
     await sb.auth.signOut();
     C('loginScreen').style.display='flex';
     return;
   }
-  const _VALID_ROLES=['owner','admin','teacher','student'];if(!_VALID_ROLES.includes(prof.role)){showToast('Неизвестная роль: '+prof.role+'. Обратитесь к администратору.','error');await sb.auth.signOut();C('loginScreen').style.display='flex';return;}
+  const _VALID_ROLES=['owner','admin','teacher','student'];if(!_VALID_ROLES.includes(prof.role)){showToast(t('Неизвестная роль: ')+prof.role+'. Обратитесь к администратору.','error');await sb.auth.signOut();C('loginScreen').style.display='flex';return;}
   S.profile=prof;S.role=prof.role;S.schoolId=prof.school_id;S.userId=prof.id;
   S.schoolKind='school';
   try{const{data:_sk}=await sb.rpc('get_my_school_kind');if(_sk==='tutor')S.schoolKind='tutor';}catch(_e){}
@@ -4892,7 +4897,7 @@ function showScreen(id){
   if(_ni){const _wrap=_ni.closest('[id^="navsec_"]');
     if(_wrap&&_wrap.style.display==='none'){_wrap.style.display='block';const _arr=C('navsecarr_'+_wrap.id.slice(7));if(_arr)_arr.textContent='▾';}}
   const fn={
-    s_home:renderStudentHome,s_classes:renderStudentClasses,s_homework:renderStudentHw,s_lessons:renderStudentLessons,s_vocab:renderStudentVocab,s_materials:renderMaterials,
+    s_home:renderStudentHome,s_classes:renderStudentClasses,s_homework:renderStudentHw,s_lessons:renderStudentLessons,s_vocab:renderStudentVocab,s_materials:renderMaterials,s_messages:renderMessenger,
     t_classes:renderClasses,t_schedule:renderSchedule,
     t_students:renderTeacherStudents,t_homework:renderTeacherHw,t_lessons:renderTeacherLessons,t_materials:renderMaterials,
     t_messages:renderMessenger,t_tasks:renderTasks,
@@ -5323,7 +5328,7 @@ function renderContacts(){
 async function callContact(partnerId,partnerName,partnerRole){
   if(!S.profile?.id){showToast(t('Не авторизован'),'error');return;}
   C('contactPicker').classList.remove('open');
-  if(S.inCall){showToast('Уже идёт звонок');return;}
+  if(S.inCall){showToast(t('Уже идёт звонок'));return;}
   S.inCall=true;
   const roomId=getRoomId(S.profile.id,partnerId);
   const attemptId=crypto.randomUUID();
@@ -5343,7 +5348,7 @@ async function callContact(partnerId,partnerName,partnerRole){
     }
   }
   if(ringId.startsWith('stu_')){
-    showToast('⚠️ У ученика нет аккаунта — уведомление не придёт');
+    showToast(t('⚠️ У ученика нет аккаунта — уведомление не придёт'));
     S.inCall=false;
     return;
   }
@@ -5429,7 +5434,7 @@ function declineCall(){
 }
 // DAILY_KEY removed from frontend — proxied via Supabase Edge Function 'daily-room'
 async function initCall(roomId,partnerName,isCallee){
-  if(!roomId){showToast('Ошибка: ID комнаты не задан');return;}
+  if(!roomId){showToast(t('Ошибка: ID комнаты не задан'));return;}
   S.inCall=true;
   C('callTitle').textContent=partnerName||t('Звонок');
   C('callWindow').classList.add('visible');
@@ -5464,7 +5469,7 @@ async function initCall(roomId,partnerName,isCallee){
   // Канал для уведомления о завершении звонка
   if(S.callChannel){try{sb.removeChannel(S.callChannel);}catch(e){}S.callChannel=null;}
   S.callChannel=sb.channel(roomId,{config:{private:true}})
-    .on('broadcast',{event:'hangup'},()=>{showToast('Собеседник завершил звонок');hangUp({notifyRemote:false});})
+    .on('broadcast',{event:'hangup'},()=>{showToast(t('Собеседник завершил звонок'));hangUp({notifyRemote:false});})
     .subscribe();
 }
 async function hangUp(opts){
@@ -5844,7 +5849,7 @@ function clearWb(fromRemote){
   if(wbCtx)wbRedraw();
   if(!fromRemote)wbSend('wbclear',null);
 }
-function saveWb(){const c=C('wbCanvas');const a=document.createElement('a');a.download='board.png';a.href=c.toDataURL();a.click();showToast('Сохранено');}
+function saveWb(){const c=C('wbCanvas');const a=document.createElement('a');a.download='board.png';a.href=c.toDataURL();a.click();showToast(t('Сохранено'));}
 
 // ─── EXPAND / COLLAPSE CALL WINDOW ───────────────────────────────────────────
 function toggleExpandCall(){
@@ -6096,7 +6101,7 @@ function hwePairDel(i,pi){HWE.exercises[i].pairs.splice(pi,1);if(!HWE.exercises[
 
 async function hwImportLesson(){
   const{data:lessons}=await sb.from('lessons').select('id,title,language,level,content').eq('school_id',S.schoolId).order('title');
-  if(!lessons?.length){showToast('Нет уроков для импорта');return;}
+  if(!lessons?.length){showToast(t('Нет уроков для импорта'));return;}
   const html=`<div style="position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:3100;display:flex;align-items:center;justify-content:center" id="_hwImportOvr" onclick="if(event.target===this)this.remove()">
     <div style="background:#fff;border-radius:16px;padding:22px 24px;width:min(520px,94vw);max-height:80vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.25)">
       <h3 style="margin:0 0 14px;font-size:1.05rem">📥 Выбери урок</h3>
@@ -6121,8 +6126,8 @@ function _hwImportApply(idx){
     const imported=list.filter(e=>supported.includes(e.type));
     HWE.exercises=[...HWE.exercises,...imported];
     hweRenderExercises();
-    showToast('✅ Импортировано '+imported.length+' упр.');
-  }catch(e){showToast('Ошибка импорта');}
+    showToast(t('✅ Импортировано ')+imported.length+' упр.');
+  }catch(e){showToast(t('Ошибка импорта'));}
 }
 
 async function saveHWEditor(){
@@ -6137,12 +6142,12 @@ async function saveHWEditor(){
     var payload={school_id:S.schoolId,teacher_id:S.profile.id,student_id:sid,title:title,lesson_id:HWE.lessonId||null,description:JSON.stringify({v:2,lesson_id:HWE.lessonId||null,lesson_title:HWE.lessonTitle||'',exercises:HWE.exercises}),deadline:dl||null};
     if(HWE.hwId){
       const{error}=await sb.from('homeworks').update(payload).eq('id',HWE.hwId).eq('school_id',S.schoolId).eq('teacher_id',S.profile?.id);
-      if(error){showToast('Ошибка сохранения: '+error.message,'error');return;}
-      showToast('✅ ДЗ обновлено!');
+      if(error){showToast(t('Ошибка сохранения: ')+error.message,'error');return;}
+      showToast(t('✅ ДЗ обновлено!'));
     } else {
       const{error}=await sb.from('homeworks').insert({...payload,status:'pending'});
-      if(error){showToast('Ошибка создания ДЗ: '+error.message,'error');return;}
-      showToast('✅ ДЗ отправлено!');
+      if(error){showToast(t('Ошибка создания ДЗ: ')+error.message,'error');return;}
+      showToast(t('✅ ДЗ отправлено!'));
     }
     dcInval('homeworks_'+S.schoolId);
     try{localStorage.removeItem(_hweDraftKey());}catch(_dz){}
@@ -6160,13 +6165,13 @@ async function openHWPlayer(hwId){
   try{
   HWP.hwId=hwId;HWP.answers={};
   const{data:hw}=await sb.from('homeworks').select('*').eq('id',hwId).eq('school_id',S.schoolId).single();
-  if(!hw){showToast('ДЗ не найдено');return;}
+  if(!hw){showToast(t('ДЗ не найдено'));return;}
   if(S.role==='student'){
     if(!S.studentRowId&&S.profile?.email){
       const{data:_stuRow}=await sb.from('students').select('id').ilike('email',S.profile.email).eq('school_id',S.schoolId).single();
       if(_stuRow)S.studentRowId=_stuRow.id;
     }
-    if(!S.studentRowId||hw.student_id!==S.studentRowId){showToast('Доступ запрещён','error');return;}
+    if(!S.studentRowId||hw.student_id!==S.studentRowId){showToast(t('Доступ запрещён'),'error');return;}
     if(hw.status!=='pending'){showToast(t('Задание уже сдано'),'info');return;}
   }
   HWP.hwData=hw;
@@ -6264,9 +6269,9 @@ function _hwpCollectAnswers(){
 
 async function submitHWAnswers(){
   if(HWP._submitting)return;HWP._submitting=true;
-  if(S.role!=='student'){showToast('Доступ запрещён','error');HWP._submitting=false;return;}
+  if(S.role!=='student'){showToast(t('Доступ запрещён'),'error');HWP._submitting=false;return;}
   const hw=HWP.hwData;
-  if(S.role==='student'){if(!S.studentRowId||!hw||hw.student_id!==S.studentRowId){showToast('Доступ запрещён','error');HWP._submitting=false;return;}}
+  if(S.role==='student'){if(!S.studentRowId||!hw||hw.student_id!==S.studentRowId){showToast(t('Доступ запрещён'),'error');HWP._submitting=false;return;}}
   const btn=document.querySelector('#mHWPlayer .btn-green');
   if(btn){btn.disabled=true;btn.textContent='Отправка...';}
   try{
@@ -6277,8 +6282,8 @@ async function submitHWAnswers(){
       .eq('school_id',S.schoolId)
       .eq('student_id',S.studentRowId||S.profile?.id)
       .eq('status','pending');
-    if(error){showToast('Ошибка отправки ДЗ: '+error.message,'error');return;}
-    dcInval('homeworks_'+S.schoolId);closeM('mHWPlayer');showToast('✅ ДЗ отправлено!');renderStudentHw();
+    if(error){showToast(t('Ошибка отправки ДЗ: ')+error.message,'error');return;}
+    dcInval('homeworks_'+S.schoolId);closeM('mHWPlayer');showToast(t('✅ ДЗ отправлено!'));renderStudentHw();
   } finally {
     HWP._submitting=false;
     if(btn){btn.disabled=false;btn.textContent='✅ Отправить ответы';}
@@ -6679,8 +6684,8 @@ async function openHWReview(hwId){
   try{
   HWR.hwId=hwId;HWR.grade=null;
   const{data:hw,error:hwErr}=await sb.from('homeworks').select('*,student:student_id(first_name,last_name)').eq('id',hwId).eq('school_id',S.schoolId).single();
-  if(hwErr||!hw){showToast('ДЗ не найдено'+(hwErr?': '+hwErr.message:''),'error');return;}
-  if(S.role==='teacher'&&hw.teacher_id!==S.profile?.id){showToast('Доступ запрещён','error');return;}
+  if(hwErr||!hw){showToast(t('ДЗ не найдено')+(hwErr?': '+hwErr.message:''),'error');return;}
+  if(S.role==='teacher'&&hw.teacher_id!==S.profile?.id){showToast(t('Доступ запрещён'),'error');return;}
   let exercises=[],answers={};
   try{exercises=JSON.parse(hw.description)||[];}catch(e){}
   try{answers=JSON.parse(hw.student_answer)||{};}catch(e){}
@@ -6739,9 +6744,9 @@ async function saveHWReview(){
   try{
   const comment=C('hwr_comment').value.trim();
   const{error}=await sb.from('homeworks').update({status:'reviewed',teacher_comment:comment}).eq('id',HWR.hwId).eq('school_id',S.schoolId).eq('teacher_id',S.profile?.id);
-  if(error){showToast('Ошибка сохранения проверки: '+error.message,'error');return;}
+  if(error){showToast(t('Ошибка сохранения проверки: ')+error.message,'error');return;}
   dcInval('homeworks_'+S.schoolId);
-  closeM('mHWReview');showToast('✅ ДЗ проверено!');
+  closeM('mHWReview');showToast(t('✅ ДЗ проверено!'));
   if(S.screen==='t_homework')renderTeacherHw();
   } finally {
     if(btn)btn.disabled=false;
@@ -6973,8 +6978,8 @@ function openChangeRole(uid,name,currentRole){_changeRoleId=uid;C('mChangeRole')
 async function applyRoleChange(){
   if(!['owner','admin'].includes(S.role))return;
   const newRole=C('newRole').value;
-  if(!['teacher','admin','owner'].includes(newRole)){showToast('Недопустимая роль','error');return;}
-  if(S.role==='admin'&&newRole==='owner'){showToast('Нельзя назначить роль владельца','error');return;}
+  if(!['teacher','admin','owner'].includes(newRole)){showToast(t('Недопустимая роль'),'error');return;}
+  if(S.role==='admin'&&newRole==='owner'){showToast(t('Нельзя назначить роль владельца'),'error');return;}
   const _arcBtn=document.querySelector('#mChangeRole .btn-purple');
   if(_arcBtn){_arcBtn.disabled=true;}
   try{
@@ -6988,8 +6993,8 @@ async function applyRoleChange(){
       if(_targetProf?.role==='owner'){showToast(t('Нет прав'),'error');return;}
     }
     const{error}=await sb.from('profiles').update({role:newRole}).eq('id',uid).eq('school_id',S.schoolId);
-    if(error){showToast('Ошибка: '+error.message,'error');return;}
-    closeM('mChangeRole');showToast('Роль изменена!');
+    if(error){showToast(t('Ошибка: ')+error.message,'error');return;}
+    closeM('mChangeRole');showToast(t('Роль изменена!'));
     if(S.role==='owner')renderOwnerUsers();
     else if(S.role==='admin'){if(S.screen==='a_teachers')renderAdminTeachers();else renderAdminStudents();}
   }finally{if(_arcBtn){_arcBtn.disabled=false;}}
@@ -6997,14 +7002,14 @@ async function applyRoleChange(){
 
 let _deleteUserId='',_deleteUserName='';
 function confirmDeleteUser(uid,name,role){
-  if(uid===S.profile.id){showToast('Нельзя удалить самого себя');return;}
-  if(S.role==='admin'&&role==='owner'){showToast('Нельзя удалить владельца');return;}
+  if(uid===S.profile.id){showToast(t('Нельзя удалить самого себя'));return;}
+  if(S.role==='admin'&&role==='owner'){showToast(t('Нельзя удалить владельца'));return;}
   _deleteUserId=uid;_deleteUserName=name;
   C('deleteUserName').textContent=name;
   openM('mDeleteUser');
 }
 async function doDeleteUser(){
-  if(!['owner','admin'].includes(S.role)){showToast('Нет прав','error');return;}
+  if(!['owner','admin'].includes(S.role)){showToast(t('Нет прав'),'error');return;}
   if(S._deletingUser)return;S._deletingUser=true;
   const _duBtn=document.querySelector('#mDeleteUser .btn-red');
   if(_duBtn)_duBtn.disabled=true;
@@ -7013,7 +7018,7 @@ async function doDeleteUser(){
   const name=_deleteUserName;
   _deleteUserId='';_deleteUserName=''; // clear immediately before any await
   closeM('mDeleteUser');
-  showToast('⏳ Удаляем...');
+  showToast(t('⏳ Удаляем...'));
   try{
     const{data,error}=await sb.rpc('delete_school_user',{target_user_id:uid});
     if(error)console.warn('[deleteUser] failed');// B23: без UUID в консоли
@@ -7035,12 +7040,12 @@ async function doDeleteUser(){
   }finally{S._deletingUser=false;if(_duBtn)_duBtn.disabled=false;}
 }
 async function confirmDeleteStudent(sid,name){
-  if(!['admin','owner'].includes(S.role)){showToast('Нет прав','error');return;}
+  if(!['admin','owner'].includes(S.role)){showToast(t('Нет прав'),'error');return;}
   if(S._deletingStudent)return;
   S._deletingStudent=true;
   if(!confirm(t(`Удалить ученика ${name}?\nЭто удалит все его задания, оплаты и записи в классах. Действие нельзя отменить.`))){S._deletingStudent=false;return;}
   try{
-  showToast('⏳ Удаляем...');
+  showToast(t('⏳ Удаляем...'));
   // Получаем email ученика чтобы найти его профиль
   const{data:_stuRec}=await sb.from('students').select('email').eq('id',sid).single();
   const _stuEmail=_stuRec?.email||null;
@@ -7089,7 +7094,7 @@ async function renderOwnerStudents(){
     </td></tr>`}).join('')||`<tr><td colspan="5" style="text-align:center;color:var(--text3)">${t('Нет учеников')}</td></tr>`;
   setContent(`<div class="section-header"><h2>🎓 ${t('Ученики')}</h2><button class="btn btn-purple" onclick="openAddStudent()">+ ${t('Добавить')}</button></div>
     <div class="card" style="padding:0;overflow:hidden"><table><thead><tr><th>${t('Ученик')}</th><th>${t('Язык')}</th><th>${t('Уровень')}</th><th>${t('Телефон')}</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>`);
-  }catch(e){showToast('Ошибка загрузки учеников: '+e.message,'error');}
+  }catch(e){showToast(t('Ошибка загрузки учеников: ')+e.message,'error');}
   finally{renderOwnerStudents._loading=false;}
 }
 
@@ -7136,33 +7141,33 @@ function openAddPayment(){
   openM('mAddPayment');
 }
 async function markPaid(id,btn){
-  if(!['admin','owner'].includes(S.role)){showToast('Нет прав','error');return;}
+  if(!['admin','owner'].includes(S.role)){showToast(t('Нет прав'),'error');return;}
   if(btn){btn.disabled=true;}
   try{
     const{error}=await sb.from('payments').update({status:'paid'}).eq('id',id).eq('school_id',S.schoolId);
-    if(error){showToast('Ошибка: '+error.message,'error');return;}
-    dcInval('payments_'+S.schoolId);showToast('Отмечено оплаченным');renderPayments();
+    if(error){showToast(t('Ошибка: ')+error.message,'error');return;}
+    dcInval('payments_'+S.schoolId);showToast(t('Отмечено оплаченным'));renderPayments();
   }finally{
     if(btn){btn.disabled=false;}
   }
 }
 async function savePayment(){
   if(savePayment._saving)return;savePayment._saving=true;
-  if(!['admin','owner'].includes(S.role)){showToast('Нет прав','error');savePayment._saving=false;return;}
+  if(!['admin','owner'].includes(S.role)){showToast(t('Нет прав'),'error');savePayment._saving=false;return;}
   const btn=document.querySelector('#mAddPayment .btn.btn-purple');
   if(btn){btn.disabled=true;btn.textContent=t('Сохранение...');}
   try{
     const sid=C('pay_student').value,cur=C('pay_cur').value;
     if(!sid){showToast(t('Выбери ученика'),'error');return;}
     const amt=parseFloat(C('pay_amount').value);
-    if(!amt||isNaN(amt)||amt<=0){showToast('Введи корректную сумму!');return;}
+    if(!amt||isNaN(amt)||amt<=0){showToast(t('Введи корректную сумму!'));return;}
     const pf=C('pay_from').value||null,pt=C('pay_to').value||null,st=C('pay_status').value,note=C('pay_note').value.trim();
     const pd={student_id:sid,amount:amt,currency:cur,period_from:pf,period_to:pt,status:st,note};
     let err;
     if(S.editPayId){({error:err}=await sb.from('payments').update(pd).eq('id',S.editPayId).eq('school_id',S.schoolId));}
     else{({error:err}=await sb.from('payments').insert({school_id:S.schoolId,...pd}));}
-    if(err){showToast('Ошибка: '+err.message,'error');return;}
-    dcInval('payments_'+S.schoolId);closeM('mAddPayment');showToast('Платёж сохранён');renderPayments();
+    if(err){showToast(t('Ошибка: ')+err.message,'error');return;}
+    dcInval('payments_'+S.schoolId);closeM('mAddPayment');showToast(t('Платёж сохранён'));renderPayments();
   }finally{
     if(btn){btn.disabled=false;btn.textContent=t('Сохранить');}
     savePayment._saving=false;
@@ -7215,15 +7220,15 @@ function openSetSalary(tid,tname){S.currentSalTId=tid;C('salaryTName').textConte
 async function saveSalary(){
   if(S._savingSalary)return;
   S._savingSalary=true;
-  if(!['owner','admin'].includes(S.role)){showToast('Нет прав','error');S._savingSalary=false;return;}
+  if(!['owner','admin'].includes(S.role)){showToast(t('Нет прав'),'error');S._savingSalary=false;return;}
   const btn=document.querySelector('#mSetSalary .btn.btn-purple');
   if(btn){btn.disabled=true;btn.textContent=t('Сохранение...');}
   try{
     const rate=C('sal_rate').value,cur=C('sal_cur').value;const rateNum=parseFloat(rate);if(!rate||isNaN(rateNum)){showToast(t?t('Введи корректную ставку!'):'Введи корректную ставку!');return;}
     const _salVal=parseFloat(rate);if(isNaN(_salVal)||_salVal<0||!isFinite(_salVal)){showToast(t('Неверное значение'),'error');return;}
     const{error}=await sb.from('teacher_salaries').upsert({school_id:S.schoolId,teacher_id:S.currentSalTId,rate_per_lesson:rateNum,currency:cur,updated_at:new Date().toISOString()},{onConflict:'teacher_id,school_id'});
-    if(error){showToast('Ошибка: '+error.message,'error');return;}
-    dcInval('salaries_'+S.schoolId);closeM('mSetSalary');showToast('Ставка сохранена');if(S.screen==='o_salaries'||S.screen==='a_salaries')renderSalaries();
+    if(error){showToast(t('Ошибка: ')+error.message,'error');return;}
+    dcInval('salaries_'+S.schoolId);closeM('mSetSalary');showToast(t('Ставка сохранена'));if(S.screen==='o_salaries'||S.screen==='a_salaries')renderSalaries();
   }finally{
     if(btn){btn.disabled=false;btn.textContent=t('Сохранить');}
     S._savingSalary=false;
@@ -7236,10 +7241,10 @@ async function logLessonFor(tid,tname){
     if(rawTopic===null)return;
     const topic=rawTopic.trim();
     if(!topic){showToast(t('Введи тему урока'),'error');return;}
-    if(topic.length>500){showToast('Тема слишком длинная (макс 500 символов)','error');return;}
+    if(topic.length>500){showToast(t('Тема слишком длинная (макс 500 символов)'),'error');return;}
     const{error}=await sb.from('lessons_log').insert({school_id:S.schoolId,teacher_id:tid,lesson_date:new Date().toISOString().split('T')[0],topic,status:'completed'});
-    if(error){showToast('Ошибка: '+error.message,'error');return;}
-    dcInval('salaries_'+S.schoolId);showToast('Урок записан');if(S.screen==='o_salaries'||S.screen==='a_salaries')renderSalaries();
+    if(error){showToast(t('Ошибка: ')+error.message,'error');return;}
+    dcInval('salaries_'+S.schoolId);showToast(t('Урок записан'));if(S.screen==='o_salaries'||S.screen==='a_salaries')renderSalaries();
   }finally{S._logLessonSaving=false;}
 }
 
@@ -7282,13 +7287,13 @@ async function deleteMaterial(id){
     const{error}=await sb.from('materials').delete().eq('id',id).eq('school_id',S.schoolId);
     if(error){showToast(t('Ошибка')+': '+error.message);return;}
     dcInval('materials_'+S.schoolId);
-    showToast('Материал удалён');renderMaterials();
+    showToast(t('Материал удалён'));renderMaterials();
   }finally{S._deletingMaterial=false;}
 }
 function openMatCard(el){
   const url=decodeURIComponent(el.dataset.murl||'');
-  if(!url){showToast('У этого материала нет ссылки ⚠️');return;}
-  if(url&&!/^https?:\/\//i.test(url)){showToast('Некорректная ссылка','error');return;}
+  if(!url){showToast(t('У этого материала нет ссылки ⚠️'));return;}
+  if(url&&!/^https?:\/\//i.test(url)){showToast(t('Некорректная ссылка'),'error');return;}
   const title=el.querySelector('[style*="font-weight:600"]')?.textContent||'Материал';
   const type=el.dataset.mtype||'link';
   const lang=el.dataset.mlang||'';
@@ -7465,25 +7470,25 @@ function showStudentCreds(email,password,name){
 }
 async function saveStudent(){
   if(saveStudent._saving)return;saveStudent._saving=true;
-  if(!['teacher','admin','owner'].includes(S.role)){showToast('Нет прав','error');saveStudent._saving=false;return;}
+  if(!['teacher','admin','owner'].includes(S.role)){showToast(t('Нет прав'),'error');saveStudent._saving=false;return;}
   const btn=document.querySelector('#mAddStudent .btn.btn-purple');
   if(btn){btn.disabled=true;}
   try{
     const f=C('st_first').value.trim(),l=C('st_last').value.trim();
     const email=C('st_email').value.trim();
-    if(!f){showToast('Введи имя!');return;}
-    if(!email){showToast('Введи email для приглашения!');return;}
+    if(!f){showToast(t('Введи имя!'));return;}
+    if(!email){showToast(t('Введи email для приглашения!'));return;}
     if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){showToast(t('Некорректный email'),'error');return;}
     // Insert student record
     const{error:stuErr}=await sb.from('students').insert({school_id:S.schoolId,first_name:f,last_name:l,email,phone:C('st_phone').value.trim(),language:C('st_lang').value,level:C('st_level').value,teacher_id:S.profile.id});
-    if(stuErr){showToast('Ошибка добавления: '+stuErr.message,'error');return;}
+    if(stuErr){showToast(t('Ошибка добавления: ')+stuErr.message,'error');return;}
     dcInval('students_'+S.schoolId);dcInval('students_full_'+S.schoolId);dcInval('students_full_'+S.profile.id);
     closeM('mAddStudent');
     // Send invite email
     try{
       const _inv=await callInviteFunction(email,'student',f,l,{language:C('st_lang').value,level:C('st_level').value,phone:C('st_phone').value.trim(),autoPassword:true});
       if(_inv&&_inv.password){showStudentCreds(_inv.email||email,_inv.password,(f+' '+l).trim());}
-      else showToast('Ученик добавлен — письмо отправлено! 💌');
+      else showToast(t('Ученик добавлен — письмо отправлено! 💌'));
     }catch(e){
       showToast(t('Ученик добавлен, но аккаунт не создан:')+' '+e.message);
     }
@@ -7496,23 +7501,23 @@ async function saveStudent(){
 
 async function saveInviteStaff(){
   if(saveInviteStaff._saving)return;saveInviteStaff._saving=true;
-  if(!['owner','admin'].includes(S.role)){showToast('Нет прав','error');saveInviteStaff._saving=false;return;}
+  if(!['owner','admin'].includes(S.role)){showToast(t('Нет прав'),'error');saveInviteStaff._saving=false;return;}
   const btn=document.querySelector('#mInviteStaff .btn.btn-purple');
   if(btn){btn.disabled=true;btn.textContent='Отправка...';}
   try{
     const f=C('inv_first').value.trim(),l=C('inv_last').value.trim();
     const email=C('inv_email_inp').value.trim();
     const role=C('inv_role').value;
-    if(role==='owner'&&S.role!=='owner'){showToast('Только владелец может назначать владельцев','error');return;}
-    if(!f){showToast('Введи имя!');return;}
-    if(!email){showToast('Введи email!');return;}
+    if(role==='owner'&&S.role!=='owner'){showToast(t('Только владелец может назначать владельцев'),'error');return;}
+    if(!f){showToast(t('Введи имя!'));return;}
+    if(!email){showToast(t('Введи email!'));return;}
     if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){showToast(t('Некорректный email'),'error');return;}
     try{
       await callInviteFunction(email,role,f,l);
       closeM('mInviteStaff');
       // Clear fields
       ['inv_first','inv_last','inv_email_inp'].forEach(id=>C(id).value='');C('inv_role').value='teacher';
-      showToast('Приглашение отправлено! 💌');
+      showToast(t('Приглашение отправлено! 💌'));
       if(S.screen==='o_users')renderOwnerUsers();
       else if(S.screen==='a_teachers'){if(typeof renderAdminTeachers==='function')renderAdminTeachers();}
     }catch(e){
@@ -7605,7 +7610,7 @@ async function openNewClass(){
 }
 async function editClass(id){
   const{data:cl}=await sb.from('classes').select('*').eq('id',id).eq('school_id',S.schoolId).single();
-  if(!cl){showToast('Класс не найден','error');return;}
+  if(!cl){showToast(t('Класс не найден'),'error');return;}
   S.editClassId=id;
   C('cl_name').value=cl.name||'';C('cl_desc').value=cl.description||'';C('cl_emoji').value=cl.emoji||'📚';
   C('cl_type').value=cl.type||'individual';C('cl_lang').value=cl.language||'Английский';C('cl_level').value=cl.level||'A1';
@@ -7614,11 +7619,11 @@ async function editClass(id){
 }
 async function saveClass(){
   if(S._savingClass)return;S._savingClass=true;
-  if(!['teacher','admin','owner'].includes(S.role)){showToast('Доступ запрещён','error');S._savingClass=false;return;}
+  if(!['teacher','admin','owner'].includes(S.role)){showToast(t('Доступ запрещён'),'error');S._savingClass=false;return;}
   const btn=document.querySelector('#mAddClass .btn.btn-purple');
   if(btn){btn.disabled=true;btn.textContent=t('Сохранение...');}
   try{
-    const name=C('cl_name').value.trim();if(!name){showToast('Введи название!');return;}
+    const name=C('cl_name').value.trim();if(!name){showToast(t('Введи название!'));return;}
     // Владелец класса: менеджер выбирает; учитель создаёт класс на себя, при правке владелец не меняется
     const _tid=S.isManager?(C('cl_teacher').value||S.profile.id):(S.editClassId?undefined:S.profile.id);
     const data={school_id:S.schoolId,teacher_id:_tid,name,type:C('cl_type').value,language:C('cl_lang').value,level:C('cl_level').value,color:C('cl_color').value,emoji:C('cl_emoji').value||'📚',description:C('cl_desc').value.trim()};
@@ -7626,8 +7631,8 @@ async function saveClass(){
     let err;
     if(S.editClassId){({error:err}=await sb.from('classes').update(data).eq('id',S.editClassId).eq('school_id',S.schoolId));}
     else{({error:err}=await sb.from('classes').insert(data));}
-    if(err){showToast('Ошибка: '+err.message,'error');return;}
-    closeM('mAddClass');dcInval('classes_'+S.schoolId);dcInval('classes_light_'+S.schoolId);showToast('Класс сохранён!');renderClasses();
+    if(err){showToast(t('Ошибка: ')+err.message,'error');return;}
+    closeM('mAddClass');dcInval('classes_'+S.schoolId);dcInval('classes_light_'+S.schoolId);showToast(t('Класс сохранён!'));renderClasses();
   }finally{
     if(btn){btn.disabled=false;btn.textContent=t('Сохранить');}
     S._savingClass=false;
@@ -7635,19 +7640,19 @@ async function saveClass(){
 }
 
 async function cdpDeleteClass(){
-  if(!['admin','owner'].includes(S.role)){showToast('Доступ запрещён','error');return;}
+  if(!['admin','owner'].includes(S.role)){showToast(t('Доступ запрещён'),'error');return;}
   if(S._deletingClass)return;
   S._deletingClass=true;
   try{
     const cl=S._currentClassData;
     if(!cl)return;
     if(!confirm(t(`Удалить класс «${cl.name}»?\nУченики останутся, но будут убраны из класса. Расписание класса тоже удалится.`)))return;
-    showToast('⏳ Удаляем...');
+    showToast(t('⏳ Удаляем...'));
     const cid=cl.id;
     // A6: атомарное каскадное удаление класса одним RPC
     const{data:_dcRes,error:_dcErr2}=await sb.rpc('delete_class_cascade',{p_class_id:cid});
     if(_dcErr2||_dcRes?.error){showToast('❌ '+(_dcRes?.error||_dcErr2?.message),'error');return;}
-    showToast('✅ Класс «'+_esc(cl.name)+'» удалён');
+    showToast(t('✅ Класс «')+_esc(cl.name)+'» удалён');
     dcInval('classes_'+S.schoolId);dcInval('classes_light_'+S.schoolId);
     closeClassDetail();
     renderClasses();
@@ -7660,7 +7665,7 @@ async function openClassDetail(classId){
   try{
   S.currentClassId=classId;
   const{data:cl}=await sb.from('classes').select('*').eq('id',classId).eq('school_id',S.schoolId).single();
-  if(!cl){showToast('Класс не найден','error');return;}
+  if(!cl){showToast(t('Класс не найден'),'error');return;}
   const COLORS=['#F97316','#8B5CF6','#EC4899','#10B981','#3B82F6','#EF4444','#F59E0B','#06B6D4'];
   const bg=cl.color||COLORS[0];
   const initial=((cl.name||'?').replace(/[^a-zA-Zа-яА-ЯёЁ0-9]/g,'')[0]||(cl.name||'?')[0]).toUpperCase();
@@ -7715,12 +7720,12 @@ async function enterClassLesson(classId){
   }finally{enterClassLesson._busy=false;}
 }
 async function cdpStartLesson(){
-  if(!['teacher','admin','owner'].includes(S.role)){showToast('Доступ запрещён','error');return;}
+  if(!['teacher','admin','owner'].includes(S.role)){showToast(t('Доступ запрещён'),'error');return;}
   if(cdpStartLesson._busy)return;cdpStartLesson._busy=true;
   try{
   // Учитель всегда сам выбирает урок из общего списка — без автопродолжения программы/назначений
   const{data:lessons}=await sb.from('lessons').select('*').eq('school_id',S.schoolId).order('created_at',{ascending:false});
-  if(!lessons||lessons.length===0){showToast('Нет уроков. Сначала создай урок.');return;}
+  if(!lessons||lessons.length===0){showToast(t('Нет уроков. Сначала создай урок.'));return;}
   // build quick picker
   // Store lessons in cache — never embed large content in onclick attributes
   window._lessonCache={};
@@ -7861,7 +7866,7 @@ async function cvSwitchTo(lessonId){
 
 // Запуск конкретного урока (из вкладки «Программа»)
 async function cdpStartSpecific(lessonId){
-  if(!['teacher','admin','owner'].includes(S.role)){showToast('Доступ запрещён','error');return;}
+  if(!['teacher','admin','owner'].includes(S.role)){showToast(t('Доступ запрещён'),'error');return;}
   if(cdpStartSpecific._busy)return;cdpStartSpecific._busy=true;
   try{
     const{data:l}=await sb.from('lessons').select('*').eq('id',lessonId).eq('school_id',S.schoolId).maybeSingle();
@@ -7873,7 +7878,7 @@ async function cdpStartSpecific(lessonId){
 async function cdpPickLesson(id){
   closeM('mLessonPicker');
   const l=window._lessonCache&&window._lessonCache[id];
-  if(!l){showToast('Ошибка: урок не найден в кэше','error');return;}
+  if(!l){showToast(t('Ошибка: урок не найден в кэше'),'error');return;}
 
   let _assignOk=false;
   try{
@@ -8140,7 +8145,7 @@ async function addToClass(_argSid,_argBtn){
     var sid=(typeof _argSid==='string'&&_argSid)?_argSid:((C('addStuSel')&&C('addStuSel').value)||'');if(!sid)return;
     if(_argBtn){_argBtn.disabled=true;_argBtn.innerHTML='<span class="add-stu-plus">\u2713</span><span>'+_argBtn.textContent.replace(/^\+\s*/,'')+'</span>';}
     const{error}=await sb.from('class_students').insert({school_id:S.schoolId,class_id:S.currentClassId,student_id:sid});
-    if(error){showToast('Ошибка: '+error.message,'error');return;}
+    if(error){showToast(t('Ошибка: ')+error.message,'error');return;}
     dcInval('classes_'+S.schoolId);
     dcInval('classes_light_'+S.schoolId);
     // Автоназначение уроков программы новому ученику
@@ -8153,7 +8158,7 @@ async function addToClass(_argSid,_argBtn){
       if(_prog?.length)dcInval('stu_assigns_'+sid);
     }catch(_pe){console.warn('[addToClass] program assign:',_pe);}
     feedEvent(S.currentClassId,'👥 '+t('Новый ученик в классе')+': '+(sel.selectedOptions?.[0]?.textContent||''));
-    showToast('Ученик добавлен в класс!');await loadClassTab('students');
+    showToast(t('Ученик добавлен в класс!'));await loadClassTab('students');
   }finally{
     S._addingToClass=false;
     if(btn){btn.disabled=false;}
@@ -8165,12 +8170,12 @@ async function removeFromClass(csId,btn){
   if(btn){btn.disabled=true;}
   try{
     const{error}=await sb.from('class_students').delete().eq('id',csId).eq('school_id',S.schoolId);
-    if(error){showToast('Ошибка: '+error.message,'error');return;}
+    if(error){showToast(t('Ошибка: ')+error.message,'error');return;}
     dcInval('classes_light_'+S.schoolId);
     dcInval('classes_'+S.schoolId);
-    showToast('Ученик убран');await loadClassTab('students');
+    showToast(t('Ученик убран'));await loadClassTab('students');
   }catch(e){
-    showToast('Ошибка: '+e.message,'error');
+    showToast(t('Ошибка: ')+e.message,'error');
   }finally{
     if(btn){btn.disabled=false;}
   }
@@ -8401,19 +8406,19 @@ async function viewEvent(id){
   C('eventModalTitle').textContent=t('Занятие')+': '+ev.title;openM('mAddEvent');
 }
 async function saveEvent(){
-  if(!['teacher','admin','owner'].includes(S.role)){showToast('Доступ запрещён','error');return;}
+  if(!['teacher','admin','owner'].includes(S.role)){showToast(t('Доступ запрещён'),'error');return;}
   if(S._savingEvent)return;S._savingEvent=true;
   const btn=document.querySelector('#mAddEvent .btn.btn-purple');
   if(btn){btn.disabled=true;btn.textContent=t('Сохранение...');}
   try{
-    const title=C('ev_title').value.trim();if(!title){showToast('Введи название!');return;}
-    const _evDate=C('ev_date').value;if(!_evDate){showToast('Укажи дату!');return;}
-    const _evTime=C('ev_time').value;if(!_evTime){showToast('Укажи время!');return;}
+    const title=C('ev_title').value.trim();if(!title){showToast(t('Введи название!'));return;}
+    const _evDate=C('ev_date').value;if(!_evDate){showToast(t('Укажи дату!'));return;}
+    const _evTime=C('ev_time').value;if(!_evTime){showToast(t('Укажи время!'));return;}
     const data={school_id:S.schoolId,class_id:C('ev_class').value||null,teacher_id:S.profile.id,title,event_date:C('ev_date').value,event_time:(C('ev_time').value||'').substring(0,5)||'09:00',duration_minutes:(()=>{const _v=parseInt(C('ev_dur').value);return Number.isFinite(_v)&&_v>0?_v:60;})(),status:(()=>{const _s=C('ev_status').value;return['scheduled','completed','cancelled'].includes(_s)?_s:'scheduled';})(),notes:C('ev_notes').value.trim()};
     let _seResult;if(S.editEventId){const _evUpdatePayload={...data};if(['admin','owner'].includes(S.role))delete _evUpdatePayload.teacher_id;let _seQ=sb.from('schedule_events').update(_evUpdatePayload).eq('id',S.editEventId).eq('school_id',S.schoolId);if(!['admin','owner'].includes(S.role))_seQ=_seQ.eq('teacher_id',S.profile?.id);_seResult=await _seQ;}else{_seResult=await sb.from('schedule_events').insert(data);}
     const{error}=_seResult;
-    if(error){showToast('Ошибка: '+error.message,'error');return;}
-    closeM('mAddEvent');dcInval(_schedCacheKey());showToast('Занятие сохранено!');
+    if(error){showToast(t('Ошибка: ')+error.message,'error');return;}
+    closeM('mAddEvent');dcInval(_schedCacheKey());showToast(t('Занятие сохранено!'));
     if(S.screen==='t_schedule'||S.screen==='a_schedule'||S.screen==='o_schedule')renderSchedule();
     if(S.currentClassId&&S.currentClassTab==='schedule')loadClassTab('schedule');
   }finally{
@@ -8422,7 +8427,7 @@ async function saveEvent(){
   }
 }
 async function deleteEvent(id){
-  if(!['teacher','admin','owner'].includes(S.role)){showToast('Доступ запрещён','error');return;}
+  if(!['teacher','admin','owner'].includes(S.role)){showToast(t('Доступ запрещён'),'error');return;}
   if(!confirm(t('Удалить занятие?')))return;
   if(S._deletingEvent)return;S._deletingEvent=true;
   try{
@@ -8432,7 +8437,7 @@ async function deleteEvent(id){
     showToast(t('Удалено'));dcInval(_schedCacheKey());
     if(S.currentClassId)loadClassTab('schedule');else renderSchedule();
   }catch(e){
-    showToast('Ошибка удаления: '+e.message,'error');
+    showToast(t('Ошибка удаления: ')+e.message,'error');
   }finally{
     S._deletingEvent=false;
   }
@@ -8529,7 +8534,7 @@ window.tyImportSections=function(data,opts){
     CE.curSec=Math.max(0,CE.sections.length-1);CE.curEx=0;CE.viewAll=false;
     ceRenderAll();
     var total=CE.sections.reduce(function(a,s){return a+s.exercises.length;},0);
-    showToast('✅ Загружено разделов: '+clean.length+' ('+total+' упр.)');
+    showToast(t('✅ Загружено разделов: ')+clean.length+' ('+total+' упр.)');
     return{ok:true,sections:CE.sections.length,exercises:total,titles:CE.sections.map(function(s){return s.title;}),hint:'Нажми Сохранить в редакторе, чтобы записать урок в базу'};
   }catch(e){return{ok:false,error:String(e&&e.message||e)};}
 };
@@ -8862,11 +8867,11 @@ Who were you with?" style="min-height:110px;width:100%;padding:8px 10px;border:2
 }
 
 async function saveFromCE(publish){
-  if(!S.profile?.id){showSessionExpiredBanner();showToast('Ошибка: профиль не загружен','error');return;}
+  if(!S.profile?.id){showSessionExpiredBanner();showToast(t('Ошибка: профиль не загружен'),'error');return;}
   if(CE._saving)return;
   CE._saving=true;
   try{
-  const title=C('ce_title').value.trim();if(!title){showToast('Введи название урока!');return;}
+  const title=C('ce_title').value.trim();if(!title){showToast(t('Введи название урока!'));return;}
   const data={school_id:S.schoolId,teacher_id:S.profile.id,title,
     language:C('ce_lang').value,level:C('ce_level').value,
     content:{sections:CE.sections,materials:CE.materials},published:publish,
@@ -8891,9 +8896,9 @@ async function saveFromCE(publish){
     const{data:ins,error:insErr}=await sb.from('lessons').insert(data).select().single();
     err=insErr;
     if(ins){CE.lessonId=ins.id;window._lessonCache=window._lessonCache||{};window._lessonCache[ins.id]=ins;}
-    else if(!insErr){showToast('❌ Нет прав на создание урока');return;}
+    else if(!insErr){showToast(t('❌ Нет прав на создание урока'));return;}
   }
-  if(err){showToast('❌ Ошибка: '+err.message);console.error('saveFromCE error:',err);return;}
+  if(err){showToast(t('❌ Ошибка: ')+err.message);console.error('saveFromCE error:',err);return;}
   dcInval('lessons_'+S.schoolId);
   showToast(publish?t('🚀 Опубликовано!'):t('💾 Сохранено!'));
   } finally {
@@ -9010,24 +9015,24 @@ async function openAssignLesson(lessonId){
   S.assignLessonId=lessonId;
   S._assignLessonClassId=S.currentClassId||null;
   const{data:sts,error}=await sb.from('students').select('id,first_name,last_name').eq('school_id',S.schoolId).order('last_name');
-  if(error){showToast('Ошибка загрузки учеников: '+error.message,'error');return;}
-  if(!sts||!sts.length){showToast('Нет учеников в школе');return;}
+  if(error){showToast(t('Ошибка загрузки учеников: ')+error.message,'error');return;}
+  if(!sts||!sts.length){showToast(t('Нет учеников в школе'));return;}
   const sel=C('assign_student');
   sel.innerHTML=sts.map(s=>`<option value="${_esc(s.id)}">${_esc(s.first_name)} ${_esc(s.last_name)}</option>`).join('');
   openM('mAssignLesson');
   }finally{openAssignLesson._busy=false;}
 }
 async function assignLesson(){
-  if(!['teacher','admin','owner'].includes(S.role)){showToast('Доступ запрещён','error');return;}
+  if(!['teacher','admin','owner'].includes(S.role)){showToast(t('Доступ запрещён'),'error');return;}
   if(assignLesson._busy)return;assignLesson._busy=true;
-  const sid=C('assign_student').value;if(!sid){showToast('Выбери ученика');assignLesson._busy=false;return;}
-  if(!S.assignLessonId){showToast('Ошибка: урок не выбран');assignLesson._busy=false;return;}
+  const sid=C('assign_student').value;if(!sid){showToast(t('Выбери ученика'));assignLesson._busy=false;return;}
+  if(!S.assignLessonId){showToast(t('Ошибка: урок не выбран'));assignLesson._busy=false;return;}
   const btn=document.querySelector('#mAssignLesson .btn-purple');
   if(btn){btn.disabled=true;btn.textContent='Назначаем...';}
   try{
     // Ownership check
     const{data:_lcheck}=await sb.from('lessons').select('id').eq('id',S.assignLessonId).eq('school_id',S.schoolId).maybeSingle();
-    if(!_lcheck){showToast('Урок не найден','error');return;}
+    if(!_lcheck){showToast(t('Урок не найден'),'error');return;}
     // Duplicate guard
     const{data:existing}=await sb.from('lesson_assignments').select('id').eq('lesson_id',S.assignLessonId).eq('student_id',sid).eq('school_id',S.schoolId).maybeSingle();
     if(existing){showToast('ℹ️ '+t('Урок уже назначен — ученик видит его в «Мои уроки»'));closeM('mAssignLesson');return;}
@@ -9047,9 +9052,9 @@ async function assignLesson(){
       }
     }
     if(error&&error.message&&(error.message.includes("'student_id'")||error.message.includes('"student_id"'))){
-      showToast('❌ Ошибка схемы БД (student_id). Обратитесь к администратору.','error');return;
+      showToast(t('❌ Ошибка схемы БД (student_id). Обратитесь к администратору.'),'error');return;
     }
-    if(error){showToast('Ошибка назначения: '+error.message,'error');console.error('assignLesson error',error);return;}
+    if(error){showToast(t('Ошибка назначения: ')+error.message,'error');console.error('assignLesson error',error);return;}
     // Invalidate student's assignment cache so they see the new lesson immediately
     dcInval('stu_assigns_'+sid);
     // Событие в ленту класса
@@ -9058,7 +9063,7 @@ async function assignLesson(){
       const _sn=C('assign_student')?.selectedOptions?.[0]?.textContent||'';
       feedEvent(_cid,'📖 '+t('Назначен урок')+(_lt?' «'+_lt+'»':'')+(_sn?' — '+_sn:''));
     }
-    closeM('mAssignLesson');showToast('✅ Урок назначен ученику!');
+    closeM('mAssignLesson');showToast(t('✅ Урок назначен ученику!'));
   } finally {
     assignLesson._busy=false;
     if(btn){btn.disabled=false;btn.textContent='Назначить';}
@@ -9172,7 +9177,7 @@ async function shareToLibrary(){
 
 async function copyFromLibrary(lessonId,btn){
   if(!S.profile?.id){showSessionExpiredBanner();showToast(t('Профиль не загружен'),'error');return;}
-  if(!['teacher','admin','owner'].includes(S.role)){showToast('Доступ запрещён','error');return;}
+  if(!['teacher','admin','owner'].includes(S.role)){showToast(t('Доступ запрещён'),'error');return;}
   if(copyFromLibrary._busy===lessonId)return;copyFromLibrary._busy=lessonId;
   if(btn){btn.disabled=true;btn.textContent='Копирование...';}
   try{
@@ -9213,12 +9218,12 @@ async function toggleLibraryLike(lessonId,btn){
   const liked=_libLikes[lessonId]||false;
   if(liked){
     const{error}=await sb.from('lesson_library_likes').delete().eq('lesson_id',lessonId).eq('user_id',S.userId).eq('school_id',S.schoolId);
-    if(error){showToast('Ошибка: '+error.message,'error');return;}
+    if(error){showToast(t('Ошибка: ')+error.message,'error');return;}
     _libLikes[lessonId]=false;
     window._libLikeMap[lessonId]=Math.max(0,(window._libLikeMap[lessonId]||1)-1);
   }else{
     const{error}=await sb.from('lesson_library_likes').insert({lesson_id:lessonId,user_id:S.userId,school_id:S.schoolId});
-    if(error){showToast('Ошибка: '+error.message,'error');return;}
+    if(error){showToast(t('Ошибка: ')+error.message,'error');return;}
     _libLikes[lessonId]=true;
     window._libLikeMap[lessonId]=(window._libLikeMap[lessonId]||0)+1;
   }
@@ -9333,14 +9338,14 @@ async function openLessonView(assignId){
   const cached=(window._assignCache||{})[assignId];
   if(!cached){
     // Cache miss — re-fetch then open
-    showToast('Загрузка урока...');
+    showToast(t('Загрузка урока...'));
     renderStudentLessons().then(async()=>{
       const c=(window._assignCache||{})[assignId];
       if(!c)return;
       const{sections:_s,materials:_m}=_parseLessonContent(c.lesson?.content||[]);
       if(S.role==='student')await _resolveClassForLesson(c.lesson?.id||null);
       openClassroomView(c.lesson?.title||'Урок',_s,assignId,null,_m,c.lesson?.id||null,c.current_section);
-    }).catch(e=>showToast('Ошибка загрузки: '+(e?.message||e),'error'));
+    }).catch(e=>showToast(t('Ошибка загрузки: ')+(e?.message||e),'error'));
     return;
   }
   const{sections:_s,materials:_m}=_parseLessonContent(cached.lesson?.content||[]);
@@ -9806,7 +9811,7 @@ function cvChatScrollBottom(){const el=C('cv_chatMsgs');if(el)el.scrollTop=el.sc
 async function cvChatSend(){
   if(LV._chatSending)return;LV._chatSending=true;
   try{
-    if(!S.schoolId){showToast('Ошибка: школа не определена','error');return;}
+    if(!S.schoolId){showToast(t('Ошибка: школа не определена'),'error');return;}
     const inp=C('cv_chatInp');
     const body=(inp?inp.value:'').trim();
     if(!body||!LV.chatRoomId)return;
@@ -9819,7 +9824,7 @@ async function cvChatSend(){
       user_role:S.role||'student',
       message:body
     });
-    if(error){showToast('Ошибка чата: '+error.message,'error');}
+    if(error){showToast(t('Ошибка чата: ')+error.message,'error');}
     else{if(inp)inp.value='';}
   }finally{LV._chatSending=false;}
 }
@@ -11050,10 +11055,10 @@ async function completeLessonView(){
     // A4: ученик — идемпотентный RPC (assignment + lessons_log в одной транзакции)
     if(S.role==='student'&&S.currentAssignId){
       const{data:_sr,error:_se}=await sb.rpc('complete_my_assignment',{p_assignment_id:S.currentAssignId});
-      if(_se||_sr?.error){showToast('Ошибка завершения урока: '+(_sr?.error||_se?.message),'error');return;}
+      if(_se||_sr?.error){showToast(t('Ошибка завершения урока: ')+(_sr?.error||_se?.message),'error');return;}
       dcInval('stu_assigns_'+S.studentRowId);
       window._assignCache={};
-      showToast('Урок завершён! 🎉');
+      showToast(t('Урок завершён! 🎉'));
       closeClassroomView();
       await renderStudentLessons();
       return;
@@ -11064,13 +11069,13 @@ async function completeLessonView(){
         .update({completed:true})
         .eq('id',S.currentAssignId)
         .eq('school_id',S.schoolId);
-      if(_lvErr){showToast('Ошибка завершения урока: '+_lvErr.message,'error');return;}
+      if(_lvErr){showToast(t('Ошибка завершения урока: ')+_lvErr.message,'error');return;}
       window._assignCache={};
-      showToast('Урок завершён! 🎉');
+      showToast(t('Урок завершён! 🎉'));
       closeClassroomView();
       return;
     }
-    showToast('Просмотр завершён ✓');
+    showToast(t('Просмотр завершён ✓'));
     closeClassroomView();
   } finally { LV._completing=false; }
 }
@@ -11086,7 +11091,7 @@ async function previewLessonById(id){
     const{data}=await sb.from('lessons').select('*').eq('id',id).single();
     if(data){window._lessonCache=window._lessonCache||{};window._lessonCache[id]=data;l=data;}
   }
-  if(!l){showToast('Урок не найден');return;}
+  if(!l){showToast(t('Урок не найден'));return;}
   openLessonPreview(l.title,l.content||[],l.id);
 }
 async function editLessonById(id){
@@ -11095,7 +11100,7 @@ async function editLessonById(id){
     const{data}=await sb.from('lessons').select('*').eq('id',id).single();
     if(data){window._lessonCache=window._lessonCache||{};window._lessonCache[id]=data;l=data;}
   }
-  if(!l){showToast('Урок не найден');return;}
+  if(!l){showToast(t('Урок не найден'));return;}
   openLessonEditor(l.id,l.title,l.language||'Английский',l.level||'A1',l.content||[]);
 }
 
@@ -11120,7 +11125,7 @@ function _hydrateAudio(root){
 async function openStorageFile(u){
   const s=await resolveStorageUrl(u);
   if(/^https?:\/\//i.test(s))window.open(s,'_blank','noopener,noreferrer');
-  else showToast('Небезопасный URL','error');
+  else showToast(t('Небезопасный URL'),'error');
 }
 function _hydrateChatImgs(root){
   (root||document).querySelectorAll('img[data-fsrc]').forEach(async img=>{
@@ -11170,7 +11175,7 @@ async function openMaterialPreview(url,title,type,lang,level){
     const _mpSbx=_mpIsSafe?'allow-scripts allow-forms allow-popups allow-presentation allow-same-origin':'allow-scripts allow-forms allow-popups allow-presentation';
     C('mp_body').innerHTML=`<div class="mp-iframe-wrap"><iframe src="${_escHtml(embedUrl)}" allowfullscreen allow="autoplay" sandbox="${_mpSbx}"></iframe></div>`;
   } else {
-    C('mp_openBtn').onclick=()=>{if(/^https?:\/\//i.test(url))window.open(url,'_blank','noopener,noreferrer');else showToast('Небезопасный URL','error');};
+    C('mp_openBtn').onclick=()=>{if(/^https?:\/\//i.test(url))window.open(url,'_blank','noopener,noreferrer');else showToast(t('Небезопасный URL'),'error');};
     C('mp_body').innerHTML=`<div class="mp-no-embed">
       <div class="mp-icon">${icon}</div>
       <div style="font-weight:600;font-size:1rem">${_escHtml(title||'Материал')}</div>
@@ -11178,7 +11183,7 @@ async function openMaterialPreview(url,title,type,lang,level){
       <button class="btn btn-purple" id="mp_fallback_open_btn">Открыть в новой вкладке ↗</button>
     </div>`;
     const _mpFallbackBtn=document.getElementById('mp_fallback_open_btn');
-    if(_mpFallbackBtn)_mpFallbackBtn.onclick=()=>{if(/^https?:\/\//i.test(url))window.open(url,'_blank','noopener,noreferrer');else showToast('Небезопасный URL','error');};
+    if(_mpFallbackBtn)_mpFallbackBtn.onclick=()=>{if(/^https?:\/\//i.test(url))window.open(url,'_blank','noopener,noreferrer');else showToast(t('Небезопасный URL'),'error');};
   }
   openM('mMatPreview');
 }
@@ -11442,7 +11447,7 @@ async function sendMsg(){
   if(!inp||!MS.convId)return;
   const body=inp.value.trim();
   if(!body)return;
-  if(body.length>4000){showToast('Сообщение слишком длинное (макс 4000 символов)','error');return;}
+  if(body.length>4000){showToast(t('Сообщение слишком длинное (макс 4000 символов)'),'error');return;}
   inp.value='';inp.style.height='auto';
   const{data:_sentMsg,error}=await sb.from('messages').insert({conversation_id:MS.convId,sender_id:S.profile.id,body,school_id:S.schoolId}).select('*').single();
   if(error){showToastCard(t('Ошибка'),''+error.message,'error','❌');inp.value=body;return;}
@@ -11528,17 +11533,28 @@ function openNotifPanel(){
   showToastCard(t('Уведомления'),t('Откройте Задачи или Сообщения для просмотра'),'','🔔',3000);
 }
 
+// С кем можно начать чат: ученик — со своими учителями и администрацией; сотрудники — с сотрудниками и видимыми им учениками
+async function msgPeers(){
+  if(S.role==='student'){
+    var ids={};
+    try{var a=await sb.from('classes').select('teacher_id').eq('school_id',S.schoolId);(a.data||[]).forEach(function(r){if(r.teacher_id)ids[r.teacher_id]=1;});}catch(e){}
+    try{if(S.studentRowId){var b=await sb.from('students').select('teacher_id').eq('id',S.studentRowId).maybeSingle();if(b.data&&b.data.teacher_id)ids[b.data.teacher_id]=1;}}catch(e){}
+    var r=await sb.from('profiles').select('id,first_name,last_name,role').eq('school_id',S.schoolId).neq('role','student');
+    return (r.data||[]).filter(function(p){return ids[p.id]||p.role==='owner'||p.role==='admin';});
+  }
+  var q=await sb.from('profiles').select('id,first_name,last_name,role').eq('school_id',S.schoolId);
+  return (q.data||[]).sort(function(x,y){return (x.role==='student')-(y.role==='student');});
+}
 // New conversation modal
 async function openNewConv(){
   // Load staff profiles
-  const{data:profs}=await sb.from('profiles').select('id,first_name,last_name,role').eq('school_id',S.schoolId).neq('role','student');
-  MS.profiles=profs||[];
+  MS.profiles=await msgPeers();
   let html=`<h3>💬 Новый чат</h3>
     <div class="form-group"><label>Тип</label>
       <select id="nc_type" onchange="renderNewConvForm(this.value)">
         <option value="self">⭐ Избранное (только для меня)</option>
         <option value="direct">👤 Личный чат</option>
-        <option value="group">👥 Групповой чат</option>
+        ${S.role==='student'?'':'<option value="group">👥 Групповой чат</option>'}
       </select></div>
     <div id="nc_extra"></div>
     <div class="btn-row"><button class="btn btn-purple" onclick="createConv()">Создать</button><button class="btn btn-outline" onclick="closeM('mNewConv')">Отмена</button></div>`;
@@ -11558,7 +11574,7 @@ function renderNewConvForm(type){
   } else {
     extra.innerHTML=`<div class="form-group"><label>${t('Название группы')}</label><input type="text" id="nc_name" placeholder="${t('Например: Команда учителей')}"></div>
       <div class="form-group"><label>${t('Участники (все по умолчанию)')}</label>
-      <div style="max-height:160px;overflow-y:auto;border:2px solid var(--gray-border);border-radius:8px;padding:8px">${others.map(p=>`<label style="display:flex;align-items:center;gap:8px;padding:4px 0;cursor:pointer"><input type="checkbox" value="${p.id}" checked> ${_esc(p.first_name)} ${_esc(p.last_name)} (${_esc(t(p.role)||p.role)})</label>`).join('')}</div></div>`;
+      <div style="max-height:160px;overflow-y:auto;border:2px solid var(--gray-border);border-radius:8px;padding:8px">${others.map(p=>`<label style="display:flex;align-items:center;gap:8px;padding:4px 0;cursor:pointer"><input type="checkbox" value="${p.id}" ${p.role==='student'?'':'checked'}> ${_esc(p.first_name)} ${_esc(p.last_name)} (${_esc(t(p.role)||p.role)})</label>`).join('')}</div></div>`;
   }
 }
 
@@ -11569,7 +11585,7 @@ async function createConv(){
   try{
     const type=document.getElementById('nc_type')?.value;
     if(!type)return;
-    if(!S.profile?.id){showSessionExpiredBanner();showToast('Ошибка: профиль не загружен','error');return;}
+    if(!S.profile?.id){showSessionExpiredBanner();showToast(t('Ошибка: профиль не загружен'),'error');return;}
     let members=[S.profile.id];
     let name=null;
     if(type==='direct'){
@@ -11720,7 +11736,7 @@ function renderTaskCard(tk){
 
 async function moveTask(id,newStatus){
   const validStatuses=['todo','in_progress','done'];
-  if(!validStatuses.includes(newStatus)){showToast('Неверный статус','error');return;}
+  if(!validStatuses.includes(newStatus)){showToast(t('Неверный статус'),'error');return;}
   if(!TK._movingTasks)TK._movingTasks=new Set();
   if(TK._movingTasks.has(id))return;
   TK._movingTasks.add(id);
@@ -11745,7 +11761,7 @@ async function deleteTask(id){
     let _dtQ=sb.from('tasks').delete().eq('id',id).eq('school_id',S.schoolId);
     if(!['owner','admin'].includes(S.role))_dtQ=_dtQ.eq('user_id',S.profile?.id);
     const{error:dtErr}=await _dtQ;
-    if(dtErr){showToast('Ошибка удаления задачи: '+dtErr.message,'error');return;}
+    if(dtErr){showToast(t('Ошибка удаления задачи: ')+dtErr.message,'error');return;}
     TK.tasks=TK.tasks.filter(t=>t.id!==id);
     refreshKanban();
   } finally{TK._deletingTasks.delete(id);}
@@ -11787,7 +11803,7 @@ function populateTaskModal(tk){
 
 async function saveTask(){
   if(saveTask._saving)return;saveTask._saving=true;
-  if(!S.profile?.id){showToast('Ошибка: профиль не загружен','error');saveTask._saving=false;return;}
+  if(!S.profile?.id){showToast(t('Ошибка: профиль не загружен'),'error');saveTask._saving=false;return;}
   const btn=document.querySelector('#mAddTask .btn.btn-purple');
   if(btn){btn.disabled=true;btn.textContent='Сохранение...';}
   try{
@@ -11896,7 +11912,7 @@ async function openStudentCard(id){
     sb.from('students').select('*').eq('id',id).eq('school_id',S.schoolId).single(),
     sb.from('profiles').select('id,first_name,last_name').eq('school_id',S.schoolId).in('role',['teacher','admin','owner']).order('last_name')
   ]);
-  if(!s){showToast('Ученик не найден');return;}
+  if(!s){showToast(t('Ученик не найден'));return;}
   C('sc_student_id').value=s.id;
   C('sc_avatar').innerHTML=avHTML(s.first_name,s.last_name);
   C('sc_first_name').value=s.first_name||'';
@@ -11925,10 +11941,10 @@ async function saveStudentCard(){
   if(_scBtn)_scBtn.disabled=true;
   try{
     const id=C('sc_student_id')?.value||'';
-    if(!id){showToast('Ошибка: ID студента','error');return;}
+    if(!id){showToast(t('Ошибка: ID студента'),'error');return;}
     const _scLevel=C('sc_level')?.value||'';
     const _validLevels=['A1','A2','B1','B2','C1','C2'];
-    if(!_validLevels.includes(_scLevel)){showToast('Неверный уровень','error');return;}
+    if(!_validLevels.includes(_scLevel)){showToast(t('Неверный уровень'),'error');return;}
     const updates={
       phone:C('sc_phone').value.trim(),
       language:C('sc_language').value,
@@ -11958,14 +11974,14 @@ async function saveStudentCard(){
       }
     }
     const{error}=await sb.from('students').update(updates).eq('id',id).eq('school_id',S.schoolId);
-    if(error){showToast('Ошибка: '+error.message);return;}
+    if(error){showToast(t('Ошибка: ')+error.message);return;}
     dcInval('students_full_'+S.schoolId);
     dcInval('students_'+S.schoolId);
     if(S.role==='teacher')dcInval('students_full_'+S.profile.id);
     dcInval('classes_'+S.schoolId);
     dcInval('classes_light_'+S.schoolId);
     closeM('mStudentCard');
-    showToast('✅ Данные ученика сохранены!');
+    showToast(t('✅ Данные ученика сохранены!'));
     if(S.screen==='t_students')renderTeacherStudents();
     else if(S.screen==='a_students')renderAdminStudents();
     else if(S.screen==='o_students')renderOwnerStudents();
@@ -12393,7 +12409,7 @@ async function _vtStaffTargets(){
 async function _vtStaffSave(word,tr,ctx,target,btn){
   btn.disabled=true;
   const tg=await _vtStaffTargets();
-  if(!tg.length){showToast('Некому добавить: у учеников нет аккаунтов или не открыт класс','error');btn.disabled=false;return;}
+  if(!tg.length){showToast(t('Некому добавить: у учеников нет аккаунтов или не открыт класс'),'error');btn.disabled=false;return;}
   let ok=0,dup=0,fail=0;
   for(const p of tg){
     const row={school_id:S.schoolId,student_profile_id:p.id,word:word.slice(0,200),translation:tr.slice(0,400),source:'translate',target_lang:target,context:ctx||null};
@@ -12445,16 +12461,16 @@ async function openStudentVocab(studentId,name,ownPid){
         const w=iw.value.trim(),tr=it.value.trim();if(!w||!tr)return;
         ab.disabled=true;
         const r=await sb.from('student_vocab').insert({school_id:S.schoolId,student_profile_id:pid,word:w,translation:tr,source:'manual'});
-        if(r.error&&r.error.code!=='23505'){showToast('Не удалось добавить','error');ab.disabled=false;return;}
+        if(r.error&&r.error.code!=='23505'){showToast(t('Не удалось добавить'),'error');ab.disabled=false;return;}
         render();
       };
       const bb=_svEl('button',null,'📋 Списком / из файла');bb.className='btn btn-outline btn-sm';
       bb.onclick=function(){vbBulkOpen(async function(ws){
         const ex={};rows.forEach(function(r){ex[_vkey(r.word,r.translation)]=1;});
         const ins=[];ws.forEach(function(w){const k=_vkey(w.word,w.trans);if(ex[k])return;ex[k]=1;ins.push({school_id:S.schoolId,student_profile_id:pid,word:w.word.slice(0,200),translation:w.trans.slice(0,400),source:'manual'});});
-        if(!ins.length){showToast('ℹ️ Все эти слова уже в словаре');return;}
+        if(!ins.length){showToast(t('ℹ️ Все эти слова уже в словаре'));return;}
         let ok=0;for(let n=0;n<ins.length;n+=200){const r=await sb.from('student_vocab').insert(ins.slice(n,n+200));if(!r.error)ok+=Math.min(200,ins.length-n);}
-        showToast('📚 Добавлено слов: '+ok);render();
+        showToast(t('📚 Добавлено слов: ')+ok);render();
       });};
       f.append(iw,it,ab,bb);body.append(f);
       if(!rows.length){body.append(_svEl('div','color:var(--text3);padding:10px','Пока пусто'));return;}
@@ -12466,7 +12482,7 @@ async function openStudentVocab(studentId,name,ownPid){
         row.append(tx,sc);
         if(r.source!=='lesson'){
           const d=_svEl('button','background:none;border:none;cursor:pointer','🗑');
-          d.onclick=async function(){d.disabled=true;const x=await sb.from('student_vocab').delete().eq('id',r.id);if(x.error){showToast('Не удалось удалить','error');d.disabled=false;return;}render();};
+          d.onclick=async function(){d.disabled=true;const x=await sb.from('student_vocab').delete().eq('id',r.id);if(x.error){showToast(t('Не удалось удалить'),'error');d.disabled=false;return;}render();};
           row.append(d);
         }
         body.append(row);
@@ -12499,7 +12515,7 @@ function vbBulkOpen(onDone){
   fl.append(fi);
   var row=_svEl('div','display:flex;gap:8px;margin-top:14px;flex-wrap:wrap');
   var ok=_svEl('button',null,'Добавить');ok.className='btn btn-purple';
-  ok.onclick=function(){var ws=vbParse(ta.value);if(!ws.length){showToast('Не нашла ни одной пары «слово — перевод»','error');return;}ov.remove();onDone(ws);};
+  ok.onclick=function(){var ws=vbParse(ta.value);if(!ws.length){showToast(t('Не нашла ни одной пары «слово — перевод»'),'error');return;}ov.remove();onDone(ws);};
   var c=_svEl('button',null,'Отмена');c.className='btn btn-outline';c.onclick=function(){ov.remove();};
   row.append(ok,c);box.append(ta,cnt,fl,row);ov.append(box);document.body.append(ov);ta.focus();
 }
@@ -12561,7 +12577,7 @@ async function cvOpenVocabSection(){
     const r=await sb.from('class_students').select('student_id').eq('class_id',S.currentClassId).eq('school_id',S.schoolId);
     ids=(r.data||[]).map(function(x){return x.student_id;});
   }
-  if(!ids.length){showToast('В классе нет учеников','error');return;}
+  if(!ids.length){showToast(t('В классе нет учеников'),'error');return;}
   const rs=await sb.from('students').select('id,first_name,last_name').in('id',ids).eq('school_id',S.schoolId);
   const list=(rs.data||[]).map(function(x){return{id:x.id,name:((x.first_name||'')+' '+(x.last_name||'')).trim()};});
   if(list.length===1){openStudentVocab(list[0].id,list[0].name);return;}
@@ -12585,7 +12601,7 @@ function openPlacementTest(studentId,name){
 }
 async function sendPlacementTest(){
   if(S._sendingPlacementTest)return;S._sendingPlacementTest=true;
-  if(!['teacher','admin','owner'].includes(S.role)){S._sendingPlacementTest=false;showToast('Доступ запрещён','error');return;}
+  if(!['teacher','admin','owner'].includes(S.role)){S._sendingPlacementTest=false;showToast(t('Доступ запрещён'),'error');return;}
   const isEn=S.lang==='en';
   if(!_ptStudentId){S._sendingPlacementTest=false;closeM('mPlacementTest');return;}
   const btn=document.querySelector('#mPlacementTest .btn-purple');
@@ -12627,8 +12643,8 @@ async function openPlacementTestPlayer(hwId){
   }
   const{data:hw}=await sb.from('homeworks').select('*').eq('id',hwId).eq('school_id',S.schoolId).single();
   if(!hw){showToast(isEn?'Test not found':'Тест не найден');closeM('mPlacementTestPlayer');return;}
-  if(S.role==='student'&&(!S.studentRowId||hw.student_id!==S.studentRowId)){showToast('Доступ запрещён','error');closeM('mPlacementTestPlayer');return;}
-  if(S.role==='teacher'&&hw.teacher_id!==S.profile?.id){showToast('Доступ запрещён','error');closeM('mPlacementTestPlayer');return;}
+  if(S.role==='student'&&(!S.studentRowId||hw.student_id!==S.studentRowId)){showToast(t('Доступ запрещён'),'error');closeM('mPlacementTestPlayer');return;}
+  if(S.role==='teacher'&&hw.teacher_id!==S.profile?.id){showToast(t('Доступ запрещён'),'error');closeM('mPlacementTestPlayer');return;}
   let questions=[];try{questions=JSON.parse(hw.description)||[];}catch(e){}
   C('ptpQuestions').innerHTML=questions.map((q,i)=>`
     <div style="margin-bottom:20px;padding:14px;background:var(--gray-light);border-radius:10px">
@@ -12643,17 +12659,17 @@ async function openPlacementTestPlayer(hwId){
 }
 async function submitPlacementTest(){
   if(S._ptpSubmitting)return;S._ptpSubmitting=true;
-  if(S.role!=='student'){showToast('Доступ запрещён','error');S._ptpSubmitting=false;return;}
+  if(S.role!=='student'){showToast(t('Доступ запрещён'),'error');S._ptpSubmitting=false;return;}
   try{
     const isEn=S.lang==='en';
     const{data:hw,error:hwFetchErr}=await sb.from('homeworks').select('*').eq('id',_ptpHwId).eq('school_id',S.schoolId).single();
     if(hwFetchErr||!hw){showToast(isEn?'Test not found':'Тест не найден','error');return;}
     // Guard: student can only submit their own test
     if(!S.studentRowId||hw.student_id!==S.studentRowId){showToast(isEn?'Access denied':'Доступ запрещён','error');return;}
-    if(hw.status!=='pending'){showToast('Тест уже был пройден','error');return;}
+    if(hw.status!=='pending'){showToast(t('Тест уже был пройден'),'error');return;}
     // Подсчёт, статус и уровень — на сервере (ученик не может подделать результат)
     const{data:_pr,error:_prErr}=await sb.rpc('submit_placement_test',{p_hw:_ptpHwId,p_answers:_ptpAnswers,p_lang:isEn?'en':'ru'});
-    if(_prErr||!_pr||_pr.error){showToast('Ошибка: '+(_prErr?.message||_pr?.error||''),'error');return;}
+    if(_prErr||!_pr||_pr.error){showToast(t('Ошибка: ')+(_prErr?.message||_pr?.error||''),'error');return;}
     const score=_pr.score,cefrLevel=_pr.level;
     dcInval('homeworks_'+S.schoolId);
     closeM('mPlacementTestPlayer');
