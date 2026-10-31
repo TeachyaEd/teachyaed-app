@@ -3428,7 +3428,12 @@ Object.assign(CRM_TR,{
 "Просрочен {n} дн":["Overdue {n} d","ვადაგადაცილებულია {n} დღე"],"осталось {n} дн":["{n} d left","დარჩა {n} დღე"],"Показано {x} из {y}":["Showing {x} of {y}","ნაჩვენებია {x} / {y}"],
 "Абонемент заканчивается через {n} дн":["Your subscription ends in {n} d","აბონემენტი მთავრდება {n} დღეში"],"Срок абонемента закончился {n} дн. назад":["Your subscription ended {n} d ago","აბონემენტის ვადა ამოიწურა {n} დღის წინ"],
 "Действует до {d} · осталось {n} дн":["Valid until {d} · {n} d left","მოქმედებს {d}-მდე · დარჩა {n} დღე"],
-"с {d}":["since {d}","{d}-დან"],"Логин":["Login","მომხმარებელი"],"Пароль":["Password","პაროლი"],"Вход":["Sign in","შესვლა"],"Вышла новая версия Classvana — обнови страницу":["A new version of Classvana is available — refresh the page","გამოვიდა Classvana-ს ახალი ვერსია — განაახლეთ გვერდი"],"Не удалось получить URL файла":["Could not get the file URL","ფაილის URL-ის მიღება ვერ მოხერხდა"],"Каждое слово с новой строки: слово — перевод. Подойдёт копия из Excel/Google Таблиц (две колонки) или файл .txt / .csv.":["One word per line: word — translation. You can paste two columns from Excel/Google Sheets or use a .txt / .csv file.","თითო სიტყვა ახალ ხაზზე: სიტყვა — თარგმანი. შეგიძლიათ ჩასვათ ორი სვეტი Excel/Google Sheets-დან ან გამოიყენოთ .txt / .csv ფაილი."],"Причина отмены":["Cancellation reason","გაუქმების მიზეზი"],"Не пройдено: {n}":["Not completed: {n}","დასასრულებელია: {n}"],
+"с {d}":["since {d}","{d}-დან"],"Логин":["Login","მომხმარებელი"],"Пароль":["Password","პაროლი"],"Вход":["Sign in","შესვლა"],
+"Не удалось завершить живой урок. Проверьте интернет и попробуйте ещё раз.":["Could not end the live lesson. Check your connection and try again.","ცოცხალი გაკვეთილის დასრულება ვერ მოხერხდა. შეამოწმეთ ინტერნეტი და სცადეთ თავიდან."],
+"Не удалось проверить живой урок — обновите страницу":["Could not verify the live lesson — reload the page","ცოცხალი გაკვეთილის შემოწმება ვერ მოხერხდა — განაახლეთ გვერდი"],
+"Живой урок восстановлен":["Live lesson restored","ცოცხალი გაკვეთილი აღდგენილია"],
+"Живой урок идёт, но комнату не удалось открыть — войдите в класс":["The live lesson is running, but the room could not be opened — enter the class","ცოცხალი გაკვეთილი მიმდინარეობს, მაგრამ ოთახი ვერ გაიხსნა — შედით კლასში"],
+"Выход отменён: живой урок ещё не завершён. Завершите урок и попробуйте снова.":["Sign-out cancelled: the live lesson has not ended yet. End the lesson and try again.","გასვლა გაუქმდა: ცოცხალი გაკვეთილი ჯერ არ დასრულებულა. დაასრულეთ გაკვეთილი და სცადეთ თავიდან."],"Вышла новая версия Classvana — обнови страницу":["A new version of Classvana is available — refresh the page","გამოვიდა Classvana-ს ახალი ვერსია — განაახლეთ გვერდი"],"Не удалось получить URL файла":["Could not get the file URL","ფაილის URL-ის მიღება ვერ მოხერხდა"],"Каждое слово с новой строки: слово — перевод. Подойдёт копия из Excel/Google Таблиц (две колонки) или файл .txt / .csv.":["One word per line: word — translation. You can paste two columns from Excel/Google Sheets or use a .txt / .csv file.","თითო სიტყვა ახალ ხაზზე: სიტყვა — თარგმანი. შეგიძლიათ ჩასვათ ორი სვეტი Excel/Google Sheets-დან ან გამოიყენოთ .txt / .csv ფაილი."],"Причина отмены":["Cancellation reason","გაუქმების მიზეზი"],"Не пройдено: {n}":["Not completed: {n}","დასასრულებელია: {n}"],
 "Готово! Мы отправили письмо на {email}. Подтвердите почту и войдите.":["Done! We sent an email to {email}. Confirm your email and sign in.","მზადაა! წერილი გავუგზავნეთ {email}-ზე. დაადასტურეთ ელფოსტა და შედით."],
 "✅ Импортировано {n} упр.":["✅ Imported {n} exercises","✅ იმპორტირებულია {n} სავარჯიშო"],"✅ Класс «{name}» удалён":["✅ Class “{name}” deleted","✅ კლასი „{name}“ წაიშალა"],
 "✅ Загружено разделов: {n} ({ex} упр.)":["✅ Sections loaded: {n} ({ex} exercises)","✅ ჩაიტვირთა განყოფილებები: {n} ({ex} სავარჯიშო)"],"{n}с":["{n}s","{n}წმ"],
@@ -4788,6 +4793,7 @@ async function afterLogin(user){
   }catch(_e){}
   const firstItem=(NAV[S.role]||[]).find(n=>n.id);
   showScreen(S.role==='student'?'s_home':(_startId||(firstItem&&firstItem.id)));
+  restoreLiveSession();
   // Apply translations to all static elements on page load
   setTimeout(()=>{
     if(S.lang==='en')applyEN(document.body);
@@ -4799,6 +4805,11 @@ async function afterLogin(user){
 }
 async function doLogout(){
   if(S._loggingOut)return;
+  if(S._liveId){
+    const _fin=await finishLiveSession('logout');
+    if(!_fin.ok){showToast(t('Выход отменён: живой урок ещё не завершён. Завершите урок и попробуйте снова.'),'error');return;}
+    _closeClassroomViewUI();
+  }
   S._loggingOut=true;
   try{
   closeSidebar();
@@ -8854,21 +8865,80 @@ async function startLiveLesson(lessonId,lessonTitle){
     const classId=S.currentClassId;if(!classId)return;
     const room=_classRoomId(classId);
     // Закрываем предыдущие live-сессии этого класса
-    await sb.from('class_live').update({active:false,ended_at:new Date().toISOString()}).eq('class_id',classId).eq('school_id',S.schoolId).eq('active',true);
+    const{error:_prevErr}=await sb.from('class_live').update({active:false,ended_at:new Date().toISOString()}).eq('class_id',classId).eq('school_id',S.schoolId).eq('active',true);
+    if(_prevErr)console.warn('[live] close previous:',_prevErr);
     const _tname=((S.profile?.first_name||'')+' '+(S.profile?.last_name||'')).trim();
     const{data:live,error}=await sb.from('class_live').insert({school_id:S.schoolId,class_id:classId,lesson_id:lessonId||null,teacher_id:S.profile?.id||null,teacher_name:_tname,room_id:room,active:true}).select().single();
     if(error){console.warn('[live] insert:',error);return;}
     S._liveId=live?.id||null;S._liveRoomId=room;
+    if(S._liveId)_liveSave({liveId:S._liveId,classId:classId,userId:S.profile?.id||null,schoolId:S.schoolId,roomId:room,lessonId:lessonId||null,startedAt:live.started_at||null});
     lvSyncInit(lessonId?('ls_'+String(lessonId).replace(/[^a-zA-Z0-9]/g,'').slice(0,20)):room);
     try{await sb.from('class_feed').insert({school_id:S.schoolId,class_id:classId,author_id:S.profile?.id||null,author_name:_tname,type:'system',text:'🔴 '+t('Урок начался')+(lessonTitle?': «'+lessonTitle+'»':'')});}catch(_e){}
     showToast('🔴 '+t('Живой урок запущен — ученики видят «Войти в урок»'));
   }catch(e){console.warn('[live] start:',e);}
 }
-async function endLiveLesson(){
+// ── Живая сессия: хранение в sessionStorage (только id/контекст, без секретов) ──
+const CV_LIVE_KEY='classvana.live.v1';
+function _liveSave(o){try{sessionStorage.setItem(CV_LIVE_KEY,JSON.stringify(o));}catch(e){console.warn('[live] persist:',e);}}
+function _liveLoad(){try{return JSON.parse(sessionStorage.getItem(CV_LIVE_KEY)||'null');}catch(e){return null;}}
+function _liveForget(id){try{const o=_liveLoad();if(!o||!id||o.liveId===id)sessionStorage.removeItem(CV_LIVE_KEY);}catch(e){}}
+// Единственный путь явного завершения живой сессии. {ok:true} — только после подтверждения БД.
+async function finishLiveSession(reason){
+  const id=S._liveId;
+  if(!id)return{ok:true,none:true};
+  if(finishLiveSession._p&&finishLiveSession._id===id)return finishLiveSession._p;
+  finishLiveSession._id=id;
+  finishLiveSession._p=(async()=>{
+    let res;
+    try{res=await sb.from('class_live').update({active:false,ended_at:new Date().toISOString()}).eq('id',id).eq('school_id',S.schoolId).eq('active',true).select('id');}
+    catch(e){res={error:e};}
+    let ok=!res.error&&(res.data||[]).length===1;
+    if(!ok&&!res.error){
+      // 0 строк: возможно, сессия уже закрыта (другой вкладкой/новым стартом) — проверяем, а не предполагаем
+      try{
+        const{data:row,error:e2}=await sb.from('class_live').select('id,active').eq('id',id).maybeSingle();
+        if(!e2&&row&&row.active===false)ok=true;
+        else res={error:e2||(row?'0 rows updated (RLS?)':'row not visible')};
+      }catch(e){res={error:e};}
+    }
+    if(!ok){
+      console.error('[live] finish failed',{reason:reason,liveId:id,error:res.error});
+      showToast('❌ '+t('Не удалось завершить живой урок. Проверьте интернет и попробуйте ещё раз.'),'error');
+      return{ok:false,error:res.error};
+    }
+    if(S._liveId===id){S._liveId=null;S._liveRoomId=null;}
+    _liveForget(id);
+    return{ok:true};
+  })();
+  try{return await finishLiveSession._p;}finally{finishLiveSession._p=null;finishLiveSession._id=null;}
+}
+async function endLiveLesson(){return (await finishLiveSession('legacy')).ok;}
+// После F5: восстановить сессию из sessionStorage без нового INSERT
+async function restoreLiveSession(){
+  const o=_liveLoad();
+  if(!o||!o.liveId)return;
+  if(!['teacher','admin','owner'].includes(S.role)||o.userId!==S.profile?.id||o.schoolId!==S.schoolId){_liveForget(o.liveId);return;}
+  let row=null,error=null;
+  try{({data:row,error}=await sb.from('class_live').select('id,school_id,class_id,lesson_id,teacher_id,room_id,active,cur_section').eq('id',o.liveId).maybeSingle());}
+  catch(e){error=e;}
+  if(error){
+    console.warn('[live] restore: проверка не удалась, сессия сохранена',error);
+    showToast(t('Не удалось проверить живой урок — обновите страницу'),'error');
+    return;
+  }
+  if(!row||row.active!==true||row.class_id!==o.classId||row.teacher_id!==S.profile.id||row.school_id!==S.schoolId){_liveForget(o.liveId);return;}
+  S._liveId=row.id;S._liveRoomId=row.room_id;S.currentClassId=row.class_id;
   try{
-    if(S._liveId){await sb.from('class_live').update({active:false,ended_at:new Date().toISOString()}).eq('id',S._liveId).eq('school_id',S.schoolId);}
-  }catch(e){console.warn('[live] end:',e);}
-  S._liveId=null;S._liveRoomId=null;
+    const{data:cl}=await sb.from('classes').select('*').eq('id',row.class_id).eq('school_id',S.schoolId).maybeSingle();
+    if(cl)S._currentClassData=cl;
+    let l=null;
+    if(row.lesson_id){const{data:_l}=await sb.from('lessons').select('id,title,content').eq('id',row.lesson_id).eq('school_id',S.schoolId).maybeSingle();l=_l;}
+    const _pc=_parseLessonContent((l&&l.content)||[]);
+    openClassroomView((l&&l.title)||t('Класс'),_pc.sections,null,(cl&&cl.name)||null,_pc.materials,l?l.id:null,row.cur_section||0);
+    LV.lessonId=l?l.id:null;
+    lvSyncInit(LV.lessonId?('ls_'+String(LV.lessonId).replace(/[^a-zA-Z0-9]/g,'').slice(0,20)):row.room_id);
+    showToast('🔴 '+t('Живой урок восстановлен'));
+  }catch(e){console.warn('[live] restore UI:',e);showToast(t('Живой урок идёт, но комнату не удалось открыть — войдите в класс'),'error');}
 }
 // Ученик: вход в живой урок
 async function joinLiveLesson(liveId){
@@ -10687,7 +10757,15 @@ function switchCVTab(tab,el){
   }
 }
 
-function closeClassroomView(){C('classroomView').classList.remove('open');cvChatClose();cvMobPanelClose();if(S._liveId)endLiveLesson();if(LV._syncCh){try{sb.removeChannel(LV._syncCh);}catch(e){}LV._syncCh=null;}}
+function _closeClassroomViewUI(){C('classroomView').classList.remove('open');cvChatClose();cvMobPanelClose();if(LV._syncCh){try{sb.removeChannel(LV._syncCh);}catch(e){}LV._syncCh=null;}}
+function closeClassroomView(){
+  if(S._liveId){
+    if(closeClassroomView._busy)return;closeClassroomView._busy=true;
+    finishLiveSession('exit').then(function(r){if(r.ok)_closeClassroomViewUI();}).finally(function(){closeClassroomView._busy=false;});
+    return;
+  }
+  _closeClassroomViewUI();
+}
 
 // ── LESSON CHAT ─────────────────────────────────────────────────────────────
 let cvChatChannel=null;
@@ -11988,7 +12066,8 @@ async function completeLessonView(){
     if(['teacher','admin','owner'].includes(S.role)&&S.currentClassId&&LV.lessonId&&!LV.assignId){
       const{data:_cr,error:_ce}=await sb.rpc('complete_lesson_for_class',{p_class_id:S.currentClassId,p_lesson_id:LV.lessonId});
       if(_ce||_cr?.error){showToast('❌ '+t('Ошибка завершения урока')+': '+(_cr?.error||_ce?.message),'error');return;}
-      endLiveLesson();
+      const _fin=await finishLiveSession('finish');
+      if(!_fin.ok)return;
       // Чистим чат урока для всех (realtime DELETE разошлётся ученикам)
       if(LV.chatRoomId){try{await sb.from('lesson_chat').delete().eq('room_id',LV.chatRoomId).eq('school_id',S.schoolId);}catch(_ce2){console.warn('[chat clear]',_ce2);}}
       window._assignCache={};
