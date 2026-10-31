@@ -1280,7 +1280,7 @@ body[data-theme="dark"] .badge-gray{background:rgba(255,255,255,.07)!important;c
   <div id="topBar">
     <button id="menuBtn" onclick="toggleSidebar()" aria-label="Меню">☰</button>
     <button id="stuHomeBtn" onclick="showScreen('s_home')" aria-label="Главная">🏠 <span>Главная</span></button>
-    <div class="logo">Classvana</div>
+    <div class="logo" data-brand data-l10n-skip translate="no">Classvana</div>
     <button id="userChip" onclick="openProfile()" style="display:flex;align-items:center;gap:8px;background:none;border:none;cursor:pointer;padding:4px 8px;border-radius:20px;transition:.15s" onmouseover="this.style.background='var(--gray-light)'" onmouseout="this.style.background='none'"><span id="userAvatar" style="width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.75rem;color:#fff;flex-shrink:0"></span><span id="userNameChip" style="font-size:.8rem;color:var(--text3);white-space:nowrap;max-width:120px;overflow:hidden;text-overflow:ellipsis"></span></button>
     <span id="roleChip"></span>
     <button id="notifBell" onclick="openNotifPanel()" title="Уведомления">🔔<span id="notifBadge"></span></button>
@@ -3562,7 +3562,7 @@ function revertToRU(root){
   const {entries:geE,map:geM}=_getReverseDataGE();
   const allEntries=[...enE,...geE].sort((a,b)=>b[0].length-a[0].length);
   const allMap={...enM,...geM};
-  const walker=document.createTreeWalker(root,NodeFilter.SHOW_TEXT,null,false);
+  const walker=document.createTreeWalker(root,NodeFilter.SHOW_TEXT,{acceptNode:n=>n.parentElement&&n.parentElement.closest('[data-brand]')?NodeFilter.FILTER_REJECT:NodeFilter.FILTER_ACCEPT},false);
   const nodes=[];let node;
   while(node=walker.nextNode())nodes.push(node);
   nodes.forEach(n=>{
@@ -3593,7 +3593,7 @@ function revertToRU(root){
 function applyRU(root){
   if(!root||S.lang==='en'||S.lang==='ge')return;
   const {entries,map}=_getReverseData();
-  const walker=document.createTreeWalker(root,NodeFilter.SHOW_TEXT,null,false);
+  const walker=document.createTreeWalker(root,NodeFilter.SHOW_TEXT,{acceptNode:n=>n.parentElement&&n.parentElement.closest('[data-brand]')?NodeFilter.FILTER_REJECT:NodeFilter.FILTER_ACCEPT},false);
   const nodes=[];
   let node;
   while(node=walker.nextNode())nodes.push(node);
@@ -3633,7 +3633,7 @@ function applyEN(root){
   if(!root||S.lang!=='en')return;
   document.documentElement.lang = S.lang==='en'?'en':S.lang==='ge'?'ka':'ru';
   const entries=_getTrEntries();
-  const walker=document.createTreeWalker(root,NodeFilter.SHOW_TEXT,null,false);
+  const walker=document.createTreeWalker(root,NodeFilter.SHOW_TEXT,{acceptNode:n=>n.parentElement&&n.parentElement.closest('[data-brand]')?NodeFilter.FILTER_REJECT:NodeFilter.FILTER_ACCEPT},false);
   const nodes=[];
   let node;
   while(node=walker.nextNode())nodes.push(node);
@@ -3677,7 +3677,7 @@ function applyGE(root){
   if(!root||S.lang!=='ge')return;
   document.documentElement.lang = S.lang==='en'?'en':S.lang==='ge'?'ka':'ru';
   const entries=_getTrEntriesGE();
-  const walker=document.createTreeWalker(root,NodeFilter.SHOW_TEXT,null,false);
+  const walker=document.createTreeWalker(root,NodeFilter.SHOW_TEXT,{acceptNode:n=>n.parentElement&&n.parentElement.closest('[data-brand]')?NodeFilter.FILTER_REJECT:NodeFilter.FILTER_ACCEPT},false);
   const nodes=[];let node;
   while(node=walker.nextNode())nodes.push(node);
   nodes.forEach(n=>{
