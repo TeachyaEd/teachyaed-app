@@ -3191,6 +3191,12 @@ Object.assign(CRM_TR,{
 "Абонемент заканчивается через {n} дн":["Your subscription ends in {n} d","აბონემენტი მთავრდება {n} დღეში"],"Срок абонемента закончился {n} дн. назад":["Your subscription ended {n} d ago","აბონემენტის ვადა ამოიწურა {n} დღის წინ"],
 "Действует до {d} · осталось {n} дн":["Valid until {d} · {n} d left","მოქმედებს {d}-მდე · დარჩა {n} დღე"],
 "с {d}":["since {d}","{d}-დან"],"Логин":["Login","მომხმარებელი"],"Пароль":["Password","პაროლი"],"Вход":["Sign in","შესვლა"],
+"Новое повторение":["New review","ახალი გამეორება"],
+"Редактировать повторение":["Edit review","გამეორების რედაქტირება"],
+"Повторение добавлено":["Review added","გამეორება დაემატა"],
+"Повторение обновлено":["Review updated","გამეორება განახლდა"],
+"Весь класс":["Whole class","მთელი კლასი"],
+"Ранее добавлено: слова и заметки":["Added earlier: words and notes","ადრე დამატებული: სიტყვები და შენიშვნები"],
 "Чат доступен только в уроке класса":["Chat is available only in a class lesson","ჩატი ხელმისაწვდომია მხოლოდ კლასის გაკვეთილზე"],
 "Не удалось начать групповой звонок — попробуйте ещё раз":["Could not start the group call — please try again","ჯგუფური ზარის დაწყება ვერ მოხერხდა — სცადეთ თავიდან"],
 "Не удалось завершить живой урок. Проверьте интернет и попробуйте ещё раз.":["Could not end the live lesson. Check your connection and try again.","ცოცხალი გაკვეთილის დასრულება ვერ მოხერხდა. შეამოწმეთ ინტერნეტი და სცადეთ თავიდან."],
@@ -6002,7 +6008,7 @@ return;
 S.studentRowId=stu.id;
 const stuId=stu?.id||null;
 const[{data:hw},{data:assigns}]=await Promise.all([
-stuId?sb.from('homeworks').select('id').eq('student_id',stuId).eq('school_id',S.schoolId).eq('status','pending'):Promise.resolve({data:[]}),
+stuId?sb.from('homeworks').select('id').neq('kind','review').eq('student_id',stuId).eq('school_id',S.schoolId).eq('status','pending'):Promise.resolve({data:[]}),
 stuId?sb.from('lesson_assignments').select('id').eq('student_id',stuId).eq('school_id',S.schoolId).eq('completed',false):Promise.resolve({data:[]})
 ]);
 if(S.screen!==_shSnap)return;
@@ -6061,19 +6067,19 @@ await openHWEditor(null,S._cvStudentId||null);
 var ti=C('hwe_title');if(ti&&!ti.value)ti.value=HWE.lessonTitle;
 showToast('🏠 '+t('Домашнее задание будет привязано к этому уроку'));
 }
-async function openHWEditor(hwId,preStudentId,preStudentName){
-HWE.hwId=hwId||null;HWE.exercises=[];if(!hwId&&!HWE.lessonId){HWE.lessonTitle='';}
-C('hweTitle').textContent=hwId?'✏️ Редактировать ДЗ':'📋 Новое ДЗ';
+async function openHWEditor(hwId,preStudentId,preStudentName,kind){
+HWE.hwId=hwId||null;HWE.exercises=[];HWE.kind=kind==='review'?'review':'hw';if(!hwId&&!HWE.lessonId){HWE.lessonTitle='';}
+C('hweTitle').textContent=HWE.kind==='review'?(hwId?'✏️ '+t('Редактировать повторение'):'🔁 '+t('Новое повторение')):(hwId?'✏️ Редактировать ДЗ':'📋 Новое ДЗ');
 C('hwe_title').value='';C('hwe_deadline').value='';
 const{data:sts}=await sb.from('students').select('id,first_name,last_name').eq('school_id',S.schoolId).order('last_name');
-C('hwe_student').innerHTML=(sts||[]).map(s=>`<option value="${s.id}"${s.id===preStudentId?' selected':''}>${_esc(s.first_name)} ${_esc(s.last_name)}</option>`).join('');
+C('hwe_student').innerHTML=(HWE.kind==='review'&&!hwId&&S.currentClassId&&!preStudentId?'<option value="__class__" selected>👥 '+_esc(t('Весь класс'))+'</option>':'')+(sts||[]).map(s=>`<option value="${s.id}"${s.id===preStudentId?' selected':''}>${_esc(s.first_name)} ${_esc(s.last_name)}</option>`).join('');
 if(hwId){
 const{data:hw}=await sb.from('homeworks').select('*').eq('id',hwId).eq('school_id',S.schoolId).single();
 if(hw){
 C('hwe_title').value=hw.title||'';
 C('hwe_deadline').value=hw.deadline||'';
 C('hwe_student').value=hw.student_id||'';
-var _p=hwParse(hw);HWE.exercises=_p.exercises;HWE.lessonId=_p.lesson_id;HWE.lessonTitle=_p.lesson_title;
+var _p=hwParse(hw);HWE.exercises=_p.exercises;HWE.lessonId=_p.lesson_id;HWE.lessonTitle=_p.lesson_title;HWE.kind=hw.kind==='review'?'review':'hw';
 }
 }
 hweRenderExercises();
@@ -6242,26 +6248,36 @@ showToast(tf('✅ Импортировано {n} упр.',{n:imported.length}));
 async function saveHWEditor(){
 const sid=C('hwe_student').value,title=C('hwe_title').value.trim(),dl=C('hwe_deadline').value;
 if(!sid){showToast(t('Выбери ученика'),'error');return;}
+if(sid==='__class__'&&(HWE.hwId||HWE.kind!=='review'||!S.currentClassId)){showToast(t('Выбери ученика'),'error');return;}
 if(!title){showToast(t('Введи тему урока'),'error');return;}
 if(!HWE.exercises.length){showToast(t('Добавь хотя бы одно упражнение'),'error');return;}
 if(HWE._saving)return;HWE._saving=true;
 var btn=document.querySelector('#mHWEditor .btn-purple');
 try{
 if(btn){btn.disabled=true;btn.textContent='Сохранение...';}
-var payload={school_id:S.schoolId,teacher_id:S.profile.id,student_id:sid,title:title,lesson_id:HWE.lessonId||null,description:JSON.stringify({v:2,lesson_id:HWE.lessonId||null,lesson_title:HWE.lessonTitle||'',exercises:HWE.exercises}),deadline:dl||null};
-if(HWE.hwId){
+var _isRv=HWE.kind==='review';
+var payload={school_id:S.schoolId,teacher_id:S.profile.id,student_id:sid,title:title,lesson_id:HWE.lessonId||null,description:JSON.stringify({v:2,lesson_id:HWE.lessonId||null,lesson_title:HWE.lessonTitle||'',exercises:HWE.exercises}),deadline:dl||null,kind:_isRv?'review':'hw'};
+if(!HWE.hwId&&sid==='__class__'){
+const{data:_cs,error:_csErr}=await sb.from('class_students').select('student_id').eq('class_id',S.currentClassId).eq('school_id',S.schoolId);
+if(_csErr||!(_cs||[]).length){showToast(t('В классе нет учеников'),'error');return;}
+const _rows=_cs.map(function(c){return Object.assign({},payload,{student_id:c.student_id,status:'pending'});});
+const{error:_ie}=await sb.from('homeworks').insert(_rows);
+if(_ie){showToast(t('Ошибка сохранения: ')+_ie.message,'error');return;}
+showToast('✅ '+t('Повторение добавлено')+': '+_rows.length);
+} else if(HWE.hwId){
 const{error}=await sb.from('homeworks').update(payload).eq('id',HWE.hwId).eq('school_id',S.schoolId).eq('teacher_id',S.profile?.id);
 if(error){showToast(t('Ошибка сохранения: ')+error.message,'error');return;}
-showToast(t('✅ ДЗ обновлено!'));
+showToast(_isRv?'✅ '+t('Повторение обновлено'):t('✅ ДЗ обновлено!'));
 } else {
 const{error}=await sb.from('homeworks').insert({...payload,status:'pending'});
 if(error){showToast(t('Ошибка создания ДЗ: ')+error.message,'error');return;}
-showToast(t('✅ ДЗ отправлено!'));
+showToast(_isRv?'✅ '+t('Повторение добавлено'):t('✅ ДЗ отправлено!'));
 }
 dcInval('homeworks_'+S.schoolId);
 try{localStorage.removeItem(_hweDraftKey());}catch(_dz){}
 closeM('mHWEditor');
 if(S.screen==='t_homework')renderTeacherHw();
+if(_isRv&&C('classroomView')&&C('classroomView').classList.contains('open'))cvLoadReview();
 } finally {
 HWE._saving=false;
 if(btn){btn.disabled=false;btn.textContent='✉️ Отправить ДЗ';}
@@ -6574,7 +6590,7 @@ sb.from('schedule_events').select('*').eq('class_id',classId).eq('school_id',S.s
 sb.from('class_live').select('*').eq('class_id',classId).eq('school_id',S.schoolId).eq('active',true).order('started_at',{ascending:false}).limit(1),
 sb.from('class_lessons').select('*,lesson:lesson_id(id,title,language,level)').eq('class_id',classId).eq('school_id',S.schoolId).order('position'),
 sb.from('class_feed').select('*').eq('class_id',classId).eq('school_id',S.schoolId).order('created_at',{ascending:false}).limit(15),
-S.studentRowId?sb.from('homeworks').select('id,title,status,deadline').eq('student_id',S.studentRowId).eq('school_id',S.schoolId).order('created_at',{ascending:false}).limit(10):Promise.resolve({data:[]})
+S.studentRowId?sb.from('homeworks').select('id,title,status,deadline').neq('kind','review').eq('student_id',S.studentRowId).eq('school_id',S.schoolId).order('created_at',{ascending:false}).limit(10):Promise.resolve({data:[]})
 ]);
 if(!cl){showToast(t('Класс не найден'),'error');renderStudentClasses();return;}
 const teacher=cl.profiles;
@@ -6730,7 +6746,7 @@ if(renderTeacherHw._loading)return;renderTeacherHw._loading=true;
 try{
 const _thwSnap=S.screen;
 showSkel();
-const{data:hws,error:hwsErr}=await sb.from('homeworks').select('*,student:student_id(first_name,last_name)').eq('teacher_id',S.profile.id).eq('school_id',S.schoolId).order('created_at',{ascending:false});
+const{data:hws,error:hwsErr}=await sb.from('homeworks').select('*,student:student_id(first_name,last_name)').neq('kind','review').eq('teacher_id',S.profile.id).eq('school_id',S.schoolId).order('created_at',{ascending:false});
 if(S.screen!==_thwSnap)return;
 if(hwsErr){setContent('<div class="empty-state"><div class="ei">⚠️</div><p>Ошибка загрузки: '+_ud(hwsErr.message)+'</p></div>');return;}
 const cards=(hws||[]).map(hw=>{
@@ -6836,7 +6852,7 @@ const{data:stu}=await sb.from('students').select('id').ilike('email',S.profile.e
 if(S.screen!==_sthwSnap)return;
 if(!stu?.id){C('content').innerHTML='<div class="empty-state"><div class="ei">📭</div><p>Профиль ученика не найден.</p></div>';return;}
 if(!S.studentRowId)S.studentRowId=stu.id;
-const{data:hws}=await sb.from('homeworks').select('*,teacher:teacher_id(first_name,last_name)').eq('student_id',stu.id).eq('school_id',S.schoolId).order('created_at',{ascending:false});
+const{data:hws}=await sb.from('homeworks').select('*,teacher:teacher_id(first_name,last_name)').neq('kind','review').eq('student_id',stu.id).eq('school_id',S.schoolId).order('created_at',{ascending:false});
 if(S.screen!==_sthwSnap)return;
 var _lastLes='\u0000';
 const _hwSorted=(hws||[]).slice().sort(function(a,b){var pa=hwParse(a),pb=hwParse(b);var la=(pa.lesson_title||pa.lesson_id||'\uffff'),lb=(pb.lesson_title||pb.lesson_id||'\uffff');return String(la).localeCompare(String(lb));});
@@ -8692,7 +8708,7 @@ const{data:cs}=await sb.from('class_students').select('student_id').eq('class_id
 const stuIds=(cs||[]).map(c=>c.student_id);
 let hws=[];
 if(stuIds.length){
-const{data:_h}=await sb.from('homeworks').select('*,student:student_id(first_name,last_name)').eq('school_id',S.schoolId).in('student_id',stuIds).order('created_at',{ascending:false}).limit(50);
+const{data:_h}=await sb.from('homeworks').select('*,student:student_id(first_name,last_name)').neq('kind','review').eq('school_id',S.schoolId).in('student_id',stuIds).order('created_at',{ascending:false}).limit(50);
 hws=_h||[];
 }
 const sMap={pending:t('Ожидает'),submitted:t('Сдано'),reviewed:t('Проверено')};
@@ -10150,11 +10166,11 @@ var csr=await sb.from("class_students").select("student_id").eq("class_id",S.cur
 ids=(csr.data||[]).map(function(c){return c.student_id;});
 }
 if(ids.length){
-var hr=await sb.from("homeworks").select("*,student:student_id(first_name,last_name)").eq("school_id",S.schoolId).in("student_id",ids).order("created_at",{ascending:false}).limit(60);
+var hr=await sb.from("homeworks").select("*,student:student_id(first_name,last_name)").neq('kind','review').eq("school_id",S.schoolId).in("student_id",ids).order("created_at",{ascending:false}).limit(60);
 hws=hr.data||[];
 }
 } else if(S.studentRowId){
-var sr=await sb.from("homeworks").select("*").eq("school_id",S.schoolId).eq("student_id",S.studentRowId).order("created_at",{ascending:false}).limit(60);
+var sr=await sb.from("homeworks").select("*").neq('kind','review').eq("school_id",S.schoolId).eq("student_id",S.studentRowId).order("created_at",{ascending:false}).limit(60);
 hws=sr.data||[];
 }
 var sMap={pending:t("Ожидает"),submitted:t("Сдано"),reviewed:t("Проверено")};
@@ -10218,41 +10234,48 @@ var isT=["teacher","admin","owner"].includes(S.role);
 var sc=rvScope();
 box.innerHTML='<div style="padding:24px;color:var(--text3)">'+t("Загрузка...")+'</div>';
 try{
-var q=sb.from("review_items").select("*,student:student_id(first_name,last_name)").eq("school_id",S.schoolId).order("created_at",{ascending:false}).limit(300);
+var ids=[];
 if(isT){
-if(sc.stu)q=sc.cls?q.or("student_id.eq."+sc.stu+",and(class_id.eq."+sc.cls+",student_id.is.null)"):q.eq("student_id",sc.stu);
-else if(sc.cls)q=q.eq("class_id",sc.cls);
+if(sc.stu)ids=[sc.stu];
+else if(sc.cls){var csr=await sb.from("class_students").select("student_id").eq("class_id",sc.cls).eq("school_id",S.schoolId);ids=(csr.data||[]).map(function(c){return c.student_id;});}
 else{box.innerHTML='<div class="empty-state" style="padding:40px 0"><div class="ei">🔁</div><p>'+t("Откройте урок из класса или ученика, чтобы добавить повторение")+'</p></div>';return;}
+} else if(S.studentRowId)ids=[S.studentRowId];
+var rv=[];
+if(ids.length){
+var hr=await sb.from("homeworks").select("*,student:student_id(first_name,last_name)").eq("school_id",S.schoolId).eq("kind","review").in("student_id",ids).order("created_at",{ascending:false}).limit(100);
+if(hr.error)throw hr.error;rv=hr.data||[];
 }
-var r=await q;if(r.error)throw r.error;
-var items=r.data||[];
-if(!isT&&sc.cls)items=items.filter(function(i){return i.student_id||i.class_id===sc.cls;});
-var form='';
-if(isT){
-var tgt='<select id="rv_target" class="form-control" style="max-width:200px">'
-+(sc.cls?'<option value="class">'+t("Всему классу")+'</option>':'')
-+(sc.stu?'<option value="student">'+t("Только этому ученику")+'</option>':'')+'</select>';
-form='<div class="card" style="margin-bottom:14px;padding:12px 16px">'
-+'<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">'
-+'<select id="rv_kind" class="form-control" style="max-width:160px"><option value="word">🔤 '+t("Слова")+'</option><option value="task">✏️ '+t("Задача")+'</option><option value="note">📝 '+t("Заметка")+'</option></select>'+tgt+'</div>'
-+'<textarea id="rv_text" class="form-control" rows="3" placeholder="'+_escHtml(t("Слова: каждое с новой строки, «слово - перевод». Задача или заметка: любой текст"))+'"></textarea>'
-+'<div style="margin-top:8px"><button class="btn btn-purple btn-sm" onclick="rvAdd()">+ '+t("Добавить")+'</button></div></div>';
-}
+var lq=sb.from("review_items").select("*,student:student_id(first_name,last_name)").eq("school_id",S.schoolId).order("created_at",{ascending:false}).limit(300);
+if(isT){lq=sc.stu?(sc.cls?lq.or("student_id.eq."+sc.stu+",and(class_id.eq."+sc.cls+",student_id.is.null)"):lq.eq("student_id",sc.stu)):lq.eq("class_id",sc.cls);}
+var lr=await lq;var legacy=lr.error?[]:(lr.data||[]);
+if(!isT&&sc.cls)legacy=legacy.filter(function(i){return i.student_id||i.class_id===sc.cls;});
+var sMap={pending:t("Ожидает"),submitted:t("Сдано"),reviewed:t("Проверено")};
+var bMap={pending:"badge-purple",submitted:"badge-yellow",reviewed:"badge-green"};
+var card=function(hw){
+var id=_escJS(hw.id);var p=hwParse(hw);
+var who=isT?("👤 "+_ud((((hw.student&&hw.student.first_name)||"")+" "+((hw.student&&hw.student.last_name)||"")).trim())+" · "):"";
+var acts=isT
+?'<button class="btn btn-sm btn-outline" style="font-size:.75rem" onclick="openHWAsLesson(\''+id+'\')">👁 '+t("Смотреть")+'</button>'
++'<button class="btn btn-sm btn-outline" style="font-size:.75rem" onclick="openHWEditor(\''+id+'\',null,null,\'review\')">✏️ '+t("Изменить")+'</button>'
++'<button class="btn btn-sm btn-outline" style="font-size:.75rem;color:var(--red)" onclick="hwDeleteRow(\''+id+'\',\'cvLoadReview\')">🗑 '+t("Удалить")+'</button>'
+:'<button class="btn btn-sm btn-purple" style="font-size:.75rem" onclick="openHWAsLesson(\''+id+'\')">▶️ '+t("Открыть")+'</button>';
+return '<div class="card" style="margin-bottom:8px;padding:12px 16px"><div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">'
++'<div><div style="font-weight:700">'+_ud(hw.title||"")+' <span class="badge '+(bMap[hw.status]||"badge-purple")+'">'+_ud(sMap[hw.status]||hw.status||"")+'</span></div>'
++'<div style="font-size:.78rem;color:var(--text3)">'+who+"📝 "+p.exercises.length+" "+t("упр.")+'</div></div>'
++'<div style="display:flex;gap:6px;flex-wrap:wrap">'+acts+'</div></div></div>';
+};
+var addBtn=isT?'<button class="btn btn-purple" onclick="openHWEditor(null,S._cvStudentId||null,null,\'review\')">+ '+t("Новое повторение")+'</button>':"";
+var html='<div class="section-header" style="margin-bottom:12px"><span style="font-weight:700">🔁 '+t("Повторение")+'</span>'+addBtn+'</div>';
+html+=rv.length?rv.map(card).join(""):'<div class="empty-state" style="padding:30px 0"><div class="ei">🔁</div><p>'+t("Пока нечего повторять")+'</p></div>';
+if(legacy.length){
 var row=function(i){
 var id=_escJS(i.id);
-var who=(isT&&i.student_id)?'<span class="badge badge-purple" style="margin-left:6px">👤 '+_ud((i.student&&i.student.first_name)||"")+'</span>':'';
-var ex=i.extra?(isT?' <span style="color:var(--text3)">— '+_ud(i.extra)+'</span>'
-:' <span style="color:var(--purple);cursor:pointer;font-size:.8rem" onclick="this.textContent=\'— \'+this.dataset.x;this.style.color=\'var(--text3)\'" data-x="'+_escHtml(i.extra)+'">👁 '+t("перевод")+'</span>'):'';
-var acts=isT?'<span style="margin-left:auto;display:flex;gap:6px"><button class="btn btn-sm btn-outline" style="font-size:.72rem" onclick="rvEdit(\''+id+'\')">✏️</button><button class="btn btn-sm btn-outline" style="font-size:.72rem;color:var(--red)" onclick="rvDel(\''+id+'\')">🗑</button></span>':'';
-return '<div class="card" style="margin-bottom:6px;padding:10px 14px;display:flex;align-items:flex-start;gap:8px">'
-+'<span>'+(RV_KIND[i.kind]||'•')+'</span><div style="white-space:pre-wrap;flex:1">'+_ud(i.content)+ex+who+'</div>'+acts+'</div>';
+var ex=i.extra?' <span style="color:var(--text3)">— '+_ud(i.extra)+'</span>':'';
+var del=isT?'<button class="btn btn-sm btn-outline" style="font-size:.72rem;color:var(--red);margin-left:auto" onclick="rvDel(\''+id+'\')">🗑</button>':'';
+return '<div class="card" style="margin-bottom:6px;padding:8px 14px;display:flex;align-items:flex-start;gap:8px"><span>'+(RV_KIND[i.kind]||'•')+'</span><div style="white-space:pre-wrap;flex:1">'+_ud(i.content)+ex+'</div>'+del+'</div>';
 };
-var html='<div class="section-header" style="margin-bottom:12px"><span style="font-weight:700">🔁 '+t("Повторение")+'</span></div>'+form;
-['word','task','note'].forEach(function(k){
-var g=items.filter(function(i){return i.kind===k;});
-if(g.length)html+='<div style="font-size:.75rem;font-weight:700;color:var(--purple);text-transform:uppercase;margin:12px 0 6px">'+t({word:'Слова',task:'Задачи',note:'Заметки'}[k])+' · '+g.length+'</div>'+g.map(row).join('');
-});
-if(!items.length)html+='<div class="empty-state" style="padding:30px 0"><div class="ei">🔁</div><p>'+t("Пока нечего повторять")+'</p></div>';
+html+='<div style="font-size:.75rem;font-weight:700;color:var(--text3);text-transform:uppercase;margin:18px 0 6px">'+t("Ранее добавлено: слова и заметки")+' · '+legacy.length+'</div>'+legacy.map(row).join("");
+}
 box.innerHTML=html;
 }catch(e){box.innerHTML='<div style="padding:24px;color:var(--pink)">'+t("Ошибка загрузки")+": "+_ud(e.message||"")+'</div>';}
 }
@@ -11296,7 +11319,7 @@ if(!LV.hwId)return;
 var isT=['teacher','admin','owner'].includes(S.role);
 var sid=isT?LV.hwStudentId:S.studentRowId;
 if(!sid)return;
-var q=await sb.from('homeworks').select('id,title,status,description,lesson_id').eq('school_id',S.schoolId).eq('student_id',sid).order('created_at',{ascending:false}).limit(40);
+var q=await sb.from('homeworks').select('id,title,status,description,lesson_id').neq('kind','review').eq('school_id',S.schoolId).eq('student_id',sid).order('created_at',{ascending:false}).limit(40);
 var list=(q&&q.data)||[];if(list.length<1)return;
 var cur=LV._hwFromLesson||null;
 var rows=list.map(function(h){
@@ -12524,7 +12547,7 @@ C('sp_content').innerHTML='<div style="text-align:center;padding:20px;color:var(
 openM('mStudentProgress');
 
 const[{data:hws},{data:cs}]=await Promise.all([
-sb.from('homeworks').select('id,status,title,deadline').eq('student_id',studentId).eq('school_id',S.schoolId),
+sb.from('homeworks').select('id,status,title,deadline').neq('kind','review').eq('student_id',studentId).eq('school_id',S.schoolId),
 sb.from('class_students').select('class_id').eq('student_id',studentId).eq('school_id',S.schoolId)
 ]);
 
