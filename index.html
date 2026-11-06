@@ -3191,6 +3191,7 @@ Object.assign(CRM_TR,{
 "Абонемент заканчивается через {n} дн":["Your subscription ends in {n} d","აბონემენტი მთავრდება {n} დღეში"],"Срок абонемента закончился {n} дн. назад":["Your subscription ended {n} d ago","აბონემენტის ვადა ამოიწურა {n} დღის წინ"],
 "Действует до {d} · осталось {n} дн":["Valid until {d} · {n} d left","მოქმედებს {d}-მდე · დარჩა {n} დღე"],
 "с {d}":["since {d}","{d}-დან"],"Логин":["Login","მომხმარებელი"],"Пароль":["Password","პაროლი"],"Вход":["Sign in","შესვლა"],
+"Чат доступен только в уроке класса":["Chat is available only in a class lesson","ჩატი ხელმისაწვდომია მხოლოდ კლასის გაკვეთილზე"],
 "Не удалось начать групповой звонок — попробуйте ещё раз":["Could not start the group call — please try again","ჯგუფური ზარის დაწყება ვერ მოხერხდა — სცადეთ თავიდან"],
 "Не удалось завершить живой урок. Проверьте интернет и попробуйте ещё раз.":["Could not end the live lesson. Check your connection and try again.","ცოცხალი გაკვეთილის დასრულება ვერ მოხერხდა. შეამოწმეთ ინტერნეტი და სცადეთ თავიდან."],
 "Не удалось проверить живой урок — обновите страницу":["Could not verify the live lesson — reload the page","ცოცხალი გაკვეთილის შემოწმება ვერ მოხერხდა — განაახლეთ გვერდი"],
@@ -3325,7 +3326,7 @@ const {entries:enE,map:enM}=_getReverseData();
 const {entries:geE,map:geM}=_getReverseDataGE();
 const allEntries=[...enE,...geE].sort((a,b)=>b[0].length-a[0].length);
 const allMap={...enM,...geM};
-const walker=document.createTreeWalker(root,NodeFilter.SHOW_TEXT,{acceptNode:n=>n.parentElement&&n.parentElement.closest('[data-brand]')?NodeFilter.FILTER_REJECT:NodeFilter.FILTER_ACCEPT},false);
+const walker=document.createTreeWalker(root,NodeFilter.SHOW_TEXT,{acceptNode:n=>n.parentElement&&n.parentElement.closest('[data-brand],[data-l10n-skip]')?NodeFilter.FILTER_REJECT:NodeFilter.FILTER_ACCEPT},false);
 const nodes=[];let node;
 while(node=walker.nextNode())nodes.push(node);
 nodes.forEach(n=>{
@@ -3355,7 +3356,7 @@ if(el.children.length===0){const txt=el.textContent.trim();if(txt&&allMap[txt])e
 function applyRU(root){
 if(!root||S.lang==='en'||S.lang==='ge')return;
 const {entries,map}=_getReverseData();
-const walker=document.createTreeWalker(root,NodeFilter.SHOW_TEXT,{acceptNode:n=>n.parentElement&&n.parentElement.closest('[data-brand]')?NodeFilter.FILTER_REJECT:NodeFilter.FILTER_ACCEPT},false);
+const walker=document.createTreeWalker(root,NodeFilter.SHOW_TEXT,{acceptNode:n=>n.parentElement&&n.parentElement.closest('[data-brand],[data-l10n-skip]')?NodeFilter.FILTER_REJECT:NodeFilter.FILTER_ACCEPT},false);
 const nodes=[];
 let node;
 while(node=walker.nextNode())nodes.push(node);
@@ -3394,7 +3395,7 @@ function applyEN(root){
 if(!root||S.lang!=='en')return;
 document.documentElement.lang = S.lang==='en'?'en':S.lang==='ge'?'ka':'ru';
 const entries=_getTrEntries();
-const walker=document.createTreeWalker(root,NodeFilter.SHOW_TEXT,{acceptNode:n=>n.parentElement&&n.parentElement.closest('[data-brand]')?NodeFilter.FILTER_REJECT:NodeFilter.FILTER_ACCEPT},false);
+const walker=document.createTreeWalker(root,NodeFilter.SHOW_TEXT,{acceptNode:n=>n.parentElement&&n.parentElement.closest('[data-brand],[data-l10n-skip]')?NodeFilter.FILTER_REJECT:NodeFilter.FILTER_ACCEPT},false);
 const nodes=[];
 let node;
 while(node=walker.nextNode())nodes.push(node);
@@ -3437,7 +3438,7 @@ function applyGE(root){
 if(!root||S.lang!=='ge')return;
 document.documentElement.lang = S.lang==='en'?'en':S.lang==='ge'?'ka':'ru';
 const entries=_getTrEntriesGE();
-const walker=document.createTreeWalker(root,NodeFilter.SHOW_TEXT,{acceptNode:n=>n.parentElement&&n.parentElement.closest('[data-brand]')?NodeFilter.FILTER_REJECT:NodeFilter.FILTER_ACCEPT},false);
+const walker=document.createTreeWalker(root,NodeFilter.SHOW_TEXT,{acceptNode:n=>n.parentElement&&n.parentElement.closest('[data-brand],[data-l10n-skip]')?NodeFilter.FILTER_REJECT:NodeFilter.FILTER_ACCEPT},false);
 const nodes=[];let node;
 while(node=walker.nextNode())nodes.push(node);
 nodes.forEach(n=>{
@@ -6528,7 +6529,7 @@ var _lr=await sb.from('lessons').select('id,title,content').eq('id',_lid).eq('sc
 if(_lr.data){
 var _pc=_parseLessonContent(_lr.data.content||[]);
 S.currentClassId=classId;
-openClassroomView(_lr.data.title||'Урок',_pc.sections,null,null,_pc.materials,_lr.data.id);
+openClassroomView(_lr.data.title||'Урок',_pc.sections,null,null,_pc.materials,_lr.data.id,undefined,classId);
 lvSyncInit('ls_'+String(_lr.data.id).replace(/[^a-zA-Z0-9]/g,'').slice(0,20));
 return;
 }
@@ -8281,7 +8282,7 @@ _title=_lr.title||null;_secs=_pc.sections;_mats=_pc.materials;_lessonId=_lr.id;
 }
 }
 }catch(_e){}
-openClassroomView(_title||t('Класс'),_secs,null,cl.name||null,_mats,_lessonId);
+openClassroomView(_title||t('Класс'),_secs,null,cl.name||null,_mats,_lessonId,undefined,classId);
 LV.lessonId=_lessonId;
 if(_lessonId)lvSyncInit('ls_'+String(_lessonId).replace(/[^a-zA-Z0-9]/g,'').slice(0,20));
 }finally{enterClassLesson._busy=false;}
@@ -8462,7 +8463,7 @@ return;
 }
 const className=S._currentClassData?.name||'Класс';
 const{sections:_s,materials:_m}=_parseLessonContent(l.content);
-openClassroomView(l.title,_s,null,className,_m,l.id);
+openClassroomView(l.title,_s,null,className,_m,l.id,undefined,S.currentClassId);
 LV.lessonId=l.id;
 startLiveLesson(l.id,l.title);
 }
@@ -8542,7 +8543,7 @@ if(cl)S._currentClassData=cl;
 let l=null;
 if(row.lesson_id){const{data:_l}=await sb.from('lessons').select('id,title,content').eq('id',row.lesson_id).eq('school_id',S.schoolId).maybeSingle();l=_l;}
 const _pc=_parseLessonContent((l&&l.content)||[]);
-openClassroomView((l&&l.title)||t('Класс'),_pc.sections,null,(cl&&cl.name)||null,_pc.materials,l?l.id:null,row.cur_section||0);
+openClassroomView((l&&l.title)||t('Класс'),_pc.sections,null,(cl&&cl.name)||null,_pc.materials,l?l.id:null,row.cur_section||0,row.class_id);
 LV.lessonId=l?l.id:null;
 lvSyncInit(LV.lessonId?('ls_'+String(LV.lessonId).replace(/[^a-zA-Z0-9]/g,'').slice(0,20)):row.room_id);
 showToast('🔴 '+t('Живой урок восстановлен'));
@@ -8559,7 +8560,8 @@ if(live.lesson_id){
 const{data:l}=await sb.from('lessons').select('*').eq('id',live.lesson_id).eq('school_id',S.schoolId).maybeSingle();
 if(l){_title=l.title;const p=_parseLessonContent(l.content);_secs=p.sections;_mats=p.materials;}
 }
-openClassroomView(_title,_secs,null,null,_mats,live.lesson_id||null);
+S.currentClassId=live.class_id;
+openClassroomView(_title,_secs,null,null,_mats,live.lesson_id||null,undefined,live.class_id);
 LV.lessonId=live.lesson_id||null;
 lvSyncInit(live.lesson_id?('ls_'+String(live.lesson_id).replace(/[^a-zA-Z0-9]/g,'').slice(0,20)):live.room_id);
 if(!S.inCall)await initCall(live.room_id,live.teacher_name||t('Учитель'),true);
@@ -9831,7 +9833,8 @@ const secs=(raw&&raw.sections&&Array.isArray(raw.sections))?raw.sections
 :(Array.isArray(raw)&&raw.length>0)?[{title:'Урок',exercises:raw}]:[{title:'Урок',exercises:[]}];
 return{sections:secs,materials:Array.isArray(raw?.materials)?raw.materials:[]};
 }
-function openClassroomView(title,sections,assignId,studentName,materials,lessonId,initSection){
+function openClassroomView(title,sections,assignId,studentName,materials,lessonId,initSection,classId){
+LV.chatClassId=(lessonId&&classId)?classId:null;
 LV.sections=sections;LV.materials=Array.isArray(materials)?materials:[];LV.curSec=(typeof initSection==='number'&&initSection>=0&&initSection<(sections||[]).length)?initSection:0;LV.curEx=0;LV.assignId=assignId;LV.lessonId=lessonId||null;LV.viewAll=false;
 LV.hwId=null;LV.hwAnswers={};if(lessonId){LV._hwFromLesson=null;LV._lesBackup=null;}try{var _hsp=document.getElementById('hwSidePanel');if(_hsp)_hsp.remove();}catch(e){}if(LV._hwCh){try{sb.removeChannel(LV._hwCh);}catch(e){}LV._hwCh=null;}
 lvFilterForStudent();
@@ -9883,8 +9886,9 @@ lvRender();
 C('classroomView').classList.add('open');
 
 
-const _chatRoom=lessonId?('ls_'+String(lessonId).replace(/[^a-zA-Z0-9]/g,'').slice(0,16)+'_'+String(S.schoolId||'x').replace(/[^a-zA-Z0-9]/g,'').slice(0,8)):(assignId||('lib_'+(S.schoolId||'x')));
-cvChatInit(_chatRoom);
+
+const _chatRoom=(lessonId&&LV.chatClassId)?('lc_'+LV.chatClassId+'_'+lessonId):null;
+cvChatInit(_chatRoom,_chatRoom?{classId:LV.chatClassId,lessonId:lessonId}:null);
 
 lvSyncInit(lessonId?('ls_'+String(lessonId).replace(/[^a-zA-Z0-9]/g,'').slice(0,20)):(assignId?('as_'+assignId):(S._liveRoomId||null)));
 }
@@ -9909,13 +9913,13 @@ const c=(window._assignCache||{})[assignId];
 if(!c)return;
 const{sections:_s,materials:_m}=_parseLessonContent(c.lesson?.content||[]);
 if(S.role==='student')await _resolveClassForLesson(c.lesson?.id||null);
-openClassroomView(c.lesson?.title||'Урок',_s,assignId,null,_m,c.lesson?.id||null,c.current_section);
+openClassroomView(c.lesson?.title||'Урок',_s,assignId,null,_m,c.lesson?.id||null,c.current_section,c.class_id||(S.role==='student'?S.currentClassId:null));
 }).catch(e=>showToast(t('Ошибка загрузки: ')+(e?.message||e),'error'));
 return;
 }
 const{sections:_s,materials:_m}=_parseLessonContent(cached.lesson?.content||[]);
 if(S.role==='student')await _resolveClassForLesson(cached.lesson?.id||null);
-openClassroomView(cached.lesson?.title||'Урок',_s,assignId,null,_m,cached.lesson?.id||null,cached.current_section);
+openClassroomView(cached.lesson?.title||'Урок',_s,assignId,null,_m,cached.lesson?.id||null,cached.current_section,cached.class_id||(S.role==='student'?S.currentClassId:null));
 }
 
 function lvFilterForStudent(){
@@ -10312,14 +10316,20 @@ _closeClassroomViewUI();
 }
 
 let cvChatChannel=null;
-async function cvChatInit(roomId){
-if(!roomId||!sb)return;
+async function cvChatInit(roomId,ctx){
+if(!sb)return;
+if(!roomId){
+if(cvChatChannel){try{sb.removeChannel(cvChatChannel);}catch(e){}cvChatChannel=null;}
+cvChatInit._pending=null;LV.chatRoomId=null;LV.chatCtx=null;
+const _m=C('cv_chatMsgs');if(_m)_m.innerHTML='<div class="cv-chat-empty">'+t('Чат доступен только в уроке класса')+'</div>';
+return;
+}
 if(cvChatInit._pending===roomId)return;
 cvChatInit._pending=roomId;
 const _prevCh=cvChatChannel;
 cvChatChannel=null;
 if(_prevCh){try{sb.removeChannel(_prevCh);}catch(e){}}
-LV.chatRoomId=roomId;
+LV.chatRoomId=roomId;LV.chatCtx=ctx||null;
 const msgs=C('cv_chatMsgs');
 msgs.innerHTML='<div class="cv-chat-empty">Загрузка...</div>';
 
@@ -10375,11 +10385,13 @@ try{
 if(!S.schoolId){showToast(t('Ошибка: школа не определена'),'error');return;}
 const inp=C('cv_chatInp');
 const body=(inp?inp.value:'').trim();
-if(!body||!LV.chatRoomId)return;
+if(!body||!LV.chatRoomId||!LV.chatCtx)return;
 const name=S.profile?((S.profile.first_name||'')+(S.profile.last_name?' '+S.profile.last_name:'')).trim()||'Аноним':'Аноним';
 const{error}=await sb.from('lesson_chat').insert({
 room_id:LV.chatRoomId,
 school_id:S.schoolId,
+class_id:LV.chatCtx.classId,
+lesson_id:LV.chatCtx.lessonId,
 user_id:S.profile?S.profile.id:null,
 user_name:name,
 user_role:S.role||'student',
@@ -11273,7 +11285,7 @@ if(bb)bb.style.display=(which==='hw')?'none':'';if(bn)bn.style.display=(which===
 function cvRestoreLesson(){
 var b=LV._lesBackup;if(!b)return false;
 LV._lesBackup=null;LV._hwFromLesson=null;
-try{openClassroomView(b.title,b.sections,b.assignId,b.studentName,b.materials,b.lessonId);}catch(e){return false;}
+try{openClassroomView(b.title,b.sections,b.assignId,b.studentName,b.materials,b.lessonId,undefined,b.classId);}catch(e){return false;}
 cvMarkTab('lesson');setTimeout(function(){cvMarkTab('lesson');},240);
 return true;
 }
@@ -11313,7 +11325,7 @@ if(!hw){showToast(t('ДЗ не найдено'),'error');return;}
 var exs=hwParse(hw).exercises;
 var who=hw.student?((hw.student.first_name||'')+' '+(hw.student.last_name||'')).trim():'';
 var _prevLes=LV.lessonId||LV._hwFromLesson||null;
-if(!LV.hwId&&LV.lessonId){LV._lesBackup={title:((C('cv_lessonName')&&C('cv_lessonName').textContent)||''),sections:LV.sections,assignId:LV.assignId,studentName:(((C('cv_studentBadge')&&C('cv_studentBadge').textContent)||'').replace(/[\u{1F300}-\u{1FAFF}\u2600-\u27BF]/gu,'').trim()||null),materials:LV.materials,lessonId:LV.lessonId};}
+if(!LV.hwId&&LV.lessonId){LV._lesBackup={classId:LV.chatClassId,title:((C('cv_lessonName')&&C('cv_lessonName').textContent)||''),sections:LV.sections,assignId:LV.assignId,studentName:(((C('cv_studentBadge')&&C('cv_studentBadge').textContent)||'').replace(/[\u{1F300}-\u{1FAFF}\u2600-\u27BF]/gu,'').trim()||null),materials:LV.materials,lessonId:LV.lessonId};}
 openClassroomView('📋 '+(hw.title||'ДЗ'),[{title:t('Домашняя работа'),exercises:exs}],null,
 (['teacher','admin','owner'].includes(S.role)&&who)?who:null,[],null);
 LV.hwId=hwId;LV.hwStudentId=hw.student_id||null;LV._hwFromLesson=_prevLes;setTimeout(hwSidePanel,220);cvMarkTab('hw');setTimeout(function(){cvMarkTab('hw');},260);
