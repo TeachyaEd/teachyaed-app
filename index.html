@@ -3429,6 +3429,7 @@ Object.assign(CRM_TR,{
 "Абонемент заканчивается через {n} дн":["Your subscription ends in {n} d","აბონემენტი მთავრდება {n} დღეში"],"Срок абонемента закончился {n} дн. назад":["Your subscription ended {n} d ago","აბონემენტის ვადა ამოიწურა {n} დღის წინ"],
 "Действует до {d} · осталось {n} дн":["Valid until {d} · {n} d left","მოქმედებს {d}-მდე · დარჩა {n} დღე"],
 "с {d}":["since {d}","{d}-დან"],"Логин":["Login","მომხმარებელი"],"Пароль":["Password","პაროლი"],"Вход":["Sign in","შესვლა"],
+"Не удалось начать групповой звонок — попробуйте ещё раз":["Could not start the group call — please try again","ჯგუფური ზარის დაწყება ვერ მოხერხდა — სცადეთ თავიდან"],
 "Не удалось завершить живой урок. Проверьте интернет и попробуйте ещё раз.":["Could not end the live lesson. Check your connection and try again.","ცოცხალი გაკვეთილის დასრულება ვერ მოხერხდა. შეამოწმეთ ინტერნეტი და სცადეთ თავიდან."],
 "Не удалось проверить живой урок — обновите страницу":["Could not verify the live lesson — reload the page","ცოცხალი გაკვეთილის შემოწმება ვერ მოხერხდა — განაახლეთ გვერდი"],
 "Живой урок восстановлен":["Live lesson restored","ცოცხალი გაკვეთილი აღდგენილია"],
@@ -4497,6 +4498,16 @@ async function cvCallStudent(){
   const _ac=(window._assignCache||{})[S.currentAssignId];
   let partnerId=S._cvStudentId||_ac?.student_id||null; // students.id (CRM)
   let partnerName=t('Ученик');
+  // Групповой класс без живого урока: сначала запускаем живой урок (комната класса), затем зовём всех
+  if(!partnerId&&S.currentClassId&&!S._liveRoomId&&['teacher','admin','owner'].includes(S.role)){
+    if(S.inCall){showToast(t('Уже идёт звонок'));return;}
+    const{count:_stuN,error:_cntErr}=await sb.from('class_students').select('student_id',{count:'exact',head:true}).eq('class_id',S.currentClassId).eq('school_id',S.schoolId);
+    if(_cntErr){showToast(t('Не удалось начать групповой звонок — попробуйте ещё раз'),'error');return;}
+    if((_stuN||0)>1){
+      await startLiveLesson(LV.lessonId||null,null);
+      if(!S._liveRoomId){showToast(t('Не удалось начать групповой звонок — попробуйте ещё раз'),'error');return;}
+    }
+  }
   // 🔴 Живой урок: зовём ВСЕХ учеников класса в общую комнату
   if(!partnerId&&S.currentClassId&&S._liveRoomId){
     if(S.inCall){showToast(t('Уже идёт звонок'));return;}
@@ -5515,6 +5526,15 @@ function _ensurePgNotifyChannel(){
           if(S._viewingClassId===lv.class_id){openStudentClass._loading=false;openStudentClass(lv.class_id);}
         }catch(_e){}
       })
+    .on('postgres_changes',{event:'INSERT',schema:'public',table:'call_signals',filter:'to_profile_id=eq.'+S.profile.id},
+      ({new:sig})=>{
+        if(gen!==S._pgGen)return;
+        try{
+          if(!sig||!String(sig.room_id||'').startsWith('ty-cls-'))return;
+          if(Date.now()-new Date(sig.created_at).getTime()>30000)return;
+          handleIncomingCall({from_name:sig.from_name,from_role:sig.from_role,room_id:sig.room_id});
+        }catch(_e){}
+      })
     .on('postgres_changes',{event:'INSERT',schema:'public',table:'class_feed'},
       ({new:cf})=>{
         if(gen!==S._pgGen)return;
@@ -5827,6 +5847,13 @@ async function callContact(partnerId,partnerName,partnerRole){
 async function acceptCall(){
   stopRingTone();clearTimeout(S._ringTimeout);S._ringTimeout=null;
   C('incomingCall').classList.remove('show');
+  if(S.pendingRoom&&!S.pendingCallAttemptId&&String(S.pendingRoom).startsWith('ty-cls-')){
+    const _gRoom=S.pendingRoom,_gPartner=S.pendingPartner||t('Класс');
+    S.pendingRoom=null;S.pendingPartner=null;S.pendingCallerId=null;S.pendingCallAttemptId=null;
+    S._callRoomId=_gRoom;S._callAttemptId=null;
+    await initCall(_gRoom,_gPartner,true);
+    return;
+  }
   if(!S.pendingRoom||!S.pendingCallAttemptId){showToast(t('Ошибка: данные звонка потеряны'),'error');return;}
   const attemptId=S.pendingCallAttemptId;
   const room=S.pendingRoom,partner=S.pendingPartner||'Собеседник';
@@ -5941,7 +5968,7 @@ async function hangUp(opts){
       console.error('[hangUp] end_call RPC threw for attempt',_attemptId,e);
     }
   }
-  if(_channel && notifyRemote){
+  if(_channel && notifyRemote && !(S.role==='student' && String(_channel.topic||'').indexOf('ty-cls-')>=0)){
     try{
       const status=await _channel.send({type:'broadcast',event:'hangup',payload:{}});
       if(status!=='ok'){
