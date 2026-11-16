@@ -11235,12 +11235,15 @@ setTimeout(function(){if(LV._syncGen===_syncGen&&LV._syncRoomKey===roomKey)lvSyn
 
 if(LV._liveCh){try{sb.removeChannel(LV._liveCh);}catch(e){}LV._liveCh=null;}
 if(LV.lessonId){
+LV._dbSec=null; 
 LV._liveCh=sb.channel('cls-'+roomKey)
 .on('postgres_changes',{event:'UPDATE',schema:'public',table:'class_live',filter:`lesson_id=eq.${LV.lessonId}`},function(p){
 try{
 var row=p.new;
 if(!row||row.school_id!==S.schoolId||!row.active)return;
 if(S.role==='student'&&typeof row.cur_section==='number'){
+var _prev=LV._dbSec;LV._dbSec=row.cur_section;
+if(_prev!==null&&_prev!==undefined&&_prev===row.cur_section)return; 
 var _ns=Math.max(0,Math.min(row.cur_section,((LV.sections||[]).length-1)));
 if(_ns!==LV.curSec){LV.curSec=_ns;LV.curEx=0;window._matchState={};lvRender();showToast('👥 '+t('Учитель переключил раздел'));}
 }
