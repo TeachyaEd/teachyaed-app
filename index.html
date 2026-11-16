@@ -3202,6 +3202,7 @@ Object.assign(CRM_TR,{
 "Не удалось завершить живой урок. Проверьте интернет и попробуйте ещё раз.":["Could not end the live lesson. Check your connection and try again.","ცოცხალი გაკვეთილის დასრულება ვერ მოხერხდა. შეამოწმეთ ინტერნეტი და სცადეთ თავიდან."],
 "Не удалось проверить живой урок — обновите страницу":["Could not verify the live lesson — reload the page","ცოცხალი გაკვეთილის შემოწმება ვერ მოხერხდა — განაახლეთ გვერდი"],
 "Живой урок восстановлен":["Live lesson restored","ცოცხალი გაკვეთილი აღდგენილია"],
+"Живой урок был завершён из-за долгого отсутствия связи. Запустите его снова.":["The live lesson was ended after a long loss of connection. Please start it again.","ცოცხალი გაკვეთილი დასრულდა კავშირის ხანგრძლივი გაწყვეტის გამო. გთხოვთ, ხელახლა დაიწყოთ."],
 "Живой урок идёт, но комнату не удалось открыть — войдите в класс":["The live lesson is running, but the room could not be opened — enter the class","ცოცხალი გაკვეთილი მიმდინარეობს, მაგრამ ოთახი ვერ გაიხსნა — შედით კლასში"],
 "Выход отменён: живой урок ещё не завершён. Завершите урок и попробуйте снова.":["Sign-out cancelled: the live lesson has not ended yet. End the lesson and try again.","გასვლა გაუქმდა: ცოცხალი გაკვეთილი ჯერ არ დასრულებულა. დაასრულეთ გაკვეთილი და სცადეთ თავიდან."],"Вышла новая версия Classvana — обнови страницу":["A new version of Classvana is available — refresh the page","გამოვიდა Classvana-ს ახალი ვერსია — განაახლეთ გვერდი"],"Не удалось получить URL файла":["Could not get the file URL","ფაილის URL-ის მიღება ვერ მოხერხდა"],"Каждое слово с новой строки: слово — перевод. Подойдёт копия из Excel/Google Таблиц (две колонки) или файл .txt / .csv.":["One word per line: word — translation. You can paste two columns from Excel/Google Sheets or use a .txt / .csv file.","თითო სიტყვა ახალ ხაზზე: სიტყვა — თარგმანი. შეგიძლიათ ჩასვათ ორი სვეტი Excel/Google Sheets-დან ან გამოიყენოთ .txt / .csv ფაილი."],"Причина отмены":["Cancellation reason","გაუქმების მიზეზი"],"Не пройдено: {n}":["Not completed: {n}","დასასრულებელია: {n}"],
 "Готово! Мы отправили письмо на {email}. Подтвердите почту и войдите.":["Done! We sent an email to {email}. Confirm your email and sign in.","მზადაა! წერილი გავუგზავნეთ {email}-ზე. დაადასტურეთ ელფოსტა და შედით."],
@@ -4500,7 +4501,7 @@ if(_saved&&(NAV[S.role]||[]).some(n=>n.id===_saved))_startId=_saved;
 }catch(_e){}
 const firstItem=(NAV[S.role]||[]).find(n=>n.id);
 showScreen(S.role==='student'?'s_home':(_startId||(firstItem&&firstItem.id)));
-restoreLiveSession();
+_liveSweep().then(restoreLiveSession);
 
 setTimeout(()=>{
 if(S.lang==='en')applyEN(document.body);
@@ -6467,6 +6468,7 @@ return;
 
 const classIds=classes.map(c=>c.id);
 const today=new Date().toISOString().slice(0,10);
+await _liveSweep();
 const[{data:events},{data:_liveAll}]=await Promise.all([
 sb.from('schedule_events').select('*').in('class_id',classIds).eq('school_id',S.schoolId).gte('event_date',today).order('event_date').order('event_time').limit(20),
 sb.from('class_live').select('id,class_id,started_at,teacher_name').in('class_id',classIds).eq('school_id',S.schoolId).eq('active',true)
@@ -8496,6 +8498,7 @@ const _tname=((S.profile?.first_name||'')+' '+(S.profile?.last_name||'')).trim()
 const{data:live,error}=await sb.from('class_live').insert({school_id:S.schoolId,class_id:classId,lesson_id:lessonId||null,teacher_id:S.profile?.id||null,teacher_name:_tname,room_id:room,active:true}).select().single();
 if(error){console.warn('[live] insert:',error);return;}
 S._liveId=live?.id||null;S._liveRoomId=room;
+if(S._liveId)_liveHbStart();
 if(S._liveId)_liveSave({liveId:S._liveId,classId:classId,userId:S.profile?.id||null,schoolId:S.schoolId,roomId:room,lessonId:lessonId||null,startedAt:live.started_at||null});
 lvSyncInit(lessonId?('ls_'+String(lessonId).replace(/[^a-zA-Z0-9]/g,'').slice(0,20)):room);
 try{await sb.from('class_feed').insert({school_id:S.schoolId,class_id:classId,author_id:S.profile?.id||null,author_name:_tname,type:'system',text:'🔴 '+t('Урок начался')+(lessonTitle?': «'+lessonTitle+'»':'')});}catch(_e){}
@@ -8504,6 +8507,20 @@ showToast('🔴 '+t('Живой урок запущен — ученики ви�
 }
 
 const CV_LIVE_KEY='classvana.live.v1';
+
+function _liveHbStop(){if(S._liveHb){clearInterval(S._liveHb);S._liveHb=null;}}
+async function _liveHbBeat(){
+const id=S._liveId;if(!id)return _liveHbStop();
+let r;try{r=await sb.from('class_live').update({last_seen_at:new Date().toISOString()}).eq('id',id).eq('school_id',S.schoolId).eq('active',true).select('id');}catch(e){return;}
+if(r.error)return; 
+if((r.data||[]).length===0&&S._liveId===id){
+_liveHbStop();S._liveId=null;S._liveRoomId=null;_liveForget(id);
+showToast(t('Живой урок был завершён из-за долгого отсутствия связи. Запустите его снова.'),'error');
+}
+}
+function _liveHbStart(){_liveHbStop();_liveHbBeat();S._liveHb=setInterval(_liveHbBeat,60000);}
+document.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible'&&S._liveId)_liveHbBeat();});
+function _liveSweep(){try{return sb.rpc('class_live_sweep').then(function(r){if(r&&r.error)console.warn('[live sweep]',r.error);},function(){});}catch(e){return Promise.resolve();}}
 function _liveSave(o){try{sessionStorage.setItem(CV_LIVE_KEY,JSON.stringify(o));}catch(e){console.warn('[live] persist:',e);}}
 function _liveLoad(){try{return JSON.parse(sessionStorage.getItem(CV_LIVE_KEY)||'null');}catch(e){return null;}}
 function _liveForget(id){try{const o=_liveLoad();if(!o||!id||o.liveId===id)sessionStorage.removeItem(CV_LIVE_KEY);}catch(e){}}
@@ -8531,7 +8548,7 @@ console.error('[live] finish failed',{reason:reason,liveId:id,error:res.error});
 showToast('❌ '+t('Не удалось завершить живой урок. Проверьте интернет и попробуйте ещё раз.'),'error');
 return{ok:false,error:res.error};
 }
-if(S._liveId===id){S._liveId=null;S._liveRoomId=null;}
+if(S._liveId===id){S._liveId=null;S._liveRoomId=null;_liveHbStop();}
 _liveForget(id);
 return{ok:true};
 })();
@@ -8552,7 +8569,7 @@ showToast(t('Не удалось проверить живой урок — об
 return;
 }
 if(!row||row.active!==true||row.class_id!==o.classId||row.teacher_id!==S.profile.id||row.school_id!==S.schoolId){_liveForget(o.liveId);return;}
-S._liveId=row.id;S._liveRoomId=row.room_id;S.currentClassId=row.class_id;
+S._liveId=row.id;S._liveRoomId=row.room_id;S.currentClassId=row.class_id;_liveHbStart();
 try{
 const{data:cl}=await sb.from('classes').select('*').eq('id',row.class_id).eq('school_id',S.schoolId).maybeSingle();
 if(cl)S._currentClassData=cl;
