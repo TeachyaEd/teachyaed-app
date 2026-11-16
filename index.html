@@ -2194,6 +2194,7 @@ const TRANSLATIONS={
 'Для звонка с учителем':'To call a teacher',
 'Позвони ученику через Диалер':'Call the student via Dialer',
 'Собеседник завершил звонок':'The other person ended the call',
+'Учитель завершил звонок':'The teacher ended the call',
 'Звонок отклонён':'Call declined',
 'Уже идёт звонок':'Call already in progress',
 'Сбросить':'Reset',
@@ -2758,6 +2759,7 @@ const TRANSLATIONS_GE={
 'Для звонка с учителем':'მასწავლებელთან ზარისთვის',
 'Позвони ученику через Диалер':'დაურეკე მოსწავლეს Dialer-ით',
 'Собеседник завершил звонок':'თანამოსაუბრემ ზარი დაასრულა',
+'Учитель завершил звонок':'მასწავლებელმა ზარი დაასრულა',
 'Звонок отклонён':'ზარი უარყოფილია','Уже идёт звонок':'ზარი მიმდინარეობს',
 'Сбросить':'გადატვირთვა','Ластик':'საშლელი','Ред.':'რედ.',
 'Заметка учителя':'მასწავლებლის შენიშვნა',
@@ -4220,11 +4222,12 @@ if(S.inCall){showToast(t('Уже идёт звонок'));return;}
 const{data:_lcs}=await sb.from('class_students').select('student_id,student:student_id(email,first_name,last_name)').eq('class_id',S.currentClassId).eq('school_id',S.schoolId);
 if(!_lcs||!_lcs.length){showToast(t('В классе нет учеников'),'error');return;}
 const _rp={from_name:((S.profile?.first_name||'')+' '+(S.profile?.last_name||'')).trim(),from_role:S.role,room_id:S._liveRoomId,from_id:S.profile?.id};
-let _rang=0;
+let _rang=0;S._groupCall={room:S._liveRoomId,ids:[]};
 for(const c of _lcs){
 const _em=c.student?.email;if(!_em)continue;
 const{data:_pf}=await sb.from('profiles').select('id').ilike('email',_em).eq('school_id',S.schoolId).maybeSingle();
 if(_pf?.id){
+S._groupCall.ids.push(_pf.id);
 sb.from('call_signals').insert({to_profile_id:_pf.id,from_name:_rp.from_name,from_role:_rp.from_role,room_id:_rp.room_id}).then(({error:_se})=>{if(_se)console.warn('[live ring]',_se);});
 const _nch=sb.channel('notify-'+_pf.id,{config:{private:true}});
 _nch.subscribe(st=>{if(st==='SUBSCRIBED'){_nch.send({type:'broadcast',event:'ring',payload:_rp});setTimeout(()=>sb.removeChannel(_nch),5000);}});
@@ -5139,6 +5142,17 @@ Notification.requestPermission();
 }catch(e){console.warn('Ring audio error:',e);}
 }
 function stopRingTone(){if(_ringInterval){clearInterval(_ringInterval);_ringInterval=null;}}
+
+function _groupCallEnded(room){
+if(!room||!String(room).startsWith('ty-cls-')||S.role!=='student')return;
+const _top=S.callChannel?String(S.callChannel.topic||''):'';
+if(S.inCall&&_top.endsWith(room)){showToast(t('Учитель завершил звонок'));hangUp({notifyRemote:false});return;}
+if(S.pendingRoom===room&&!S.pendingCallAttemptId){
+stopRingTone();clearTimeout(S._ringTimeout);S._ringTimeout=null;C('incomingCall').classList.remove('show');
+S.pendingRoom=null;S.pendingPartner=null;S.pendingCallerId=null;
+showToast(t('Учитель завершил звонок'));
+}
+}
 function handleIncomingCall(payload){
 if(S.pendingCallAttemptId&&payload.attempt_id&&S.pendingCallAttemptId===payload.attempt_id)return; 
 if(S.inCall||S.pendingRoom)return; 
@@ -5196,10 +5210,16 @@ if(S._viewingClassId===lv.class_id){openStudentClass._loading=false;openStudentC
 ({new:sig})=>{
 if(gen!==S._pgGen)return;
 try{
+if(sig&&String(sig.room_id||'').startsWith('ty-end-')){_groupCallEnded(String(sig.room_id).slice(4));return;}
 if(!sig||!String(sig.room_id||'').startsWith('ty-cls-'))return;
 if(Date.now()-new Date(sig.created_at).getTime()>30000)return;
 handleIncomingCall({from_name:sig.from_name,from_role:sig.from_role,room_id:sig.room_id});
 }catch(_e){}
+})
+.on('postgres_changes',{event:'UPDATE',schema:'public',table:'class_live'},
+({new:lv})=>{
+if(gen!==S._pgGen)return;
+try{if(lv&&lv.active===false&&S.role==='student'&&lv.school_id===S.schoolId)_groupCallEnded(lv.room_id);}catch(_e){}
 })
 .on('postgres_changes',{event:'INSERT',schema:'public',table:'class_feed'},
 ({new:cf})=>{
@@ -5253,7 +5273,7 @@ return;
 
 
 
-const{data:sigs}=await sb.from('call_signals').select('*').eq('to_profile_id',S.profile.id).order('created_at',{ascending:false}).limit(1);
+const{data:sigs}=await sb.from('call_signals').select('*').eq('to_profile_id',S.profile.id).not('room_id','like','ty-end-%').order('created_at',{ascending:false}).limit(1);
 if(gen!==S._bcGen)return;
 if(sigs?.length){
 const sig=sigs[0];
@@ -5615,6 +5635,13 @@ S.pendingCallerId=null;
 S.pendingCallAttemptId=null;
 S._callRoomId=null;
 S._callAttemptId=null;
+const _gc=S._groupCall;S._groupCall=null;
+if(_gc&&notifyRemote&&_gc.ids.length&&['teacher','admin','owner'].includes(S.role)){
+try{
+const{error:_ge}=await sb.from('call_signals').insert(_gc.ids.map(function(id){return{to_profile_id:id,from_name:'',room_id:'ty-end-'+_gc.room};}));
+if(_ge)console.warn('[hangUp] group end signal',_ge);
+}catch(e){console.warn('[hangUp] group end signal',e);}
+}
 if(_attemptId){
 try{
 const {error}=await sb.rpc('end_call',{p_attempt_id:_attemptId});
@@ -8531,6 +8558,7 @@ if(!id)return{ok:true,none:true};
 if(finishLiveSession._p&&finishLiveSession._id===id)return finishLiveSession._p;
 finishLiveSession._id=id;
 finishLiveSession._p=(async()=>{
+if(S.inCall&&S._groupCall&&S._groupCall.room===S._liveRoomId){try{await hangUp();}catch(e){console.warn('[live] hangUp',e);}}
 let res;
 try{res=await sb.from('class_live').update({active:false,ended_at:new Date().toISOString()}).eq('id',id).eq('school_id',S.schoolId).eq('active',true).select('id');}
 catch(e){res={error:e};}
