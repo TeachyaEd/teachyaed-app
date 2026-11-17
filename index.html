@@ -2194,6 +2194,7 @@ const TRANSLATIONS={
 'Для звонка с учителем':'To call a teacher',
 'Позвони ученику через Диалер':'Call the student via Dialer',
 'Собеседник завершил звонок':'The other person ended the call',
+'Открываем урок…':'Opening the lesson…',
 'Учитель завершил звонок':'The teacher ended the call',
 'Звонок отклонён':'Call declined',
 'Уже идёт звонок':'Call already in progress',
@@ -2759,6 +2760,7 @@ const TRANSLATIONS_GE={
 'Для звонка с учителем':'მასწავლებელთან ზარისთვის',
 'Позвони ученику через Диалер':'დაურეკე მოსწავლეს Dialer-ით',
 'Собеседник завершил звонок':'თანამოსაუბრემ ზარი დაასრულა',
+'Открываем урок…':'გაკვეთილი იხსნება…',
 'Учитель завершил звонок':'მასწავლებელმა ზარი დაასრულა',
 'Звонок отклонён':'ზარი უარყოფილია','Уже идёт звонок':'ზარი მიმდინარეობს',
 'Сбросить':'გადატვირთვა','Ластик':'საშლელი','Ред.':'რედ.',
@@ -6543,7 +6545,8 @@ setContent(`<div class="section-header"><h2>🎓 Мой класс</h2></div>${c
 }
 
 async function enterStudentClassLesson(classId){
-if(enterStudentClassLesson._busy)return;enterStudentClassLesson._busy=true;
+if(enterStudentClassLesson._busy){showToast('⏳ '+t('Открываем урок…'));return;}enterStudentClassLesson._busy=true;
+showToast('⏳ '+t('Открываем урок…'));document.body.style.cursor='progress';
 try{
 
 const{data:liveRows}=await sb.from('class_live').select('*').eq('class_id',classId).eq('school_id',S.schoolId).eq('active',true).order('started_at',{ascending:false}).limit(1);
@@ -6555,10 +6558,13 @@ const{data:_sr}=await sb.from('students').select('id').ilike('email',S.profile.e
 S.studentRowId=_sr?.[0]?.id||null;
 }
 if(!S.studentRowId){S.currentClassId=classId;openClassroomView(t('Класс'),[],null,null,[],null);return;}
-const[{data:prog},{data:assigns}]=await Promise.all([
+const _asel='*,lesson:lesson_id(id,title,language,level,content)';
+const[{data:prog},{data:_aCls}]=await Promise.all([
 sb.from('class_lessons').select('lesson_id,position').eq('class_id',classId).eq('school_id',S.schoolId).order('position'),
-sb.from('lesson_assignments').select('*,lesson:lesson_id(id,title,language,level,content)').eq('student_id',S.studentRowId).eq('school_id',S.schoolId).order('assigned_at',{ascending:false})
+sb.from('lesson_assignments').select(_asel).eq('student_id',S.studentRowId).eq('school_id',S.schoolId).eq('class_id',classId).order('assigned_at',{ascending:false}).limit(1)
 ]);
+let assigns=_aCls||[];
+if(!assigns.length){const{data:_aOpen}=await sb.from('lesson_assignments').select(_asel).eq('student_id',S.studentRowId).eq('school_id',S.schoolId).not('completed','is',true).order('assigned_at',{ascending:false}).limit(1);assigns=_aOpen||[];}
 window._assignCache=window._assignCache||{};
 (assigns||[]).forEach(a=>{window._assignCache[a.id]=a;});
 
@@ -6584,7 +6590,7 @@ S.currentClassId=classId;
 openClassroomView(t('Класс'),[],null,null,[],null);
 showToast(t('Уроки пока не назначены. Попроси учителя!'));
 }catch(e){console.warn('[enterStudentClassLesson]',e);openStudentClass(classId);}
-finally{enterStudentClassLesson._busy=false;}
+finally{enterStudentClassLesson._busy=false;document.body.style.cursor='';}
 }
 
 async function postClassFeedStudent(classId){
@@ -8612,7 +8618,8 @@ showToast('🔴 '+t('Живой урок восстановлен'));
 }
 
 async function joinLiveLesson(liveId){
-if(joinLiveLesson._busy)return;joinLiveLesson._busy=true;
+if(joinLiveLesson._busy){showToast('⏳ '+t('Открываем урок…'));return;}joinLiveLesson._busy=true;
+showToast('⏳ '+t('Открываем урок…'));
 try{
 const{data:live}=await sb.from('class_live').select('*').eq('id',liveId).eq('school_id',S.schoolId).maybeSingle();
 if(!live||!live.active){showToast(t('Урок уже завершён'));return;}
